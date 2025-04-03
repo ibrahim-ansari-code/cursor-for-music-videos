@@ -6,5 +6,11 @@ export default defineConfig({
   server: {
     port: 5173,
     open: true,
+    
+    // ⚠️ This part is critical
+    middlewareMode: false,
+    watch: {
+      usePolling: true,
+    },
   },
 });
