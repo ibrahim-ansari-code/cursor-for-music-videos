@@ -1,0 +1,23 @@
+[project]
+name = "repl-nix-workspace"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "asyncpg>=0.30.0",
+    "email-validator>=2.2.0",
+    "fastapi>=0.115.12",
+    "flask>=3.1.0",
+    "flask-sqlalchemy>=3.1.1",
+    "gunicorn>=23.0.0",
+    "passlib>=1.7.4",
+    "psycopg2-binary>=2.9.10",
+    "pydantic-settings>=2.8.1",
+    "pydantic>=2.11.1",
+    "python-jose>=3.4.0",
+    "python-multipart>=0.0.20",
+    "sqlalchemy>=2.0.40",
+    "sqlmodel>=0.0.24",
+    "uvicorn>=0.34.0",
+    "psycopg[binary,pool]>=3.2.6",
+]
