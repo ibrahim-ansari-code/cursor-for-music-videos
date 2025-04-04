@@ -1,5 +1,6 @@
 import os
 import logging
+from typing import Optional
 from flask import Flask, jsonify, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
@@ -70,10 +71,10 @@ with app.app_context():
         logger.error(f"Error creating database tables: {str(e)}")
 
 # Register blueprints for API routes
-from routes.auth import auth_bp
-from routes.properties import properties_bp
-from routes.leases import leases_bp
-from routes.accounting import accounting_bp
+from backend.routes.auth import auth_bp
+from backend.routes.properties import properties_bp
+from backend.routes.leases import leases_bp
+from backend.routes.accounting import accounting_bp
 
 # Register blueprints with URL prefixes
 app.register_blueprint(auth_bp, url_prefix='/api/auth')

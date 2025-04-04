@@ -53,7 +53,7 @@ Runs at `http://localhost:5173`
 ```bash
 cd Backend
 python -m venv venv
-.env\Scriptsctivate       # Windows
+.env\Scripts\activate       # Windows
 # source venv/bin/activate    # macOS/Linux
 
 pip install poetry
@@ -66,3 +66,17 @@ Runs at `http://localhost:8000`
 FastAPI docs available at `http://localhost:8000/docs`
 
 ---
+
+## 📝 Usage
+
+The `get_session()` function can be used as a FastAPI dependency in your route handlers like this:
+
+```python
+from fastapi import Depends
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+@app.get("/items")
+async def get_items(session: AsyncSession = Depends(get_session)):
+    # Use the session here
+    pass
+```

@@ -63,6 +63,8 @@ class UserResponse(BaseModel):
     profile_image_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    is_active: bool
+    is_admin: bool
 
 # Helper functions
 def verify_password(plain_password, hashed_password):

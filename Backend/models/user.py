@@ -10,25 +10,16 @@ class UserType(str, Enum):
     VENDOR = "vendor"
 
 class User(SQLModel, table=True):
-    """User model for all types of users in the system"""
+    """User model for authentication and authorization"""
     
     __tablename__ = "users"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(unique=True, index=True)
-    password_hash: str
-    first_name: str
-    last_name: str
-    user_type: UserType
-    phone: Optional[str] = None
-    address: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    zip_code: Optional[str] = None
-    profile_image_url: Optional[str] = None
+    hashed_password: str
     is_active: bool = Field(default=True)
+    is_admin: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships based on user type
     # A user can be associated with multiple properties (if landlord)
