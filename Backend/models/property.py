@@ -1,6 +1,25 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from sqlmodel import SQLModel, Field, Relationship
+
+from Backend.models.user import User
+from Backend.models.accounting import Expense
+
+if TYPE_CHECKING:
+    from Backend.models.lease import Lease
+    from Backend.models.vendor import Vendor
+
+class PropertyVendorLink(SQLModel, table=True):
+    """Link table for properties and vendors (many-to-many)"""
+    
+    __tablename__ = "property_vendor_links"
+    
+    property_id: int = Field(foreign_key="properties.id", primary_key=True)
+    vendor_id: int = Field(foreign_key="vendors.id", primary_key=True)
+    
+    # Additional metadata about the relationship can be added here
+    start_date: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    is_active: bool = Field(default=True)
 
 class Property(SQLModel, table=True):
     """Property model representing a real estate property"""
@@ -25,15 +44,15 @@ class Property(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships
-    owner: Optional["User"] = Relationship(back_populates="properties")
+    owner: Optional[User] = Relationship(back_populates="properties")
     units: List["PropertyUnit"] = Relationship(back_populates="property", sa_relationship_kwargs={"lazy": "selectin"})
     leases: List["Lease"] = Relationship(back_populates="property", sa_relationship_kwargs={"lazy": "selectin"})
     vendors: List["Vendor"] = Relationship(
         back_populates="properties", 
-        link_model="PropertyVendorLink", 
+        link_model=PropertyVendorLink, 
         sa_relationship_kwargs={"lazy": "selectin"}
     )
-    expenses: List["Expense"] = Relationship(back_populates="property", sa_relationship_kwargs={"lazy": "selectin"})
+    expenses: List[Expense] = Relationship(back_populates="property", sa_relationship_kwargs={"lazy": "selectin"})
 
 class PropertyUnit(SQLModel, table=True):
     """Unit model representing individual units within a property"""
@@ -59,15 +78,3 @@ class PropertyUnit(SQLModel, table=True):
     property: "Property" = Relationship(back_populates="units")
     leases: List["Lease"] = Relationship(back_populates="unit", sa_relationship_kwargs={"lazy": "selectin"})
 
-# Association table for many-to-many relationship between properties and vendors
-class PropertyVendorLink(SQLModel, table=True):
-    """Link table for properties and vendors (many-to-many)"""
-    
-    __tablename__ = "property_vendor_links"
-    
-    property_id: int = Field(foreign_key="properties.id", primary_key=True)
-    vendor_id: int = Field(foreign_key="vendors.id", primary_key=True)
-    
-    # Additional metadata about the relationship can be added here
-    start_date: Optional[datetime] = Field(default_factory=datetime.utcnow)
-    is_active: bool = Field(default=True)

@@ -7,10 +7,10 @@ from sqlalchemy.future import select
 from sqlalchemy import and_, or_
 from pydantic import BaseModel
 
-from backend.database import get_session
-from backend.models.lease import Lease, LeaseStatus, LeaseDocument
-from backend.models.user import User
-from backend.api.auth import get_current_user
+from Backend.database import get_session
+from Backend.models.lease import Lease, LeaseStatus, LeaseDocument
+from Backend.models.user import User
+from Backend.api.auth import get_current_user
 
 # Configure logging
 logger = logging.getLogger(__name__)
