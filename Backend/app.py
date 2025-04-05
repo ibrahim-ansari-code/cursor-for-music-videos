@@ -71,16 +71,22 @@ with app.app_context():
         logger.error(f"Error creating database tables: {str(e)}")
 
 # Register blueprints for API routes
-from backend.routes.auth import auth_bp
-from backend.routes.properties import properties_bp
-from backend.routes.leases import leases_bp
-from backend.routes.accounting import accounting_bp
+from Backend.api.auth import router as auth_bp
+from Backend.api.vendors import router as vendors_bp
+from Backend.api.leases import router as leases_bp
+from Backend.api.accounting import router as accounting_bp
+from Backend.api.dashboard import router as dashboard_bp
+from Backend.api.communication import router as communication_bp
+from Backend.api.ai import router as ai_bp
 
 # Register blueprints with URL prefixes
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
-app.register_blueprint(properties_bp, url_prefix='/api/properties')
+app.register_blueprint(vendors_bp, url_prefix='/api/vendors')
 app.register_blueprint(leases_bp, url_prefix='/api/leases')
 app.register_blueprint(accounting_bp, url_prefix='/api/accounting')
+app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+app.register_blueprint(communication_bp, url_prefix='/api/messages')
+app.register_blueprint(ai_bp, url_prefix='/api/ai')
 
 # Error handlers
 @app.errorhandler(400)

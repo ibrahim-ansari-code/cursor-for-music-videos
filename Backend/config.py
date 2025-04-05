@@ -21,11 +21,13 @@ class Settings(BaseSettings):
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-for-jwt")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 day
-    
+    DEBUG: bool = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
+
     # AI Integration (placeholder for future integration)
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     
     class Config:
         env_file = ".env"
+        extra = "allow"
         
 settings = Settings()

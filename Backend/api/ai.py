@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
-from backend.database import get_session
-from backend.models.user import User, UserType
-from backend.api.auth import get_current_user
+from Backend.database import get_session
+from Backend.models.user import User, UserType
+from Backend.api.auth import get_current_user
 
 # Configure logging
 logger = logging.getLogger(__name__)

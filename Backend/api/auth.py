@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from pydantic import BaseModel, EmailStr
 
-from backend.config import settings
-from backend.database import get_session
-from backend.models.user import User, UserType
+from Backend.config import settings
+from Backend.database import get_session
+from Backend.models.user import User, UserType
 
 # Configure logging
 logger = logging.getLogger(__name__)

@@ -6,12 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, func, and_, or_, desc
 from pydantic import BaseModel
 
-from backend.database import get_session
-from backend.models.user import User, UserType
-from backend.models.property import Property, PropertyUnit
-from backend.models.accounting import Payment, Invoice, Expense, PaymentStatus
-from backend.models.lease import Lease, LeaseStatus
-from backend.api.auth import get_current_user
+from Backend.database import get_session
+from Backend.models.user import User, UserType
+from Backend.models.property import Property, PropertyUnit
+from Backend.models.accounting import Payment, Invoice, Expense, PaymentStatus
+from Backend.models.lease import Lease, LeaseStatus
+from Backend.api.auth import get_current_user
 
 # Configure logging
 logger = logging.getLogger(__name__)

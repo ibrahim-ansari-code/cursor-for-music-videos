@@ -6,8 +6,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel, select
 from passlib.context import CryptContext
 
-from backend.config import settings
-from backend.models.user import User
+from Backend.config import settings
+from Backend.models.user import User
 
 # Configure logging
 logger = logging.getLogger(__name__)
