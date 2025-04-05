@@ -32,7 +32,8 @@ def get_database_url() -> str:
 engine = create_async_engine(
     get_database_url(),
     echo=settings.DEBUG,  # Only echo SQL in debug mode
-    future=True,  # Use SQLAlchemy 2.0 style
+    future=True,
+    connect_args={"ssl": "require"}  # Use SQLAlchemy 2.0 style
 )
 
 # Create async session

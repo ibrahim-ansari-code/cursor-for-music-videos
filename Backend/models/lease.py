@@ -1,7 +1,12 @@
-from typing import Optional, List
+from Backend.models.user import User
+from Backend.models.accounting import Payment
+from typing import Optional, List, TYPE_CHECKING
 from datetime import date, datetime
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship
+
+if TYPE_CHECKING:
+    from Backend.models.property import Property, PropertyUnit
 
 class LeaseStatus(str, Enum):
     DRAFT = "draft"
@@ -41,11 +46,11 @@ class Lease(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships
-    property: "Property" = Relationship(back_populates="leases")
+    property: "Property" = Relationship(back_populates="leases")  # ✅ fixed circular import
     unit: Optional["PropertyUnit"] = Relationship(back_populates="leases")
-    tenant: "User" = Relationship(back_populates="leases")
+    tenant: User = Relationship(back_populates="leases")
     documents: List["LeaseDocument"] = Relationship(back_populates="lease", sa_relationship_kwargs={"lazy": "selectin"})
-    payments: List["Payment"] = Relationship(back_populates="lease", sa_relationship_kwargs={"lazy": "selectin"})
+    payments: List[Payment] = Relationship(back_populates="lease", sa_relationship_kwargs={"lazy": "selectin"})
 
 class LeaseDocument(SQLModel, table=True):
     """Document associated with a lease (contract, addendums, etc.)"""
@@ -64,4 +69,4 @@ class LeaseDocument(SQLModel, table=True):
     
     # Relationships
     lease: Lease = Relationship(back_populates="documents")
-    uploaded_by: "User" = Relationship()
+    uploaded_by: User = Relationship()

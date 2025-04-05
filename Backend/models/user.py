@@ -1,7 +1,13 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship
+
+if TYPE_CHECKING:
+    from Backend.models.property import Property
+    from Backend.models.lease import Lease
+    from Backend.models.vendor import Vendor
+    from Backend.models.message import Message  # Only keeping Message if needed for sent/received messages
 
 class UserType(str, Enum):
     ADMIN = "admin"
@@ -22,21 +28,18 @@ class User(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships based on user type
-    # A user can be associated with multiple properties (if landlord)
     properties: List["Property"] = Relationship(back_populates="owner", sa_relationship_kwargs={"lazy": "selectin"})
-    
-    # A user can have multiple leases (if tenant)
     leases: List["Lease"] = Relationship(back_populates="tenant", sa_relationship_kwargs={"lazy": "selectin"})
-    
-    # A user can be a vendor with vendor details
     vendor_details: Optional["Vendor"] = Relationship(back_populates="user", sa_relationship_kwargs={"lazy": "selectin"})
-    
-    # A user can send and receive messages
-    sent_messages: List["Message"] = Relationship(
-        back_populates="sender",
-        sa_relationship_kwargs={"foreign_keys": "Message.sender_id", "lazy": "selectin"}
-    )
-    received_messages: List["Message"] = Relationship(
-        back_populates="recipient",
-        sa_relationship_kwargs={"foreign_keys": "Message.recipient_id", "lazy": "selectin"}
-    )
+
+    # Optional: Keep message relationships only if you're actively using messaging now
+    # sent_messages: List["Message"] = Relationship(
+    #     back_populates="sender",
+    #     sa_relationship_kwargs={"foreign_keys": "Message.sender_id", "lazy": "selectin"}
+    # )
+    # received_messages: List["Message"] = Relationship(
+    #     back_populates="recipient",
+    #     sa_relationship_kwargs={"foreign_keys": "Message.recipient_id", "lazy": "selectin"}
+    # )
+
+from Backend.models import property, lease, vendor
