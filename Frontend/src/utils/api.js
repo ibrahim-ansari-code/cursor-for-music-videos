@@ -32,8 +32,7 @@ const apiRequest = async (endpoint, options = {}) => {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers
-    },
-    credentials: 'include'
+    }
   };
   
   const requestOptions = {
@@ -55,7 +54,7 @@ export const login = async (email, password) => {
   formData.append('username', email);
   formData.append('password', password);
   
-  const response = await fetch('/api/auth/token', {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/token`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',

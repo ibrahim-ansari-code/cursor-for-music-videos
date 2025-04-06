@@ -38,26 +38,29 @@ const Sidebar = () => {
     <aside className={`bg-white border-r border-gray-200 transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
       <div className="h-full flex flex-col">
         {/* Logo */}
-        <div className={`flex items-center px-4 py-5 ${collapsed ? 'justify-center' : 'justify-between'}`}>
+        <div className={`flex items-center h-16 px-3 ${collapsed ? 'justify-center' : 'justify-between'}`}>
           {!collapsed && (
-            <span className="text-xl font-semibold text-green-600 flex items-center">
-              <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" fill="currentColor"/>
-                <path d="M12 8L8 12H11V16H13V12H16L12 8Z" fill="currentColor"/>
-              </svg>
-              Proki
-            </span>
+            <div className="flex-1 flex items-center justify-start pr-2">
+              <img 
+                src="/brandmark-design.svg" 
+                alt="Brikli Logo" 
+                title="Brikli"
+                className="h-8 w-48 object-contain object-left"
+              />
+            </div>
           )}
           {collapsed && (
-            <svg className="w-8 h-8 text-green-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" fill="currentColor"/>
-              <path d="M12 8L8 12H11V16H13V12H16L12 8Z" fill="currentColor"/>
-            </svg>
+            <img 
+              src="/brandmark-design.svg" 
+              alt="Brikli Logo" 
+              title="Brikli"
+              className="h-10 w-10 object-contain"
+            />
           )}
           
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="text-gray-500 hover:text-gray-800"
+            className="text-gray-500 hover:text-gray-800 p-1"
           >
             <i className={`fas ${collapsed ? 'fa-angles-right' : 'fa-angles-left'}`}></i>
           </button>

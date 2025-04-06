@@ -4,12 +4,12 @@ from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship
 
 class PaymentStatus(str, Enum):
-    PENDING = "pending"
-    PAID = "paid"
-    LATE = "late"
-    PARTIAL = "partial"
-    OVERDUE = "overdue"
-    REFUNDED = "refunded"
+    PENDING = "PENDING"
+    PAID = "PAID"
+    LATE = "LATE"
+    PARTIAL = "PARTIAL"
+    OVERDUE = "OVERDUE"
+    REFUNDED = "REFUNDED"
 
 class Payment(SQLModel, table=True):
     """Payment model for rent payments from tenants"""

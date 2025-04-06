@@ -9,6 +9,7 @@ from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from pydantic import BaseModel, EmailStr
+from sqlalchemy import and_
 
 from Backend.config import settings
 from Backend.database import get_session
@@ -102,14 +103,21 @@ async def get_current_user(
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email = payload.get("sub")
         user_id = payload.get("user_id")
-        if email is None or user_id is None:
+        user_type = payload.get("user_type")
+        if email is None or user_id is None or user_type is None:
             raise credentials_exception
-        token_data = TokenData(email=email, user_id=user_id)
+        token_data = TokenData(email=email, user_id=user_id, user_type=user_type)
     except JWTError:
         raise credentials_exception
 
     result = await session.execute(
-        select(User).where(User.id == token_data.user_id, User.email == token_data.email)
+        select(User).where(
+            and_(
+                User.id == token_data.user_id,
+                User.email == token_data.email,
+                User.user_type == token_data.user_type
+            )
+        )
     )
     user = result.scalar_one_or_none()
     if user is None:

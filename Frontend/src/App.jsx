@@ -65,8 +65,7 @@ function App() {
         body: new URLSearchParams({
           'username': email,
           'password': password,
-        }),
-        credentials: 'include'
+        })
       });
 
       if (!response.ok) {
