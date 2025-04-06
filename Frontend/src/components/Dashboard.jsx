@@ -22,7 +22,10 @@ const Dashboard = () => {
         setError(null);
       } catch (err) {
         console.error('Error loading dashboard data:', err);
-        setError('Failed to load dashboard data. Please try again.');
+        setError(err.message || 'Failed to load dashboard data. Please try again.');
+        if (err.response) {
+          console.error('Response:', await err.response.text());
+        }
       } finally {
         setLoading(false);
       }
@@ -45,8 +48,9 @@ const Dashboard = () => {
   if (error) {
     return (
       <div className="p-4">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          <p>{error}</p>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
           <button 
             onClick={() => window.location.reload()}
             className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"

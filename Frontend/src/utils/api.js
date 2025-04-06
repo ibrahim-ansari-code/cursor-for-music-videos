@@ -8,6 +8,13 @@ const handleResponse = async (response) => {
       const errorData = await response.json();
       throw new Error(errorData.detail || `API error: ${response.status}`);
     } catch (e) {
+      if (response.status === 401) {
+        // Clear auth data and redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user_type');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
       // If response is not JSON or another error occurs
       throw new Error(`API error: ${response.status}`);
     }
@@ -25,7 +32,8 @@ const apiRequest = async (endpoint, options = {}) => {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers
-    }
+    },
+    credentials: 'include'
   };
   
   const requestOptions = {
@@ -37,7 +45,7 @@ const apiRequest = async (endpoint, options = {}) => {
     }
   };
   
-  const response = await fetch(`/api${endpoint}`, requestOptions);
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api${endpoint}`, requestOptions);
   return handleResponse(response);
 };
 

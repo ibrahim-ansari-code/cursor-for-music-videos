@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { AuthContext } from '../App';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -7,6 +8,14 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (localStorage.getItem('token')) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -14,23 +23,15 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Login failed');
+      const success = await login(email, password);
+      if (success) {
+        navigate('/dashboard', { replace: true });
+      } else {
+        setError('Invalid email or password');
       }
-
-      const data = await response.json();
-      localStorage.setItem('token', data.access_token);
-      navigate('/dashboard');
     } catch (err) {
-      setError('Invalid email or password');
+      setError('Login failed. Please try again.');
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -47,9 +48,7 @@ const Login = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="email-address" className="sr-only">
-                Email address
-              </label>
+              <label htmlFor="email-address" className="sr-only">Email address</label>
               <input
                 id="email-address"
                 name="email"
@@ -63,9 +62,7 @@ const Login = () => {
               />
             </div>
             <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
+              <label htmlFor="password" className="sr-only">Password</label>
               <input
                 id="password"
                 name="password"
@@ -95,10 +92,7 @@ const Login = () => {
           </div>
 
           <div className="text-sm text-center">
-            <Link
-              to="/register"
-              className="font-medium text-green-600 hover:text-green-500"
-            >
+            <Link to="/register" className="font-medium text-green-600 hover:text-green-500">
               Don't have an account? Register
             </Link>
           </div>
@@ -108,4 +102,4 @@ const Login = () => {
   );
 };
 
-export default Login; 
+export default Login;

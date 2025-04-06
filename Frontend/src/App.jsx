@@ -18,20 +18,46 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Check authentication status on mount
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userInfo = localStorage.getItem('user');
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
-    if (token && userInfo) {
-      setUser(JSON.parse(userInfo));
-    }
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
 
-    setLoading(false);
+        if (response.ok) {
+          const userInfo = await response.json();
+          setUser(userInfo);
+        } else {
+          // Clear invalid token
+          localStorage.removeItem('token');
+          localStorage.removeItem('user_type');
+          localStorage.removeItem('user');
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user_type');
+        localStorage.removeItem('user');
+      }
+      setLoading(false);
+    };
+
+    checkAuth();
   }, []);
 
   const login = async (email, password) => {
     try {
-      const response = await fetch('/api/auth/token', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -40,23 +66,27 @@ function App() {
           'username': email,
           'password': password,
         }),
+        credentials: 'include'
       });
 
       if (!response.ok) {
-        throw new Error('Login failed');
+        console.error('Login failed:', await response.text());
+        return false;
       }
 
       const data = await response.json();
       localStorage.setItem('token', data.access_token);
+      localStorage.setItem('user_type', data.user_type);
 
-      const userResponse = await fetch('/api/auth/me', {
+      const userResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${data.access_token}`
         }
       });
 
       if (!userResponse.ok) {
-        throw new Error('Failed to get user info');
+        console.error('Failed to get user info:', await userResponse.text());
+        return false;
       }
 
       const userInfo = await userResponse.json();
@@ -72,6 +102,7 @@ function App() {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user_type');
     localStorage.removeItem('user');
     setUser(null);
   };
@@ -91,19 +122,29 @@ function App() {
     <AuthContext.Provider value={authValue}>
       <Router>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route 
+            path="/login" 
+            element={
+              user ? <Navigate to="/dashboard" replace /> : <Login />
+            } 
+          />
+          <Route 
+            path="/register" 
+            element={
+              user ? <Navigate to="/dashboard" replace /> : <Register />
+            } 
+          />
           <Route
             path="/"
             element={
-              authValue.isAuthenticated ? (
+              user ? (
                 <Layout />
               ) : (
                 <Navigate to="/login" replace />
               )
             }
           >
-            <Route index element={<Dashboard />} />
+            <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="leases" element={<Leases />} />
             <Route path="vendors" element={<Vendors />} />
