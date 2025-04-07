@@ -10,10 +10,10 @@ if TYPE_CHECKING:
     from Backend.models.vendor import VendorDocument
 
 class VendorStatus(str, Enum):
-    PENDING = "pending"
-    APPROVED = "approved"
-    DENIED = "denied"
-    INACTIVE = "inactive"
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    DENIED = "DENIED"
+    INACTIVE = "INACTIVE"
 
 class Vendor(SQLModel, table=True):
     """Vendor model for service providers (plumbers, electricians, etc.)"""

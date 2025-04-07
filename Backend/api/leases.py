@@ -81,7 +81,7 @@ async def create_lease(
 ):
     """Create a new lease"""
     # Validate that the current user has permission to create leases
-    if current_user.user_type not in ["admin", "landlord"]:
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to create leases"
@@ -121,14 +121,12 @@ async def get_leases(
         query = query.where(and_(*conditions))
     
     # Add access control based on user type
-    if current_user.user_type == "tenant":
+    if current_user.user_type == UserType.TENANT:
         # Tenants can only see their own leases
         query = query.where(Lease.tenant_id == current_user.id)
-    elif current_user.user_type == "landlord":
-        # Landlords can only see leases for their properties
-        # We should join with properties table to check ownership
-        # For simplicity, we'll assume property_id filtering is sufficient
-        pass
+    elif current_user.user_type == UserType.LANDLORD:
+        # Landlords can see leases for their properties
+        query = query.join(Property).where(Property.landlord_id == current_user.id)
     
     result = await session.execute(query)
     leases = result.scalars().all()
@@ -152,10 +150,10 @@ async def get_lease(
         )
     
     # Check access permissions
-    if current_user.user_type == "tenant" and lease.tenant_id != current_user.id:
+    if current_user.user_type == UserType.TENANT and lease.tenant_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this lease"
+            detail="Not authorized to view this lease"
         )
     
     return lease
@@ -168,7 +166,7 @@ async def update_lease(
     current_user: User = Depends(get_current_user)
 ):
     """Update a lease"""
-    if current_user.user_type not in ["admin", "landlord"]:
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update leases"
@@ -205,7 +203,7 @@ async def validate_lease(
     current_user: User = Depends(get_current_user)
 ):
     """Validate a lease, moving it from DRAFT to PENDING status"""
-    if current_user.user_type not in ["admin", "landlord"]:
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to validate leases"
@@ -245,7 +243,7 @@ async def update_lease_status(
     current_user: User = Depends(get_current_user)
 ):
     """Update the status of a lease (activate, terminate, etc.)"""
-    if current_user.user_type not in ["admin", "landlord"]:
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update lease status"
@@ -280,7 +278,7 @@ async def upload_lease_document(
     current_user: User = Depends(get_current_user)
 ):
     """Upload a document associated with a lease"""
-    if current_user.user_type not in ["admin", "landlord"]:
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to upload lease documents"
@@ -336,10 +334,10 @@ async def get_lease_documents(
         )
     
     # Check access permissions
-    if current_user.user_type == "tenant" and lease.tenant_id != current_user.id:
+    if current_user.user_type == UserType.TENANT and lease.tenant_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access documents for this lease"
+            detail="Not authorized to view this lease document"
         )
     
     # Get documents

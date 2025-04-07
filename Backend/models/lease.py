@@ -9,12 +9,12 @@ if TYPE_CHECKING:
     from Backend.models.property import Property, PropertyUnit
 
 class LeaseStatus(str, Enum):
-    DRAFT = "draft"
-    PENDING = "pending"
-    ACTIVE = "active"
-    EXPIRED = "expired"
-    TERMINATED = "terminated"
-    RENEWED = "renewed"
+    DRAFT = "DRAFT"
+    PENDING = "PENDING"
+    ACTIVE = "ACTIVE"
+    EXPIRED = "EXPIRED"
+    TERMINATED = "TERMINATED"
+    RENEWED = "RENEWED"
 
 class Lease(SQLModel, table=True):
     """Lease model representing a rental agreement between landlord and tenant"""

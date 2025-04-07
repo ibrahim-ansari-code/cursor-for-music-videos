@@ -11,10 +11,10 @@ if TYPE_CHECKING:
     from Backend.models.message import Message, Conversation, ConversationParticipant
 
 class UserType(str, Enum):
-    ADMIN = "admin"
-    LANDLORD = "landlord"
-    TENANT = "tenant"
-    VENDOR = "vendor"
+    ADMIN = "ADMIN"
+    LANDLORD = "LANDLORD"
+    TENANT = "TENANT"
+    VENDOR = "VENDOR"
 
 class User(SQLModel, table=True):
     __tablename__ = "users"
