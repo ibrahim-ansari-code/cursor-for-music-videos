@@ -9,7 +9,8 @@ from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import and_
+from sqlalchemy import and_, func
+from pydantic import validator
 
 from Backend.config import settings
 from Backend.database import get_session
@@ -68,6 +69,15 @@ class UserResponse(BaseModel):
     is_active: bool
     is_admin: bool
 
+    class Config:
+        from_attributes = True
+
+    @validator('user_type', pre=True)
+    def convert_user_type_to_upper(cls, v):
+        if isinstance(v, str):
+            return v.upper()
+        return v
+
 # === Password + Token Helpers ===
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -115,7 +125,7 @@ async def get_current_user(
             and_(
                 User.id == token_data.user_id,
                 User.email == token_data.email,
-                User.user_type == token_data.user_type
+                func.upper(User.user_type) == token_data.user_type
             )
         )
     )
@@ -138,13 +148,16 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Convert user_type to uppercase to match the enum
+    user_type = user.user_type.upper()
+    
     access_token = create_access_token(
-        data={"sub": user.email, "user_id": user.id, "user_type": user.user_type}
+        data={"sub": user.email, "user_id": user.id, "user_type": user_type}
     )
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user_type": user.user_type
+        "user_type": user_type
     }
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
