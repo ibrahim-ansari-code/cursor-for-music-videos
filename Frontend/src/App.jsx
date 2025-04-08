@@ -12,6 +12,7 @@ import Accounting from './pages/Accounting';
 import Messages from './pages/Messages';
 import Properties from './pages/Properties';
 import PropertyDetail from './pages/PropertyDetail';
+import Contracts from './pages/Contracts';
 
 // Auth Context
 export const AuthContext = createContext(null);
@@ -153,6 +154,7 @@ function App() {
             <Route path="vendors" element={<Vendors />} />
             <Route path="accounting" element={<Accounting />} />
             <Route path="messages" element={<Messages />} />
+            <Route path="contracts" element={<Contracts />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

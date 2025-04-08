@@ -6,11 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_, or_
 from pydantic import BaseModel
+import fitz  # PyMuPDF
+import io
 
 from Backend.database import get_session
 from Backend.models.lease import Lease, LeaseStatus, LeaseDocument
 from Backend.models.user import User
 from Backend.api.auth import get_current_user
+from Backend.utils.llm_utils import analyze_lease_text
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -72,6 +75,14 @@ class LeaseDocumentResponse(BaseModel):
     class Config:
         orm_mode = True
 
+class LeaseAnalysisResponse(BaseModel):
+    monthly_rent: float
+    start_date: date
+    end_date: date
+    security_deposit: float
+    tenant_name: str
+    unit: Optional[str] = None
+
 # API endpoints
 @router.post("/", response_model=LeaseResponse, status_code=status.HTTP_201_CREATED)
 async def create_lease(
@@ -86,13 +97,43 @@ async def create_lease(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to create leases"
         )
-    
+
+    # Validate tenant
+    tenant_query = select(User).where(User.id == lease_data.tenant_id, User.user_type == UserType.TENANT)
+    tenant_result = await session.execute(tenant_query)
+    tenant = tenant_result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid tenant ID"
+        )
+
+    # Validate property and unit
+    property_query = select(Property).where(Property.id == lease_data.property_id)
+    property_result = await session.execute(property_query)
+    property = property_result.scalar_one_or_none()
+    if not property:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid property ID"
+        )
+
+    if lease_data.unit_id:
+        unit_query = select(PropertyUnit).where(PropertyUnit.id == lease_data.unit_id, PropertyUnit.property_id == lease_data.property_id)
+        unit_result = await session.execute(unit_query)
+        unit = unit_result.scalar_one_or_none()
+        if not unit:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid unit ID"
+            )
+
     # Create the lease
     new_lease = Lease(**lease_data.dict())
     session.add(new_lease)
     await session.commit()
     await session.refresh(new_lease)
-    
+
     logger.info(f"Lease created: {new_lease.id} by user {current_user.id}")
     return new_lease
 
@@ -346,3 +387,58 @@ async def get_lease_documents(
     documents = result.scalars().all()
     
     return documents
+
+@router.post("/analyze", response_model=LeaseAnalysisResponse)
+async def analyze_lease(
+    file: UploadFile = File(...),
+    property_id: int = Form(...),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Analyze a lease PDF using GPT-4 to extract key fields.
+    """
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to analyze leases"
+        )
+    
+    # Validate property exists
+    property_query = select(Property).where(Property.id == property_id)
+    property_result = await session.execute(property_query)
+    property = property_result.scalar_one_or_none()
+    if not property:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid property ID"
+        )
+    
+    try:
+        # Read PDF content
+        content = await file.read()
+        pdf_document = fitz.open(stream=content, filetype="pdf")
+        
+        # Extract text from all pages
+        text = ""
+        for page in pdf_document:
+            text += page.get_text()
+        
+        # Close the PDF document
+        pdf_document.close()
+        
+        # Analyze text using GPT-4
+        parsed_data = await analyze_lease_text(text)
+        
+        # Convert string dates to date objects
+        parsed_data['start_date'] = datetime.strptime(parsed_data['start_date'], '%Y-%m-%d').date()
+        parsed_data['end_date'] = datetime.strptime(parsed_data['end_date'], '%Y-%m-%d').date()
+        
+        return parsed_data
+        
+    except Exception as e:
+        logger.error(f"Failed to analyze lease: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to analyze lease document"
+        )

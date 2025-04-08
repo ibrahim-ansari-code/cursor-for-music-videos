@@ -10,7 +10,6 @@ const Sidebar = () => {
   const overviewItems = [
     { name: 'Dashboard', path: '/dashboard', icon: 'fa-gauge-high' },
     { name: 'Properties', path: '/properties', icon: 'fa-building' },
-    { name: 'Leases', path: '/leases', icon: 'fa-file-contract' },
     { name: 'Landlords', path: '/landlords', icon: 'fa-user-tie' },
     { name: 'Tenants', path: '/tenants', icon: 'fa-users' },
     { name: 'Contracts', path: '/contracts', icon: 'fa-file-signature' },

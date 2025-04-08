@@ -70,3 +70,13 @@ class LeaseDocument(SQLModel, table=True):
     # Relationships
     lease: Lease = Relationship(back_populates="documents")
     uploaded_by: User = Relationship()
+
+class LeaseCreate(SQLModel):
+    tenant_id: int
+    property_id: int
+    unit_id: Optional[int] = None
+    start_date: date
+    end_date: date
+    monthly_rent: float
+    security_deposit: float
+    status: LeaseStatus = LeaseStatus.DRAFT

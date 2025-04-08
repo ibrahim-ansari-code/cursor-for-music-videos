@@ -475,6 +475,21 @@ export const updateTenant = async (tenantId, tenantData) => {
   });
 };
 
+export const fetchTenantsByProperty = async (propertyId) => {
+  const token = localStorage.getItem('token');
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/tenants?property_id=${propertyId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch tenants');
+  }
+  
+  return response.json();
+};
+
 // Landlord Management API Functions
 export const fetchLandlords = async () => {
   return apiRequest('/landlords');
@@ -528,4 +543,57 @@ export const assignMaintenanceRequest = async (requestId, vendorId) => {
   return apiRequest(`/maintenance/${requestId}/assign?vendor_id=${vendorId}`, {
     method: 'POST'
   });
+};
+
+export const analyzeLease = async (formData) => {
+  const token = localStorage.getItem('token');
+  
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/leases/analyze`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to analyze lease');
+  }
+  
+  return response.json();
+};
+
+export const submitLease = async (leaseData) => {
+  const token = localStorage.getItem('token');
+  
+  // Convert dates to ISO strings
+  const formattedData = {
+    ...leaseData,
+    start_date: new Date(leaseData.startDate).toISOString().split('T')[0],
+    end_date: new Date(leaseData.endDate).toISOString().split('T')[0],
+    monthly_rent: parseFloat(leaseData.monthlyRent),
+    security_deposit: parseFloat(leaseData.securityDeposit),
+    tenant_name: leaseData.tenantName,
+    unit: leaseData.unit || null,
+    property_id: leaseData.propertyId,
+    // TODO: Replace with actual tenant lookup
+    tenant_id: 1  // Hardcoded for now
+  };
+
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/leases`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(formattedData)
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to create lease');
+  }
+  
+  return response.json();
 };
