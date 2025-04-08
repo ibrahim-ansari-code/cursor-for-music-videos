@@ -14,6 +14,7 @@ from Backend.models.lease import Lease, LeaseStatus, LeaseDocument
 from Backend.models.user import User
 from Backend.api.auth import get_current_user
 from Backend.utils.llm_utils import analyze_lease_text
+from Backend.models.user import UserType
 
 # Configure logging
 logger = logging.getLogger(__name__)

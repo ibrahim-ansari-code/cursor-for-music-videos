@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from Backend.models.lease import Lease
     from Backend.models.vendor import Vendor
     from Backend.models.message import Message, Conversation, ConversationParticipant
+    from Backend.models.tenant import Tenant
 
 class UserType(str, Enum):
     ADMIN = "ADMIN"
@@ -37,7 +38,6 @@ class User(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     properties: List["Property"] = Relationship(back_populates="owner", sa_relationship_kwargs={"lazy": "selectin"})
-    leases: List["Lease"] = Relationship(back_populates="tenant", sa_relationship_kwargs={"lazy": "selectin"})
     vendor_details: Optional["Vendor"] = Relationship(back_populates="user", sa_relationship_kwargs={"lazy": "selectin"})
     
     sent_messages: List["Message"] = Relationship(
@@ -47,6 +47,10 @@ class User(SQLModel, table=True):
     received_messages: List["Message"] = Relationship(
         back_populates="recipient",
         sa_relationship_kwargs={"foreign_keys": "Message.recipient_id", "lazy": "selectin"}
+    )
+    tenant_details: Optional["Tenant"] = Relationship(
+    back_populates="user",
+    sa_relationship_kwargs={"lazy": "selectin"}
     )
     
     conversations: List["ConversationParticipant"] = Relationship(back_populates="user")

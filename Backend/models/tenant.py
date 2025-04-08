@@ -30,6 +30,7 @@ class Tenant(SQLModel, table=True):
     
     # Property Information
     current_property_id: Optional[int] = Field(default=None, foreign_key="properties.id")
+    current_unit_id: Optional[int] = Field(default=None, foreign_key="property_units.id")
     
     # Additional Details
     move_in_date: Optional[date] = None
@@ -41,7 +42,10 @@ class Tenant(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships
-    user: "User" = Relationship(back_populates="tenant_details")
+    user: "User" = Relationship(
+        back_populates="tenant_details",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
     current_property: Optional["Property"] = Relationship(
         back_populates="current_tenants",
         sa_relationship_kwargs={"lazy": "selectin"}

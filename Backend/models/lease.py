@@ -39,7 +39,7 @@ class Lease(SQLModel, table=True):
     # Foreign keys
     property_id: int = Field(foreign_key="properties.id")
     unit_id: Optional[int] = Field(default=None, foreign_key="property_units.id")
-    tenant_id: int = Field(foreign_key="users.id")
+    tenant_id: int = Field(foreign_key="tenants.id")
     
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -48,7 +48,7 @@ class Lease(SQLModel, table=True):
     # Relationships
     property: "Property" = Relationship(back_populates="leases")  # ✅ fixed circular import
     unit: Optional["PropertyUnit"] = Relationship(back_populates="leases")
-    tenant: User = Relationship(back_populates="leases")
+    tenant: "Tenant" = Relationship(back_populates="leases", sa_relationship_kwargs={"lazy": "selectin"})
     documents: List["LeaseDocument"] = Relationship(back_populates="lease", sa_relationship_kwargs={"lazy": "selectin"})
     payments: List[Payment] = Relationship(back_populates="lease", sa_relationship_kwargs={"lazy": "selectin"})
 

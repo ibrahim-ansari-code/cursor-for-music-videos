@@ -10,6 +10,7 @@ from Backend.models.accounting import Expense
 if TYPE_CHECKING:
     from Backend.models.lease import Lease
     from Backend.models.vendor import Vendor
+    from Backend.models.tenant import Tenant
 
 class PropertyStatus(str, Enum):
     ACTIVE = "active"
@@ -54,6 +55,10 @@ class Property(SQLModel, table=True):
     # Relationships
     owner: Optional[User] = Relationship(back_populates="properties")
     units: List["PropertyUnit"] = Relationship(back_populates="property", sa_relationship_kwargs={"lazy": "selectin"})
+    current_tenants: List["Tenant"] = Relationship(
+        back_populates="current_property",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
     leases: List["Lease"] = Relationship(back_populates="property", sa_relationship_kwargs={"lazy": "selectin"})
     vendors: List["Vendor"] = Relationship(
         back_populates="properties", 
@@ -85,4 +90,8 @@ class PropertyUnit(SQLModel, table=True):
     # Relationships
     property: "Property" = Relationship(back_populates="units")
     leases: List["Lease"] = Relationship(back_populates="unit", sa_relationship_kwargs={"lazy": "selectin"})
+    current_tenant: Optional["Tenant"] = Relationship(
+        back_populates="current_unit",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
 
