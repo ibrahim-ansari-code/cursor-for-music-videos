@@ -38,6 +38,10 @@ class User(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     properties: List["Property"] = Relationship(back_populates="owner", sa_relationship_kwargs={"lazy": "selectin"})
+    leases: List["Lease"] = Relationship(
+        back_populates="tenant",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
     vendor_details: Optional["Vendor"] = Relationship(back_populates="user", sa_relationship_kwargs={"lazy": "selectin"})
     
     sent_messages: List["Message"] = Relationship(
