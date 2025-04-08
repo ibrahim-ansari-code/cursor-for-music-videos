@@ -1,6 +1,8 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
-from sqlmodel import SQLModel, Field, Relationship
+from enum import Enum
+from sqlmodel import SQLModel, Field, Relationship, Column
+from sqlalchemy import String
 
 from Backend.models.user import User
 from Backend.models.accounting import Expense
@@ -8,6 +10,11 @@ from Backend.models.accounting import Expense
 if TYPE_CHECKING:
     from Backend.models.lease import Lease
     from Backend.models.vendor import Vendor
+
+class PropertyStatus(str, Enum):
+    ACTIVE = "active"
+    MAINTENANCE = "maintenance"
+    VACANT = "vacant"
 
 class PropertyVendorLink(SQLModel, table=True):
     """Link table for properties and vendors (many-to-many)"""
@@ -35,6 +42,7 @@ class Property(SQLModel, table=True):
     property_type: str  # residential, commercial, etc.
     year_built: Optional[int] = None
     description: Optional[str] = None
+    status: str = Field(sa_column=Column(String), default=PropertyStatus.ACTIVE)  # Using String column to store enum
     
     # Foreign keys
     owner_id: Optional[int] = Field(default=None, foreign_key="users.id")

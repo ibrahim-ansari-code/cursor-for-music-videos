@@ -10,6 +10,8 @@ import Leases from './pages/Leases';
 import Vendors from './pages/Vendors';
 import Accounting from './pages/Accounting';
 import Messages from './pages/Messages';
+import Properties from './pages/Properties';
+import PropertyDetail from './pages/PropertyDetail';
 
 // Auth Context
 export const AuthContext = createContext(null);
@@ -145,6 +147,8 @@ function App() {
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="properties" element={<Properties />} />
+            <Route path="properties/:id" element={<PropertyDetail />} />
             <Route path="leases" element={<Leases />} />
             <Route path="vendors" element={<Vendors />} />
             <Route path="accounting" element={<Accounting />} />

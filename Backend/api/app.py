@@ -6,6 +6,7 @@ from Backend.api.accounting import router as accounting_router
 from Backend.api.dashboard import router as dashboard_router
 from Backend.api.communication import router as communication_router
 from Backend.api.ai import router as ai_router
+from Backend.api.properties import router as properties_router
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -30,6 +31,7 @@ app.include_router(accounting_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(communication_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")
+app.include_router(properties_router, prefix="/api")
 
 @app.get("/")
 def root():

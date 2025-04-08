@@ -6,17 +6,32 @@ const handleResponse = async (response) => {
     // Try to parse error message from response
     try {
       const errorData = await response.json();
+      if (response.status === 401) {
+        // Clear auth data and redirect to login
+        console.error('Authentication error:', errorData);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user_type');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        throw new Error('Authentication failed. Please log in again.');
+      }
       throw new Error(errorData.detail || `API error: ${response.status}`);
     } catch (e) {
+      // If response is not JSON or another error occurs
       if (response.status === 401) {
         // Clear auth data and redirect to login
         localStorage.removeItem('token');
         localStorage.removeItem('user_type');
         localStorage.removeItem('user');
         window.location.href = '/login';
+        throw new Error('Authentication failed. Please log in again.');
       }
-      // If response is not JSON or another error occurs
-      throw new Error(`API error: ${response.status}`);
+      
+      if (e.message.includes('API error') || e.message.includes('Authentication failed')) {
+        throw e;
+      }
+      
+      throw new Error(`API error: ${response.status}. ${response.statusText}`);
     }
   }
   
@@ -26,6 +41,13 @@ const handleResponse = async (response) => {
 // Base API request function with authentication
 const apiRequest = async (endpoint, options = {}) => {
   const token = localStorage.getItem('token');
+  
+  // Check if token exists before making authenticated requests
+  if (!token && !endpoint.includes('/auth/')) {
+    console.error('No token found for authenticated request');
+    window.location.href = '/login';
+    throw new Error('Authentication required. Please log in.');
+  }
   
   const defaultOptions = {
     headers: {
@@ -44,8 +66,13 @@ const apiRequest = async (endpoint, options = {}) => {
     }
   };
   
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api${endpoint}`, requestOptions);
-  return handleResponse(response);
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api${endpoint}`, requestOptions);
+    return handleResponse(response);
+  } catch (error) {
+    console.error(`API request failed for ${endpoint}:`, error);
+    throw error;
+  }
 };
 
 // Authentication API Functions
@@ -387,6 +414,10 @@ export const fetchProperties = async (params = {}) => {
   return apiRequest(`/properties${queryString ? '?' + queryString : ''}`);
 };
 
+export const fetchPropertyById = async (propertyId) => {
+  return apiRequest(`/properties/${propertyId}`);
+};
+
 export const fetchProperty = async (propertyId) => {
   return apiRequest(`/properties/${propertyId}`);
 };
@@ -402,6 +433,12 @@ export const updateProperty = async (propertyId, propertyData) => {
   return apiRequest(`/properties/${propertyId}`, {
     method: 'PUT',
     body: JSON.stringify(propertyData)
+  });
+};
+
+export const deleteProperty = async (propertyId) => {
+  return apiRequest(`/properties/${propertyId}`, {
+    method: 'DELETE'
   });
 };
 
