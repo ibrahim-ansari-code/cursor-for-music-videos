@@ -1,10 +1,29 @@
 import React, { useContext } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { AuthContext } from '../App';
 
 const Layout = () => {
   const { user, logout } = useContext(AuthContext);
+  const location = useLocation();
+
+  // Map routes to page titles
+  const getPageTitle = (pathname) => {
+    const routes = {
+      '/dashboard': 'Dashboard',
+      '/properties': 'Properties',
+      '/leases': 'Leases',
+      '/vendors': 'Vendors',
+      '/accounting': 'Accounting',
+      '/messages': 'Messages',
+      '/contracts': 'Contracts',
+      '/applications': 'Applications'
+    };
+
+    // Handle nested routes (e.g., /properties/:id)
+    const basePath = '/' + pathname.split('/')[1];
+    return routes[basePath] || 'Dashboard';
+  };
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -16,7 +35,7 @@ const Layout = () => {
         {/* Header */}
         <header className="bg-white shadow-sm z-10">
           <div className="px-4 py-2 flex justify-between items-center">
-            <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
+            <h1 className="text-xl font-semibold text-gray-900">{getPageTitle(location.pathname)}</h1>
             
             {/* User dropdown */}
             <div className="relative">

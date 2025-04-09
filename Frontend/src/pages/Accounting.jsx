@@ -217,8 +217,6 @@ const Accounting = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">Accounting</h1>
-        
         <div className="mt-3 sm:mt-0 flex space-x-3">
           <button
             onClick={() => handleShowModal(activeTab === 'payments' ? 'payment' : activeTab === 'invoices' ? 'invoice' : 'expense')}

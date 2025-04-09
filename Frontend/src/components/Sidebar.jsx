@@ -10,16 +10,16 @@ const Sidebar = () => {
   const overviewItems = [
     { name: 'Dashboard', path: '/dashboard', icon: 'fa-gauge-high' },
     { name: 'Properties', path: '/properties', icon: 'fa-building' },
-    { name: 'Landlords', path: '/landlords', icon: 'fa-user-tie' },
+    { name: 'Applications', path: '/applications', icon: 'fa-user-tie' },
     { name: 'Tenants', path: '/tenants', icon: 'fa-users' },
     { name: 'Contracts', path: '/contracts', icon: 'fa-file-signature' },
   ];
 
   // Management section
   const managementItems = [
+    { name: 'Maintenance', path: '/maintenance', icon: 'fa-wrench' },
     { name: 'Accounting', path: '/accounting', icon: 'fa-calculator' },
     { name: 'Reports', path: '/reports', icon: 'fa-chart-pie' },
-    { name: 'Maintenance', path: '/maintenance', icon: 'fa-wrench' },
   ];
 
   // Configuration section

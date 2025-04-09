@@ -13,6 +13,7 @@ import Messages from './pages/Messages';
 import Properties from './pages/Properties';
 import PropertyDetail from './pages/PropertyDetail';
 import Contracts from './pages/Contracts';
+import Applications from './pages/Applications';
 
 // Auth Context
 export const AuthContext = createContext(null);
@@ -124,28 +125,7 @@ function App() {
     <AuthContext.Provider value={authValue}>
       <Router>
         <Routes>
-          <Route 
-            path="/login" 
-            element={
-              user ? <Navigate to="/dashboard" replace /> : <Login />
-            } 
-          />
-          <Route 
-            path="/register" 
-            element={
-              user ? <Navigate to="/dashboard" replace /> : <Register />
-            } 
-          />
-          <Route
-            path="/"
-            element={
-              user ? (
-                <Layout />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          >
+          <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="properties" element={<Properties />} />
@@ -155,8 +135,11 @@ function App() {
             <Route path="accounting" element={<Accounting />} />
             <Route path="messages" element={<Messages />} />
             <Route path="contracts" element={<Contracts />} />
+            <Route path="applications" element={<Applications />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
         </Routes>
       </Router>
     </AuthContext.Provider>

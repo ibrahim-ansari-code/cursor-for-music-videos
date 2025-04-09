@@ -1,6 +1,5 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
-from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship, Column
 from sqlalchemy import String
 
@@ -11,11 +10,7 @@ if TYPE_CHECKING:
     from Backend.models.message import Message, Conversation, ConversationParticipant
     from Backend.models.tenant import Tenant
 
-class UserType(str, Enum):
-    ADMIN = "ADMIN"
-    LANDLORD = "LANDLORD"
-    TENANT = "TENANT"
-    VENDOR = "VENDOR"
+from Backend.models.enums import UserType
 
 class User(SQLModel, table=True):
     __tablename__ = "users"
@@ -38,10 +33,6 @@ class User(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     properties: List["Property"] = Relationship(back_populates="owner", sa_relationship_kwargs={"lazy": "selectin"})
-    leases: List["Lease"] = Relationship(
-        back_populates="tenant",
-        sa_relationship_kwargs={"lazy": "selectin"}
-    )
     vendor_details: Optional["Vendor"] = Relationship(back_populates="user", sa_relationship_kwargs={"lazy": "selectin"})
     
     sent_messages: List["Message"] = Relationship(

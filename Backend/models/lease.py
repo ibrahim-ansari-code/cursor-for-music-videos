@@ -48,7 +48,10 @@ class Lease(SQLModel, table=True):
     # Relationships
     property: "Property" = Relationship(back_populates="leases")  # ✅ fixed circular import
     unit: Optional["PropertyUnit"] = Relationship(back_populates="leases")
-    tenant: "Tenant" = Relationship(back_populates="leases", sa_relationship_kwargs={"lazy": "selectin"})
+    tenant: "Tenant" = Relationship(
+        back_populates="leases",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
     documents: List["LeaseDocument"] = Relationship(back_populates="lease", sa_relationship_kwargs={"lazy": "selectin"})
     payments: List[Payment] = Relationship(back_populates="lease", sa_relationship_kwargs={"lazy": "selectin"})
 
