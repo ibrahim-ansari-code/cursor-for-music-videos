@@ -297,7 +297,7 @@ const Dashboard = () => {
         
         {/* Revenue Trends */}
         <div className="dashboard-card">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Latest Contracts/Tenants</h2>
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Latest Leases/Tenants</h2>
           
           <div className="space-y-3">
             {dashboardData?.leads?.map((lead) => (

@@ -7,7 +7,7 @@ const Tabs = ({ activeTab, setActiveTab }) => {
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'units', label: 'Units' },
-    { id: 'contracts', label: 'Contracts' },
+    { id: 'leases', label: 'Leases' },
     { id: 'maintenance', label: 'Maintenance' },
     { id: 'documents', label: 'Documents' },
     { id: 'history', label: 'History' },
@@ -379,7 +379,7 @@ const PropertyDetail = () => {
           
           {activeTab === 'overview' && <PropertyOverview property={property} />}
           {activeTab === 'units' && <div>Units content coming soon...</div>}
-          {activeTab === 'contracts' && <div>Contracts content coming soon...</div>}
+          {activeTab === 'leases' && <div>Leases content coming soon...</div>}
           {activeTab === 'maintenance' && <div>Maintenance content coming soon...</div>}
           {activeTab === 'documents' && <div>Documents content coming soon...</div>}
           {activeTab === 'history' && <div>History content coming soon...</div>}

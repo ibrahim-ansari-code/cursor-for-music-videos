@@ -351,7 +351,7 @@ const Properties = () => {
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-end items-center mb-8">
         <button
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
           onClick={() => setIsModalOpen(true)}

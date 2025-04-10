@@ -16,7 +16,6 @@ const Layout = () => {
       '/vendors': 'Vendors',
       '/accounting': 'Accounting',
       '/messages': 'Messages',
-      '/contracts': 'Contracts',
       '/applications': 'Applications',
       '/tenants': 'Tenants'
     };

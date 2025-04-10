@@ -113,9 +113,7 @@ const Leases = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">Lease Management</h1>
-        
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end">
         <div className="mt-3 sm:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
           <div className="relative">
             <select

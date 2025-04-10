@@ -10,9 +10,8 @@ const Sidebar = () => {
   const overviewItems = [
     { name: 'Dashboard', path: '/dashboard', icon: 'fa-gauge-high' },
     { name: 'Properties', path: '/properties', icon: 'fa-building' },
-    { name: 'Applications', path: '/applications', icon: 'fa-user-tie' },
     { name: 'Tenants', path: '/tenants', icon: 'fa-users' },
-    { name: 'Contracts', path: '/contracts', icon: 'fa-file-signature' },
+    { name: 'Leases', path: '/leases', icon: 'fa-file-signature' },
   ];
 
   // Management section
@@ -67,11 +66,6 @@ const Sidebar = () => {
         {/* Logo */}
         <div className="flex items-center h-16 px-4 border-b border-gray-200">
           <div className="flex items-center">
-            <img 
-              src="/brikliLogo.svg" 
-              alt="Brikli Logo" 
-              className="h-8 w-auto"
-            />
             {!collapsed && (
               <span className="ml-2 text-lg font-medium text-gray-900">Brikli</span>
             )}
