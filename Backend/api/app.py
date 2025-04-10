@@ -7,11 +7,31 @@ from Backend.api.dashboard import router as dashboard_router
 from Backend.api.communication import router as communication_router
 from Backend.api.ai import router as ai_router
 from Backend.api.properties import router as properties_router
-from dotenv import load_dotenv
+from Backend.api.tenants import router as tenants_router
+from dotenv import load_dotenv, find_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-load_dotenv()
+# Load environment variables at startup
+def load_environment():
+    """Load environment variables at application startup."""
+    try:
+        env_path = find_dotenv()
+        if env_path:
+            logger.info(f"Loading environment variables from: {env_path}")
+            load_dotenv(env_path)
+        else:
+            logger.warning("No .env file found in current or parent directories")
+    except Exception as e:
+        logger.error(f"Error loading .env file: {str(e)}")
+        raise
+
+# Load environment variables
+load_environment()
 
 app = FastAPI()
 
@@ -32,6 +52,7 @@ app.include_router(dashboard_router, prefix="/api")
 app.include_router(communication_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")
 app.include_router(properties_router, prefix="/api")
+app.include_router(tenants_router, prefix="/api")
 
 @app.get("/")
 def root():

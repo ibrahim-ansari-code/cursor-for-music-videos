@@ -37,12 +37,10 @@ const Contracts = () => {
     setShowModal(false);
   };
 
-  const handleAnalyze = () => {
-    console.log('Analyze lease');
-  };
-
-  const handleImport = () => {
-    console.log('Import lease');
+  const handleImport = (leaseData) => {
+    // Add the new lease to the list
+    setLeases((prevLeases) => [...prevLeases, leaseData]);
+    handleCloseModal();
   };
 
   const getStatusBadgeClass = (status) => {
@@ -99,22 +97,16 @@ const Contracts = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tenant
+                  Tenant Name
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
+                  Property
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  No. of Properties
+                  Lease Dates
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tenancy (Months)
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date Sent
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date Signed
+                  Monthly Rent
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
@@ -126,40 +118,35 @@ const Contracts = () => {
                 leases.map((lease) => (
                   <tr key={lease.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
-                          {lease.tenant?.first_name?.[0] || '--'}
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {lease.tenant?.first_name || 'No tenant'}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {lease.tenant?.email || '--'}
-                          </div>
-                        </div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {lease.core_identifiers.tenant_name || 'Unknown Tenant'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {lease.property?.name || lease.unit?.unit_number || '--'}
+                        {lease.core_identifiers.rental_address || 'Unknown Property'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {new Date(lease.start_date).toLocaleDateString()} - {new Date(lease.end_date).toLocaleDateString()}
+                        {lease.term_details.lease_start_date} - {lease.term_details.lease_end_date}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        ${lease.rent_payment.monthly_rent}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`badge ${getStatusBadgeClass(lease.status)}`}>
-                        {lease.status || '--'}
+                        {lease.status || 'Pending'}
                       </span>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
                     No contracts found
                   </td>
                 </tr>
@@ -174,7 +161,6 @@ const Contracts = () => {
         <ImportLeaseModal
           isOpen={showModal}
           onClose={handleCloseModal}
-          onAnalyze={handleAnalyze}
           onImport={handleImport}
         />
       )}

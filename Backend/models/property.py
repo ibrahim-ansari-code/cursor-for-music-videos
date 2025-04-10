@@ -92,6 +92,9 @@ class PropertyUnit(SQLModel, table=True):
     leases: List["Lease"] = Relationship(back_populates="unit", sa_relationship_kwargs={"lazy": "selectin"})
     current_tenant: Optional["Tenant"] = Relationship(
         back_populates="current_unit",
-        sa_relationship_kwargs={"lazy": "selectin"}
+        sa_relationship_kwargs={"lazy": "selectin", "foreign_keys": "[Tenant.unit_id]"}
     )
+
+# Import necessary for annotations
+from Backend.models.tenant import Tenant
 

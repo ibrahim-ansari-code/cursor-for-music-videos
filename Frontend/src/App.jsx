@@ -14,6 +14,7 @@ import Properties from './pages/Properties';
 import PropertyDetail from './pages/PropertyDetail';
 import Contracts from './pages/Contracts';
 import Applications from './pages/Applications';
+import Tenants from './pages/Tenants';
 
 // Auth Context
 export const AuthContext = createContext(null);
@@ -136,6 +137,7 @@ function App() {
             <Route path="messages" element={<Messages />} />
             <Route path="contracts" element={<Contracts />} />
             <Route path="applications" element={<Applications />} />
+            <Route path="tenants" element={<Tenants />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
           <Route path="/login" element={<Login />} />

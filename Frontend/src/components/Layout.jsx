@@ -17,7 +17,8 @@ const Layout = () => {
       '/accounting': 'Accounting',
       '/messages': 'Messages',
       '/contracts': 'Contracts',
-      '/applications': 'Applications'
+      '/applications': 'Applications',
+      '/tenants': 'Tenants'
     };
 
     // Handle nested routes (e.g., /properties/:id)

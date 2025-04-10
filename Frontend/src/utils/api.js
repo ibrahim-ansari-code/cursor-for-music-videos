@@ -452,6 +452,7 @@ export const fetchTenants = async (params = {}) => {
   
   if (params.property_id) queryParams.append('property_id', params.property_id);
   if (params.status) queryParams.append('status', params.status);
+  if (params.search) queryParams.append('search', params.search);
   
   const queryString = queryParams.toString();
   return apiRequest(`/tenants${queryString ? '?' + queryString : ''}`);
@@ -475,19 +476,56 @@ export const updateTenant = async (tenantId, tenantData) => {
   });
 };
 
-export const fetchTenantsByProperty = async (propertyId) => {
-  const token = localStorage.getItem('token');
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/tenants?property_id=${propertyId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
+export const deleteTenant = async (tenantId) => {
+  return apiRequest(`/tenants/${tenantId}`, {
+    method: 'DELETE'
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch tenants');
+};
+
+export const fetchTenantsByProperty = async (propertyId) => {
+  if (!propertyId) {
+    console.error('fetchTenantsByProperty called without propertyId');
+    return []; // Return empty array instead of throwing
   }
-  
-  return response.json();
+
+  const token = localStorage.getItem('token');
+  try {
+    // Ensure URL is correctly formatted - normalize the URL to not have a trailing slash
+    const baseUrl = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
+    const url = `${baseUrl}/api/tenants?property_id=${propertyId}`;
+    
+    console.log('Fetching tenants from:', url);
+    
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Tenant fetch error:', response.status, errorText);
+      throw new Error(`Failed to fetch tenants: ${response.status} ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('Tenants fetched successfully:', data);
+    
+    // Handle both array and object responses
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data && typeof data === 'object') {
+      // Some APIs return { results: [...] } or similar
+      return Array.isArray(data.results) ? data.results : 
+             Array.isArray(data.tenants) ? data.tenants : 
+             [data]; // If it's a single tenant object, wrap it
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Error in fetchTenantsByProperty:', error);
+    throw error;
+  }
 };
 
 // Landlord Management API Functions
@@ -577,8 +615,7 @@ export const submitLease = async (leaseData) => {
     tenant_name: leaseData.tenantName,
     unit: leaseData.unit || null,
     property_id: leaseData.propertyId,
-    // TODO: Replace with actual tenant lookup
-    tenant_id: 1  // Hardcoded for now
+    tenant_id: leaseData.tenantId
   };
 
   const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/leases`, {
@@ -596,4 +633,54 @@ export const submitLease = async (leaseData) => {
   }
   
   return response.json();
+};
+
+export const parseLease = async (formData) => {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Authentication required. Please log in.');
+  }
+
+  try {
+    console.log('Calling parseLease API endpoint...');
+    // Ensure URL is correctly formatted - normalize the URL to not have a trailing slash
+    const baseUrl = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
+    const url = `${baseUrl}/api/leases/parse`;
+    
+    console.log('API URL:', url);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData
+    });
+    
+    // Log response status for debugging
+    console.log('Parse lease response status:', response.status);
+    
+    if (!response.ok) {
+      let errorMessage = 'Failed to parse lease';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorMessage;
+        console.error('Error response:', errorData);
+      } catch (e) {
+        // If JSON parsing fails, get text content instead
+        const errorText = await response.text();
+        console.error('Error response text:', errorText);
+        errorMessage = `${errorMessage}: ${response.status} ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+    
+    const data = await response.json();
+    console.log('Lease parse successful:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in parseLease:', error);
+    throw error;
+  }
 };

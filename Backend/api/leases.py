@@ -399,11 +399,20 @@ async def analyze_lease(
     """
     Analyze a lease PDF using GPT-4 to extract key fields.
     """
-    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+    # Log user info for debugging
+    logger.info(f"Analyze lease request from user ID: {current_user.id}, email: {current_user.email}, type: {current_user.user_type}")
+    
+    # Check if user is authorized based on their type
+    user_type = current_user.user_type.upper() if isinstance(current_user.user_type, str) else current_user.user_type
+    
+    if user_type not in [UserType.ADMIN.value, UserType.LANDLORD.value, 'ADMIN', 'LANDLORD']:
+        logger.warning(f"Authorization failed: User {current_user.id} with type {user_type} attempted to analyze lease")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to analyze leases"
         )
+    
+    logger.info(f"User {current_user.id} authorized to analyze lease")
     
     # Validate property exists
     property_query = select(Property).where(Property.id == property_id)
@@ -429,17 +438,92 @@ async def analyze_lease(
         pdf_document.close()
         
         # Analyze text using GPT-4
-        parsed_data = await analyze_lease_text(text)
+        logger.info(f"Sending lease text for analysis, length: {len(text[:100])}...")
+        parsed_data = analyze_lease_text(text)
         
         # Convert string dates to date objects
-        parsed_data['start_date'] = datetime.strptime(parsed_data['start_date'], '%Y-%m-%d').date()
-        parsed_data['end_date'] = datetime.strptime(parsed_data['end_date'], '%Y-%m-%d').date()
+        try:
+            if 'start_date' in parsed_data and parsed_data['start_date']:
+                parsed_data['start_date'] = datetime.strptime(parsed_data['start_date'], '%Y-%m-%d').date()
+            if 'end_date' in parsed_data and parsed_data['end_date']:
+                parsed_data['end_date'] = datetime.strptime(parsed_data['end_date'], '%Y-%m-%d').date()
+        except ValueError as e:
+            logger.error(f"Date parsing error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid date format in lease: {str(e)}"
+            )
         
+        logger.info(f"Lease analyzed successfully by user {current_user.id}")
         return parsed_data
         
     except Exception as e:
         logger.error(f"Failed to analyze lease: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to analyze lease document"
+            detail=f"Failed to analyze lease document: {str(e)}"
+        )
+
+@router.post("/parse", response_model=LeaseAnalysisResponse)
+async def parse_lease(
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Parse a lease PDF and extract key fields using LLM analysis.
+    """
+    # Log user info for debugging
+    logger.info(f"Parse lease request from user ID: {current_user.id}, email: {current_user.email}, type: {current_user.user_type}")
+    
+    # Check if user is authorized based on their type
+    user_type = current_user.user_type.upper() if isinstance(current_user.user_type, str) else current_user.user_type
+    
+    if user_type not in [UserType.ADMIN.value, UserType.LANDLORD.value, 'ADMIN', 'LANDLORD']:
+        logger.warning(f"Authorization failed: User {current_user.id} with type {user_type} attempted to parse lease")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to parse leases"
+        )
+    
+    logger.info(f"User {current_user.id} authorized to parse lease")
+    
+    try:
+        # Read PDF content
+        content = await file.read()
+        pdf_document = fitz.open(stream=content, filetype="pdf")
+        
+        # Extract text from all pages
+        text = ""
+        for page in pdf_document:
+            text += page.get_text()
+        
+        # Close the PDF document
+        pdf_document.close()
+        
+        # Analyze text using LLM
+        logger.info(f"Sending lease text for analysis, length: {len(text[:100])}...")
+        parsed_data = analyze_lease_text(text)
+        
+        # Convert string dates to date objects
+        try:
+            if 'start_date' in parsed_data and parsed_data['start_date']:
+                parsed_data['start_date'] = datetime.strptime(parsed_data['start_date'], '%Y-%m-%d').date()
+            if 'end_date' in parsed_data and parsed_data['end_date']:
+                parsed_data['end_date'] = datetime.strptime(parsed_data['end_date'], '%Y-%m-%d').date()
+        except ValueError as e:
+            logger.error(f"Date parsing error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid date format in lease: {str(e)}"
+            )
+        
+        logger.info(f"Lease parsed successfully by user {current_user.id}")
+        return parsed_data
+        
+    except Exception as e:
+        logger.error(f"Failed to parse lease: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to parse lease document: {str(e)}"
         )
