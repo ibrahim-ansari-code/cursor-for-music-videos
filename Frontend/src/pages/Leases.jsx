@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchLeases, uploadLeaseDocument, updateLeaseStatus } from '../utils/api';
+import ImportLeaseModal from '../components/ImportLeaseModal';
 
 const Leases = () => {
   const [leases, setLeases] = useState([]);
@@ -98,6 +99,11 @@ const Leases = () => {
       default:
         return 'badge-info';
     }
+  };
+
+  const handleImport = () => {
+    handleCloseModal();
+    loadLeases();
   };
 
   if (loading && leases.length === 0) {
@@ -378,6 +384,15 @@ const Leases = () => {
             </div>
           </div>
         </div>
+      )}
+      
+      {/* Import Lease Modal */}
+      {showModal && modalType === 'create' && (
+        <ImportLeaseModal
+          isOpen={showModal}
+          onClose={handleCloseModal}
+          onImport={handleImport}
+        />
       )}
     </div>
   );

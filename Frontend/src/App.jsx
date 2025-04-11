@@ -39,9 +39,21 @@ function App() {
 
         if (response.ok) {
           const userInfo = await response.json();
+          
+          // Ensure the user_type is in uppercase
+          const userType = userInfo.user_type?.toUpperCase();
+          userInfo.user_type = userType;
+          
+          // Update localStorage with the normalized user type
+          localStorage.setItem('user_type', userType);
+          localStorage.setItem('user', JSON.stringify(userInfo));
+          
+          console.log('Auth check: Updated user type to:', userType);
+          
           setUser(userInfo);
         } else {
           // Clear invalid token
+          console.error('Auth check failed, clearing credentials');
           localStorage.removeItem('token');
           localStorage.removeItem('user_type');
           localStorage.removeItem('user');
@@ -77,8 +89,18 @@ function App() {
       }
 
       const data = await response.json();
+      
+      // Ensure the user_type is in uppercase to match the enum values
+      const userType = data.user_type?.toUpperCase();
+      console.log('Auth token response:', { 
+        originalType: data.user_type,
+        normalizedType: userType
+      });
+      
+      // Store the uppercase user_type value
       localStorage.setItem('token', data.access_token);
-      localStorage.setItem('user_type', data.user_type);
+      localStorage.setItem('user_type', userType);
+      console.log('Stored user type:', userType);
 
       const userResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, {
         headers: {
@@ -92,6 +114,11 @@ function App() {
       }
 
       const userInfo = await userResponse.json();
+      
+      // Make sure userInfo.user_type is also uppercase
+      userInfo.user_type = userType;
+      console.log('User info from /me endpoint:', userInfo);
+      
       localStorage.setItem('user', JSON.stringify(userInfo));
       setUser(userInfo);
 

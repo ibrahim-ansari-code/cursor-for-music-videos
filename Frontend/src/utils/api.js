@@ -603,36 +603,75 @@ export const analyzeLease = async (formData) => {
 };
 
 export const submitLease = async (leaseData) => {
-  const token = localStorage.getItem('token');
-  
-  // Convert dates to ISO strings
-  const formattedData = {
-    ...leaseData,
-    start_date: new Date(leaseData.startDate).toISOString().split('T')[0],
-    end_date: new Date(leaseData.endDate).toISOString().split('T')[0],
-    monthly_rent: parseFloat(leaseData.monthlyRent),
-    security_deposit: parseFloat(leaseData.securityDeposit),
-    tenant_name: leaseData.tenantName,
-    unit: leaseData.unit || null,
-    property_id: leaseData.propertyId,
-    tenant_id: leaseData.tenantId
-  };
-
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/leases`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(formattedData)
-  });
-  
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Failed to create lease');
+  try {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userType = user?.user_type || localStorage.getItem('user_type');
+    
+    console.log('Lease submission - user info:', { 
+      userType: userType,
+      userFromLocalStorage: user
+    });
+    
+    // Create a copy to avoid modifying the original
+    const formattedData = { ...leaseData };
+    
+    // Ensure all required fields are present in the correct format
+    if (!formattedData.start_date && formattedData.startDate) {
+      formattedData.start_date = new Date(formattedData.startDate).toISOString().split('T')[0];
+    }
+    
+    if (!formattedData.end_date && formattedData.endDate) {
+      formattedData.end_date = new Date(formattedData.endDate).toISOString().split('T')[0];
+    }
+    
+    if (!formattedData.monthly_rent && formattedData.monthlyRent) {
+      formattedData.monthly_rent = parseFloat(formattedData.monthlyRent);
+    }
+    
+    if (!formattedData.security_deposit && formattedData.securityDeposit) {
+      formattedData.security_deposit = parseFloat(formattedData.securityDeposit);
+    }
+    
+    // Log the data being sent
+    console.log('Submitting lease with data:', formattedData);
+    
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/leases/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'X-Debug-User-Type': userType || '',  // For diagnostic purposes
+      },
+      body: JSON.stringify(formattedData),
+    });
+    
+    if (!response.ok) {
+      const clonedResponse = response.clone();
+      const text = await clonedResponse.text();
+      console.error('Lease creation failed. Status:', response.status, 'Response:', text);
+      
+      // Try to parse as JSON if possible
+      let errorData;
+      try {
+        errorData = JSON.parse(text);
+      } catch (e) {
+        errorData = { detail: text };
+      }
+      
+      throw {
+        status: response.status,
+        statusText: response.statusText,
+        data: errorData,
+        message: errorData.detail || 'Failed to create lease'
+      };
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error in submitLease:', error);
+    throw error;
   }
-  
-  return response.json();
 };
 
 export const parseLease = async (formData) => {

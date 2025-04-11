@@ -92,8 +92,23 @@ async def create_lease(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new lease"""
+    # Log detailed user information for debugging
+    logger.info(f"Create lease request by user: id={current_user.id}, email={current_user.email}, type={current_user.user_type}")
+    
+    # Debug header information
+    request_user_type = None
+    for header in scope.get("headers", []):  # type: ignore
+        if header[0].decode("utf-8").lower() == "x-debug-user-type":
+            request_user_type = header[1].decode("utf-8")
+            logger.info(f"Debug header user type: {request_user_type}")
+    
+    # Case-insensitive comparison of user types
+    user_type = current_user.user_type.upper()
+    logger.info(f"Normalized user type: {user_type}")
+    
     # Validate that the current user has permission to create leases
-    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+    if user_type not in ["ADMIN", "LANDLORD"]:
+        logger.warning(f"Unauthorized lease creation attempt by user {current_user.id} with type {user_type}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to create leases"
@@ -503,13 +518,25 @@ async def parse_lease(
         
         # Analyze text using LLM
         logger.info(f"Sending lease text for analysis, length: {len(text[:100])}...")
-        parsed_data = analyze_lease_text(text)
+        raw_parsed_data = analyze_lease_text(text)
+        
+        # Restructure the data to match LeaseAnalysisResponse model
+        parsed_data = {
+            'monthly_rent': float(raw_parsed_data.get('rent_payment', {}).get('monthly_rent', 0)),
+            'start_date': raw_parsed_data.get('term_details', {}).get('lease_start_date', ''),
+            'end_date': raw_parsed_data.get('term_details', {}).get('lease_end_date', ''),
+            'security_deposit': float(raw_parsed_data.get('deposits', {}).get('security_deposit', 0)),
+            'tenant_name': raw_parsed_data.get('core_identifiers', {}).get('tenant_name', ''),
+            'unit': raw_parsed_data.get('core_identifiers', {}).get('unit_number', '')
+        }
+        
+        logger.info(f"Restructured data: {parsed_data}")
         
         # Convert string dates to date objects
         try:
-            if 'start_date' in parsed_data and parsed_data['start_date']:
+            if parsed_data['start_date']:
                 parsed_data['start_date'] = datetime.strptime(parsed_data['start_date'], '%Y-%m-%d').date()
-            if 'end_date' in parsed_data and parsed_data['end_date']:
+            if parsed_data['end_date']:
                 parsed_data['end_date'] = datetime.strptime(parsed_data['end_date'], '%Y-%m-%d').date()
         except ValueError as e:
             logger.error(f"Date parsing error: {str(e)}")

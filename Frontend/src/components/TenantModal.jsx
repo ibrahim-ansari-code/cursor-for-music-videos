@@ -135,7 +135,8 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave }) => {
       };
 
       let response;
-      if (tenant) {
+      // Check if we have a valid tenant ID (not undefined or null)
+      if (tenant && tenant.id) {
         // Update existing tenant
         response = await updateTenant(tenant.id, tenantData);
       } else {

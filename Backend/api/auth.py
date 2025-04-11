@@ -114,24 +114,53 @@ async def get_current_user(
         email = payload.get("sub")
         user_id = payload.get("user_id")
         user_type = payload.get("user_type")
+        
+        # Log token contents for debugging
+        logger.info(f"Token payload: email={email}, user_id={user_id}, user_type={user_type}")
+        
         if email is None or user_id is None or user_type is None:
+            logger.error("Missing required claims in token")
             raise credentials_exception
+            
         token_data = TokenData(email=email, user_id=user_id, user_type=user_type)
-    except JWTError:
+    except JWTError as e:
+        logger.error(f"JWT decode error: {str(e)}")
         raise credentials_exception
 
-    result = await session.execute(
-        select(User).where(
-            and_(
-                User.id == token_data.user_id,
-                User.email == token_data.email,
-                func.upper(User.user_type) == token_data.user_type
-            )
+    # Debug the query we're using to find the user
+    query = select(User).where(
+        and_(
+            User.id == token_data.user_id,
+            User.email == token_data.email,
+            func.upper(User.user_type) == token_data.user_type
         )
     )
+    logger.info(f"User lookup query: {query}")
+    
+    result = await session.execute(query)
     user = result.scalar_one_or_none()
+    
     if user is None:
+        logger.error(f"User not found for token data: {token_data}")
+        # Try a simpler query to debug why we can't find the user
+        simple_query = select(User).where(User.id == token_data.user_id)
+        simple_result = await session.execute(simple_query)
+        simple_user = simple_result.scalar_one_or_none()
+        
+        if simple_user:
+            logger.info(f"Found user by ID only: {simple_user.id}, email={simple_user.email}, type={simple_user.user_type}")
+            logger.info(f"User type comparison: token={token_data.user_type}, db={simple_user.user_type}")
+            
+            # If only the case is different, update the user type to match the token
+            if simple_user.user_type.upper() == token_data.user_type.upper():
+                logger.info(f"Updating user type from {simple_user.user_type} to {token_data.user_type}")
+                simple_user.user_type = token_data.user_type
+                await session.commit()
+                return simple_user
+        
         raise credentials_exception
+        
+    logger.info(f"User authenticated: id={user.id}, email={user.email}, type={user.user_type}")
     return user
 
 # === API Routes ===

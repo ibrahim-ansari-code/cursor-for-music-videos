@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchProperties, parseLease, submitLease, fetchTenantsByProperty } from '../utils/api';
+import { fetchProperties, parseLease, submitLease, fetchTenantsByProperty, getCurrentUser } from '../utils/api';
 import TenantModal from './TenantModal';
 
 const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
@@ -27,6 +27,7 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
   const [showTenantModal, setShowTenantModal] = useState(false);
   const [createTenant, setCreateTenant] = useState(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [propertySearchTerm, setPropertySearchTerm] = useState('');
 
   useEffect(() => {
     const loadProperties = async () => {
@@ -35,10 +36,46 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
         setProperties(data);
       } catch (error) {
         console.error('Failed to fetch properties:', error);
+        setError('Failed to load properties. Please try again.');
+      }
+    };
+
+    const validateUserPermissions = async () => {
+      try {
+        // Check current user permissions from server
+        const userInfo = await getCurrentUser();
+        
+        // Get and log the user type we got from the server
+        const userType = userInfo.user_type?.toUpperCase();
+        console.log('Current user type from server:', userType);
+        
+        // Also check what we have in localStorage
+        const localUserType = localStorage.getItem('user_type');
+        const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+        console.log('User type from localStorage:', localUserType);
+        console.log('User object from localStorage:', localUser);
+        
+        // Validate against uppercase values to match the enum
+        if (userType !== 'LANDLORD' && userType !== 'ADMIN') {
+          setError('Your account doesn\'t have permission to create leases. Please contact an administrator.');
+        } else {
+          // Ensure we have the correct uppercase value in localStorage
+          localStorage.setItem('user_type', userType);
+          
+          // Update the user object too if it exists
+          if (localUser && localUser.id) {
+            localUser.user_type = userType;
+            localStorage.setItem('user', JSON.stringify(localUser));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to validate user permissions:', error);
+        setError('Unable to verify your permissions. Please refresh the page and try again.');
       }
     };
 
     loadProperties();
+    validateUserPermissions();
   }, []);
 
   useEffect(() => {
@@ -112,6 +149,28 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
     setError(null);
 
     try {
+      // Validate user permissions first
+      const userInfo = await getCurrentUser();
+      
+      // Convert to uppercase for reliable comparison
+      const userType = userInfo.user_type?.toUpperCase();
+      console.log('User type when analyzing lease:', userType);
+      
+      if (userType !== 'LANDLORD' && userType !== 'ADMIN') {
+        setError('Your account doesn\'t have permission to create leases. Please contact an administrator.');
+        return;
+      }
+
+      // Ensure localStorage has the correct uppercase values
+      localStorage.setItem('user_type', userType);
+      
+      // Update the user object too if it exists
+      const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (localUser && localUser.id) {
+        localUser.user_type = userType;
+        localStorage.setItem('user', JSON.stringify(localUser));
+      }
+      
       const formData = new FormData();
       formData.append('file', file);
 
@@ -129,11 +188,16 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
       }
 
       setLeaseData(response);
+      
       if (createTenant) {
+        // If creating a new tenant, show tenant modal
         setShowTenantModal(true);
+      } else if (selectedTenant) {
+        // If using existing tenant, create the lease directly
+        const tenantDetails = tenants.find(t => t.id === parseInt(selectedTenant)) || { id: selectedTenant };
+        submitLeaseAfterTenant(tenantDetails);
       } else {
-        onImport(response);
-        onClose();
+        setError("Please select a tenant or choose to create a new one");
       }
     } catch (err) {
       console.error('Failed to parse lease:', err);
@@ -149,47 +213,6 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
       ...prev,
       [name]: value
     }));
-  };
-
-  const handleImport = async () => {
-    if (!showPreview) {
-      setError("Please analyze the lease before importing");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    setSuccess(false);
-
-    try {
-      const importData = {
-        ...leaseData,
-        propertyId: selectedProperty,
-        tenantId: selectedTenant
-      };
-      
-      console.log('Submitting lease data:', importData);
-      
-      const response = await submitLease(importData);
-      console.log('Lease submit response:', response);
-
-      setSuccess(true);
-      setTimeout(() => {
-        onClose();
-        if (onImport) {
-          onImport();
-        }
-        if (createTenant) {
-          setShowTenantModal(true);
-        }
-      }, 1500);
-    } catch (err) {
-      console.error('Failed to import lease:', err);
-      setError(err.message || 'Failed to import lease. Please try again.');
-      setSuccess(false);
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const filteredTenants = tenants.filter(tenant => {
@@ -209,6 +232,122 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
     
     // Call the parent's onClose
     onClose();
+  };
+
+  // Function to safely format dates
+  const formatDate = (dateValue) => {
+    if (!dateValue) return '';
+    
+    // If it's already in YYYY-MM-DD format, return it as is
+    if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+      return dateValue;
+    }
+    
+    // For dates already in Date object format
+    if (dateValue instanceof Date) {
+      const year = dateValue.getFullYear();
+      const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+      const day = String(dateValue.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
+    // Handle other string formats - explicitly parse components
+    if (typeof dateValue === 'string') {
+      // Try standard date parsing first
+      try {
+        const tempDate = new Date(dateValue);
+        if (!isNaN(tempDate.getTime())) {
+          const year = tempDate.getFullYear();
+          const month = String(tempDate.getMonth() + 1).padStart(2, '0');
+          const day = String(tempDate.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+      } catch (e) {
+        console.error('Error parsing date string:', e);
+      }
+      
+      // If standard parsing fails, try manual parsing for common formats
+      // MM/DD/YYYY or MM-DD-YYYY
+      const dateRegex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/;
+      const match = dateValue.match(dateRegex);
+      if (match) {
+        const month = String(parseInt(match[1])).padStart(2, '0');
+        const day = String(parseInt(match[2])).padStart(2, '0');
+        const year = match[3];
+        return `${year}-${month}-${day}`;
+      }
+    }
+    
+    console.error('Could not parse date:', dateValue);
+    return '';
+  };
+
+  // Add this function to handle lease creation after tenant processing
+  const submitLeaseAfterTenant = async (tenant) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Get dates from either leaseData or tenant
+      const startDate = formatDate(leaseData.start_date || tenant.lease_start);
+      const endDate = formatDate(leaseData.end_date || tenant.lease_end);
+      
+      console.log('Formatted dates:', { startDate, endDate });
+      
+      if (!startDate || !endDate) {
+        throw new Error('Valid start and end dates are required');
+      }
+      
+      // Format lease data for API - include ALL required fields from LeaseBase model
+      const formattedLeaseData = {
+        start_date: startDate,
+        end_date: endDate,
+        monthly_rent: parseFloat(leaseData.monthly_rent || tenant.monthly_rent || 0),
+        security_deposit: parseFloat(leaseData.security_deposit || 0),
+        property_id: parseInt(selectedProperty),
+        tenant_id: parseInt(tenant.id),
+        unit_id: tenant.unit_id ? parseInt(tenant.unit_id) : null,
+        // Required fields from LeaseBase model
+        is_renewable: true,
+        auto_renew: false,
+        rent_due_day: 1,
+        // Make sure status is uppercase to match the enum
+        status: "DRAFT"
+      };
+      
+      console.log('Creating lease with data:', formattedLeaseData);
+      
+      // Double-check user permissions before submitting
+      const userInfo = await getCurrentUser();
+      const userType = userInfo.user_type?.toUpperCase();
+      console.log('User permissions when creating lease:', { userType });
+      
+      if (userType !== 'LANDLORD' && userType !== 'ADMIN') {
+        throw new Error('Your account doesn\'t have permission to create leases.');
+      }
+      
+      // Update localStorage to ensure correct format
+      localStorage.setItem('user_type', userType);
+      
+      // Submit the lease to the API
+      const response = await submitLease(formattedLeaseData);
+      
+      console.log('Lease created successfully:', response);
+      setSuccess(true);
+      
+      // Close modal and refresh the lease list
+      setTimeout(() => {
+        onClose();
+        if (onImport) {
+          onImport();
+        }
+      }, 1500);
+    } catch (err) {
+      console.error('Failed to create lease:', err);
+      setError(err.message || 'Failed to create lease. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -231,16 +370,39 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Select Property
             </label>
-            <select
-              className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              value={selectedProperty}
-              onChange={(e) => setSelectedProperty(e.target.value)}
-            >
-              <option value="">Choose a property</option>
-              {properties.map((property) => (
-                <option key={property.id} value={property.id}>{property.name}</option>
-              ))}
-            </select>
+            <div className="relative tenant-dropdown">
+              <input
+                type="text"
+                placeholder="Search or select property..."
+                value={propertySearchTerm}
+                onChange={(e) => {
+                  setPropertySearchTerm(e.target.value);
+                  setDropdownOpen('property');
+                }}
+                className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+              {dropdownOpen === 'property' && (
+                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md">
+                  <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                    {properties.filter(property => property.name.toLowerCase().includes(propertySearchTerm.toLowerCase())).map((property) => (
+                      <li
+                        key={property.id}
+                        className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
+                        onClick={() => {
+                          setSelectedProperty(property.id);
+                          setPropertySearchTerm(property.name);
+                          setDropdownOpen(false);
+                        }}
+                      >
+                        <span className="font-normal block truncate">
+                          {property.name}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
 
           {selectedProperty && (
@@ -255,11 +417,11 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
-                    setDropdownOpen(true);
+                    setDropdownOpen('tenant');
                   }}
                   className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
-                {dropdownOpen && (
+                {dropdownOpen === 'tenant' && (
                   <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md">
                     <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
                       {filteredTenants.length > 0 ? (
@@ -368,7 +530,9 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
             isOpen={showTenantModal}
             onClose={() => setShowTenantModal(false)}
             tenant={leaseData}
-            onSave={onImport}
+            onSave={(savedTenant) => {
+              submitLeaseAfterTenant(savedTenant);
+            }}
           />
         )}
       </div>
