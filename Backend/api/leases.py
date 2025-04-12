@@ -15,6 +15,8 @@ from Backend.models.user import User
 from Backend.api.auth import get_current_user
 from Backend.utils.llm_utils import analyze_lease_text
 from Backend.models.enums import UserType
+from Backend.models.property import Property, PropertyUnit
+from Backend.models.tenant import Tenant
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -95,30 +97,48 @@ async def create_lease(
     # Log detailed user information for debugging
     logger.info(f"Create lease request by user: id={current_user.id}, email={current_user.email}, type={current_user.user_type}")
     
-    # Debug header information
-    request_user_type = None
-    for header in scope.get("headers", []):  # type: ignore
-        if header[0].decode("utf-8").lower() == "x-debug-user-type":
-            request_user_type = header[1].decode("utf-8")
-            logger.info(f"Debug header user type: {request_user_type}")
-    
     # Case-insensitive comparison of user types
-    user_type = current_user.user_type.upper()
+    user_type = current_user.user_type.upper() if current_user.user_type else None
     logger.info(f"Normalized user type: {user_type}")
     
-    # Validate that the current user has permission to create leases
-    if user_type not in ["ADMIN", "LANDLORD"]:
+    # Define scope based on user type
+    scope = None
+    if user_type == "ADMIN":
+        scope = "global"
+    elif user_type == "LANDLORD":
+        scope = "own_properties"
+    else:
         logger.warning(f"Unauthorized lease creation attempt by user {current_user.id} with type {user_type}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to create leases"
         )
 
+    # If user is a landlord, verify they own the property
+    if scope == "own_properties":
+        property_query = select(Property).where(
+            and_(
+                Property.id == lease_data.property_id,
+                Property.owner_id == current_user.id
+            )
+        )
+        property_result = await session.execute(property_query)
+        property = property_result.scalar_one_or_none()
+        
+        if not property:
+            logger.warning(f"Landlord {current_user.id} attempted to create lease for property {lease_data.property_id} they don't own")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to create leases for this property"
+            )
+    
     # Validate tenant
-    tenant_query = select(User).where(User.id == lease_data.tenant_id, User.user_type == UserType.TENANT)
+    tenant_query = select(Tenant).where(Tenant.id == lease_data.tenant_id)
     tenant_result = await session.execute(tenant_query)
     tenant = tenant_result.scalar_one_or_none()
+
     if not tenant:
+        logger.error(f"Tenant not found with ID: {lease_data.tenant_id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid tenant ID"
@@ -135,7 +155,12 @@ async def create_lease(
         )
 
     if lease_data.unit_id:
-        unit_query = select(PropertyUnit).where(PropertyUnit.id == lease_data.unit_id, PropertyUnit.property_id == lease_data.property_id)
+        unit_query = select(PropertyUnit).where(
+            and_(
+                PropertyUnit.id == lease_data.unit_id,
+                PropertyUnit.property_id == lease_data.property_id
+            )
+        )
         unit_result = await session.execute(unit_query)
         unit = unit_result.scalar_one_or_none()
         if not unit:
@@ -412,71 +437,47 @@ async def analyze_lease(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Analyze a lease PDF using GPT-4 to extract key fields.
+    Analyze a lease document and extract key information.
     """
-    # Log user info for debugging
-    logger.info(f"Analyze lease request from user ID: {current_user.id}, email: {current_user.email}, type: {current_user.user_type}")
-    
-    # Check if user is authorized based on their type
-    user_type = current_user.user_type.upper() if isinstance(current_user.user_type, str) else current_user.user_type
-    
-    if user_type not in [UserType.ADMIN.value, UserType.LANDLORD.value, 'ADMIN', 'LANDLORD']:
-        logger.warning(f"Authorization failed: User {current_user.id} with type {user_type} attempted to analyze lease")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to analyze leases"
-        )
-    
-    logger.info(f"User {current_user.id} authorized to analyze lease")
-    
-    # Validate property exists
-    property_query = select(Property).where(Property.id == property_id)
-    property_result = await session.execute(property_query)
-    property = property_result.scalar_one_or_none()
-    if not property:
+    try:
+        logger.info(f"Starting lease analysis for property_id: {property_id}")
+        
+        # Read file content
+        content = await file.read()
+        text_content = content.decode('utf-8')
+        
+        # Log the first 100 characters of content for debugging
+        logger.debug(f"File content preview: {text_content[:100]}...")
+        
+        # Analyze the lease text
+        analysis_result = analyze_lease_text(text_content)
+        logger.info("Lease analysis completed successfully")
+        logger.debug(f"Analysis result: {analysis_result}")
+        
+        # Extract required fields from the nested structure
+        response_data = {
+            "monthly_rent": float(analysis_result['rent_payment']['monthly_rent']),
+            "start_date": analysis_result['term_details']['lease_start_date'],
+            "end_date": analysis_result['term_details']['lease_end_date'],
+            "security_deposit": float(analysis_result['deposits']['security_deposit']),
+            "tenant_name": analysis_result['core_identifiers']['tenant_name'],
+            "unit": analysis_result['core_identifiers'].get('unit_number', '')
+        }
+        
+        logger.info(f"Formatted response data: {response_data}")
+        return response_data
+        
+    except ValueError as e:
+        logger.error(f"Validation error in lease analysis: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid property ID"
+            detail=str(e)
         )
-    
-    try:
-        # Read PDF content
-        content = await file.read()
-        pdf_document = fitz.open(stream=content, filetype="pdf")
-        
-        # Extract text from all pages
-        text = ""
-        for page in pdf_document:
-            text += page.get_text()
-        
-        # Close the PDF document
-        pdf_document.close()
-        
-        # Analyze text using GPT-4
-        logger.info(f"Sending lease text for analysis, length: {len(text[:100])}...")
-        parsed_data = analyze_lease_text(text)
-        
-        # Convert string dates to date objects
-        try:
-            if 'start_date' in parsed_data and parsed_data['start_date']:
-                parsed_data['start_date'] = datetime.strptime(parsed_data['start_date'], '%Y-%m-%d').date()
-            if 'end_date' in parsed_data and parsed_data['end_date']:
-                parsed_data['end_date'] = datetime.strptime(parsed_data['end_date'], '%Y-%m-%d').date()
-        except ValueError as e:
-            logger.error(f"Date parsing error: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid date format in lease: {str(e)}"
-            )
-        
-        logger.info(f"Lease analyzed successfully by user {current_user.id}")
-        return parsed_data
-        
     except Exception as e:
-        logger.error(f"Failed to analyze lease: {str(e)}")
+        logger.error(f"Error analyzing lease: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to analyze lease document: {str(e)}"
+            detail=f"Failed to analyze lease: {str(e)}"
         )
 
 @router.post("/parse", response_model=LeaseAnalysisResponse)

@@ -5,15 +5,15 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave }) => {
   const [properties, setProperties] = useState([]);
   const [propertyUnits, setPropertyUnits] = useState([]);
   const [formData, setFormData] = useState({
-    full_name: tenant?.tenant_name || '',
+    full_name: '',
     phone: '',
     email: '',
     current_property_id: '',
     unit_id: '',
-    unit: tenant?.unit || '',
-    lease_start: tenant?.start_date || '',
-    lease_end: tenant?.end_date || '',
-    monthly_rent: tenant?.monthly_rent?.toString() || '',
+    unit: '',
+    lease_start: '',
+    lease_end: '',
+    monthly_rent: '',
     status: 'Active',
     leasing_agent: ''
   });
@@ -21,43 +21,86 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave }) => {
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [isLLMFlow, setIsLLMFlow] = useState(false);
 
   // Load properties on component mount
   useEffect(() => {
-    const loadProperties = async () => {
-      try {
-        const data = await fetchProperties();
-        setProperties(data);
-      } catch (error) {
-        console.error('Failed to fetch properties:', error);
-        setError('Failed to load properties. Please try again.');
-      }
-    };
-
     loadProperties();
   }, []);
 
-  // Load property units when a property is selected
+  // Sync tenant prop to formData state - this is the source of truth for LLM flow
   useEffect(() => {
-    const loadPropertyUnits = async () => {
-      if (formData.current_property_id) {
-        try {
-          const units = await fetchPropertyUnits(formData.current_property_id);
-          setPropertyUnits(units);
-        } catch (error) {
-          console.error('Failed to fetch property units:', error);
-          setPropertyUnits([]);
-        }
-      } else {
-        setPropertyUnits([]);
+    console.log('TenantModal - tenant prop received:', tenant);
+    
+    if (tenant) {
+      setIsLLMFlow(true); // Mark this as an LLM-driven flow
+      
+      const updatedFormData = {
+        full_name: tenant.full_name || '',
+        phone: tenant.phone || '',
+        email: tenant.email || '',
+        current_property_id: tenant.current_property_id || '',
+        unit_id: tenant.unit_id || '',
+        unit: tenant.unit || '',
+        lease_start: tenant.lease_start || '',
+        lease_end: tenant.lease_end || '',
+        monthly_rent: typeof tenant.monthly_rent !== 'undefined' ? tenant.monthly_rent.toString() : '',
+        status: tenant.status || 'Active',
+        leasing_agent: tenant.leasing_agent || ''
+      };
+
+      console.log('TenantModal - updating formData with LLM data:', updatedFormData);
+      setFormData(updatedFormData);
+      
+      // Clear any previous errors
+      setFieldErrors({});
+      setError(null);
+    } else {
+      setIsLLMFlow(false); // Reset for manual entry flow
+    }
+  }, [tenant, isOpen]);
+
+  // Load property units ONLY for manual entry flow
+  useEffect(() => {
+    const loadUnits = async () => {
+      // Skip if this is LLM flow or no property selected
+      if (isLLMFlow || !formData.current_property_id) {
+        return;
+      }
+
+      try {
+        console.log('Loading units for property:', formData.current_property_id);
+        const units = await fetchPropertyUnits(formData.current_property_id);
+        setPropertyUnits(units);
+      } catch (error) {
+        console.error('Failed to fetch property units:', error);
+        setError('Failed to load property units. Please try again.');
       }
     };
 
-    loadPropertyUnits();
-  }, [formData.current_property_id]);
+    loadUnits();
+  }, [formData.current_property_id, isLLMFlow]);
 
+  const loadProperties = async () => {
+    try {
+      const data = await fetchProperties();
+      setProperties(data);
+    } catch (error) {
+      console.error('Failed to fetch properties:', error);
+      setError('Failed to load properties. Please try again.');
+    }
+  };
+
+  // Handle form field changes
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+// Prevent property changes in LLM flow, but allow manual unit entry
+if (isLLMFlow && name === 'current_property_id') {
+  console.log('Preventing property change in LLM flow');
+  return;
+}
+
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -144,8 +187,26 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave }) => {
         response = await createTenant(tenantData);
       }
 
+      console.log('Tenant created/updated successfully:', response);
+
       if (onSave) {
-        onSave(response);
+        // Ensure all necessary fields are properly formatted
+        const formattedResponse = {
+          id: parseInt(response.id), // Ensure ID is an integer
+          full_name: response.full_name,
+          email: response.email,
+          phone: response.phone,
+          current_property_id: response.current_property_id ? parseInt(response.current_property_id) : null,
+          unit_id: response.unit_id ? parseInt(response.unit_id) : null,
+          unit: response.unit,
+          lease_start: response.lease_start,
+          lease_end: response.lease_end,
+          monthly_rent: response.monthly_rent ? parseFloat(response.monthly_rent) : null,
+          status: response.status
+        };
+
+        console.log('Passing formatted tenant data to parent:', formattedResponse);
+        onSave(formattedResponse);
       }
       onClose();
     } catch (err) {

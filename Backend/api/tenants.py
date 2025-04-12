@@ -34,7 +34,6 @@ class TenantCreate(BaseModel):
     lease_end: Optional[date] = None
     monthly_rent: Optional[float] = None
     status: Optional[str] = "Active"
-    user_id: Optional[int] = None
     
     @validator('monthly_rent')
     def validate_rent(cls, v):
@@ -201,7 +200,7 @@ async def create_tenant(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Create a new tenant.
+    Create a new tenant without creating a user account.
     """
     try:
         # Check if property exists if property_id is provided
@@ -228,7 +227,7 @@ async def create_tenant(
                     detail="Unit not found"
                 )
         
-        # Create new tenant instance
+        # Create new tenant instance without user_id
         new_tenant = Tenant(
             full_name=tenant_data.full_name,
             phone=tenant_data.phone,
@@ -240,7 +239,7 @@ async def create_tenant(
             lease_end=tenant_data.lease_end,
             monthly_rent=tenant_data.monthly_rent,
             status=tenant_data.status,
-            user_id=tenant_data.user_id,
+            user_id=None,  # Explicitly set to None
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
@@ -272,7 +271,7 @@ async def create_tenant(
             "lease_end": new_tenant.lease_end,
             "monthly_rent": new_tenant.monthly_rent,
             "status": new_tenant.status,
-            "user_id": new_tenant.user_id,
+            "user_id": None,  # Always return None for now
             "created_at": new_tenant.created_at,
             "updated_at": new_tenant.updated_at
         }

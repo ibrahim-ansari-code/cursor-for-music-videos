@@ -82,4 +82,3 @@ class LeaseCreate(SQLModel):
     end_date: date
     monthly_rent: float
     security_deposit: float
-    status: LeaseStatus = LeaseStatus.DRAFT

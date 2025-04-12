@@ -1,33 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { fetchProperties, parseLease, submitLease, fetchTenantsByProperty, getCurrentUser } from '../utils/api';
+import { fetchProperties, parseLease, submitLease, fetchTenantsByProperty, getCurrentUser, createTenant as createTenantAPI, createLease as createLeaseAPI } from '../utils/api';
 import TenantModal from './TenantModal';
 
 const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
   const [properties, setProperties] = useState([]);
   const [selectedProperty, setSelectedProperty] = useState('');
   const [tenants, setTenants] = useState([]);
-  const [selectedTenant, setSelectedTenant] = useState('');
+  const [selectedTenant, setSelectedTenant] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [file, setFile] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTenantCreating, setIsTenantCreating] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [leaseData, setLeaseData] = useState({
-    monthlyRent: '',
-    startDate: '',
-    endDate: '',
-    securityDeposit: '',
-    tenantName: '',
+    monthly_rent: '',
+    start_date: '',
+    end_date: '',
+    security_deposit: '',
+    tenant_name: '',
     unit: ''
   });
+  const [isCreatingNewTenant, setIsCreatingNewTenant] = useState(false);
   const [additionalFields, setAdditionalFields] = useState({});
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
   const [tenantLoadError, setTenantLoadError] = useState(null);
   const [showTenantModal, setShowTenantModal] = useState(false);
-  const [createTenant, setCreateTenant] = useState(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [propertySearchTerm, setPropertySearchTerm] = useState('');
+  const [tenantData, setTenantData] = useState({});
+  const [isLeaseCreating, setIsLeaseCreating] = useState(false);
 
   useEffect(() => {
     const loadProperties = async () => {
@@ -140,70 +143,151 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
   };
 
   const handleAnalyze = async () => {
-    if (!file || !selectedProperty) {
-      setError("Please select a property and drop a file before analyzing");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
     try {
-      // Validate user permissions first
-      const userInfo = await getCurrentUser();
-      
-      // Convert to uppercase for reliable comparison
-      const userType = userInfo.user_type?.toUpperCase();
-      console.log('User type when analyzing lease:', userType);
-      
-      if (userType !== 'LANDLORD' && userType !== 'ADMIN') {
-        setError('Your account doesn\'t have permission to create leases. Please contact an administrator.');
-        return;
-      }
+      setIsLoading(true);
+      setError(null);
 
-      // Ensure localStorage has the correct uppercase values
-      localStorage.setItem('user_type', userType);
-      
-      // Update the user object too if it exists
-      const localUser = JSON.parse(localStorage.getItem('user') || '{}');
-      if (localUser && localUser.id) {
-        localUser.user_type = userType;
-        localStorage.setItem('user', JSON.stringify(localUser));
-      }
-      
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('property_id', selectedProperty);
 
-      console.log('Analyzing lease for:', {
-        propertyId: selectedProperty,
-        fileName: file.name,
-        fileSize: file.size
-      });
-
+      console.log('Calling parseLease API endpoint...');
       const response = await parseLease(formData);
-      console.log('Lease parse response:', response);
+      console.log('Lease parse successful:', response);
 
-      if (!response) {
-        throw new Error('No response received from lease parsing');
-      }
+      // Store the complete lease data needed for creation
+      const extractedLeaseData = {
+        monthly_rent: parseFloat(response.monthly_rent || 0),
+        security_deposit: parseFloat(response.security_deposit || 0),
+        start_date: response.start_date,
+        end_date: response.end_date,
+        property_id: parseInt(selectedProperty),
+        is_renewable: true,
+        auto_renew: false,
+        rent_due_day: 1,
+        late_fee_amount: null,
+        late_fee_after_days: null,
+        special_terms: null
+      };
+      console.log('Storing lease data:', extractedLeaseData);
+      setLeaseData(extractedLeaseData);
 
-      setLeaseData(response);
-      
-      if (createTenant) {
-        // If creating a new tenant, show tenant modal
-        setShowTenantModal(true);
-      } else if (selectedTenant) {
-        // If using existing tenant, create the lease directly
-        const tenantDetails = tenants.find(t => t.id === parseInt(selectedTenant)) || { id: selectedTenant };
-        submitLeaseAfterTenant(tenantDetails);
-      } else {
-        setError("Please select a tenant or choose to create a new one");
-      }
-    } catch (err) {
-      console.error('Failed to parse lease:', err);
-      setError(err.message || 'Failed to parse lease. Please try again.');
+      // Set tenant data
+      const tenantData = {
+        full_name: response.tenant_name,
+        current_property_id: parseInt(selectedProperty),
+        unit: response.unit || '',
+        lease_start: response.start_date,
+        lease_end: response.end_date,
+        monthly_rent: response.monthly_rent?.toString() || '0'
+      };
+
+      console.log('Setting tenant data:', tenantData);
+      setTenantData(tenantData);
+      setShowTenantModal(true);
+    } catch (error) {
+      console.error('Error analyzing lease:', error);
+      setError(error.message || 'Failed to analyze lease. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleTenantSave = async (tenantData) => {
+    if (isTenantCreating) {
+      console.warn('Prevented duplicate tenant creation');
+      return;
+    }
+    
+    try {
+      console.log('Creating tenant with data:', tenantData);
+      setIsTenantCreating(true);
+      setError(null);
+
+      // Create tenant record
+      const tenant = await createTenantAPI(tenantData);
+      console.log('Tenant created successfully:', tenant);
+
+      // Submit lease after tenant creation
+      await submitLeaseAfterTenant(tenant);
+    } catch (error) {
+      console.error('Error in tenant/lease creation flow:', error);
+      setError(error.message || 'Failed to create tenant and lease. Please try again.');
+      throw error;
+    } finally {
+      setIsTenantCreating(false);
+    }
+  };
+
+  const submitLeaseAfterTenant = async (tenant) => {
+    try {
+      console.log('Creating lease with tenant:', tenant);
+      console.log('Using stored lease data:', leaseData);
+      setIsLeaseCreating(true);
+      setError(null);
+
+      if (!leaseData || !leaseData.start_date || !leaseData.end_date || !leaseData.monthly_rent) {
+        throw new Error('Missing required lease data. Please try analyzing the lease again.');
+      }
+
+      // Ensure dates are in YYYY-MM-DD format
+      const formattedStartDate = formatDate(leaseData.start_date);
+      const formattedEndDate = formatDate(leaseData.end_date);
+
+      if (!formattedStartDate || !formattedEndDate) {
+        throw new Error('Invalid date format. Please ensure dates are in YYYY-MM-DD format.');
+      }
+
+      const toFloat = (val) => (val === '' || val == null ? 0 : parseFloat(val));
+      const toStringOrNull = (val) =>
+        typeof val === 'string' ? val.trim() || null : null;
+      
+      const leaseCreateData = {
+        tenant_id: parseInt(tenant.id),
+        property_id: parseInt(selectedProperty),
+        unit_id: tenant.unit_id ? parseInt(tenant.unit_id) : null,
+        start_date: formattedStartDate,
+        end_date: formattedEndDate,
+        monthly_rent: toFloat(leaseData.monthly_rent),
+        security_deposit: toFloat(leaseData.security_deposit),
+        is_renewable: true,
+        auto_renew: false,
+        rent_due_day: 1,
+        late_fee_amount: null,
+        late_fee_after_days: null,
+        special_terms: toStringOrNull(leaseData.special_terms)
+      };
+      console.log('Lease create data:', leaseCreateData);
+      
+      // Validate the payload before sending
+      const requiredFields = ['tenant_id', 'property_id', 'start_date', 'end_date', 'monthly_rent', 'security_deposit'];
+      const missingFields = requiredFields.filter(
+        (field) => {
+          const value = leaseCreateData[field];
+          return value === undefined || value === null || 
+                 (typeof value === 'string' && value.trim() === '') ||
+                 (typeof value === 'number' && isNaN(value));
+        }
+      );
+            
+      if (missingFields.length > 0) {
+        throw new Error(`Missing or invalid required fields: ${missingFields.join(', ')}`);
+      }
+
+      // Log the final payload for debugging
+      console.log('Final lease creation payload:', JSON.stringify(leaseCreateData, null, 2));
+
+      const response = await createLeaseAPI(leaseCreateData);
+      console.log('Lease created successfully:', response);
+
+      setShowTenantModal(false);
+      onImport && onImport(response);
+    } catch (error) {
+      console.error('Error creating lease:', error);
+      setError(error.message || 'Failed to create lease. Please try again.');
+      throw error;
+    } finally {
+      setIsLeaseCreating(false);
     }
   };
 
@@ -280,74 +364,6 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
     
     console.error('Could not parse date:', dateValue);
     return '';
-  };
-
-  // Add this function to handle lease creation after tenant processing
-  const submitLeaseAfterTenant = async (tenant) => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // Get dates from either leaseData or tenant
-      const startDate = formatDate(leaseData.start_date || tenant.lease_start);
-      const endDate = formatDate(leaseData.end_date || tenant.lease_end);
-      
-      console.log('Formatted dates:', { startDate, endDate });
-      
-      if (!startDate || !endDate) {
-        throw new Error('Valid start and end dates are required');
-      }
-      
-      // Format lease data for API - include ALL required fields from LeaseBase model
-      const formattedLeaseData = {
-        start_date: startDate,
-        end_date: endDate,
-        monthly_rent: parseFloat(leaseData.monthly_rent || tenant.monthly_rent || 0),
-        security_deposit: parseFloat(leaseData.security_deposit || 0),
-        property_id: parseInt(selectedProperty),
-        tenant_id: parseInt(tenant.id),
-        unit_id: tenant.unit_id ? parseInt(tenant.unit_id) : null,
-        // Required fields from LeaseBase model
-        is_renewable: true,
-        auto_renew: false,
-        rent_due_day: 1,
-        // Make sure status is uppercase to match the enum
-        status: "DRAFT"
-      };
-      
-      console.log('Creating lease with data:', formattedLeaseData);
-      
-      // Double-check user permissions before submitting
-      const userInfo = await getCurrentUser();
-      const userType = userInfo.user_type?.toUpperCase();
-      console.log('User permissions when creating lease:', { userType });
-      
-      if (userType !== 'LANDLORD' && userType !== 'ADMIN') {
-        throw new Error('Your account doesn\'t have permission to create leases.');
-      }
-      
-      // Update localStorage to ensure correct format
-      localStorage.setItem('user_type', userType);
-      
-      // Submit the lease to the API
-      const response = await submitLease(formattedLeaseData);
-      
-      console.log('Lease created successfully:', response);
-      setSuccess(true);
-      
-      // Close modal and refresh the lease list
-      setTimeout(() => {
-        onClose();
-        if (onImport) {
-          onImport();
-        }
-      }, 1500);
-    } catch (err) {
-      console.error('Failed to create lease:', err);
-      setError(err.message || 'Failed to create lease. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   if (!isOpen) return null;
@@ -446,7 +462,7 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
                       <li
                         className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
                         onClick={() => {
-                          setCreateTenant(true);
+                          setIsCreatingNewTenant(true);
                           setSearchTerm('Create New Tenant');
                           setDropdownOpen(false);
                         }}
@@ -508,7 +524,7 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
 
           <button
             onClick={handleAnalyze}
-            disabled={!file || !selectedProperty || (!selectedTenant && !createTenant) || isLoading}
+            disabled={!file || !selectedProperty || (!selectedTenant && !isCreatingNewTenant) || isLoading}
             className="w-full inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
@@ -527,13 +543,35 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
 
         {showTenantModal && (
           <TenantModal
-            isOpen={showTenantModal}
-            onClose={() => setShowTenantModal(false)}
-            tenant={leaseData}
-            onSave={(savedTenant) => {
-              submitLeaseAfterTenant(savedTenant);
-            }}
-          />
+              isOpen={showTenantModal}
+              onClose={() => setShowTenantModal(false)}
+              tenant={{
+                ...tenantData,
+                full_name: tenantData.full_name || leaseData?.tenant_name || '',
+                lease_start: tenantData.lease_start || leaseData?.start_date || '',
+                lease_end: tenantData.lease_end || leaseData?.end_date || '',
+                monthly_rent: tenantData.monthly_rent || leaseData?.monthly_rent?.toString() || '',
+                unit: tenantData.unit || '',
+                phone: tenantData.phone || '',
+                email: tenantData.email || '',
+                status: 'Active',
+                current_property_id: selectedProperty,
+              }}
+            onSave={handleTenantSave}
+        />
+
+        )}
+
+        {/* Show loading state when creating tenant or lease */}
+        {(isLoading || isLeaseCreating) && (
+          <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+              <p className="mt-3 text-gray-600">
+                {isLeaseCreating ? 'Creating lease...' : 'Processing lease...'}
+              </p>
+            </div>
+          </div>
         )}
       </div>
     </div>
