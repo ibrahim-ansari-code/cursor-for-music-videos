@@ -193,29 +193,17 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
     }
   };
 
-  const handleTenantSave = async (tenantData) => {
-    if (isTenantCreating) {
-      console.warn('Prevented duplicate tenant creation');
-      return;
-    }
-    
+  const handleTenantSave = async (tenant) => {
     try {
-      console.log('Creating tenant with data:', tenantData);
-      setIsTenantCreating(true);
+      console.log('Received created tenant from TenantModal:', tenant);
       setError(null);
 
-      // Create tenant record
-      const tenant = await createTenantAPI(tenantData);
-      console.log('Tenant created successfully:', tenant);
-
-      // Submit lease after tenant creation
+      // Submit lease with the tenant that was already created
       await submitLeaseAfterTenant(tenant);
     } catch (error) {
-      console.error('Error in tenant/lease creation flow:', error);
-      setError(error.message || 'Failed to create tenant and lease. Please try again.');
+      console.error('Error in lease creation flow:', error);
+      setError(error.message || 'Failed to create lease. Please try again.');
       throw error;
-    } finally {
-      setIsTenantCreating(false);
     }
   };
 
