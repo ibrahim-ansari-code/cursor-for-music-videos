@@ -566,6 +566,7 @@ const Tenants = () => {
         }}
         tenant={selectedTenant}
         onSave={handleSaveTenant}
+        source="tenantsPage"
       />
     </div>
   );

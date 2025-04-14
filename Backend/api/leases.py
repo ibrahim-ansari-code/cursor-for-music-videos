@@ -7,7 +7,7 @@ from sqlalchemy.future import select
 from sqlalchemy import and_, or_
 from pydantic import BaseModel
 import fitz  # PyMuPDF
-import io
+from sqlalchemy.orm import selectinload
 
 from Backend.database import get_session
 from Backend.models.lease import Lease, LeaseStatus, LeaseDocument
@@ -64,6 +64,8 @@ class LeaseResponse(LeaseBase):
     status: LeaseStatus
     created_at: datetime
     updated_at: datetime
+    tenant: Optional[Tenant] = None
+    property: Optional[Property] = None
     
     class Config:
         orm_mode = True
@@ -187,7 +189,7 @@ async def get_leases(
     current_user: User = Depends(get_current_user)
 ):
     """Get all leases with optional filtering"""
-    query = select(Lease)
+    query = select(Lease).options(selectinload(Lease.tenant), selectinload(Lease.property))
     
     # Apply filters
     conditions = []

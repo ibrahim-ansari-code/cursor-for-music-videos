@@ -327,6 +327,10 @@ export const getRevenueTrends = async (params = {}) => {
   return apiRequest(`/accounting/revenue-trends${queryString ? '?' + queryString : ''}`);
 };
 
+export const getAccountingOverview = async () => {
+  return apiRequest('/accounting/overview');
+};
+
 // Communication API Functions
 export const fetchConversations = async () => {
   return apiRequest('/messages/conversations');

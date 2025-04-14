@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { fetchProperties, createTenant, updateTenant, fetchPropertyUnits } from '../utils/api';
+import { getInputClassName } from '../utils/formUtils';
 
-const TenantModal = ({ isOpen, onClose, tenant = null, onSave }) => {
+const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
   const [properties, setProperties] = useState([]);
   const [propertyUnits, setPropertyUnits] = useState([]);
   const [formData, setFormData] = useState({
@@ -19,7 +20,19 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave }) => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldErrors, setFieldErrors] = useState({
+    full_name: '',
+    phone: '',
+    email: '',
+    current_property_id: '',
+    unit_id: '',
+    unit: '',
+    lease_start: '',
+    lease_end: '',
+    monthly_rent: '',
+    status: '',
+    leasing_agent: ''
+  });
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [isLLMFlow, setIsLLMFlow] = useState(false);
 
@@ -30,9 +43,8 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave }) => {
 
   // Sync tenant prop to formData state - this is the source of truth for LLM flow
   useEffect(() => {
-    console.log('TenantModal - tenant prop received:', tenant);
-    
-    if (tenant) {
+    if (tenant && source === "importLeaseModal") {
+      console.log('TenantModal - tenant prop received:', tenant);
       setIsLLMFlow(true); // Mark this as an LLM-driven flow
       
       const updatedFormData = {
@@ -44,7 +56,7 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave }) => {
         unit: tenant.unit || '',
         lease_start: tenant.lease_start || '',
         lease_end: tenant.lease_end || '',
-        monthly_rent: typeof tenant.monthly_rent !== 'undefined' ? tenant.monthly_rent.toString() : '',
+        monthly_rent: tenant.monthly_rent || '',
         status: tenant.status || 'Active',
         leasing_agent: tenant.leasing_agent || ''
       };
@@ -57,8 +69,21 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave }) => {
       setError(null);
     } else {
       setIsLLMFlow(false); // Reset for manual entry flow
+      setFormData({
+        full_name: '',
+        phone: '',
+        email: '',
+        current_property_id: '',
+        unit_id: '',
+        unit: '',
+        lease_start: '',
+        lease_end: '',
+        monthly_rent: '',
+        status: 'Active',
+        leasing_agent: ''
+      });
     }
-  }, [tenant, isOpen]);
+  }, [tenant, isOpen, source]);
 
   // Load property units ONLY for manual entry flow
   useEffect(() => {
@@ -249,12 +274,19 @@ if (isLLMFlow && name === 'current_property_id') {
     }
   };
 
-  // Helper function to get input class based on error state
-  const getInputClassName = (fieldName) => {
-    const baseClass = "mt-1 block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm";
-    return (fieldErrors[fieldName] || (formSubmitted && !formData[fieldName]))
-      ? `${baseClass} border-red-300 text-red-900 placeholder-red-300 focus:outline-none focus:ring-red-500 focus:border-red-500`
-      : baseClass;
+  // Wrap getInputClassName in a try-catch block
+  const safeGetInputClassName = (field) => {
+    try {
+      if (formSubmitted || fieldErrors[field]) {
+        const errors = fieldErrors || {};
+        const data = formData || {};
+        return getInputClassName(field, errors, data);
+      }
+      return ''; // Return default class if no validation is needed
+    } catch (error) {
+      console.error(`Error getting input class name for ${field}:`, error);
+      return '';
+    }
   };
 
   if (!isOpen) return null;
@@ -293,7 +325,7 @@ if (isLLMFlow && name === 'current_property_id') {
                 value={formData.full_name}
                 onChange={handleChange}
                 required
-                className={getInputClassName('full_name')}
+                className={safeGetInputClassName('full_name')}
               />
               {fieldErrors.full_name && (
                 <p className="mt-1 text-sm text-red-600">{fieldErrors.full_name}</p>
@@ -311,7 +343,7 @@ if (isLLMFlow && name === 'current_property_id') {
                 value={formData.phone}
                 onChange={handleChange}
                 required
-                className={getInputClassName('phone')}
+                className={safeGetInputClassName('phone')}
               />
               {fieldErrors.phone && (
                 <p className="mt-1 text-sm text-red-600">{fieldErrors.phone}</p>
@@ -329,7 +361,7 @@ if (isLLMFlow && name === 'current_property_id') {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className={getInputClassName('email')}
+                className={safeGetInputClassName('email')}
               />
               {fieldErrors.email && (
                 <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>
@@ -346,7 +378,7 @@ if (isLLMFlow && name === 'current_property_id') {
                 value={formData.current_property_id}
                 onChange={handleChange}
                 required
-                className={getInputClassName('current_property_id')}
+                className={safeGetInputClassName('current_property_id')}
               >
                 <option value="">Select a property</option>
                 {properties.map((property) => (
@@ -372,7 +404,7 @@ if (isLLMFlow && name === 'current_property_id') {
                       name="unit_id"
                       value={formData.unit_id}
                       onChange={handleChange}
-                      className={getInputClassName('unit_id')}
+                      className={safeGetInputClassName('unit_id')}
                       disabled={!formData.current_property_id || propertyUnits.length === 0}
                     >
                       <option value="">Select a unit</option>
@@ -404,7 +436,7 @@ if (isLLMFlow && name === 'current_property_id') {
                 name="unit"
                 value={formData.unit}
                 onChange={handleChange}
-                className={getInputClassName('unit')}
+                className={safeGetInputClassName('unit')}
                 placeholder="For properties without unit records"
               />
               {fieldErrors.unit && !fieldErrors.unit_id && (
@@ -428,7 +460,7 @@ if (isLLMFlow && name === 'current_property_id') {
                 value={formData.lease_start}
                 onChange={handleChange}
                 required
-                className={getInputClassName('lease_start')}
+                className={safeGetInputClassName('lease_start')}
               />
               {fieldErrors.lease_start && (
                 <p className="mt-1 text-sm text-red-600">{fieldErrors.lease_start}</p>
@@ -446,7 +478,7 @@ if (isLLMFlow && name === 'current_property_id') {
                 value={formData.lease_end}
                 onChange={handleChange}
                 required
-                className={getInputClassName('lease_end')}
+                className={safeGetInputClassName('lease_end')}
               />
               {fieldErrors.lease_end && (
                 <p className="mt-1 text-sm text-red-600">{fieldErrors.lease_end}</p>
@@ -470,7 +502,7 @@ if (isLLMFlow && name === 'current_property_id') {
                   step="0.01"
                   min="0"
                   required
-                  className={`${getInputClassName('monthly_rent')} pl-7`}
+                  className={`${safeGetInputClassName('monthly_rent')} pl-7`}
                 />
               </div>
               {fieldErrors.monthly_rent && (
@@ -488,7 +520,7 @@ if (isLLMFlow && name === 'current_property_id') {
                 value={formData.status}
                 onChange={handleChange}
                 required
-                className={getInputClassName('status')}
+                className={safeGetInputClassName('status')}
               >
                 <option value="">Select a status</option>
                 <option value="Active">Active</option>
@@ -512,7 +544,7 @@ if (isLLMFlow && name === 'current_property_id') {
                 name="leasing_agent"
                 value={formData.leasing_agent}
                 onChange={handleChange}
-                className={getInputClassName('leasing_agent')}
+                className={safeGetInputClassName('leasing_agent')}
               />
               {fieldErrors.leasing_agent && (
                 <p className="mt-1 text-sm text-red-600">{fieldErrors.leasing_agent}</p>
