@@ -255,8 +255,7 @@ const Accounting = () => {
         </div>
       )}
       
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-gray-200 flex justify-between items-center">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('overview')}
@@ -299,6 +298,26 @@ const Accounting = () => {
             Expenses
           </button>
         </nav>
+        
+        {activeTab !== 'overview' && (
+          <div className="flex space-x-3">
+            <button
+              onClick={() => handleShowModal(activeTab === 'payments' ? 'payment' : activeTab === 'invoices' ? 'invoice' : 'expense')}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <i className="fas fa-plus mr-2"></i>
+              {activeTab === 'payments' ? 'New Payment' : activeTab === 'invoices' ? 'New Invoice' : 'New Expense'}
+            </button>
+            
+            <button
+              onClick={() => {/* Export functionality would go here */}}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <i className="fas fa-file-export mr-2"></i>
+              Export
+            </button>
+          </div>
+        )}
       </div>
       
       {/* Tab content */}
