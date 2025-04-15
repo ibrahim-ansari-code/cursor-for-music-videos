@@ -217,26 +217,6 @@ const Accounting = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div className="mt-3 sm:mt-0 flex space-x-3">
-          <button
-            onClick={() => handleShowModal(activeTab === 'payments' ? 'payment' : activeTab === 'invoices' ? 'invoice' : 'expense')}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <i className="fas fa-plus mr-2"></i>
-            {activeTab === 'payments' ? 'New Payment' : activeTab === 'invoices' ? 'New Invoice' : activeTab === 'expenses' ? 'New Expense' : 'Add New'}
-          </button>
-          
-          <button
-            onClick={() => {/* Export functionality would go here */}}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <i className="fas fa-file-export mr-2"></i>
-            Export
-          </button>
-        </div>
-      </div>
-      
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           <p>{error}</p>
