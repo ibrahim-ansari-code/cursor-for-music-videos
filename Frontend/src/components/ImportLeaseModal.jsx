@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { fetchProperties, parseLease, submitLease, fetchTenantsByProperty, getCurrentUser, createTenant as createTenantAPI, createLease as createLeaseAPI } from '../utils/api';
+import { fetchProperties, parseLease, fetchTenantsByProperty, getCurrentUser } from '../utils/api';
 import TenantModal from './TenantModal';
+import ConfirmLeaseModal from './ConfirmLeaseModal';
 import { getInputClassName } from '../utils/formUtils';
 
 const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
@@ -10,11 +11,8 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [file, setFile] = useState(null);
-  const [showPreview, setShowPreview] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isTenantCreating, setIsTenantCreating] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
   const [leaseData, setLeaseData] = useState({
     monthly_rent: '',
     start_date: '',
@@ -24,38 +22,16 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
     unit: ''
   });
   const [isCreatingNewTenant, setIsCreatingNewTenant] = useState(false);
-  const [additionalFields, setAdditionalFields] = useState({});
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
   const [tenantLoadError, setTenantLoadError] = useState(null);
   const [showTenantModal, setShowTenantModal] = useState(false);
+  const [showConfirmLeaseModal, setShowConfirmLeaseModal] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [propertySearchTerm, setPropertySearchTerm] = useState('');
   const [tenantData, setTenantData] = useState({});
-  const [isLeaseCreating, setIsLeaseCreating] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState({
-    security_deposit: '',
-    monthly_rent: '',
-    start_date: '',
-    end_date: '',
-    tenant_name: '',
-    unit: ''
-  });
-  const [formData, setFormData] = useState({
-    full_name: '',
-    phone: '',
-    email: '',
-    current_property_id: '',
-    unit_id: '',
-    unit: '',
-    lease_start: '',
-    lease_end: '',
-    monthly_rent: '',
-    security_deposit: '',
-    status: 'Active',
-    leasing_agent: ''
-  });
-  const [formSubmitted, setFormSubmitted] = useState(false);
-
+  const [createdTenant, setCreatedTenant] = useState(null);
+  
+  // Load properties on component mount
   useEffect(() => {
     const loadProperties = async () => {
       try {
@@ -105,6 +81,7 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
     validateUserPermissions();
   }, []);
 
+  // Load tenants when property is selected
   useEffect(() => {
     const loadTenants = async () => {
       if (selectedProperty) {
@@ -117,13 +94,12 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
         } catch (error) {
           console.error('Failed to fetch tenants:', error);
           setTenantLoadError('Failed to load tenants for this property. Please try again.');
-          // Don't reset tenants array to avoid UI flickering
         } finally {
           setIsLoadingTenants(false);
         }
       } else {
         setTenants([]);
-        setSelectedTenant('');
+        setSelectedTenant(null);
         setTenantLoadError(null);
       }
     };
@@ -192,7 +168,8 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
         rent_due_day: 1,
         late_fee_amount: null,
         late_fee_after_days: null,
-        special_terms: null
+        special_terms: null,
+        unit: response.unit || ''
       };
       console.log('Storing lease data:', extractedLeaseData);
       setLeaseData(extractedLeaseData);
@@ -200,18 +177,36 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
       // Set tenant data
       const tenantData = {
         full_name: response.tenant_name,
+        first_name: '',
+        last_name: '',
+        phone: '',
+        email: '',
         current_property_id: parseInt(selectedProperty),
         unit: response.unit || '',
         lease_start: response.start_date,
         lease_end: response.end_date,
-        monthly_rent: response.monthly_rent?.toString() || '0'
+        monthly_rent: response.monthly_rent?.toString() || '0',
+        status: 'Active'
       };
+
+      // Split the full name into first and last name
+      if (response.tenant_name) {
+        const nameParts = response.tenant_name.split(' ');
+        tenantData.first_name = nameParts[0] || '';
+        tenantData.last_name = nameParts.slice(1).join(' ') || '';
+      }
 
       console.log('Setting tenant data:', tenantData);
       setTenantData(tenantData);
-
-      // Open TenantModal after LLM data is set
-      setShowTenantModal(true);
+      
+      // If creating a new tenant, show the tenant modal first
+      if (isCreatingNewTenant) {
+        setShowTenantModal(true);
+      } else if (selectedTenant) {
+        // If an existing tenant is selected, show the confirm lease modal
+        setCreatedTenant(selectedTenant);
+        setShowConfirmLeaseModal(true);
+      }
     } catch (error) {
       console.error('Error analyzing lease:', error);
       setError(error.message || 'Failed to analyze lease. Please try again.');
@@ -220,78 +215,20 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
     }
   };
 
-  const handleTenantSave = async (tenant) => {
-    try {
-      console.log('Received created tenant from TenantModal:', tenant);
-      setError(null);
-
-      // Merge LLM-extracted lease fields into leaseData
-      const updatedLeaseData = {
-        ...leaseData,
-        tenant_id: tenant.id,
-        start_date: leaseData.start_date || tenant.lease_start,
-        end_date: leaseData.end_date || tenant.lease_end,
-        monthly_rent: leaseData.monthly_rent || tenant.monthly_rent
-      };
-      setLeaseData(updatedLeaseData);
-
-      // Call handleSubmit after leaseData is fully populated
-      handleSubmit();
-    } catch (error) {
-      console.error('Error in lease creation flow:', error);
-      setError(error.message || 'Failed to create lease. Please try again.');
-      throw error;
-    }
+  const handleTenantSave = (tenant) => {
+    console.log('Received created tenant from TenantModal:', tenant);
+    setError(null);
+    setCreatedTenant(tenant);
+    setShowTenantModal(false);
+    
+    // Show the confirm lease modal after tenant is created
+    setShowConfirmLeaseModal(true);
   };
 
-  const safeToISOString = (date) => {
-    if (date instanceof Date && !isNaN(date)) {
-      return date.toISOString().split('T')[0];
-    }
-    return '';
-  };
-
-  const handleSubmit = async () => {
-    // Validate dates
-    if (!leaseData.start_date || !leaseData.end_date) {
-      setError('Start date and end date are required.');
-      return;
-    }
-    if (new Date(leaseData.start_date) > new Date(leaseData.end_date)) {
-      setError('End date must be after start date');
-      return;
-    }
-
-    try {
-      const formattedLeaseData = {
-        ...leaseData,
-        start_date: safeToISOString(new Date(leaseData.start_date)),
-        end_date: safeToISOString(new Date(leaseData.end_date))
-      };
-
-      // Validate required fields
-      const requiredFields = ['monthly_rent', 'start_date', 'end_date', 'security_deposit'];
-      const missingFields = requiredFields.filter(field => !formattedLeaseData[field]);
-      if (missingFields.length > 0) {
-        setError(`Missing required fields: ${missingFields.join(', ')}`);
-        return;
-      }
-
-      // Submit to backend
-      await submitLease(formattedLeaseData);
-      onImport();
-    } catch (error) {
-      console.error('Error submitting lease:', error);
-      setError('Failed to submit lease. Please try again.');
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setLeaseData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const handleLeaseSubmit = (lease) => {
+    console.log('Lease created successfully:', lease);
+    onImport();
+    onClose();
   };
 
   const filteredTenants = tenants.filter(tenant => {
@@ -307,77 +244,13 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
     // Reset states when closing
     setError(null);
     setTenantLoadError(null);
-    setSuccess(false);
+    setSelectedTenant(null);
+    setCreatedTenant(null);
+    setShowTenantModal(false);
+    setShowConfirmLeaseModal(false);
     
     // Call the parent's onClose
     onClose();
-  };
-
-  // Function to safely format dates
-  const formatDate = (dateValue) => {
-    if (!dateValue) return '';
-    
-    // If it's already in YYYY-MM-DD format, return it as is
-    if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
-      return dateValue;
-    }
-    
-    // For dates already in Date object format
-    if (dateValue instanceof Date) {
-      const year = dateValue.getFullYear();
-      const month = String(dateValue.getMonth() + 1).padStart(2, '0');
-      const day = String(dateValue.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-    
-    // Handle other string formats - explicitly parse components
-    if (typeof dateValue === 'string') {
-      // Try standard date parsing first
-      try {
-        const tempDate = new Date(dateValue);
-        if (!isNaN(tempDate.getTime())) {
-          const year = tempDate.getFullYear();
-          const month = String(tempDate.getMonth() + 1).padStart(2, '0');
-          const day = String(tempDate.getDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        }
-      } catch (e) {
-        console.error('Error parsing date string:', e);
-      }
-      
-      // If standard parsing fails, try manual parsing for common formats
-      // MM/DD/YYYY or MM-DD-YYYY
-      const dateRegex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/;
-      const match = dateValue.match(dateRegex);
-      if (match) {
-        const month = String(parseInt(match[1])).padStart(2, '0');
-        const day = String(parseInt(match[2])).padStart(2, '0');
-        const year = match[3];
-        return `${year}-${month}-${day}`;
-      }
-    }
-    
-    console.error('Could not parse date:', dateValue);
-    return '';
-  };
-
-  // Debugging: Log formData and fieldErrors
-  useEffect(() => {
-    console.log('formData:', formData);
-    console.log('fieldErrors:', fieldErrors);
-  }, [formData, fieldErrors]);
-
-  // Wrap getInputClassName in a try-catch block
-  const safeGetInputClassName = (field) => {
-    try {
-      if (formSubmitted || fieldErrors[field]) {
-        return getInputClassName(field, fieldErrors, formData);
-      }
-      return ''; // Return default class if no validation is needed
-    } catch (error) {
-      console.error(`Error getting input class name for ${field}:`, error);
-      return '';
-    }
   };
 
   if (!isOpen) return null;
@@ -460,8 +333,9 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
                             key={tenant.id}
                             className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
                             onClick={() => {
-                              setSelectedTenant(tenant.id);
+                              setSelectedTenant(tenant);
                               setSearchTerm(tenant.name || tenant.full_name);
+                              setIsCreatingNewTenant(false);
                               setDropdownOpen(false);
                             }}
                           >
@@ -477,6 +351,7 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
                         className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
                         onClick={() => {
                           setIsCreatingNewTenant(true);
+                          setSelectedTenant(null);
                           setSearchTerm('Create New Tenant');
                           setDropdownOpen(false);
                         }}
@@ -508,32 +383,7 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
             />
           </div>
 
-          <div>
-            <label htmlFor="security_deposit" className="block text-sm font-medium text-gray-700">
-              Security Deposit <span className="text-red-600">*</span>
-            </label>
-            <div className="mt-1 relative rounded-md shadow-sm">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span className="text-gray-500 sm:text-sm">$</span>
-              </div>
-              <input
-                type="number"
-                id="security_deposit"
-                name="security_deposit"
-                value={leaseData.security_deposit}
-                onChange={handleInputChange}
-                step="0.01"
-                min="0"
-                required
-                className={`${safeGetInputClassName('security_deposit')} pl-7`}
-              />
-            </div>
-            {fieldErrors.security_deposit && (
-              <p className="mt-1 text-sm text-red-600">{fieldErrors.security_deposit}</p>
-            )}
-          </div>
-
-          {/* Error Display - Show any errors in a consistent way */}
+          {/* Error Display */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
               <span className="block sm:inline">{error}</span>
@@ -580,23 +430,35 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
           </button>
         </div>
 
+        {/* Tenant Modal for creating a new tenant */}
         {showTenantModal && (
           <TenantModal
             isOpen={showTenantModal}
             onClose={() => setShowTenantModal(false)}
-            tenant={selectedTenant}
+            tenant={tenantData}
             onSave={handleTenantSave}
             source="importLeaseModal"
           />
         )}
 
-        {/* Show loading state when creating tenant or lease */}
-        {(isLoading || isLeaseCreating) && (
+        {/* Confirm Lease Modal */}
+        {showConfirmLeaseModal && (
+          <ConfirmLeaseModal
+            isOpen={showConfirmLeaseModal}
+            onClose={() => setShowConfirmLeaseModal(false)}
+            leaseData={leaseData}
+            tenant={createdTenant}
+            onSubmit={handleLeaseSubmit}
+          />
+        )}
+
+        {/* Loading overlay */}
+        {isLoading && (
           <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
               <p className="mt-3 text-gray-600">
-                {isLeaseCreating ? 'Creating lease...' : 'Processing lease...'}
+                Processing lease...
               </p>
             </div>
           </div>

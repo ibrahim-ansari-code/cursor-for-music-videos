@@ -7,6 +7,7 @@ from sqlmodel import SQLModel, Field, Relationship
 
 if TYPE_CHECKING:
     from Backend.models.property import Property, PropertyUnit
+    from Backend.models.tenant import Tenant
 
 class LeaseStatus(str, Enum):
     DRAFT = "DRAFT"
@@ -46,14 +47,14 @@ class Lease(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships
-    property: "Property" = Relationship(back_populates="leases")  # ✅ fixed circular import
+    property: "Property" = Relationship(back_populates="leases")
     unit: Optional["PropertyUnit"] = Relationship(back_populates="leases")
-    tenant: "Tenant" = Relationship(
-        back_populates="leases",
-        sa_relationship_kwargs={"lazy": "selectin"}
-    )
-    documents: List["LeaseDocument"] = Relationship(back_populates="lease", sa_relationship_kwargs={"lazy": "selectin"})
-    payments: List[Payment] = Relationship(back_populates="lease", sa_relationship_kwargs={"lazy": "selectin"})
+    
+    # Ensure this is defined before any tenant.py imports this file
+    tenant: "Tenant" = Relationship(back_populates="leases")
+    
+    documents: List["LeaseDocument"] = Relationship(back_populates="lease")
+    payments: List[Payment] = Relationship(back_populates="lease")
 
 class LeaseDocument(SQLModel, table=True):
     """Document associated with a lease (contract, addendums, etc.)"""

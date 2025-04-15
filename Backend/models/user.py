@@ -1,7 +1,8 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from sqlmodel import SQLModel, Field, Relationship, Column
-from sqlalchemy import String
+from sqlalchemy import String, ForeignKey
+from sqlalchemy.sql import join
 
 if TYPE_CHECKING:
     from Backend.models.property import Property
@@ -32,22 +33,34 @@ class User(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    properties: List["Property"] = Relationship(back_populates="owner", sa_relationship_kwargs={"lazy": "selectin"})
-    vendor_details: Optional["Vendor"] = Relationship(back_populates="user", sa_relationship_kwargs={"lazy": "selectin"})
+    properties: List["Property"] = Relationship(back_populates="owner")
+    vendor_details: Optional["Vendor"] = Relationship(back_populates="user")
     
     sent_messages: List["Message"] = Relationship(
         back_populates="sender",
-        sa_relationship_kwargs={"foreign_keys": "Message.sender_id", "lazy": "selectin"}
+        sa_relationship_kwargs={"foreign_keys": "Message.sender_id"}
     )
     received_messages: List["Message"] = Relationship(
         back_populates="recipient",
-        sa_relationship_kwargs={"foreign_keys": "Message.recipient_id", "lazy": "selectin"}
-    )
-    tenant_details: Optional["Tenant"] = Relationship(
-    back_populates="user",
-    sa_relationship_kwargs={"lazy": "selectin"}
+        sa_relationship_kwargs={"foreign_keys": "Message.recipient_id"}
     )
     
+    # We'll set up tenant_details in the setup_user_relationships function
+    
     conversations: List["ConversationParticipant"] = Relationship(back_populates="user")
+
+# Function to set up relationships that would cause circular imports
+def setup_user_relationships():
+    from Backend.models.tenant import Tenant
+    
+    # Add relationship with the primaryjoin explicitly defined
+    if not hasattr(User, "tenant_details"):
+        User.tenant_details = Relationship(
+            back_populates="user",
+            sa_relationship_kwargs={
+                "primaryjoin": "User.id==Tenant.user_id",
+                "lazy": "selectin"
+            }
+        )
 
 from Backend.models import property, lease, vendor, message

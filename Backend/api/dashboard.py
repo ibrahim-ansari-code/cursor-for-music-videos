@@ -117,7 +117,7 @@ async def get_dashboard_data(
         SELECT 
             COUNT(DISTINCT p.id) as total_properties,
             COUNT(u.id) as total_units,
-            SUM(CASE WHEN u.is_occupied THEN 1 ELSE 0 END) as occupied_units
+            SUM(CASE WHEN u.is_rented THEN 1 ELSE 0 END) as occupied_units
         FROM 
             properties p
         LEFT JOIN 

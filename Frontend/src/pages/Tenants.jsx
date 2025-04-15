@@ -157,14 +157,27 @@ const Tenants = () => {
   };
 
   // Generate initials for avatar
-  const getInitials = (name) => {
-    if (!name) return '--';
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
+  const getInitials = (tenant) => {
+    if (!tenant) return '--';
+    
+    // Check if we have first_name and last_name fields
+    if (tenant.first_name || tenant.last_name) {
+      const first = tenant.first_name ? tenant.first_name[0] : '';
+      const last = tenant.last_name ? tenant.last_name[0] : '';
+      return (first + last).toUpperCase();
+    }
+    
+    // Fall back to full_name if that's what we have
+    if (tenant.full_name) {
+      return tenant.full_name
+        .split(' ')
+        .map(part => part[0])
+        .join('')
+        .toUpperCase()
+        .substring(0, 2);
+    }
+    
+    return '--';
   };
 
   // Format currency
@@ -429,11 +442,13 @@ const Tenants = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
-                            {getInitials(tenant.full_name)}
+                            {getInitials(tenant)}
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">
-                              {tenant.full_name}
+                              {tenant.first_name && tenant.last_name 
+                                ? `${tenant.first_name} ${tenant.last_name}`
+                                : tenant.full_name || '--'}
                             </div>
                           </div>
                         </div>

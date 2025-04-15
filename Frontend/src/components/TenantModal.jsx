@@ -1,134 +1,95 @@
 import React, { useState, useEffect } from 'react';
-import { fetchProperties, createTenant, updateTenant, fetchPropertyUnits } from '../utils/api';
+import { createTenant, updateTenant } from '../utils/api';
 import { getInputClassName } from '../utils/formUtils';
 
 const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
-  const [properties, setProperties] = useState([]);
-  const [propertyUnits, setPropertyUnits] = useState([]);
   const [formData, setFormData] = useState({
-    full_name: '',
+    first_name: '',
+    last_name: '',
     phone: '',
     email: '',
-    current_property_id: '',
-    unit_id: '',
-    unit: '',
-    lease_start: '',
-    lease_end: '',
-    monthly_rent: '',
-    status: 'Active',
-    leasing_agent: ''
+    status: 'active',
+    current_property_id: null,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({
-    full_name: '',
+    first_name: '',
+    last_name: '',
     phone: '',
-    email: '',
-    current_property_id: '',
-    unit_id: '',
-    unit: '',
-    lease_start: '',
-    lease_end: '',
-    monthly_rent: '',
-    status: '',
-    leasing_agent: ''
+    email: ''
   });
   const [formSubmitted, setFormSubmitted] = useState(false);
-  const [isLLMFlow, setIsLLMFlow] = useState(false);
+  const [apiError, setApiError] = useState(null);
+  const [touched, setTouched] = useState({
+    first_name: false,
+    last_name: false,
+    phone: false,
+    email: false,
+  });
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
-  // Load properties on component mount
+  // Sync tenant prop to formData state
   useEffect(() => {
-    loadProperties();
-  }, []);
-
-  // Sync tenant prop to formData state - this is the source of truth for LLM flow
-  useEffect(() => {
-    if (tenant && source === "importLeaseModal") {
+    if (tenant) {
       console.log('TenantModal - tenant prop received:', tenant);
-      setIsLLMFlow(true); // Mark this as an LLM-driven flow
+      
+      // Handle both the old format (full_name) and new format (first_name, last_name)
+      let first = '';
+      let last = '';
+      
+      if (tenant.first_name && tenant.last_name) {
+        // New format
+        first = tenant.first_name;
+        last = tenant.last_name;
+      } else if (tenant.full_name) {
+        // Old format - split full_name into first_name and last_name
+        const nameParts = tenant.full_name.split(' ');
+        first = nameParts[0] || '';
+        last = nameParts.slice(1).join(' ') || '';
+      }
       
       const updatedFormData = {
-        full_name: tenant.full_name || '',
+        first_name: first,
+        last_name: last,
         phone: tenant.phone || '',
         email: tenant.email || '',
-        current_property_id: tenant.current_property_id || '',
-        unit_id: tenant.unit_id || '',
-        unit: tenant.unit || '',
-        lease_start: tenant.lease_start || '',
-        lease_end: tenant.lease_end || '',
-        monthly_rent: tenant.monthly_rent || '',
-        status: tenant.status || 'Active',
-        leasing_agent: tenant.leasing_agent || ''
+        status: tenant.status || 'active',
+        current_property_id: tenant.current_property_id || null,
       };
 
-      console.log('TenantModal - updating formData with LLM data:', updatedFormData);
+      console.log('TenantModal - updating formData:', updatedFormData);
       setFormData(updatedFormData);
       
       // Clear any previous errors
       setFieldErrors({});
       setError(null);
     } else {
-      setIsLLMFlow(false); // Reset for manual entry flow
+      // New tenant flow
       setFormData({
-        full_name: '',
+        first_name: '',
+        last_name: '',
         phone: '',
         email: '',
-        current_property_id: '',
-        unit_id: '',
-        unit: '',
-        lease_start: '',
-        lease_end: '',
-        monthly_rent: '',
-        status: 'Active',
-        leasing_agent: ''
+        status: 'active',
+        current_property_id: null,
       });
     }
-  }, [tenant, isOpen, source]);
-
-  // Load property units ONLY for manual entry flow
-  useEffect(() => {
-    const loadUnits = async () => {
-      // Skip if this is LLM flow or no property selected
-      if (isLLMFlow || !formData.current_property_id) {
-        return;
-      }
-
-      try {
-        console.log('Loading units for property:', formData.current_property_id);
-        const units = await fetchPropertyUnits(formData.current_property_id);
-        setPropertyUnits(units);
-      } catch (error) {
-        console.error('Failed to fetch property units:', error);
-        setError('Failed to load property units. Please try again.');
-      }
-    };
-
-    loadUnits();
-  }, [formData.current_property_id, isLLMFlow]);
-
-  const loadProperties = async () => {
-    try {
-      const data = await fetchProperties();
-      setProperties(data);
-    } catch (error) {
-      console.error('Failed to fetch properties:', error);
-      setError('Failed to load properties. Please try again.');
-    }
-  };
+  }, [tenant, isOpen]);
 
   // Handle form field changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-// Prevent property changes in LLM flow, but allow manual unit entry
-if (isLLMFlow && name === 'current_property_id') {
-  console.log('Preventing property change in LLM flow');
-  return;
-}
-
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+    
+    // Mark field as touched
+    setTouched(prev => ({
+      ...prev,
+      [name]: true
     }));
     
     // Clear field-specific error when user changes the field
@@ -142,50 +103,49 @@ if (isLLMFlow && name === 'current_property_id') {
   };
 
   const validateForm = () => {
-    const errors = {};
-    // Required fields
-    if (!formData.full_name.trim()) errors.full_name = 'Full Name is required';
-    if (!formData.phone.trim()) errors.phone = 'Phone Number is required';
-    if (!formData.email.trim()) errors.email = 'Email is required';
-    if (!formData.current_property_id) errors.current_property_id = 'Property is required';
+    const newErrors = {};
+    let isValid = true;
+
+    if (!formData.first_name || formData.first_name.trim() === "") {
+      newErrors.first_name = "First name is required";
+      isValid = false;
+    }
+
+    if (!formData.last_name || formData.last_name.trim() === "") {
+      newErrors.last_name = "Last name is required";
+      isValid = false;
+    }
+
+    if (!formData.email || formData.email.trim() === "") {
+      newErrors.email = "Email is required";
+      isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Invalid email format";
+      isValid = false;
+    }
+
+    if (!formData.phone || formData.phone.trim() === "") {
+      newErrors.phone = "Phone number is required";
+      isValid = false;
+    }
+
+    setFieldErrors(newErrors);
+    setTouched({
+      first_name: true,
+      last_name: true,
+      email: true,
+      phone: true,
+    });
+    setSubmitAttempted(true);
     
-    // Require either unit_id or unit field to be filled
-    if (!formData.unit_id && !formData.unit.trim()) {
-      errors.unit_id = 'Unit selection is required';
-      errors.unit = 'Unit information is required';
-    }
-    
-    if (!formData.lease_start) errors.lease_start = 'Lease Start Date is required';
-    if (!formData.lease_end) errors.lease_end = 'Lease End Date is required';
-    if (!formData.monthly_rent) errors.monthly_rent = 'Monthly Rent is required';
-    if (!formData.status) errors.status = 'Status is required';
-
-    // Email validation
-    if (formData.email.trim() && !/\S+@\S+\.\S+/.test(formData.email)) {
-      errors.email = 'Email is invalid';
-    }
-
-    // Dates validation
-    if (formData.lease_start && formData.lease_end) {
-      const start = new Date(formData.lease_start);
-      const end = new Date(formData.lease_end);
-      if (start > end) {
-        errors.lease_end = 'End date must be after start date';
-      }
-    }
-
-    return errors;
+    return isValid;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormSubmitted(true);
     
-    // Validate form
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      setFieldErrors(validationErrors);
-      setError('Please correct the validation errors below.');
+    if (!validateForm()) {
       return;
     }
     
@@ -194,369 +154,238 @@ if (isLLMFlow && name === 'current_property_id') {
     setFieldErrors({});
 
     try {
-      // Format data for API
-      const tenantData = {
-        ...formData,
-        monthly_rent: formData.monthly_rent ? parseFloat(formData.monthly_rent) : null,
-        current_property_id: formData.current_property_id ? parseInt(formData.current_property_id) : null,
-        unit_id: formData.unit_id ? parseInt(formData.unit_id) : null
+      // Extract only the fields that belong to the Tenant model
+      const tenantPayload = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone: formData.phone,
+        email: formData.email,
+        status: formData.status,
+        current_property_id: formData.current_property_id
       };
-
+      
+      // Remove undefined fields to avoid validation errors
+      Object.keys(tenantPayload).forEach(key => 
+        tenantPayload[key] === undefined && delete tenantPayload[key]
+      );
+      
       let response;
-      // Check if we have a valid tenant ID (not undefined or null)
+      // Only update if tenant exists and has an ID
       if (tenant && tenant.id) {
+        console.log(`Updating existing tenant with ID: ${tenant.id}`, tenantPayload);
         // Update existing tenant
-        response = await updateTenant(tenant.id, tenantData);
+        response = await updateTenant(tenant.id, tenantPayload);
       } else {
+        console.log('Creating new tenant:', tenantPayload);
         // Create new tenant
-        response = await createTenant(tenantData);
+        response = await createTenant(tenantPayload);
       }
 
       console.log('Tenant created/updated successfully:', response);
 
       if (onSave) {
-        // Ensure all necessary fields are properly formatted
-        const formattedResponse = {
-          id: parseInt(response.id), // Ensure ID is an integer
-          full_name: response.full_name,
-          email: response.email,
-          phone: response.phone,
-          current_property_id: response.current_property_id ? parseInt(response.current_property_id) : null,
-          unit_id: response.unit_id ? parseInt(response.unit_id) : null,
-          unit: response.unit,
-          lease_start: response.lease_start,
-          lease_end: response.lease_end,
-          monthly_rent: response.monthly_rent ? parseFloat(response.monthly_rent) : null,
-          status: response.status
-        };
-
-        console.log('Passing formatted tenant data to parent:', formattedResponse);
-        onSave(formattedResponse);
+        onSave(response);
       }
-      onClose();
+      
+      if (!source || source !== "importLeaseModal") {
+        onClose();
+      }
     } catch (err) {
       console.error('Failed to save tenant:', err);
       
-      // Handle validation errors (422 status)
-      if (err.status === 422 && err.data?.detail) {
-        // Handle field validation errors
-        if (Array.isArray(err.data.detail)) {
-          const validationErrors = {};
-          const generalErrors = [];
-          
-          err.data.detail.forEach(error => {
-            if (error.loc && error.loc.length > 1) {
-              // This is a field-specific error
-              const fieldName = error.loc[1];
-              validationErrors[fieldName] = error.msg;
-            } else {
-              // This is a general error
-              generalErrors.push(error.msg);
-            }
-          });
-          
-          setFieldErrors(validationErrors);
-          
-          if (generalErrors.length > 0) {
-            setError(`Please correct the following: ${generalErrors.join(', ')}`);
-          } else {
-            setError('Please correct the validation errors below.');
-          }
-        } else if (typeof err.data.detail === 'string') {
-          setError(err.data.detail);
-        }
+      // Log more details about the error for debugging
+      if (err.data) {
+        console.error('Error data:', err.data);
+      }
+      if (err.rawResponse) {
+        console.error('Raw error response:', err.rawResponse);
+      }
+      
+      // Handle different error scenarios
+      if (err.status === 422) {
+        // Validation error from backend
+        handleValidationError(err);
+      } else if (err.status === 401 || err.status === 403) {
+        // Authentication/authorization error
+        setError('You are not authorized to perform this action. Please check your permissions.');
+      } else if (err.status === 404) {
+        // Not found error
+        setError('The requested resource was not found. Please refresh and try again.');
+      } else if (err.status === 500) {
+        // Server error
+        setError('An unexpected server error occurred. Please try again later.');
       } else {
-        // Handle generic errors
-        setError(err.message || 'Failed to save tenant. Please try again.');
+        // Generic error handling
+        setError('Failed to save tenant. Please check your connection and try again.');
       }
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Helper function to handle validation errors from the backend
+  const handleValidationError = (err) => {
+    console.log('Handling validation error:', err);
+    
+    if (err.data?.detail) {
+      // Handle field validation errors
+      if (Array.isArray(err.data.detail)) {
+        const validationErrors = {};
+        const generalErrors = [];
+        
+        err.data.detail.forEach(error => {
+          console.log('Validation error detail:', error);
+          if (error.loc && error.loc.length > 1) {
+            // This is a field-specific error
+            const fieldName = error.loc[1];
+            validationErrors[fieldName] = error.msg;
+          } else {
+            // This is a general error
+            generalErrors.push(error.msg);
+          }
+        });
+        
+        setFieldErrors(validationErrors);
+        
+        if (generalErrors.length > 0) {
+          setError(`Please correct the following: ${generalErrors.join(', ')}`);
+        } else {
+          setError('Please correct the validation errors below.');
+        }
+      } else if (typeof err.data.detail === 'string') {
+        setError(err.data.detail);
+      }
+    } else {
+      // If we got a raw error message without structure, use it directly
+      const errorMessage = err.message || 'Validation failed. Please check your input and try again.';
+      setError(errorMessage);
+      console.error('Raw error response:', err);
+    }
+  };
+
   // Wrap getInputClassName in a try-catch block
   const safeGetInputClassName = (field) => {
     try {
-      if (formSubmitted || fieldErrors[field]) {
-        const errors = fieldErrors || {};
-        const data = formData || {};
-        return getInputClassName(field, errors, data);
-      }
-      return ''; // Return default class if no validation is needed
+      const errors = fieldErrors || {};
+      const data = formData || {};
+      return getInputClassName(field, errors, formSubmitted, data);
     } catch (error) {
       console.error(`Error getting input class name for ${field}:`, error);
-      return '';
+      return 'border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm'; // Fallback class
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-      <div className="relative p-5 border w-full max-w-2xl shadow-lg rounded-lg bg-white">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">
-            {tenant ? 'Edit Tenant' : 'Add Tenant'}
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+      <div className="relative p-6 border w-full max-w-md shadow-lg rounded-lg bg-white">
+        <div className="flex justify-between items-center mb-5">
+          <h2 className="text-xl font-bold text-gray-800">
+            {tenant && tenant.id ? 'Edit Tenant' : 'Add Tenant'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-600 hover:text-gray-800"
+            className="text-gray-500 hover:text-gray-700 transition-colors duration-150"
           >
-            <i className="fas fa-times"></i>
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path>
+            </svg>
           </button>
         </div>
 
         {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="full_name" className="block text-sm font-medium text-gray-700">
-                Full Name <span className="text-red-600">*</span>
+        {apiError && (
+          <div className="alert alert-danger mb-3" role="alert">
+            {apiError}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-4">
+            <div className="mb-3">
+              <label htmlFor="first_name" className="form-label">
+                First Name*
               </label>
               <input
                 type="text"
-                id="full_name"
-                name="full_name"
-                value={formData.full_name}
+                className={safeGetInputClassName("first_name")}
+                id="first_name"
+                name="first_name"
+                placeholder="Enter first name"
+                value={formData.first_name || ""}
                 onChange={handleChange}
-                required
-                className={safeGetInputClassName('full_name')}
               />
-              {fieldErrors.full_name && (
-                <p className="mt-1 text-sm text-red-600">{fieldErrors.full_name}</p>
+              {fieldErrors.first_name && (touched.first_name || submitAttempted) && (
+                <div className="invalid-feedback">{fieldErrors.first_name}</div>
               )}
             </div>
 
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                Phone Number <span className="text-red-600">*</span>
+            <div className="mb-3">
+              <label htmlFor="last_name" className="form-label">
+                Last Name*
+              </label>
+              <input
+                type="text"
+                className={safeGetInputClassName("last_name")}
+                id="last_name"
+                name="last_name"
+                placeholder="Enter last name"
+                value={formData.last_name || ""}
+                onChange={handleChange}
+              />
+              {fieldErrors.last_name && (touched.last_name || submitAttempted) && (
+                <div className="invalid-feedback">{fieldErrors.last_name}</div>
+              )}
+            </div>
+
+            <div className="mb-3">
+              <label htmlFor="phone" className="form-label">
+                Phone Number*
               </label>
               <input
                 type="tel"
+                className={safeGetInputClassName("phone")}
                 id="phone"
                 name="phone"
-                value={formData.phone}
+                placeholder="Enter phone number"
+                value={formData.phone || ""}
                 onChange={handleChange}
-                required
-                className={safeGetInputClassName('phone')}
               />
-              {fieldErrors.phone && (
-                <p className="mt-1 text-sm text-red-600">{fieldErrors.phone}</p>
+              {fieldErrors.phone && (touched.phone || submitAttempted) && (
+                <div className="invalid-feedback">{fieldErrors.phone}</div>
               )}
             </div>
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email <span className="text-red-600">*</span>
+            <div className="mb-3">
+              <label htmlFor="email" className="form-label">
+                Email*
               </label>
               <input
                 type="email"
+                className={safeGetInputClassName("email")}
                 id="email"
                 name="email"
-                value={formData.email}
+                placeholder="Enter email"
+                value={formData.email || ""}
                 onChange={handleChange}
-                required
-                className={safeGetInputClassName('email')}
               />
-              {fieldErrors.email && (
-                <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="current_property_id" className="block text-sm font-medium text-gray-700">
-                Property <span className="text-red-600">*</span>
-              </label>
-              <select
-                id="current_property_id"
-                name="current_property_id"
-                value={formData.current_property_id}
-                onChange={handleChange}
-                required
-                className={safeGetInputClassName('current_property_id')}
-              >
-                <option value="">Select a property</option>
-                {properties.map((property) => (
-                  <option key={property.id} value={property.id}>
-                    {property.name}
-                  </option>
-                ))}
-              </select>
-              {fieldErrors.current_property_id && (
-                <p className="mt-1 text-sm text-red-600">{fieldErrors.current_property_id}</p>
-              )}
-            </div>
-
-            {formData.current_property_id && (
-              <div>
-                <label htmlFor="unit_id" className="block text-sm font-medium text-gray-700">
-                  Unit {propertyUnits.length === 0 ? '' : <span className="text-red-600">*</span>}
-                </label>
-                {propertyUnits.length > 0 ? (
-                  <>
-                    <select
-                      id="unit_id"
-                      name="unit_id"
-                      value={formData.unit_id}
-                      onChange={handleChange}
-                      className={safeGetInputClassName('unit_id')}
-                      disabled={!formData.current_property_id || propertyUnits.length === 0}
-                    >
-                      <option value="">Select a unit</option>
-                      {propertyUnits.map((unit) => (
-                        <option key={unit.id} value={unit.id}>
-                          {unit.unit_number}
-                        </option>
-                      ))}
-                    </select>
-                    {fieldErrors.unit_id && !fieldErrors.unit && (
-                      <p className="mt-1 text-sm text-red-600">{fieldErrors.unit_id}</p>
-                    )}
-                  </>
-                ) : (
-                  <p className="mt-1 text-sm text-amber-600">
-                    No units available for this property.
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="unit" className="block text-sm font-medium text-gray-700">
-                Unit Number (Manual) {(!formData.unit_id || propertyUnits.length === 0) && <span className="text-red-600">*</span>}
-              </label>
-              <input
-                type="text"
-                id="unit"
-                name="unit"
-                value={formData.unit}
-                onChange={handleChange}
-                className={safeGetInputClassName('unit')}
-                placeholder="For properties without unit records"
-              />
-              {fieldErrors.unit && !fieldErrors.unit_id && (
-                <p className="mt-1 text-sm text-red-600">{fieldErrors.unit}</p>
-              )}
-              {propertyUnits.length === 0 && formData.current_property_id ? (
-                <p className="mt-1 text-xs text-gray-500">Please enter unit information manually</p>
-              ) : (
-                <p className="mt-1 text-xs text-gray-500">Required if no unit is selected above</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="lease_start" className="block text-sm font-medium text-gray-700">
-                Lease Start Date <span className="text-red-600">*</span>
-              </label>
-              <input
-                type="date"
-                id="lease_start"
-                name="lease_start"
-                value={formData.lease_start}
-                onChange={handleChange}
-                required
-                className={safeGetInputClassName('lease_start')}
-              />
-              {fieldErrors.lease_start && (
-                <p className="mt-1 text-sm text-red-600">{fieldErrors.lease_start}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="lease_end" className="block text-sm font-medium text-gray-700">
-                Lease End Date <span className="text-red-600">*</span>
-              </label>
-              <input
-                type="date"
-                id="lease_end"
-                name="lease_end"
-                value={formData.lease_end}
-                onChange={handleChange}
-                required
-                className={safeGetInputClassName('lease_end')}
-              />
-              {fieldErrors.lease_end && (
-                <p className="mt-1 text-sm text-red-600">{fieldErrors.lease_end}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="monthly_rent" className="block text-sm font-medium text-gray-700">
-                Monthly Rent <span className="text-red-600">*</span>
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500 sm:text-sm">$</span>
-                </div>
-                <input
-                  type="number"
-                  id="monthly_rent"
-                  name="monthly_rent"
-                  value={formData.monthly_rent}
-                  onChange={handleChange}
-                  step="0.01"
-                  min="0"
-                  required
-                  className={`${safeGetInputClassName('monthly_rent')} pl-7`}
-                />
-              </div>
-              {fieldErrors.monthly_rent && (
-                <p className="mt-1 text-sm text-red-600">{fieldErrors.monthly_rent}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700">
-                Status <span className="text-red-600">*</span>
-              </label>
-              <select
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                required
-                className={safeGetInputClassName('status')}
-              >
-                <option value="">Select a status</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-                <option value="Pending">Pending</option>
-                <option value="Evicted">Evicted</option>
-                <option value="Moved Out">Moved Out</option>
-              </select>
-              {fieldErrors.status && (
-                <p className="mt-1 text-sm text-red-600">{fieldErrors.status}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="leasing_agent" className="block text-sm font-medium text-gray-700">
-                Leasing Agent
-              </label>
-              <input
-                type="text"
-                id="leasing_agent"
-                name="leasing_agent"
-                value={formData.leasing_agent}
-                onChange={handleChange}
-                className={safeGetInputClassName('leasing_agent')}
-              />
-              {fieldErrors.leasing_agent && (
-                <p className="mt-1 text-sm text-red-600">{fieldErrors.leasing_agent}</p>
+              {fieldErrors.email && (touched.email || submitAttempted) && (
+                <div className="invalid-feedback">{fieldErrors.email}</div>
               )}
             </div>
           </div>
 
-          <div className="mt-2 text-sm text-gray-700">
+          <div className="mt-2 text-sm text-gray-500">
             <span className="text-red-600">*</span> Required fields
           </div>
 
-          <div className="flex justify-end space-x-3 mt-6">
+          <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-100">
             <button
               type="button"
               onClick={onClose}
@@ -571,7 +400,7 @@ if (isLLMFlow && name === 'current_property_id') {
             >
               {isLoading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>

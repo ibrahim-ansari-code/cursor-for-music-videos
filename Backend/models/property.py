@@ -10,7 +10,7 @@ from Backend.models.accounting import Expense
 if TYPE_CHECKING:
     from Backend.models.lease import Lease
     from Backend.models.vendor import Vendor
-    from Backend.models.tenant import Tenant
+    from Backend.models.tenant import Tenant, TenantUnitLink
 
 class PropertyStatus(str, Enum):
     ACTIVE = "active"
@@ -54,18 +54,17 @@ class Property(SQLModel, table=True):
     
     # Relationships
     owner: Optional[User] = Relationship(back_populates="properties")
-    units: List["PropertyUnit"] = Relationship(back_populates="property", sa_relationship_kwargs={"lazy": "selectin"})
-    current_tenants: List["Tenant"] = Relationship(
-        back_populates="current_property",
-        sa_relationship_kwargs={"lazy": "selectin"}
-    )
-    leases: List["Lease"] = Relationship(back_populates="property", sa_relationship_kwargs={"lazy": "selectin"})
+    units: List["PropertyUnit"] = Relationship(back_populates="property")
+    leases: List["Lease"] = Relationship(back_populates="property")
     vendors: List["Vendor"] = Relationship(
-        back_populates="properties", 
-        link_model=PropertyVendorLink, 
-        sa_relationship_kwargs={"lazy": "selectin"}
+        back_populates="properties",
+        sa_relationship_kwargs={
+            "secondary": "property_vendor_links"
+        }
     )
-    expenses: List[Expense] = Relationship(back_populates="property", sa_relationship_kwargs={"lazy": "selectin"})
+    expenses: List[Expense] = Relationship(back_populates="property")
+    
+    # current_tenants relationship will be set up in the setup_relationships function
 
 class PropertyUnit(SQLModel, table=True):
     """Unit model representing individual units within a property"""
@@ -73,28 +72,46 @@ class PropertyUnit(SQLModel, table=True):
     __tablename__ = "property_units"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    unit_number: str
+    property_id: Optional[int] = Field(default=None, foreign_key="properties.id")
+    name: str = Field(index=True)
+    description: Optional[str] = None
+    size: Optional[float] = None
+    monthly_rent: Optional[float] = None
+    is_rented: bool = Field(default=False)
     bedrooms: Optional[int] = None
     bathrooms: Optional[float] = None
-    square_feet: Optional[int] = None
-    rent_amount: float
-    is_occupied: bool = Field(default=False)
-    
-    # Foreign keys
-    property_id: int = Field(foreign_key="properties.id")
-    
-    # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships
-    property: "Property" = Relationship(back_populates="units")
-    leases: List["Lease"] = Relationship(back_populates="unit", sa_relationship_kwargs={"lazy": "selectin"})
-    current_tenant: Optional["Tenant"] = Relationship(
-        back_populates="current_unit",
-        sa_relationship_kwargs={"lazy": "selectin", "foreign_keys": "[Tenant.unit_id]"}
-    )
+    property: Optional["Property"] = Relationship(back_populates="units")
+    
+    # Add the missing leases relationship
+    leases: List["Lease"] = Relationship(back_populates="unit")
+    
+    # tenants relationship will be set up in the setup_relationships function
 
-# Import necessary for annotations
-from Backend.models.tenant import Tenant
+# Function to initialize relationships that would otherwise cause circular imports
+def setup_property_relationships():
+    from Backend.models.tenant import Tenant, TenantUnitLink
+    
+    # Add tenant relationships to PropertyUnit
+    PropertyUnit.tenants = Relationship(
+        back_populates="units",
+        sa_relationship_kwargs={
+            "secondary": "tenant_unit_link"
+        }
+    )
+    
+    PropertyUnit.tenant_links = Relationship(
+        back_populates="unit"
+    )
+    
+    # Set up current_tenants relationship for Property
+    Property.current_tenants = Relationship(
+        back_populates="current_property",
+        sa_relationship_kwargs={
+            "foreign_keys": [Tenant.current_property_id]
+        }
+    )
 

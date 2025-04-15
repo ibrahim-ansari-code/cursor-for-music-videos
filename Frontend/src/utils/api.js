@@ -4,8 +4,17 @@
 const handleResponse = async (response) => {
   if (!response.ok) {
     // Try to parse error message from response
+    let errorObj = {
+      status: response.status,
+      statusText: response.statusText,
+      url: response.url
+    };
+    
     try {
       const errorData = await response.json();
+      errorObj.data = errorData;
+      
+      // Handle auth errors
       if (response.status === 401) {
         // Clear auth data and redirect to login
         console.error('Authentication error:', errorData);
@@ -13,25 +22,48 @@ const handleResponse = async (response) => {
         localStorage.removeItem('user_type');
         localStorage.removeItem('user');
         window.location.href = '/login';
-        throw new Error('Authentication failed. Please log in again.');
+        throw Object.assign(
+          new Error('Authentication failed. Please log in again.'),
+          errorObj
+        );
       }
-      throw new Error(errorData.detail || `API error: ${response.status}`);
+      
+      // Throw enhanced error with all details
+      throw Object.assign(
+        new Error(errorData.detail || `API error: ${response.status}`),
+        errorObj
+      );
     } catch (e) {
       // If response is not JSON or another error occurs
+      if (e.data) {
+        // This is our enhanced error from above, just rethrow it
+        throw e;
+      }
+      
       if (response.status === 401) {
         // Clear auth data and redirect to login
         localStorage.removeItem('token');
         localStorage.removeItem('user_type');
         localStorage.removeItem('user');
         window.location.href = '/login';
-        throw new Error('Authentication failed. Please log in again.');
+        throw Object.assign(
+          new Error('Authentication failed. Please log in again.'),
+          errorObj
+        );
       }
       
-      if (e.message.includes('API error') || e.message.includes('Authentication failed')) {
-        throw e;
+      // Try to get text content if JSON parsing failed
+      try {
+        const textContent = await response.text();
+        errorObj.rawResponse = textContent;
+      } catch (textError) {
+        errorObj.rawResponseError = "Couldn't read response text";
       }
       
-      throw new Error(`API error: ${response.status}. ${response.statusText}`);
+      throw Object.assign(
+        new Error(`API error: ${response.status}. ${response.statusText}`),
+        errorObj
+      );
     }
   }
   
@@ -159,7 +191,7 @@ export const updateLeaseStatus = async (leaseId, status) => {
 export const uploadLeaseDocument = async (leaseId, formData) => {
   const token = localStorage.getItem('token');
   
-  const response = await fetch(`/api/leases/${leaseId}/upload`, {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/leases/${leaseId}/upload`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -467,15 +499,23 @@ export const fetchTenant = async (tenantId) => {
 };
 
 export const createTenant = async (tenantData) => {
-  return apiRequest('/tenants', {
-    method: 'POST',
-    body: JSON.stringify(tenantData)
-  });
+  console.log('Creating tenant with data:', tenantData);
+  try {
+    const response = await apiRequest('/tenants', {
+      method: 'POST',
+      body: JSON.stringify(tenantData)
+    });
+    console.log('Tenant created successfully:', response);
+    return response;
+  } catch (error) {
+    console.error('Error creating tenant:', error);
+    throw error;
+  }
 };
 
 export const updateTenant = async (tenantId, tenantData) => {
   return apiRequest(`/tenants/${tenantId}`, {
-    method: 'PUT',
+    method: 'PATCH',
     body: JSON.stringify(tenantData)
   });
 };
@@ -492,27 +532,10 @@ export const fetchTenantsByProperty = async (propertyId) => {
     return []; // Return empty array instead of throwing
   }
 
-  const token = localStorage.getItem('token');
   try {
-    // Ensure URL is correctly formatted - normalize the URL to not have a trailing slash
-    const baseUrl = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
-    const url = `${baseUrl}/api/tenants?property_id=${propertyId}`;
-    
-    console.log('Fetching tenants from:', url);
-    
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Tenant fetch error:', response.status, errorText);
-      throw new Error(`Failed to fetch tenants: ${response.status} ${errorText}`);
-    }
-    
-    const data = await response.json();
+    const queryParams = new URLSearchParams({ property_id: propertyId });
+    const data = await apiRequest(`/tenants?${queryParams.toString()}`);
+
     console.log('Tenants fetched successfully:', data);
     
     // Handle both array and object responses
@@ -528,7 +551,7 @@ export const fetchTenantsByProperty = async (propertyId) => {
     return [];
   } catch (error) {
     console.error('Error in fetchTenantsByProperty:', error);
-    throw error;
+    return [];  // Return empty array on error to avoid breaking the UI
   }
 };
 
@@ -608,70 +631,21 @@ export const analyzeLease = async (formData) => {
 
 export const submitLease = async (leaseData) => {
   try {
+    console.log('Submitting lease data:', leaseData);
     const token = localStorage.getItem('token');
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const userType = user?.user_type || localStorage.getItem('user_type');
     
-    console.log('Lease submission - user info:', { 
-      userType: userType,
-      userFromLocalStorage: user
-    });
-    
-    // Create a copy to avoid modifying the original
-    const formattedData = { ...leaseData };
-    
-    // Ensure all required fields are present in the correct format
-    if (!formattedData.start_date && formattedData.startDate) {
-      formattedData.start_date = new Date(formattedData.startDate).toISOString().split('T')[0];
-    }
-    
-    if (!formattedData.end_date && formattedData.endDate) {
-      formattedData.end_date = new Date(formattedData.endDate).toISOString().split('T')[0];
-    }
-    
-    if (!formattedData.monthly_rent && formattedData.monthlyRent) {
-      formattedData.monthly_rent = parseFloat(formattedData.monthlyRent);
-    }
-    
-    if (!formattedData.security_deposit && formattedData.securityDeposit) {
-      formattedData.security_deposit = parseFloat(formattedData.securityDeposit);
-    }
-    
-    // Log the data being sent
-    console.log('Submitting lease with data:', formattedData);
-    
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/leases/`, {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/leases`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'X-Debug-User-Type': userType || '',  // For diagnostic purposes
+        'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify(formattedData),
+      body: JSON.stringify(leaseData)
     });
     
-    if (!response.ok) {
-      const clonedResponse = response.clone();
-      const text = await clonedResponse.text();
-      console.error('Lease creation failed. Status:', response.status, 'Response:', text);
-      
-      // Try to parse as JSON if possible
-      let errorData;
-      try {
-        errorData = JSON.parse(text);
-      } catch (e) {
-        errorData = { detail: text };
-      }
-      
-      throw {
-        status: response.status,
-        statusText: response.statusText,
-        data: errorData,
-        message: errorData.detail || 'Failed to create lease'
-      };
-    }
-    
-    return await response.json();
+    const result = await handleResponse(response);
+    console.log('Lease created successfully:', result);
+    return result;
   } catch (error) {
     console.error('Error in submitLease:', error);
     throw error;

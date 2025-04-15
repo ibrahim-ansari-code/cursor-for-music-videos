@@ -434,11 +434,11 @@ async def get_occupancy_rates(
         p.id as property_id,
         p.name as property_name,
         COUNT(u.id) as total_units,
-        SUM(CASE WHEN u.is_occupied THEN 1 ELSE 0 END) as occupied_units,
-        SUM(CASE WHEN NOT u.is_occupied THEN 1 ELSE 0 END) as vacant_units,
+        SUM(CASE WHEN u.is_rented THEN 1 ELSE 0 END) as occupied_units,
+        SUM(CASE WHEN NOT u.is_rented THEN 1 ELSE 0 END) as vacant_units,
         CASE 
             WHEN COUNT(u.id) > 0 THEN 
-                CAST(SUM(CASE WHEN u.is_occupied THEN 1 ELSE 0 END) AS FLOAT) / COUNT(u.id) * 100
+                CAST(SUM(CASE WHEN u.is_rented THEN 1 ELSE 0 END) AS FLOAT) / COUNT(u.id) * 100
             ELSE 0
         END as occupancy_rate
     FROM 
@@ -693,7 +693,7 @@ async def get_accounting_overview(
         SELECT 
             CASE 
                 WHEN COUNT(u.id) > 0 
-                THEN CAST(SUM(CASE WHEN u.is_occupied THEN 1 ELSE 0 END) AS FLOAT) / COUNT(u.id) * 100
+                THEN CAST(SUM(CASE WHEN u.is_rented THEN 1 ELSE 0 END) AS FLOAT) / COUNT(u.id) * 100
                 ELSE 0
             END as occupancy_rate
         FROM property_units u

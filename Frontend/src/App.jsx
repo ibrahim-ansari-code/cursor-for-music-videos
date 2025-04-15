@@ -13,6 +13,9 @@ import Messages from './pages/Messages';
 import Properties from './pages/Properties';
 import PropertyDetail from './pages/PropertyDetail';
 import Tenants from './pages/Tenants';
+// Placeholder components for missing pages
+const Maintenance = () => <div className="p-6"><h1 className="text-2xl font-semibold">Maintenance</h1><p className="mt-4">Maintenance page is under construction.</p></div>;
+const Reports = () => <div className="p-6"><h1 className="text-2xl font-semibold">Reports</h1><p className="mt-4">Reports page is under construction.</p></div>;
 
 // Auth Context
 export const AuthContext = createContext(null);
@@ -162,6 +165,8 @@ function App() {
             <Route path="messages" element={<Messages />} />
             <Route path="leases" element={<Leases />} />
             <Route path="tenants" element={<Tenants />} />
+            <Route path="maintenance" element={<Maintenance />} />
+            <Route path="reports" element={<Reports />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
           <Route path="/login" element={<Login />} />

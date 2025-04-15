@@ -68,7 +68,7 @@ class LeaseResponse(LeaseBase):
     property: Optional[Property] = None
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class LeaseDocumentResponse(BaseModel):
     id: int
@@ -78,7 +78,7 @@ class LeaseDocumentResponse(BaseModel):
     upload_date: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class LeaseAnalysisResponse(BaseModel):
     monthly_rent: float

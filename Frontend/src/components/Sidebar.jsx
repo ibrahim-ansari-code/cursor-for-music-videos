@@ -14,11 +14,11 @@ const Sidebar = () => {
     { name: 'Leases', path: '/leases', icon: 'fa-file-signature' },
   ];
 
-  // Management section
+  // Management section - reordered as requested
   const managementItems = [
-    { name: 'Maintenance', path: '/maintenance', icon: 'fa-wrench' },
     { name: 'Accounting', path: '/accounting', icon: 'fa-calculator' },
     { name: 'Reports', path: '/reports', icon: 'fa-chart-pie' },
+    { name: 'Maintenance', path: '/maintenance', icon: 'fa-wrench' },
   ];
 
   // Configuration section
@@ -35,7 +35,7 @@ const Sidebar = () => {
         to={item.path}
         className={({ isActive }) => 
           `${isActive ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'} 
-          group flex items-center py-2 px-3 text-sm font-medium rounded-md transition-colors`
+          group flex items-center py-2.5 px-3 text-sm font-medium rounded-md transition-colors`
         }
       >
         <div className="flex items-center w-full">
@@ -54,7 +54,7 @@ const Sidebar = () => {
       return <div className="border-t border-gray-200 my-2"></div>;
     }
     return (
-      <h3 className="px-3 text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+      <h3 className="px-3 text-xs font-medium text-gray-400 uppercase tracking-wider mb-3 mt-5">
         {title}
       </h3>
     );
@@ -82,11 +82,11 @@ const Sidebar = () => {
 
         {/* Navigation */}
         <div className="flex-1 overflow-y-auto py-4">
-          <nav className="space-y-1 px-2">
+          <nav className="space-y-2 px-2">
             {/* Overview section */}
             <div className="mb-6">
               {renderSectionHeader('OVERVIEW')}
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {renderNavItems(overviewItems)}
               </div>
             </div>
@@ -94,7 +94,7 @@ const Sidebar = () => {
             {/* Management section */}
             <div className="mb-6">
               {renderSectionHeader('MANAGEMENT')}
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {renderNavItems(managementItems)}
               </div>
             </div>
@@ -102,29 +102,45 @@ const Sidebar = () => {
             {/* Configuration section */}
             <div className="mb-6">
               {renderSectionHeader('CONFIGURATION')}
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {renderNavItems(configItems)}
               </div>
             </div>
           </nav>
         </div>
         
-        {/* Footer */}
+        {/* Footer with two buttons */}
         <div className="p-4 border-t border-gray-200">
           {!collapsed ? (
-            <button
-              className="w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-            >
-              <i className="fas fa-user-plus mr-2"></i>
-              Invite
-            </button>
+            <div className="flex space-x-2">
+              <button
+                className="w-1/2 flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+              >
+                <i className="fas fa-user-plus mr-2"></i>
+                Invite
+              </button>
+              <button
+                className="w-1/2 flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
+              >
+                <i className="fas fa-robot mr-2"></i>
+                Ask
+              </button>
+            </div>
           ) : (
-            <button
-              className="w-full flex items-center justify-center p-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-              aria-label="Invite"
-            >
-              <i className="fas fa-user-plus"></i>
-            </button>
+            <div className="flex flex-col space-y-2">
+              <button
+                className="w-full flex items-center justify-center p-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                aria-label="Invite"
+              >
+                <i className="fas fa-user-plus"></i>
+              </button>
+              <button
+                className="w-full flex items-center justify-center p-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
+                aria-label="Ask AI"
+              >
+                <i className="fas fa-robot"></i>
+              </button>
+            </div>
           )}
         </div>
       </div>

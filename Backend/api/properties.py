@@ -109,7 +109,7 @@ async def get_property(
         # Determine property status based on units
         status = "vacant"
         if property.units:
-            occupied_units = [unit for unit in property.units if unit.is_occupied]
+            occupied_units = [unit for unit in property.units if unit.is_rented]
             if len(occupied_units) == len(property.units):
                 status = "rented"
             elif len(occupied_units) > 0:
