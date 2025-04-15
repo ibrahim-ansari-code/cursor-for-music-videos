@@ -6,11 +6,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_, or_
 from pydantic import BaseModel
+import fitz  # PyMuPDF
+from sqlalchemy.orm import selectinload
 
 from Backend.database import get_session
 from Backend.models.lease import Lease, LeaseStatus, LeaseDocument
 from Backend.models.user import User
 from Backend.api.auth import get_current_user
+from Backend.utils.llm_utils import analyze_lease_text
+from Backend.models.enums import UserType
+from Backend.models.property import Property, PropertyUnit
+from Backend.models.tenant import Tenant
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -58,9 +64,11 @@ class LeaseResponse(LeaseBase):
     status: LeaseStatus
     created_at: datetime
     updated_at: datetime
+    tenant: Optional[Tenant] = None
+    property: Optional[Property] = None
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class LeaseDocumentResponse(BaseModel):
     id: int
@@ -70,7 +78,15 @@ class LeaseDocumentResponse(BaseModel):
     upload_date: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+class LeaseAnalysisResponse(BaseModel):
+    monthly_rent: float
+    start_date: date
+    end_date: date
+    security_deposit: float
+    tenant_name: str
+    unit: Optional[str] = None
 
 # API endpoints
 @router.post("/", response_model=LeaseResponse, status_code=status.HTTP_201_CREATED)
@@ -80,19 +96,87 @@ async def create_lease(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new lease"""
-    # Validate that the current user has permission to create leases
-    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+    # Log detailed user information for debugging
+    logger.info(f"Create lease request by user: id={current_user.id}, email={current_user.email}, type={current_user.user_type}")
+    
+    # Case-insensitive comparison of user types
+    user_type = current_user.user_type.upper() if current_user.user_type else None
+    logger.info(f"Normalized user type: {user_type}")
+    
+    # Define scope based on user type
+    scope = None
+    if user_type == "ADMIN":
+        scope = "global"
+    elif user_type == "LANDLORD":
+        scope = "own_properties"
+    else:
+        logger.warning(f"Unauthorized lease creation attempt by user {current_user.id} with type {user_type}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to create leases"
         )
+
+    # If user is a landlord, verify they own the property
+    if scope == "own_properties":
+        property_query = select(Property).where(
+            and_(
+                Property.id == lease_data.property_id,
+                Property.owner_id == current_user.id
+            )
+        )
+        property_result = await session.execute(property_query)
+        property = property_result.scalar_one_or_none()
+        
+        if not property:
+            logger.warning(f"Landlord {current_user.id} attempted to create lease for property {lease_data.property_id} they don't own")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to create leases for this property"
+            )
     
+    # Validate tenant
+    tenant_query = select(Tenant).where(Tenant.id == lease_data.tenant_id)
+    tenant_result = await session.execute(tenant_query)
+    tenant = tenant_result.scalar_one_or_none()
+
+    if not tenant:
+        logger.error(f"Tenant not found with ID: {lease_data.tenant_id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid tenant ID"
+        )
+
+    # Validate property and unit
+    property_query = select(Property).where(Property.id == lease_data.property_id)
+    property_result = await session.execute(property_query)
+    property = property_result.scalar_one_or_none()
+    if not property:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid property ID"
+        )
+
+    if lease_data.unit_id:
+        unit_query = select(PropertyUnit).where(
+            and_(
+                PropertyUnit.id == lease_data.unit_id,
+                PropertyUnit.property_id == lease_data.property_id
+            )
+        )
+        unit_result = await session.execute(unit_query)
+        unit = unit_result.scalar_one_or_none()
+        if not unit:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid unit ID"
+            )
+
     # Create the lease
     new_lease = Lease(**lease_data.dict())
     session.add(new_lease)
     await session.commit()
     await session.refresh(new_lease)
-    
+
     logger.info(f"Lease created: {new_lease.id} by user {current_user.id}")
     return new_lease
 
@@ -105,7 +189,7 @@ async def get_leases(
     current_user: User = Depends(get_current_user)
 ):
     """Get all leases with optional filtering"""
-    query = select(Lease)
+    query = select(Lease).options(selectinload(Lease.tenant), selectinload(Lease.property))
     
     # Apply filters
     conditions = []
@@ -346,3 +430,130 @@ async def get_lease_documents(
     documents = result.scalars().all()
     
     return documents
+
+@router.post("/analyze", response_model=LeaseAnalysisResponse)
+async def analyze_lease(
+    file: UploadFile = File(...),
+    property_id: int = Form(...),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Analyze a lease document and extract key information.
+    """
+    try:
+        logger.info(f"Starting lease analysis for property_id: {property_id}")
+        
+        # Read file content
+        content = await file.read()
+        text_content = content.decode('utf-8')
+        
+        # Log the first 100 characters of content for debugging
+        logger.debug(f"File content preview: {text_content[:100]}...")
+        
+        # Analyze the lease text
+        analysis_result = analyze_lease_text(text_content)
+        logger.info("Lease analysis completed successfully")
+        logger.debug(f"Analysis result: {analysis_result}")
+        
+        # Extract required fields from the nested structure
+        response_data = {
+            "monthly_rent": float(analysis_result['rent_payment']['monthly_rent']),
+            "start_date": analysis_result['term_details']['lease_start_date'],
+            "end_date": analysis_result['term_details']['lease_end_date'],
+            "security_deposit": float(analysis_result['deposits']['security_deposit']),
+            "tenant_name": analysis_result['core_identifiers']['tenant_name'],
+            "unit": analysis_result['core_identifiers'].get('unit_number', '')
+        }
+        
+        logger.info(f"Formatted response data: {response_data}")
+        return response_data
+        
+    except ValueError as e:
+        logger.error(f"Validation error in lease analysis: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Error analyzing lease: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to analyze lease: {str(e)}"
+        )
+
+@router.post("/parse", response_model=LeaseAnalysisResponse)
+async def parse_lease(
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Parse a lease PDF and extract key fields using LLM analysis.
+    """
+    # Log user info for debugging
+    logger.info(f"Parse lease request from user ID: {current_user.id}, email: {current_user.email}, type: {current_user.user_type}")
+    
+    # Check if user is authorized based on their type
+    user_type = current_user.user_type.upper() if isinstance(current_user.user_type, str) else current_user.user_type
+    
+    if user_type not in [UserType.ADMIN.value, UserType.LANDLORD.value, 'ADMIN', 'LANDLORD']:
+        logger.warning(f"Authorization failed: User {current_user.id} with type {user_type} attempted to parse lease")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to parse leases"
+        )
+    
+    logger.info(f"User {current_user.id} authorized to parse lease")
+    
+    try:
+        # Read PDF content
+        content = await file.read()
+        pdf_document = fitz.open(stream=content, filetype="pdf")
+        
+        # Extract text from all pages
+        text = ""
+        for page in pdf_document:
+            text += page.get_text()
+        
+        # Close the PDF document
+        pdf_document.close()
+        
+        # Analyze text using LLM
+        logger.info(f"Sending lease text for analysis, length: {len(text[:100])}...")
+        raw_parsed_data = analyze_lease_text(text)
+        
+        # Restructure the data to match LeaseAnalysisResponse model
+        parsed_data = {
+            'monthly_rent': float(raw_parsed_data.get('rent_payment', {}).get('monthly_rent', 0)),
+            'start_date': raw_parsed_data.get('term_details', {}).get('lease_start_date', ''),
+            'end_date': raw_parsed_data.get('term_details', {}).get('lease_end_date', ''),
+            'security_deposit': float(raw_parsed_data.get('deposits', {}).get('security_deposit', 0)),
+            'tenant_name': raw_parsed_data.get('core_identifiers', {}).get('tenant_name', ''),
+            'unit': raw_parsed_data.get('core_identifiers', {}).get('unit_number', '')
+        }
+        
+        logger.info(f"Restructured data: {parsed_data}")
+        
+        # Convert string dates to date objects
+        try:
+            if parsed_data['start_date']:
+                parsed_data['start_date'] = datetime.strptime(parsed_data['start_date'], '%Y-%m-%d').date()
+            if parsed_data['end_date']:
+                parsed_data['end_date'] = datetime.strptime(parsed_data['end_date'], '%Y-%m-%d').date()
+        except ValueError as e:
+            logger.error(f"Date parsing error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid date format in lease: {str(e)}"
+            )
+        
+        logger.info(f"Lease parsed successfully by user {current_user.id}")
+        return parsed_data
+        
+    except Exception as e:
+        logger.error(f"Failed to parse lease: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to parse lease document: {str(e)}"
+        )

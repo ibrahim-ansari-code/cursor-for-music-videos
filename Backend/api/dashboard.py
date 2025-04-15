@@ -77,7 +77,9 @@ async def get_dashboard_data(
     current_user: User = Depends(get_current_user)
 ):
     """Get dashboard data with occupancy rates, revenue trends, and more"""
-    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+    # Convert user_type to uppercase for comparison
+    user_type = current_user.user_type.upper() if current_user.user_type else None
+    if user_type not in [UserType.ADMIN.value, UserType.LANDLORD.value]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access dashboard data"
@@ -115,7 +117,7 @@ async def get_dashboard_data(
         SELECT 
             COUNT(DISTINCT p.id) as total_properties,
             COUNT(u.id) as total_units,
-            SUM(CASE WHEN u.is_occupied THEN 1 ELSE 0 END) as occupied_units
+            SUM(CASE WHEN u.is_rented THEN 1 ELSE 0 END) as occupied_units
         FROM 
             properties p
         LEFT JOIN 

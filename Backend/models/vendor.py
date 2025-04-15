@@ -43,12 +43,10 @@ class Vendor(SQLModel, table=True):
     user: User = Relationship(back_populates="vendor_details")
     properties: List["Property"] = Relationship(
         back_populates="vendors",
-        link_model=PropertyVendorLink,
-        sa_relationship_kwargs={"lazy": "selectin"}
+        link_model=PropertyVendorLink
     )
     documents: List["VendorDocument"] = Relationship(
-        back_populates="vendor",
-        sa_relationship_kwargs={"lazy": "selectin"}
+        back_populates="vendor"
     )
 
 class VendorDocument(SQLModel, table=True):

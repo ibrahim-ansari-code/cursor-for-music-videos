@@ -65,8 +65,6 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-        
         <div className="mt-3 md:mt-0 flex space-x-3">
           <select
             className="border border-gray-300 rounded-md py-1.5 pl-3 pr-10 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -299,7 +297,7 @@ const Dashboard = () => {
         
         {/* Revenue Trends */}
         <div className="dashboard-card">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Latest Contracts/Tenants</h2>
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Latest Leases/Tenants</h2>
           
           <div className="space-y-3">
             {dashboardData?.leads?.map((lead) => (

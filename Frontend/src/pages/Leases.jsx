@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchLeases, uploadLeaseDocument, updateLeaseStatus } from '../utils/api';
+import ImportLeaseModal from '../components/ImportLeaseModal';
 
 const Leases = () => {
   const [leases, setLeases] = useState([]);
@@ -76,7 +77,7 @@ const Leases = () => {
 
   const handleStatusChange = async (leaseId, newStatus) => {
     try {
-      await updateLeaseStatus(leaseId, newStatus);
+      await updateLeaseStatus(leaseId, { status: newStatus });
       loadLeases();
     } catch (err) {
       console.error('Error updating lease status:', err);
@@ -100,6 +101,11 @@ const Leases = () => {
     }
   };
 
+  const handleImport = () => {
+    handleCloseModal();
+    loadLeases();
+  };
+
   if (loading && leases.length === 0) {
     return (
       <div className="p-4 flex justify-center items-center h-full">
@@ -113,9 +119,7 @@ const Leases = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">Lease Management</h1>
-        
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end">
         <div className="mt-3 sm:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
           <div className="relative">
             <select
@@ -187,12 +191,11 @@ const Leases = () => {
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
                           {/* Placeholder for tenant initials */}
-                          TS
+                          {lease.tenant?.full_name ? lease.tenant.full_name.split(' ').map(n => n[0]).join('') : 'TS'}
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {/* Placeholder for tenant name */}
-                            Tenant #{lease.tenant_id}
+                            {lease.tenant?.full_name || `Tenant #${lease.tenant_id}`}
                           </div>
                           <div className="text-sm text-gray-500">
                             {lease.tenant_id ? `ID: ${lease.tenant_id}` : 'No tenant assigned'}
@@ -202,8 +205,7 @@ const Leases = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {/* Placeholder for property name */}
-                        Property #{lease.property_id}
+                        {lease.property?.name || `Property #${lease.property_id}`}
                       </div>
                       <div className="text-sm text-gray-500">
                         {lease.unit_id ? `Unit: ${lease.unit_id}` : 'No unit specified'}
@@ -380,6 +382,15 @@ const Leases = () => {
             </div>
           </div>
         </div>
+      )}
+      
+      {/* Import Lease Modal */}
+      {showModal && modalType === 'create' && (
+        <ImportLeaseModal
+          isOpen={showModal}
+          onClose={handleCloseModal}
+          onImport={handleImport}
+        />
       )}
     </div>
   );
