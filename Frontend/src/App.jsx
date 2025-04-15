@@ -10,6 +10,12 @@ import Leases from './pages/Leases';
 import Vendors from './pages/Vendors';
 import Accounting from './pages/Accounting';
 import Messages from './pages/Messages';
+import Properties from './pages/Properties';
+import PropertyDetail from './pages/PropertyDetail';
+import Tenants from './pages/Tenants';
+// Placeholder components for missing pages
+const Maintenance = () => <div className="p-6"><h1 className="text-2xl font-semibold">Maintenance</h1><p className="mt-4">Maintenance page is under construction.</p></div>;
+const Reports = () => <div className="p-6"><h1 className="text-2xl font-semibold">Reports</h1><p className="mt-4">Reports page is under construction.</p></div>;
 
 // Auth Context
 export const AuthContext = createContext(null);
@@ -36,9 +42,21 @@ function App() {
 
         if (response.ok) {
           const userInfo = await response.json();
+          
+          // Ensure the user_type is in uppercase
+          const userType = userInfo.user_type?.toUpperCase();
+          userInfo.user_type = userType;
+          
+          // Update localStorage with the normalized user type
+          localStorage.setItem('user_type', userType);
+          localStorage.setItem('user', JSON.stringify(userInfo));
+          
+          console.log('Auth check: Updated user type to:', userType);
+          
           setUser(userInfo);
         } else {
           // Clear invalid token
+          console.error('Auth check failed, clearing credentials');
           localStorage.removeItem('token');
           localStorage.removeItem('user_type');
           localStorage.removeItem('user');
@@ -74,8 +92,18 @@ function App() {
       }
 
       const data = await response.json();
+      
+      // Ensure the user_type is in uppercase to match the enum values
+      const userType = data.user_type?.toUpperCase();
+      console.log('Auth token response:', { 
+        originalType: data.user_type,
+        normalizedType: userType
+      });
+      
+      // Store the uppercase user_type value
       localStorage.setItem('token', data.access_token);
-      localStorage.setItem('user_type', data.user_type);
+      localStorage.setItem('user_type', userType);
+      console.log('Stored user type:', userType);
 
       const userResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, {
         headers: {
@@ -89,6 +117,11 @@ function App() {
       }
 
       const userInfo = await userResponse.json();
+      
+      // Make sure userInfo.user_type is also uppercase
+      userInfo.user_type = userType;
+      console.log('User info from /me endpoint:', userInfo);
+      
       localStorage.setItem('user', JSON.stringify(userInfo));
       setUser(userInfo);
 
@@ -121,36 +154,23 @@ function App() {
     <AuthContext.Provider value={authValue}>
       <Router>
         <Routes>
-          <Route 
-            path="/login" 
-            element={
-              user ? <Navigate to="/dashboard" replace /> : <Login />
-            } 
-          />
-          <Route 
-            path="/register" 
-            element={
-              user ? <Navigate to="/dashboard" replace /> : <Register />
-            } 
-          />
-          <Route
-            path="/"
-            element={
-              user ? (
-                <Layout />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          >
+          <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="properties" element={<Properties />} />
+            <Route path="properties/:id" element={<PropertyDetail />} />
             <Route path="leases" element={<Leases />} />
             <Route path="vendors" element={<Vendors />} />
             <Route path="accounting" element={<Accounting />} />
             <Route path="messages" element={<Messages />} />
+            <Route path="leases" element={<Leases />} />
+            <Route path="tenants" element={<Tenants />} />
+            <Route path="maintenance" element={<Maintenance />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
         </Routes>
       </Router>
     </AuthContext.Provider>

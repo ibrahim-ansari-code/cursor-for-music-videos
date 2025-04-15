@@ -1,6 +1,6 @@
 import logging
 from typing import List, Optional
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -122,6 +122,29 @@ class RevenueTrendResponse(BaseModel):
     revenue: float
     expenses: float
     net_income: float
+
+class AccountingOverviewResponse(BaseModel):
+    total_revenue: float
+    total_expenses: float
+    net_income: float
+    occupancy_rate: float
+    outstanding_payments: int
+    revenue_trends: list[RevenueTrendResponse]
+
+class GeneratePaymentsResponse(BaseModel):
+    created: int
+    skipped: int
+
+async def get_month_payments(session: AsyncSession, lease_id: int, month: date) -> bool:
+    """Check if payments exist for a lease in a given month"""
+    query = select(Payment).where(
+        and_(
+            Payment.lease_id == lease_id,
+            func.date_trunc('month', Payment.payment_date) == func.date_trunc('month', month)
+        )
+    )
+    result = await session.execute(query)
+    return result.scalar_one_or_none() is not None
 
 # API endpoints - Payments
 @router.post("/payments", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED)
@@ -411,11 +434,11 @@ async def get_occupancy_rates(
         p.id as property_id,
         p.name as property_name,
         COUNT(u.id) as total_units,
-        SUM(CASE WHEN u.is_occupied THEN 1 ELSE 0 END) as occupied_units,
-        SUM(CASE WHEN NOT u.is_occupied THEN 1 ELSE 0 END) as vacant_units,
+        SUM(CASE WHEN u.is_rented THEN 1 ELSE 0 END) as occupied_units,
+        SUM(CASE WHEN NOT u.is_rented THEN 1 ELSE 0 END) as vacant_units,
         CASE 
             WHEN COUNT(u.id) > 0 THEN 
-                CAST(SUM(CASE WHEN u.is_occupied THEN 1 ELSE 0 END) AS FLOAT) / COUNT(u.id) * 100
+                CAST(SUM(CASE WHEN u.is_rented THEN 1 ELSE 0 END) AS FLOAT) / COUNT(u.id) * 100
             ELSE 0
         END as occupancy_rate
     FROM 
@@ -628,3 +651,184 @@ async def get_revenue_trends(
             )
             for row in trends_data
         ]
+
+@router.get("/overview", response_model=AccountingOverviewResponse)
+async def get_accounting_overview(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Get accounting overview metrics"""
+    if current_user.user_type.upper() not in ["ADMIN", "LANDLORD"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view accounting overview"
+        )
+
+    # Calculate date ranges
+    today = date.today()
+    year_start = date(today.year, 1, 1)
+    
+    # Get total revenue from paid payments
+    revenue_query = select(func.coalesce(func.sum(Payment.amount), 0.0)).where(
+        and_(
+            Payment.payment_date >= year_start,
+            Payment.status.in_([PaymentStatus.PAID, PaymentStatus.PARTIAL])
+        )
+    )
+    result = await session.execute(revenue_query)
+    total_revenue = result.scalar()
+
+    # Get total expenses
+    expenses_query = select(func.coalesce(func.sum(Expense.amount), 0.0)).where(
+        Expense.expense_date >= year_start
+    )
+    result = await session.execute(expenses_query)
+    total_expenses = result.scalar()
+
+    # Calculate net income
+    net_income = total_revenue - total_expenses
+
+    # Get occupancy rate
+    occupancy_query = """
+        SELECT 
+            CASE 
+                WHEN COUNT(u.id) > 0 
+                THEN CAST(SUM(CASE WHEN u.is_rented THEN 1 ELSE 0 END) AS FLOAT) / COUNT(u.id) * 100
+                ELSE 0
+            END as occupancy_rate
+        FROM property_units u
+    """
+    result = await session.execute(text(occupancy_query))
+    occupancy_rate = result.scalar() or 0.0
+
+    # Get count of outstanding payments
+    outstanding_query = select(func.count(Invoice.id)).where(
+        Invoice.status.in_([PaymentStatus.PENDING, PaymentStatus.LATE, PaymentStatus.OVERDUE])
+    )
+    result = await session.execute(outstanding_query)
+    outstanding_payments = result.scalar()
+
+    # Get revenue trends for past 12 months
+    trends_query = """
+        WITH months AS (
+            SELECT generate_series(
+                date_trunc('month', current_date - interval '11 months'),
+                date_trunc('month', current_date),
+                interval '1 month'
+            )::date as month_start
+        ),
+        monthly_data AS (
+            SELECT
+                date_trunc('month', m.month_start)::date as month,
+                COALESCE(SUM(CASE WHEN pay.status IN ('PAID', 'PARTIAL') THEN pay.amount ELSE 0 END), 0) as revenue,
+                COALESCE(SUM(exp.amount), 0) as expenses
+            FROM
+                months m
+            LEFT JOIN
+                properties p ON 1=1
+            LEFT JOIN
+                leases l ON p.id = l.property_id
+            LEFT JOIN
+                payments pay ON l.id = pay.lease_id
+                            AND date_trunc('month', pay.payment_date) = m.month_start
+            LEFT JOIN
+                expenses exp ON p.id = exp.property_id
+                            AND date_trunc('month', exp.expense_date) = m.month_start
+            GROUP BY
+                m.month_start
+            ORDER BY
+                m.month_start
+        )
+        SELECT
+            to_char(month, 'Mon YYYY') as period,
+            revenue,
+            expenses,
+            revenue - expenses as net_income
+        FROM
+            monthly_data
+    """
+    result = await session.execute(text(trends_query))
+    revenue_trends = [
+        RevenueTrendResponse(
+            period=row.period,
+            revenue=float(row.revenue),
+            expenses=float(row.expenses),
+            net_income=float(row.net_income)
+        )
+        for row in result.all()
+    ]
+
+    return AccountingOverviewResponse(
+        total_revenue=total_revenue,
+        total_expenses=total_expenses,
+        net_income=net_income,
+        occupancy_rate=occupancy_rate,
+        outstanding_payments=outstanding_payments,
+        revenue_trends=revenue_trends
+    )
+
+@router.post("/generate-due-payments", response_model=GeneratePaymentsResponse)
+async def generate_due_payments(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Generate due payments for all active leases"""
+    if current_user.user_type.upper() not in ["ADMIN", "LANDLORD"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to generate payments"
+        )
+
+    # Get current month
+    today = date.today()
+    current_month = date(today.year, today.month, 1)
+    
+    # Get all active leases
+    query = select(Lease).where(
+        and_(
+            Lease.start_date <= today,
+            or_(Lease.end_date >= today, Lease.end_date.is_(None))
+        )
+    )
+    result = await session.execute(query)
+    active_leases = result.scalars().all()
+    
+    created_count = 0
+    skipped_count = 0
+    
+    for lease in active_leases:
+        # Check if payment already exists for this month
+        has_payment = await get_month_payments(session, lease.id, current_month)
+        
+        if not has_payment:
+            # Create payment due date based on lease's rent_due_day
+            payment_date = date(today.year, today.month, lease.rent_due_day)
+            if payment_date < today:  # If due day has passed, set to next month
+                if today.month == 12:
+                    payment_date = date(today.year + 1, 1, lease.rent_due_day)
+                else:
+                    payment_date = date(today.year, today.month + 1, lease.rent_due_day)
+            
+            # Create new payment
+            new_payment = Payment(
+                lease_id=lease.id,
+                tenant_id=lease.tenant_id,
+                amount=lease.monthly_rent,
+                payment_date=payment_date,
+                status=PaymentStatus.DUE,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            session.add(new_payment)
+            created_count += 1
+            logger.info(f"Created payment for lease {lease.id}, tenant {lease.tenant_id}, due on {payment_date}")
+        else:
+            skipped_count += 1
+    
+    await session.commit()
+    logger.info(f"Generated {created_count} payments, skipped {skipped_count} existing payments")
+    
+    return GeneratePaymentsResponse(
+        created=created_count,
+        skipped=skipped_count
+    )

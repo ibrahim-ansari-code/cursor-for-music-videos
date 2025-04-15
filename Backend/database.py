@@ -1,5 +1,6 @@
 import logging
 import os
+import Backend.models
 from typing import Optional
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker

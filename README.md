@@ -53,13 +53,13 @@ Runs at `http://localhost:5173`
 ```bash
 cd Backend
 python -m venv venv
-.env\Scripts\activate       # Windows
+.venv\Scripts\activate       # Windows
 # source venv/bin/activate    # macOS/Linux
 
 pip install poetry
 poetry install --no-root
 
-poetry run uvicorn app:app --reload --app-dir ./api
+poetry run uvicorn Backend.api.app:app --reload
 ```
 
 Runs at `http://localhost:8000`  
