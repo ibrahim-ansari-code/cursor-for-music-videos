@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { fetchLeases, uploadLeaseDocument, updateLeaseStatus } from '../utils/api';
+import { fetchLeases, uploadLeaseDocument } from '../utils/api';
 import ImportLeaseModal from '../components/ImportLeaseModal';
+import UpdateLeaseStatusModal from '../components/UpdateLeaseStatusModal';
 
 const Leases = () => {
   const [leases, setLeases] = useState([]);
@@ -75,18 +76,8 @@ const Leases = () => {
     }
   };
 
-  const handleStatusChange = async (leaseId, newStatus) => {
-    try {
-      await updateLeaseStatus(leaseId, { status: newStatus });
-      loadLeases();
-    } catch (err) {
-      console.error('Error updating lease status:', err);
-      setError('Failed to update lease status. Please try again.');
-    }
-  };
-
   const getStatusBadgeClass = (status) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'active':
         return 'badge-success';
       case 'pending':
@@ -104,6 +95,34 @@ const Leases = () => {
   const handleImport = () => {
     handleCloseModal();
     loadLeases();
+  };
+
+  // Get the tenant's full name or construct it from first and last name
+  const getTenantName = (tenant) => {
+    if (!tenant) return 'No tenant assigned';
+    if (tenant.full_name) return tenant.full_name;
+    if (tenant.first_name || tenant.last_name) {
+      return `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim();
+    }
+    return `Tenant #${tenant.id}`;
+  };
+
+  // Get tenant initials for the avatar
+  const getTenantInitials = (tenant) => {
+    if (!tenant) return 'T';
+    
+    if (tenant.full_name) {
+      return tenant.full_name.split(' ').map(n => n[0]).join('').toUpperCase();
+    }
+    
+    if (tenant.first_name && tenant.last_name) {
+      return (tenant.first_name[0] + tenant.last_name[0]).toUpperCase();
+    }
+    
+    if (tenant.first_name) return tenant.first_name[0].toUpperCase();
+    if (tenant.last_name) return tenant.last_name[0].toUpperCase();
+    
+    return 'T';
   };
 
   if (loading && leases.length === 0) {
@@ -128,11 +147,12 @@ const Leases = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="all">All Statuses</option>
-              <option value="draft">Draft</option>
-              <option value="pending">Pending</option>
-              <option value="active">Active</option>
-              <option value="expired">Expired</option>
-              <option value="terminated">Terminated</option>
+              <option value="DRAFT">Draft</option>
+              <option value="PENDING">Pending</option>
+              <option value="ACTIVE">Active</option>
+              <option value="EXPIRED">Expired</option>
+              <option value="TERMINATED">Terminated</option>
+              <option value="RENEWED">Renewed</option>
             </select>
           </div>
           
@@ -190,15 +210,15 @@ const Leases = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
-                          {/* Placeholder for tenant initials */}
-                          {lease.tenant?.full_name ? lease.tenant.full_name.split(' ').map(n => n[0]).join('') : 'TS'}
+                          {/* Tenant initials */}
+                          {getTenantInitials(lease.tenant)}
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {lease.tenant?.full_name || `Tenant #${lease.tenant_id}`}
+                            {getTenantName(lease.tenant)}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {lease.tenant_id ? `ID: ${lease.tenant_id}` : 'No tenant assigned'}
+                            {lease.tenant?.email || ''}
                           </div>
                         </div>
                       </div>
@@ -208,7 +228,7 @@ const Leases = () => {
                         {lease.property?.name || `Property #${lease.property_id}`}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {lease.unit_id ? `Unit: ${lease.unit_id}` : 'No unit specified'}
+                        {lease.unit?.name || lease.unit_id ? `Unit: ${lease.unit?.name || lease.unit_id}` : 'No unit specified'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -225,7 +245,7 @@ const Leases = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`badge ${getStatusBadgeClass(lease.status)}`}>
-                        {lease.status.charAt(0).toUpperCase() + lease.status.slice(1)}
+                        {lease.status.charAt(0).toUpperCase() + lease.status.slice(1).toLowerCase()}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -233,18 +253,21 @@ const Leases = () => {
                         <button
                           onClick={() => handleShowModal('edit', lease)}
                           className="text-indigo-600 hover:text-indigo-900"
+                          title="Edit lease"
                         >
                           <i className="fas fa-edit"></i>
                         </button>
                         <button
                           onClick={() => handleShowModal('upload', lease)}
                           className="text-green-600 hover:text-green-900"
+                          title="Upload document"
                         >
                           <i className="fas fa-file-upload"></i>
                         </button>
                         <button
                           onClick={() => handleShowModal('status', lease)}
                           className="text-blue-600 hover:text-blue-900"
+                          title="Update status"
                         >
                           <i className="fas fa-tasks"></i>
                         </button>
@@ -328,60 +351,14 @@ const Leases = () => {
         </div>
       )}
       
-      {/* Status Change Modal */}
+      {/* Status Change Modal - Using the new component */}
       {showModal && modalType === 'status' && selectedLease && (
-        <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black bg-opacity-50"></div>
-          <div className="relative bg-white rounded-lg max-w-md w-full mx-auto p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Update Lease Status</h3>
-              <button onClick={handleCloseModal} className="text-gray-400 hover:text-gray-500">
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            
-            <div className="mb-4">
-              <p className="text-sm text-gray-500">
-                Current Status: <span className={`badge ${getStatusBadgeClass(selectedLease.status)}`}>
-                  {selectedLease.status.charAt(0).toUpperCase() + selectedLease.status.slice(1)}
-                </span>
-              </p>
-            </div>
-            
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-700">Change status to:</p>
-              
-              <div className="grid grid-cols-2 gap-2">
-                {['draft', 'pending', 'active', 'expired', 'terminated', 'renewed'].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => {
-                      handleStatusChange(selectedLease.id, status);
-                      handleCloseModal();
-                    }}
-                    disabled={selectedLease.status === status}
-                    className={`px-4 py-2 text-sm font-medium rounded-md ${
-                      selectedLease.status === status 
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={handleCloseModal}
-                className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        <UpdateLeaseStatusModal
+          isOpen={true}
+          onClose={handleCloseModal}
+          lease={selectedLease}
+          onUpdate={loadLeases}
+        />
       )}
       
       {/* Import Lease Modal */}

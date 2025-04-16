@@ -5,11 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_, or_, func, text
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
+from sqlalchemy.orm import selectinload
+from decimal import Decimal
 
 from Backend.database import get_session
-from Backend.models.accounting import Payment, Invoice, Expense, PaymentStatus
-from Backend.models.lease import Lease
+from Backend.models.accounting import Payment, Invoice, Expense, PaymentStatus, PaymentMethod
+from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.property import Property, PropertyUnit
 from Backend.models.user import User, UserType
 from Backend.api.auth import get_current_user
@@ -32,10 +34,24 @@ class PaymentBase(BaseModel):
     transaction_reference: Optional[str] = None
     notes: Optional[str] = None
     lease_id: int
-    tenant_id: int
+    tenant_id: Optional[int] = None
 
-class PaymentCreate(PaymentBase):
-    pass
+    @validator('transaction_reference', 'notes', pre=True)
+    def empty_str_to_none(cls, v):
+        if v == "":
+            return None
+        return v
+
+class PaymentCreate(BaseModel):
+    """Schema for creating a new payment"""
+    lease_id: int
+    amount: float
+    payment_date: Optional[datetime] = None
+    payment_method: Optional[str] = PaymentMethod.OTHER.value
+    status: Optional[PaymentStatus] = PaymentStatus.PENDING
+    transaction_reference: Optional[str] = None
+    notes: Optional[str] = None
+    tenant_name: Optional[str] = None  # Add tenant_name field
 
 class PaymentUpdate(BaseModel):
     amount: Optional[float] = None
@@ -45,10 +61,21 @@ class PaymentUpdate(BaseModel):
     transaction_reference: Optional[str] = None
     notes: Optional[str] = None
 
-class PaymentResponse(PaymentBase):
+class PaymentResponse(BaseModel):
+    """Schema for payment response"""
     id: int
-    created_at: datetime
-    updated_at: datetime
+    lease_id: int
+    tenant_id: int
+    amount: float
+    payment_date: Optional[datetime] = None
+    payment_method: Optional[str] = None
+    status: Optional[PaymentStatus] = None
+    transaction_reference: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    tenant_name: Optional[str] = None  # Add tenant_name field in response
+    property_name: Optional[str] = None
     
     class Config:
         orm_mode = True
@@ -124,11 +151,15 @@ class RevenueTrendResponse(BaseModel):
     net_income: float
 
 class AccountingOverviewResponse(BaseModel):
-    total_revenue: float
-    total_expenses: float
-    net_income: float
+    monthly_revenue: float
+    monthly_expenses: float
+    monthly_net_income: float
+    ytd_revenue: float
+    ytd_expenses: float
+    ytd_net_income: float
     occupancy_rate: float
     outstanding_payments: int
+    average_rent: float
     revenue_trends: list[RevenueTrendResponse]
 
 class GeneratePaymentsResponse(BaseModel):
@@ -147,44 +178,62 @@ async def get_month_payments(session: AsyncSession, lease_id: int, month: date) 
     return result.scalar_one_or_none() is not None
 
 # API endpoints - Payments
-@router.post("/payments", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/payments", response_model=PaymentResponse)
 async def create_payment(
-    payment_data: PaymentCreate,
+    payment: PaymentCreate,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """Create a new payment record"""
-    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to create payment records"
-        )
     
-    # Validate lease and tenant exist and are related
-    query = select(Lease).where(Lease.id == payment_data.lease_id)
-    result = await session.execute(query)
-    lease = result.scalar_one_or_none()
+    # Validate that the lease exists
+    lease_query = select(Lease).filter(Lease.id == payment.lease_id)
+    lease_result = await session.execute(lease_query)
+    lease = lease_result.scalars().first()
     
     if not lease:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Lease with ID {payment_data.lease_id} not found"
+            detail=f"Lease with ID {payment.lease_id} not found"
         )
     
-    if lease.tenant_id != payment_data.tenant_id:
+    # Create payment record
+    payment_obj = Payment(
+        lease_id=payment.lease_id,
+        tenant_id=current_user.id,  # Use current user ID for foreign key
+        amount=payment.amount,
+        payment_date=payment.payment_date,
+        payment_method=payment.payment_method,
+        status=payment.status,
+        transaction_reference=payment.transaction_reference,
+        notes=payment.notes,
+        tenant_name=payment.tenant_name  # Store the tenant's name from the request
+    )
+    
+    try:
+        session.add(payment_obj)
+        await session.commit()
+        await session.refresh(payment_obj)
+        
+        # Get property name
+        property_query = select(Property).join(Lease, Lease.property_id == Property.id).filter(Lease.id == payment.lease_id)
+        property_result = await session.execute(property_query)
+        property_obj = property_result.scalars().first()
+        
+        # Create response with additional information
+        response = {
+            **payment_obj.__dict__,
+            "property_name": property_obj.name if property_obj else None,
+        }
+        
+        return response
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Error creating payment: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Tenant ID {payment_data.tenant_id} does not match lease tenant ID {lease.tenant_id}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create payment: {str(e)}"
         )
-    
-    # Create new payment
-    new_payment = Payment(**payment_data.dict())
-    session.add(new_payment)
-    await session.commit()
-    await session.refresh(new_payment)
-    
-    logger.info(f"Payment created: {new_payment.id} for lease {payment_data.lease_id}")
-    return new_payment
 
 @router.get("/payments", response_model=List[PaymentResponse])
 async def get_payments(
@@ -197,33 +246,76 @@ async def get_payments(
     current_user: User = Depends(get_current_user)
 ):
     """Get all payments with optional filtering"""
-    query = select(Payment)
-    
-    # Apply filters
-    conditions = []
-    if lease_id:
-        conditions.append(Payment.lease_id == lease_id)
-    if tenant_id:
-        conditions.append(Payment.tenant_id == tenant_id)
-    if status:
-        conditions.append(Payment.status == status)
-    if start_date:
-        conditions.append(Payment.payment_date >= start_date)
-    if end_date:
-        conditions.append(Payment.payment_date <= end_date)
-    
-    # Apply conditions if any
-    if conditions:
-        query = query.where(and_(*conditions))
-    
-    # Apply access control
-    if current_user.user_type == UserType.TENANT:
-        # Tenants can only see their own payments
-        query = query.where(Payment.tenant_id == current_user.id)
-    
-    result = await session.execute(query)
-    payments = result.scalars().all()
-    return payments
+    try:
+        # Build query with joins to get tenant and property information
+        query = """
+        SELECT 
+            p.id, p.amount, p.payment_date, p.payment_method, p.status, 
+            p.transaction_reference, p.notes, p.lease_id, p.tenant_id,
+            p.created_at, p.updated_at,
+            t.first_name || ' ' || t.last_name as tenant_name,
+            prop.name as property_name
+        FROM payments p
+        LEFT JOIN leases l ON p.lease_id = l.id
+        LEFT JOIN tenants t ON l.tenant_id = t.id
+        LEFT JOIN properties prop ON l.property_id = prop.id
+        WHERE 1=1
+        """
+        params = {}
+        
+        # Apply filters
+        if lease_id:
+            query += " AND p.lease_id = :lease_id"
+            params["lease_id"] = lease_id
+            
+        if status:
+            query += " AND p.status = :status"
+            params["status"] = status
+            
+        if start_date:
+            query += " AND DATE(p.payment_date) >= :start_date"
+            params["start_date"] = start_date
+            
+        if end_date:
+            query += " AND DATE(p.payment_date) <= :end_date"
+            params["end_date"] = end_date
+            
+        # Apply access control based on user type
+        user_type = current_user.user_type.upper() if current_user.user_type else None
+        
+        if user_type == "TENANT":
+            # Tenants can only see their own payments
+            query += " AND l.tenant_id = :tenant_id"
+            params["tenant_id"] = current_user.id
+        elif user_type == "LANDLORD":
+            # Landlords can only see payments for their properties
+            query += " AND prop.owner_id = :landlord_id"
+            params["landlord_id"] = current_user.id
+            
+        # Add order by
+        query += " ORDER BY p.payment_date DESC"
+        
+        # Execute query
+        result = await session.execute(text(query), params)
+        payments = result.mappings().all()
+        
+        # Convert DB rows to PaymentResponse objects
+        payment_responses = []
+        for payment in payments:
+            payment_dict = dict(payment)
+            # Convert decimal to float if needed
+            if isinstance(payment_dict.get("amount"), Decimal):
+                payment_dict["amount"] = float(payment_dict["amount"])
+            payment_responses.append(payment_dict)
+            
+        return payment_responses
+        
+    except Exception as e:
+        logger.error(f"Error fetching payments: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch payments: {str(e)}"
+        )
 
 @router.get("/payments/{payment_id}", response_model=PaymentResponse)
 async def get_payment(
@@ -259,7 +351,10 @@ async def update_payment(
     current_user: User = Depends(get_current_user)
 ):
     """Update a payment record"""
-    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+    # Convert user_type to uppercase string for case-insensitive comparison
+    user_type = current_user.user_type.upper() if isinstance(current_user.user_type, str) else current_user.user_type
+    
+    if user_type not in ["ADMIN", "LANDLORD"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update payment records"
@@ -297,7 +392,10 @@ async def create_invoice(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new invoice"""
-    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+    # Convert user_type to uppercase string for case-insensitive comparison
+    user_type = current_user.user_type.upper() if isinstance(current_user.user_type, str) else current_user.user_type
+    
+    if user_type not in ["ADMIN", "LANDLORD"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to create invoices"
@@ -359,7 +457,10 @@ async def create_expense(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new expense record"""
-    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+    # Convert user_type to uppercase string for case-insensitive comparison
+    user_type = current_user.user_type.upper() if isinstance(current_user.user_type, str) else current_user.user_type
+    
+    if user_type not in ["ADMIN", "LANDLORD"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to create expense records"
@@ -385,7 +486,10 @@ async def get_expenses(
     current_user: User = Depends(get_current_user)
 ):
     """Get all expenses with optional filtering"""
-    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+    # Convert user_type to uppercase string for case-insensitive comparison
+    user_type = current_user.user_type.upper() if isinstance(current_user.user_type, str) else current_user.user_type
+    
+    if user_type not in ["ADMIN", "LANDLORD"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view expense records"
@@ -422,7 +526,10 @@ async def get_occupancy_rates(
     current_user: User = Depends(get_current_user)
 ):
     """Get occupancy rates for properties"""
-    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+    # Convert user_type to uppercase string for case-insensitive comparison
+    user_type = current_user.user_type.upper() if isinstance(current_user.user_type, str) else current_user.user_type
+    
+    if user_type not in ["ADMIN", "LANDLORD"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view occupancy data"
@@ -478,7 +585,10 @@ async def get_revenue_trends(
     current_user: User = Depends(get_current_user)
 ):
     """Get revenue trends by month or year"""
-    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+    # Convert user_type to uppercase string for case-insensitive comparison
+    user_type = current_user.user_type.upper() if isinstance(current_user.user_type, str) else current_user.user_type
+    
+    if user_type not in ["ADMIN", "LANDLORD"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view revenue data"
@@ -658,7 +768,10 @@ async def get_accounting_overview(
     current_user: User = Depends(get_current_user)
 ):
     """Get accounting overview metrics"""
-    if current_user.user_type.upper() not in ["ADMIN", "LANDLORD"]:
+    # Convert user_type to uppercase string for case-insensitive comparison
+    user_type = current_user.user_type.upper() if isinstance(current_user.user_type, str) else current_user.user_type
+    
+    if user_type not in ["ADMIN", "LANDLORD"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view accounting overview"
@@ -667,26 +780,45 @@ async def get_accounting_overview(
     # Calculate date ranges
     today = date.today()
     year_start = date(today.year, 1, 1)
+    month_start = date(today.year, today.month, 1)
     
-    # Get total revenue from paid payments
-    revenue_query = select(func.coalesce(func.sum(Payment.amount), 0.0)).where(
+    # Get monthly revenue from paid payments
+    monthly_revenue_query = select(func.coalesce(func.sum(Payment.amount), 0.0)).where(
+        and_(
+            Payment.payment_date >= month_start,
+            Payment.status.in_([PaymentStatus.PAID, PaymentStatus.PARTIAL])
+        )
+    )
+    result = await session.execute(monthly_revenue_query)
+    monthly_revenue = result.scalar()
+
+    # Get YTD revenue from paid payments
+    ytd_revenue_query = select(func.coalesce(func.sum(Payment.amount), 0.0)).where(
         and_(
             Payment.payment_date >= year_start,
             Payment.status.in_([PaymentStatus.PAID, PaymentStatus.PARTIAL])
         )
     )
-    result = await session.execute(revenue_query)
-    total_revenue = result.scalar()
+    result = await session.execute(ytd_revenue_query)
+    ytd_revenue = result.scalar()
 
-    # Get total expenses
-    expenses_query = select(func.coalesce(func.sum(Expense.amount), 0.0)).where(
+    # Get monthly expenses
+    monthly_expenses_query = select(func.coalesce(func.sum(Expense.amount), 0.0)).where(
+        Expense.expense_date >= month_start
+    )
+    result = await session.execute(monthly_expenses_query)
+    monthly_expenses = result.scalar()
+
+    # Get YTD expenses
+    ytd_expenses_query = select(func.coalesce(func.sum(Expense.amount), 0.0)).where(
         Expense.expense_date >= year_start
     )
-    result = await session.execute(expenses_query)
-    total_expenses = result.scalar()
+    result = await session.execute(ytd_expenses_query)
+    ytd_expenses = result.scalar()
 
     # Calculate net income
-    net_income = total_revenue - total_expenses
+    monthly_net_income = monthly_revenue - monthly_expenses
+    ytd_net_income = ytd_revenue - ytd_expenses
 
     # Get occupancy rate
     occupancy_query = """
@@ -707,6 +839,13 @@ async def get_accounting_overview(
     )
     result = await session.execute(outstanding_query)
     outstanding_payments = result.scalar()
+
+    # Calculate average rent from active leases
+    average_rent_query = select(func.coalesce(func.avg(Lease.monthly_rent), 0.0)).where(
+        Lease.status == LeaseStatus.ACTIVE
+    )
+    result = await session.execute(average_rent_query)
+    average_rent = result.scalar() or 0.0
 
     # Get revenue trends for past 12 months
     trends_query = """
@@ -759,11 +898,15 @@ async def get_accounting_overview(
     ]
 
     return AccountingOverviewResponse(
-        total_revenue=total_revenue,
-        total_expenses=total_expenses,
-        net_income=net_income,
+        monthly_revenue=monthly_revenue,
+        monthly_expenses=monthly_expenses,
+        monthly_net_income=monthly_net_income,
+        ytd_revenue=ytd_revenue,
+        ytd_expenses=ytd_expenses,
+        ytd_net_income=ytd_net_income,
         occupancy_rate=occupancy_rate,
         outstanding_payments=outstanding_payments,
+        average_rent=average_rent,
         revenue_trends=revenue_trends
     )
 
@@ -773,7 +916,10 @@ async def generate_due_payments(
     current_user: User = Depends(get_current_user)
 ):
     """Generate due payments for all active leases"""
-    if current_user.user_type.upper() not in ["ADMIN", "LANDLORD"]:
+    # Convert user_type to uppercase string for case-insensitive comparison
+    user_type = current_user.user_type.upper() if isinstance(current_user.user_type, str) else current_user.user_type
+    
+    if user_type not in ["ADMIN", "LANDLORD"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to generate payments"

@@ -1,7 +1,7 @@
 import logging
 from typing import List, Optional
 from datetime import date, datetime
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_, or_
@@ -173,11 +173,13 @@ async def create_lease(
 
     # Create the lease
     new_lease = Lease(**lease_data.dict())
+    # Explicitly set the initial status to DRAFT
+    new_lease.status = LeaseStatus.DRAFT
     session.add(new_lease)
     await session.commit()
     await session.refresh(new_lease)
 
-    logger.info(f"Lease created: {new_lease.id} by user {current_user.id}")
+    logger.info(f"Lease created: {new_lease.id} with status {new_lease.status} by user {current_user.id}")
     return new_lease
 
 @router.get("/", response_model=List[LeaseResponse])
@@ -322,36 +324,142 @@ async def validate_lease(
 @router.post("/{lease_id}/status", response_model=LeaseResponse)
 async def update_lease_status(
     lease_id: int,
-    status: LeaseStatus,
+    status_data: dict = Body(...),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """Update the status of a lease (activate, terminate, etc.)"""
-    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+    # Log detailed information about the request
+    logger.info(f"Lease status update request: lease ID={lease_id}, user ID={current_user.id}, email={current_user.email}, user_type={current_user.user_type}")
+    logger.info(f"Request data: {status_data}")
+    
+    try:
+        # Case-insensitive comparison of user types
+        user_type = current_user.user_type.upper() if current_user.user_type else None
+        logger.info(f"Normalized user type: {user_type}")
+        
+        if user_type not in ["ADMIN", "LANDLORD"]:
+            logger.warning(f"Unauthorized lease status update attempt by user {current_user.id} with type {user_type}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to update lease status"
+            )
+        
+        # Get status from request body
+        new_status = status_data.get("status")
+        if not new_status:
+            logger.error("Status field missing from request body")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Status is required in request body"
+            )
+        
+        # Validate status value
+        valid_statuses = [s.value for s in LeaseStatus]
+        if new_status not in valid_statuses:
+            logger.error(f"Invalid status value received: {new_status}. Valid values are: {valid_statuses}")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid status. Valid values are: {', '.join(valid_statuses)}"
+            )
+        
+        # First, check if the lease exists
+        from sqlalchemy import text
+        check_query = text("SELECT id, status FROM leases WHERE id = :lease_id")
+        result = await session.execute(check_query, {"lease_id": lease_id})
+        lease_record = result.first()
+        
+        if not lease_record:
+            logger.warning(f"Lease not found with ID: {lease_id}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Lease with ID {lease_id} not found"
+            )
+        
+        old_status = lease_record.status
+        now = datetime.utcnow()
+        
+        # Update the lease status using raw SQL
+        update_query = text("""
+            UPDATE leases 
+            SET status = :new_status, updated_at = :now
+            WHERE id = :lease_id
+            RETURNING id
+        """)
+        
+        try:
+            result = await session.execute(
+                update_query, 
+                {"lease_id": lease_id, "new_status": new_status, "now": now}
+            )
+            await session.commit()
+            
+            # Get the updated lease data
+            query = text("""
+                SELECT 
+                    l.id, l.start_date, l.end_date, l.monthly_rent, l.security_deposit, 
+                    l.status, l.is_renewable, l.auto_renew, l.rent_due_day, 
+                    l.late_fee_amount, l.late_fee_after_days, l.special_terms,
+                    l.property_id, l.unit_id, l.tenant_id, l.created_at, l.updated_at
+                FROM leases l
+                WHERE l.id = :lease_id
+            """)
+            
+            result = await session.execute(query, {"lease_id": lease_id})
+            lease_data = result.first()
+            
+            if not lease_data:
+                logger.error(f"Failed to retrieve lease after status update")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to retrieve lease data after update"
+                )
+            
+            # Convert the result to a dict for the response
+            response_data = {
+                "id": lease_data.id,
+                "start_date": lease_data.start_date,
+                "end_date": lease_data.end_date, 
+                "monthly_rent": lease_data.monthly_rent,
+                "security_deposit": lease_data.security_deposit,
+                "status": lease_data.status,
+                "is_renewable": lease_data.is_renewable,
+                "auto_renew": lease_data.auto_renew,
+                "rent_due_day": lease_data.rent_due_day,
+                "late_fee_amount": lease_data.late_fee_amount,
+                "late_fee_after_days": lease_data.late_fee_after_days,
+                "special_terms": lease_data.special_terms,
+                "property_id": lease_data.property_id,
+                "unit_id": lease_data.unit_id,
+                "tenant_id": lease_data.tenant_id,
+                "created_at": lease_data.created_at,
+                "updated_at": lease_data.updated_at,
+                # These would be populated by SQLAlchemy relationships
+                # Since we're using raw SQL, we need to provide empty placeholders
+                "tenant": None,
+                "property": None
+            }
+            
+            logger.info(f"Lease status updated successfully: ID {lease_id} status changed from {old_status} to {new_status} by user {current_user.id}")
+            return response_data
+            
+        except Exception as db_error:
+            await session.rollback()
+            logger.error(f"Database error during lease status update: {str(db_error)}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database error: {str(db_error)}"
+            )
+    
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Error updating lease status: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update lease status"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update lease status: {str(e)}"
         )
-    
-    query = select(Lease).where(Lease.id == lease_id)
-    result = await session.execute(query)
-    lease = result.scalar_one_or_none()
-    
-    if not lease:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Lease with ID {lease_id} not found"
-        )
-    
-    # Update lease status
-    lease.status = status
-    lease.updated_at = datetime.utcnow()
-    
-    await session.commit()
-    await session.refresh(lease)
-    
-    logger.info(f"Lease status updated to {status}: {lease.id} by user {current_user.id}")
-    return lease
 
 @router.post("/{lease_id}/upload", response_model=LeaseDocumentResponse)
 async def upload_lease_document(

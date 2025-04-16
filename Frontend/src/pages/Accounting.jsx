@@ -6,10 +6,15 @@ import {
   getAccountingOverview,
   createPayment,
   createInvoice,
-  createExpense 
+  createExpense,
+  fetchProperties
 } from '../utils/api';
 import { toast } from 'react-toastify';
 import NewPaymentModal from '../components/NewPaymentModal';
+import NewExpenseModal from '../components/NewExpenseModal';
+import MonthlyMetricsCard from '../components/MonthlyMetricsCard';
+import YTDCard from '../components/YTDCard';
+import SnapshotCard from '../components/SnapshotCard';
 
 const Accounting = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -21,11 +26,17 @@ const Accounting = () => {
   const [invoices, setInvoices] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [overviewData, setOverviewData] = useState(null);
+  const [accountingData, setAccountingData] = useState({
+    monthly: { revenue: 0, expenses: 0, netIncome: 0 },
+    ytd: { revenue: 0, expenses: 0, netIncome: 0 },
+    snapshot: { occupancyRate: 0, outstandingPayments: 0, avgRent: 0 }
+  });
   
   // Modal states
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(null); // 'payment', 'invoice', 'expense'
   const [showNewPaymentModal, setShowNewPaymentModal] = useState(false);
+  const [showNewExpenseModal, setShowNewExpenseModal] = useState(false);
   
   // Filter states
   const [paymentFilters, setPaymentFilters] = useState({
@@ -60,6 +71,26 @@ const Accounting = () => {
       setLoading(true);
       const data = await getAccountingOverview();
       setOverviewData(data);
+      
+      // Update the accounting data structure for the cards using the new API fields
+      setAccountingData({
+        monthly: {
+          revenue: data.monthly_revenue,
+          expenses: data.monthly_expenses,
+          netIncome: data.monthly_net_income
+        },
+        ytd: {
+          revenue: data.ytd_revenue,
+          expenses: data.ytd_expenses,
+          netIncome: data.ytd_net_income
+        },
+        snapshot: {
+          occupancyRate: data.occupancy_rate,
+          outstandingPayments: data.outstanding_payments,
+          avgRent: data.average_rent
+        }
+      });
+      
       setError(null);
     } catch (err) {
       console.error('Error loading overview data:', err);
@@ -165,7 +196,23 @@ const Accounting = () => {
       }
       
       const data = await fetchExpenses(params);
-      setExpenses(data);
+      
+      // Fetch property data to get property names
+      const properties = await fetchProperties();
+      
+      // Map property IDs to names
+      const propertyMap = properties.reduce((map, property) => {
+        map[property.id] = property.name;
+        return map;
+      }, {});
+      
+      // Enhance expense data with property names
+      const enhancedExpenses = data.map(expense => ({
+        ...expense,
+        property_name: propertyMap[expense.property_id] || `Property #${expense.property_id}`
+      }));
+      
+      setExpenses(enhancedExpenses);
       setError(null);
     } catch (err) {
       console.error('Error loading expenses data:', err);
@@ -178,14 +225,17 @@ const Accounting = () => {
   const handleShowModal = (type) => {
     if (type === 'payment') {
       setShowNewPaymentModal(true);
+    } else if (type === 'expense') {
+      setShowNewExpenseModal(true);
     } else {
-    setModalType(type);
-    setShowModal(true);
+      setModalType(type);
+      setShowModal(true);
     }
   };
 
   const handleCloseModal = () => {
     setShowNewPaymentModal(false);
+    setShowNewExpenseModal(false);
     setShowModal(false);
   };
 
@@ -257,16 +307,6 @@ const Accounting = () => {
             Payments
           </button>
           <button
-            onClick={() => setActiveTab('invoices')}
-            className={`${
-              activeTab === 'invoices'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-          >
-            Invoices
-          </button>
-          <button
             onClick={() => setActiveTab('expenses')}
             className={`${
               activeTab === 'expenses'
@@ -276,9 +316,19 @@ const Accounting = () => {
           >
             Expenses
           </button>
+          <button
+            onClick={() => setActiveTab('invoices')}
+            className={`${
+              activeTab === 'invoices'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+          >
+            Invoices
+          </button>
         </nav>
         
-        {activeTab !== 'overview' && (
+        {activeTab !== 'overview' && activeTab !== 'invoices' && (
           <div className="flex space-x-3">
             <button
               onClick={() => handleShowModal(activeTab === 'payments' ? 'payment' : activeTab === 'invoices' ? 'invoice' : 'expense')}
@@ -302,37 +352,11 @@ const Accounting = () => {
       {/* Tab content */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* Financial Summary */}
+          {/* Financial Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="dashboard-card">
-              <h2 className="text-sm font-medium text-gray-500 mb-1">Total Revenue</h2>
-              <div className="flex items-baseline">
-                <p className="text-2xl font-semibold">
-                  ${overviewData?.total_revenue?.toLocaleString() || '0'}
-                </p>
-              </div>
-              <div className="text-xs text-gray-500 mt-1">Year to date</div>
-            </div>
-            
-            <div className="dashboard-card">
-              <h2 className="text-sm font-medium text-gray-500 mb-1">Total Expenses</h2>
-              <div className="flex items-baseline">
-                <p className="text-2xl font-semibold">
-                  ${overviewData?.total_expenses?.toLocaleString() || '0'}
-                </p>
-              </div>
-              <div className="text-xs text-gray-500 mt-1">Year to date</div>
-            </div>
-            
-            <div className="dashboard-card">
-              <h2 className="text-sm font-medium text-gray-500 mb-1">Net Income</h2>
-              <div className="flex items-baseline">
-                <p className="text-2xl font-semibold">
-                  ${overviewData?.net_income?.toLocaleString() || '0'}
-                </p>
-              </div>
-              <div className="text-xs text-gray-500 mt-1">Year to date</div>
-            </div>
+            <MonthlyMetricsCard data={accountingData.monthly} />
+            <YTDCard data={accountingData.ytd} />
+            <SnapshotCard data={accountingData.snapshot} />
           </div>
           
           {/* Monthly Revenue Chart */}
@@ -487,15 +511,15 @@ const Accounting = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
-                              {/* Placeholder for tenant initials */}
-                              TS
+                              {/* Display tenant initials */}
+                              {payment.tenant_name ? payment.tenant_name.split(' ').map(name => name[0]).join('').toUpperCase().substring(0, 2) : 'TS'}
                             </div>
                             <div className="ml-3">
                               <div className="text-sm font-medium text-gray-900">
-                                Tenant #{payment.tenant_id}
+                                {payment.tenant_name || `Tenant #${payment.tenant_id}`}
                               </div>
                               <div className="text-sm text-gray-500">
-                                Lease #{payment.lease_id}
+                                {payment.property_name || `Lease #${payment.lease_id}`}
                               </div>
                             </div>
                           </div>
@@ -552,165 +576,15 @@ const Accounting = () => {
       )}
       
       {activeTab === 'invoices' && (
-        <div className="space-y-4">
-          {/* Filters */}
-          <div className="bg-white p-4 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
-            <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0">
-              <div>
-                <label htmlFor="invoice-status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  id="invoice-status"
-                  className="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  value={invoiceFilters.status}
-                  onChange={(e) => setInvoiceFilters({...invoiceFilters, status: e.target.value})}
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="pending">Pending</option>
-                  <option value="paid">Paid</option>
-                  <option value="overdue">Overdue</option>
-                </select>
-              </div>
-              
-              <div>
-                <label htmlFor="invoice-date-range" className="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
-                <select
-                  id="invoice-date-range"
-                  className="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  value={invoiceFilters.dateRange}
-                  onChange={(e) => setInvoiceFilters({...invoiceFilters, dateRange: e.target.value})}
-                >
-                  <option value="week">Last 7 days</option>
-                  <option value="month">Last 30 days</option>
-                  <option value="quarter">Last 90 days</option>
-                  <option value="year">Last year</option>
-                </select>
-              </div>
+        <div className="text-center py-16 px-4">
+          <div className="bg-white rounded-lg shadow-sm p-10 max-w-lg mx-auto">
+            <div className="text-blue-600 text-6xl mb-6">
+              <i className="fas fa-file-invoice-dollar"></i>
             </div>
-            
-            <div className="flex items-center">
-              <div className="relative rounded-md shadow-sm">
-                <input
-                  type="search"
-                  placeholder="Search invoices..."
-                  className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 pr-3 py-2 border-gray-300 rounded-md text-sm"
-                />
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <i className="fas fa-search text-gray-400"></i>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Invoices Table */}
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Invoice #
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tenant
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Issue Date
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Due Date
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {invoices.length > 0 ? (
-                    invoices.map((invoice) => (
-                      <tr key={invoice.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {invoice.invoice_number}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
-                              {/* Placeholder for tenant initials */}
-                              TS
-                            </div>
-                            <div className="ml-3">
-                              <div className="text-sm font-medium text-gray-900">
-                                Tenant #{invoice.tenant_id}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {invoice.property_id ? `Property #${invoice.property_id}` : 'No property'}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">${invoice.amount.toFixed(2)}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {new Date(invoice.issue_date).toLocaleDateString()}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {new Date(invoice.due_date).toLocaleDateString()}
-                          </div>
-                          {new Date(invoice.due_date) < new Date() && invoice.status !== 'paid' && (
-                            <div className="text-xs text-red-500">
-                              Overdue by {Math.ceil((new Date() - new Date(invoice.due_date)) / (1000 * 60 * 60 * 24))} days
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`badge ${getStatusBadgeClass(invoice.status)}`}>
-                            {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex space-x-2">
-                            <button
-                              className="text-indigo-600 hover:text-indigo-900"
-                              title="Edit"
-                            >
-                              <i className="fas fa-edit"></i>
-                            </button>
-                            <button
-                              className="text-green-600 hover:text-green-900"
-                              title="Mark as Paid"
-                            >
-                              <i className="fas fa-check-circle"></i>
-                            </button>
-                            <button
-                              className="text-blue-600 hover:text-blue-900"
-                              title="Print"
-                            >
-                              <i className="fas fa-print"></i>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
-                        No invoices found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-4">Coming Soon</h2>
+            <div className="text-gray-600">
+              <p>We're working on building a powerful invoice management system to help you keep track of all your property-related billing.</p>
+              <p className="mt-4">This feature will be available in the near future. Stay tuned!</p>
             </div>
           </div>
         </div>
@@ -800,7 +674,7 @@ const Accounting = () => {
                       <tr key={expense.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">
-                            Property #{expense.property_id}
+                            {expense.property_name || `Property #${expense.property_id}`}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -818,7 +692,7 @@ const Accounting = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
-                            {expense.vendor_id ? `Vendor #${expense.vendor_id}` : 'No vendor'}
+                            {expense.vendor_id ? `Vendor #${expense.vendor_id}` : '-'}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -866,6 +740,21 @@ const Accounting = () => {
           onSuccess={() => {
             setShowNewPaymentModal(false);
             loadOverviewData(); // Refresh overview data after payment creation
+            loadPaymentsData(); // Refresh payments data after payment creation
+            toast.success('Payment created successfully');
+          }}
+        />
+      )}
+
+      {showNewExpenseModal && (
+        <NewExpenseModal
+          isOpen={showNewExpenseModal}
+          onClose={handleCloseModal}
+          onSuccess={() => {
+            setShowNewExpenseModal(false);
+            loadOverviewData(); // Refresh overview data after expense creation
+            loadExpensesData(); // Refresh expenses data after expense creation
+            toast.success('Expense created successfully');
           }}
         />
       )}

@@ -97,9 +97,34 @@ const apiRequest = async (endpoint, options = {}) => {
       ...(options.headers || {})
     }
   };
+
+  // Debug logging for request data
+  if (endpoint.includes('/accounting/payments') && options.method === 'POST') {
+    console.log('Payment request data:', JSON.parse(options.body));
+  }
   
   try {
     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api${endpoint}`, requestOptions);
+    
+    // For debugging: Log the raw response for payment creation
+    if (endpoint.includes('/accounting/payments') && options.method === 'POST') {
+      const responseClone = response.clone();
+      const rawText = await responseClone.text();
+      console.log('Raw payment response:', rawText || 'Empty response');
+      
+      if (!response.ok) {
+        throw new Error(rawText || `HTTP error ${response.status}`);
+      }
+      
+      // Try to parse as JSON if possible
+      try {
+        return JSON.parse(rawText);
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', e);
+        throw new Error('Invalid response format from server');
+      }
+    }
+    
     return handleResponse(response);
   } catch (error) {
     console.error(`API request failed for ${endpoint}:`, error);
@@ -183,9 +208,64 @@ export const validateLease = async (leaseId) => {
 };
 
 export const updateLeaseStatus = async (leaseId, status) => {
-  return apiRequest(`/leases/${leaseId}/status?status=${status}`, {
-    method: 'POST'
-  });
+  console.log(`Sending lease status update request: lease ID ${leaseId}, status ${status}`);
+  
+  try {
+    const userType = localStorage.getItem('user_type');
+    console.log(`Current user type: ${userType}`);
+    
+    // Only allow LANDLORD and ADMIN users to update lease status
+    if (userType !== 'LANDLORD' && userType !== 'ADMIN') {
+      console.error(`User type ${userType} is not authorized to update lease status`);
+      throw { 
+        status: 403, 
+        message: 'You are not authorized to update lease status. Only landlords and administrators can update lease status.'
+      };
+    }
+    
+    // First attempt using apiRequest helper
+    try {
+      return await apiRequest(`/leases/${leaseId}/status`, {
+        method: 'POST',
+        body: JSON.stringify({ status })
+      });
+    } catch (apiError) {
+      console.error('First attempt failed with apiRequest:', apiError);
+      
+      // If first attempt failed with CORS error or network error, try direct fetch
+      if (apiError.message && (apiError.message.includes('Failed to fetch') || apiError.message.includes('NetworkError'))) {
+        console.log('Attempting direct fetch as fallback...');
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/leases/${leaseId}/status`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ status })
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error response from server: ${response.status} ${response.statusText}`);
+          console.error(`Error details: ${errorText}`);
+          throw { 
+            status: response.status,
+            message: `Server error: ${errorText || response.statusText}`
+          };
+        }
+        
+        return await response.json();
+      }
+      
+      // Rethrow if it's not a network error
+      throw apiError;
+    }
+  } catch (err) {
+    console.error('Lease status update failed:', err);
+    // Rethrow the error to be handled by the caller
+    throw err;
+  }
 };
 
 export const uploadLeaseDocument = async (leaseId, formData) => {

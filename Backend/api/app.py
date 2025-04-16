@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from dotenv import load_dotenv, find_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import logging
 
 # Configure logging first
@@ -41,14 +42,42 @@ from Backend.api.tenants import router as tenants_router
 
 app = FastAPI()
 
+# Define CORS settings
+origins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8000", "http://127.0.0.1:8000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8000", "http://127.0.0.1:8000"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# Exception handler middleware to ensure CORS headers are sent even on errors
+@app.middleware("http")
+async def add_cors_headers_on_error(request: Request, call_next):
+    try:
+        response = await call_next(request)
+        return response
+    except Exception as e:
+        logger.error(f"Exception in request: {str(e)}")
+        
+        # Create a new response with CORS headers
+        response = JSONResponse(
+            status_code=500,
+            content={"detail": str(e)},
+        )
+        
+        # Manually add CORS headers
+        origin = request.headers.get("origin", "")
+        if origin in origins:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+        
+        return response
 
 # Include routers
 app.include_router(auth_router, prefix="/api")

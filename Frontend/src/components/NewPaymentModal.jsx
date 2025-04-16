@@ -69,6 +69,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
       if (formData.property_id) {
         try {
           const data = await fetchTenantsByProperty(formData.property_id);
+          console.log('Fetched tenants:', data); // Log tenant data
           setTenants(data);
           // Clear tenant selection when property changes
           setFormData(prev => ({ ...prev, tenant_id: '' }));
@@ -94,7 +95,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
           const activeLease = leases.find(lease => 
             lease.tenant_id === formData.tenant_id && 
             lease.property_id === formData.property_id &&
-            lease.status === 'active' // Filter client-side
+            lease.status?.toLowerCase() === 'active' // Filter client-side
           );
 
           console.log('Active lease found:', activeLease); // Log active lease
@@ -102,6 +103,10 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
           if (activeLease) {
             setLease(activeLease);
             setError(null);
+            
+            // Log the tenant details
+            console.log('Selected tenant ID:', formData.tenant_id);
+            console.log('Lease tenant ID (user_id):', activeLease.tenant_id);
           } else {
             setError('No active lease found for this tenant.');
             setLease(null);
@@ -136,18 +141,29 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
       setIsLoading(true);
       setError(null);
 
+      // Get the selected tenant from the tenants array
+      const selectedTenant = tenants.find(tenant => tenant.id === formData.tenant_id);
+
+      // Properly format the payment data to match backend expectations
       const paymentData = {
         lease_id: lease.id,
-        tenant_id: formData.tenant_id,
+        // Include the tenant's name to display in the payment list
+        tenant_name: selectedTenant?.full_name || 'Unknown Tenant',
+        // Remove tenant_id as we'll use the current user's ID on the backend
         amount: parseFloat(formData.amount),
-        payment_date: formData.payment_date,
+        // Create a timezone-naive datetime string in ISO format without the 'Z' at the end
+        payment_date: formData.payment_date ? `${formData.payment_date}T00:00:00` : null,
         payment_method: formData.payment_method,
+        // Make sure status is a valid enum value
         status: formData.status,
-        notes: formData.notes || null
+        // Add transaction_reference as empty string to avoid null issues
+        transaction_reference: "",
+        notes: formData.notes || ""
       };
 
+      console.log('Submitting payment with data:', paymentData);
       await createPayment(paymentData);
-      toast.success('Payment created successfully');
+      // Success notification is now handled by the parent component
       onSuccess?.();
       handleClose();
     } catch (err) {
@@ -265,6 +281,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
                           key={tenant.id}
                           className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
                           onClick={() => {
+                            console.log('Selected tenant:', tenant);
                             setFormData(prev => ({ ...prev, tenant_id: tenant.id }));
                             setTenantSearchTerm(tenant.full_name);
                             setDropdownOpen('');

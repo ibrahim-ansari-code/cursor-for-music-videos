@@ -11,6 +11,13 @@ class PaymentStatus(str, Enum):
     OVERDUE = "OVERDUE"
     REFUNDED = "REFUNDED"
 
+class PaymentMethod(str, Enum):
+    CREDIT_CARD = "Credit Card"
+    BANK_TRANSFER = "Bank Transfer"
+    CASH = "Cash"
+    CHECK = "Check"
+    OTHER = "Other"
+
 class Payment(SQLModel, table=True):
     """Payment model for rent payments from tenants"""
     
@@ -23,6 +30,7 @@ class Payment(SQLModel, table=True):
     status: PaymentStatus
     transaction_reference: Optional[str] = None
     notes: Optional[str] = None
+    tenant_name: Optional[str] = None  # Added to store actual tenant name
     
     # Foreign keys
     lease_id: int = Field(foreign_key="leases.id")
