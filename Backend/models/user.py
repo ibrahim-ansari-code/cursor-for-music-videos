@@ -62,5 +62,3 @@ def setup_user_relationships():
                 "lazy": "selectin"
             }
         )
-
-from Backend.models import property, lease, vendor, message

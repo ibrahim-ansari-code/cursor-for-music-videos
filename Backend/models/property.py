@@ -5,12 +5,12 @@ from sqlmodel import SQLModel, Field, Relationship, Column
 from sqlalchemy import String
 
 from Backend.models.user import User
-from Backend.models.accounting import Expense
 
 if TYPE_CHECKING:
     from Backend.models.lease import Lease
     from Backend.models.vendor import Vendor
     from Backend.models.tenant import Tenant, TenantUnitLink
+    from Backend.models.accounting import Expense
 
 class PropertyStatus(str, Enum):
     ACTIVE = "active"
@@ -62,7 +62,7 @@ class Property(SQLModel, table=True):
             "secondary": "property_vendor_links"
         }
     )
-    expenses: List[Expense] = Relationship(back_populates="property")
+    expenses: List["Expense"] = Relationship(back_populates="property")
     
     # current_tenants relationship will be set up in the setup_relationships function
 

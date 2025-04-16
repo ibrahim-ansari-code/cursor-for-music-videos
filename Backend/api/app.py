@@ -39,6 +39,7 @@ from Backend.api.communication import router as communication_router
 from Backend.api.ai import router as ai_router
 from Backend.api.properties import router as properties_router
 from Backend.api.tenants import router as tenants_router
+from Backend.api.rent_tracker import router as rent_tracker_router
 
 app = FastAPI()
 
@@ -89,6 +90,7 @@ app.include_router(communication_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")
 app.include_router(properties_router, prefix="/api")
 app.include_router(tenants_router, prefix="/api")
+app.include_router(rent_tracker_router, prefix="/api")
 
 @app.get("/")
 def root():

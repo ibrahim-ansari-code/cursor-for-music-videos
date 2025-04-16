@@ -175,7 +175,9 @@ async def get_month_payments(session: AsyncSession, lease_id: int, month: date) 
         )
     )
     result = await session.execute(query)
-    return result.scalar_one_or_none() is not None
+    # Instead of scalar_one_or_none(), which expects at most one result,
+    # use first() to get the first result if any exist
+    return result.first() is not None
 
 # API endpoints - Payments
 @router.post("/payments", response_model=PaymentResponse)
@@ -833,9 +835,12 @@ async def get_accounting_overview(
     result = await session.execute(text(occupancy_query))
     occupancy_rate = result.scalar() or 0.0
 
-    # Get count of outstanding payments
-    outstanding_query = select(func.count(Invoice.id)).where(
-        Invoice.status.in_([PaymentStatus.PENDING, PaymentStatus.LATE, PaymentStatus.OVERDUE])
+    # Get count of outstanding payments for current month
+    outstanding_query = select(func.count(Payment.id)).where(
+        and_(
+            Payment.payment_date >= month_start,
+            Payment.status.in_([PaymentStatus.PENDING, PaymentStatus.LATE, PaymentStatus.OVERDUE])
+        )
     )
     result = await session.execute(outstanding_query)
     outstanding_payments = result.scalar()
@@ -910,7 +915,7 @@ async def get_accounting_overview(
         revenue_trends=revenue_trends
     )
 
-@router.post("/generate-due-payments", response_model=GeneratePaymentsResponse)
+@router.post("/generate-due-payments", response_model=List[PaymentResponse])
 async def generate_due_payments(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
@@ -925,56 +930,149 @@ async def generate_due_payments(
             detail="Not authorized to generate payments"
         )
 
+    try:
+        # Get current month
+        today = date.today()
+        current_month = date(today.year, today.month, 1)
+        
+        logger.info(f"Generating payments for current month: {current_month}")
+        
+        # Get all active leases with related tenant and property information
+        query = select(Lease).where(
+            and_(
+                Lease.start_date <= today,
+                or_(Lease.end_date >= today, Lease.end_date.is_(None)),
+                Lease.status == LeaseStatus.ACTIVE
+            )
+        ).options(
+            selectinload(Lease.property),
+            selectinload(Lease.tenant)
+        )
+        
+        result = await session.execute(query)
+        active_leases = result.scalars().all()
+        
+        logger.info(f"Found {len(active_leases)} active leases")
+        
+        created_payments = []
+        
+        for lease in active_leases:
+            try:
+                # Check if payment already exists for this month
+                has_payment = await get_month_payments(session, lease.id, current_month)
+                
+                if has_payment:
+                    logger.info(f"Payment already exists for lease {lease.id} in current month, skipping")
+                    continue
+                
+                # Get tenant name from lease relationship if available
+                tenant_name = "Unknown Tenant"
+                if lease.tenant:
+                    if hasattr(lease.tenant, 'full_name') and lease.tenant.full_name:
+                        tenant_name = lease.tenant.full_name
+                    elif hasattr(lease.tenant, 'first_name') and lease.tenant.first_name:
+                        tenant_name = f"{lease.tenant.first_name} {lease.tenant.last_name or ''}"
+                    else:
+                        tenant_name = f"Tenant #{lease.tenant_id}"
+                
+                # Use a new session for each payment to avoid transaction issues
+                async with AsyncSession(session.bind) as payment_session:
+                    # Create new payment - using the lease's tenant_id
+                    new_payment = Payment(
+                        lease_id=lease.id,
+                        tenant_id=lease.tenant_id,  # Use the tenant_id from the lease
+                        amount=lease.monthly_rent,
+                        payment_date=today,
+                        payment_method=PaymentMethod.OTHER,
+                        status=PaymentStatus.PENDING,
+                        created_at=datetime.utcnow(),
+                        updated_at=datetime.utcnow(),
+                        tenant_name=tenant_name
+                    )
+                    
+                    payment_session.add(new_payment)
+                    await payment_session.commit()
+                    await payment_session.refresh(new_payment)
+                    
+                    # Add property name to response
+                    property_name = lease.property.name if lease.property else f"Property #{lease.property_id}"
+                    
+                    # Create response with additional information
+                    payment_response = {
+                        **new_payment.__dict__,
+                        "property_name": property_name
+                    }
+                    
+                    created_payments.append(payment_response)
+                    logger.info(f"Created payment for lease {lease.id}, tenant name: {tenant_name}, due on {today}")
+                
+            except Exception as e:
+                # Log the error but continue processing other leases
+                logger.error(f"Error processing lease {lease.id}: {str(e)}", exc_info=True)
+                continue
+        
+        logger.info(f"Successfully generated {len(created_payments)} payments")
+        return created_payments
+        
+    except Exception as e:
+        logger.error(f"Failed to generate payments: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate payments: {str(e)}"
+        )
+
+@router.get("/outstanding-payments", response_model=List[PaymentResponse])
+async def get_outstanding_payments(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Get all outstanding payments for the current month"""
     # Get current month
     today = date.today()
-    current_month = date(today.year, today.month, 1)
+    month_start = date(today.year, today.month, 1)
     
-    # Get all active leases
-    query = select(Lease).where(
-        and_(
-            Lease.start_date <= today,
-            or_(Lease.end_date >= today, Lease.end_date.is_(None))
-        )
-    )
-    result = await session.execute(query)
-    active_leases = result.scalars().all()
-    
-    created_count = 0
-    skipped_count = 0
-    
-    for lease in active_leases:
-        # Check if payment already exists for this month
-        has_payment = await get_month_payments(session, lease.id, current_month)
-        
-        if not has_payment:
-            # Create payment due date based on lease's rent_due_day
-            payment_date = date(today.year, today.month, lease.rent_due_day)
-            if payment_date < today:  # If due day has passed, set to next month
-                if today.month == 12:
-                    payment_date = date(today.year + 1, 1, lease.rent_due_day)
-                else:
-                    payment_date = date(today.year, today.month + 1, lease.rent_due_day)
-            
-            # Create new payment
-            new_payment = Payment(
-                lease_id=lease.id,
-                tenant_id=lease.tenant_id,
-                amount=lease.monthly_rent,
-                payment_date=payment_date,
-                status=PaymentStatus.DUE,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+    try:
+        # Build query to get outstanding payments with tenant and property info
+        query = select(Payment).options(
+            selectinload(Payment.lease).selectinload(Lease.property),
+            selectinload(Payment.lease).selectinload(Lease.tenant)
+        ).where(
+            and_(
+                Payment.payment_date >= month_start,
+                Payment.status.in_([PaymentStatus.PENDING, PaymentStatus.LATE, PaymentStatus.OVERDUE])
             )
-            session.add(new_payment)
-            created_count += 1
-            logger.info(f"Created payment for lease {lease.id}, tenant {lease.tenant_id}, due on {payment_date}")
-        else:
-            skipped_count += 1
-    
-    await session.commit()
-    logger.info(f"Generated {created_count} payments, skipped {skipped_count} existing payments")
-    
-    return GeneratePaymentsResponse(
-        created=created_count,
-        skipped=skipped_count
-    )
+        ).order_by(Payment.payment_date)
+        
+        result = await session.execute(query)
+        payments = result.scalars().all()
+        
+        # Format the response with additional information
+        payment_responses = []
+        for payment in payments:
+            tenant_name = "Unknown"
+            property_name = "Unknown"
+            
+            if payment.lease and payment.lease.tenant:
+                tenant = payment.lease.tenant
+                tenant_name = f"{tenant.first_name} {tenant.last_name}" if tenant.first_name else f"Tenant #{tenant.id}"
+            elif payment.tenant_name:
+                tenant_name = payment.tenant_name
+                
+            if payment.lease and payment.lease.property:
+                property_name = payment.lease.property.name
+                
+            payment_dict = {
+                **payment.__dict__,
+                "tenant_name": tenant_name,
+                "property_name": property_name
+            }
+            payment_responses.append(payment_dict)
+            
+        return payment_responses
+        
+    except Exception as e:
+        logger.error(f"Error fetching outstanding payments: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch outstanding payments: {str(e)}"
+        )

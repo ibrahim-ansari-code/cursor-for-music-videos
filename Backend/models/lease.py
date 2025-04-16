@@ -1,5 +1,4 @@
 from Backend.models.user import User
-from Backend.models.accounting import Payment
 from typing import Optional, List, TYPE_CHECKING
 from datetime import date, datetime
 from enum import Enum
@@ -8,6 +7,7 @@ from sqlmodel import SQLModel, Field, Relationship
 if TYPE_CHECKING:
     from Backend.models.property import Property, PropertyUnit
     from Backend.models.tenant import Tenant
+    from Backend.models.accounting import Payment
 
 class LeaseStatus(str, Enum):
     DRAFT = "DRAFT"
@@ -54,7 +54,7 @@ class Lease(SQLModel, table=True):
     tenant: "Tenant" = Relationship(back_populates="leases")
     
     documents: List["LeaseDocument"] = Relationship(back_populates="lease")
-    payments: List[Payment] = Relationship(back_populates="lease")
+    payments: List["Payment"] = Relationship(back_populates="lease")
 
 class LeaseDocument(SQLModel, table=True):
     """Document associated with a lease (contract, addendums, etc.)"""

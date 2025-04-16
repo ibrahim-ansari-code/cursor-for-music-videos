@@ -53,20 +53,11 @@ class PaymentDue(BaseModel):
     days_overdue: Optional[int] = None
     status: PaymentStatus
 
-class Lead(BaseModel):
-    id: int
-    name: str
-    contact_info: str
-    property_interest: str
-    created_at: datetime
-    status: str
-
 class DashboardResponse(BaseModel):
     summary: DashboardSummary
     occupancy: OccupancyData
     revenue: RevenueData
     payments_due: List[PaymentDue]
-    leads: List[Lead]
 
 # API endpoints
 @router.get("", response_model=DashboardResponse)
@@ -318,55 +309,9 @@ async def get_dashboard_data(
             status=row['status']
         ))
     
-    # 5. Mock leads data (in a real app, we'd have a leads table)
-    # For demonstration purposes, we'll create some sample leads
-    mock_leads = [
-        Lead(
-            id=1,
-            name="Olivia Riggs",
-            contact_info="olivia.riggs@example.com",
-            property_interest="2BR Apartment, downtown",
-            created_at=datetime.utcnow() - timedelta(hours=4),
-            status="new"
-        ),
-        Lead(
-            id=2,
-            name="Phoenix Baker",
-            contact_info="phoenix.baker@example.com",
-            property_interest="Studio in Westside",
-            created_at=datetime.utcnow() - timedelta(days=1),
-            status="contacted"
-        ),
-        Lead(
-            id=3,
-            name="Lana Steiner",
-            contact_info="lana.steiner@example.com",
-            property_interest="3BR House in suburbs",
-            created_at=datetime.utcnow() - timedelta(days=2),
-            status="viewing"
-        ),
-        Lead(
-            id=4,
-            name="Demi Wilkinson",
-            contact_info="demi.wilkinson@example.com",
-            property_interest="Commercial space downtown",
-            created_at=datetime.utcnow() - timedelta(days=3),
-            status="application"
-        ),
-        Lead(
-            id=5,
-            name="Orlando Diggs",
-            contact_info="orlando.diggs@example.com",
-            property_interest="1BR Apartment near university",
-            created_at=datetime.utcnow() - timedelta(days=5),
-            status="viewing"
-        )
-    ]
-    
     return DashboardResponse(
         summary=summary,
         occupancy=occupancy,
         revenue=revenue_data,
         payments_due=payments_due,
-        leads=mock_leads
     )

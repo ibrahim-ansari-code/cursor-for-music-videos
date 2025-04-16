@@ -16,11 +16,14 @@ const RevenueChart = ({ data }) => {
 
     const ctx = chartRef.current.getContext('2d');
     
+    // Trim data arrays to include only months since first financial activity
+    const trimmedData = trimFinancialData(data);
+    
     // Prepare data
-    const labels = data.months;
-    const revenueData = data.revenue;
-    const expensesData = data.expenses;
-    const netIncomeData = data.net_income;
+    const labels = trimmedData.months;
+    const revenueData = trimmedData.revenue;
+    const expensesData = trimmedData.expenses;
+    const netIncomeData = trimmedData.net_income;
     
     // Create chart
     chartInstance.current = new Chart(ctx, {
@@ -29,34 +32,22 @@ const RevenueChart = ({ data }) => {
         labels: labels,
         datasets: [
           {
-            label: 'Revenue',
+            label: 'Income',
             data: revenueData,
-            backgroundColor: '#3B82F6', // blue-500
-            borderColor: '#3B82F6',
-            borderWidth: 1,
+            backgroundColor: '#1a73e8', // blue
+            borderColor: '#1a73e8',
+            borderWidth: 0,
             borderRadius: 4,
             order: 2
           },
           {
             label: 'Expenses',
             data: expensesData,
-            backgroundColor: '#10B981', // green-500
-            borderColor: '#10B981',
-            borderWidth: 1,
+            backgroundColor: '#e94235', // red
+            borderColor: '#e94235',
+            borderWidth: 0,
             borderRadius: 4,
             order: 3
-          },
-          {
-            label: 'Net Income',
-            data: netIncomeData,
-            type: 'line',
-            borderColor: '#8B5CF6', // purple-500
-            borderWidth: 2,
-            pointBackgroundColor: '#8B5CF6',
-            pointRadius: 3,
-            fill: false,
-            tension: 0.1,
-            order: 1
           }
         ]
       },
@@ -68,23 +59,49 @@ const RevenueChart = ({ data }) => {
             beginAtZero: true,
             grid: {
               drawBorder: false,
+              borderDash: [5, 5],
+              color: '#f0f0f0'
             },
             ticks: {
               callback: function(value) {
-                return '$' + value.toLocaleString();
-              }
+                if (value >= 1000) {
+                  return '$' + (value / 1000) + 'k';
+                }
+                return '$' + value;
+              },
+              font: {
+                size: 11
+              },
+              color: '#999'
             }
           },
           x: {
             grid: {
               display: false,
               drawBorder: false
+            },
+            ticks: {
+              font: {
+                size: 11
+              },
+              color: '#999'
             }
           }
         },
         plugins: {
           legend: {
-            display: false
+            display: true,
+            position: 'top',
+            align: 'end',
+            labels: {
+              usePointStyle: true,
+              boxWidth: 8,
+              pointStyle: 'circle',
+              padding: 20,
+              font: {
+                size: 12
+              }
+            }
           },
           tooltip: {
             callbacks: {
@@ -99,6 +116,9 @@ const RevenueChart = ({ data }) => {
                 return label;
               }
             }
+          },
+          title: {
+            display: false,
           }
         },
         interaction: {
@@ -106,7 +126,15 @@ const RevenueChart = ({ data }) => {
           intersect: false,
         },
         barPercentage: 0.6,
-        categoryPercentage: 0.7
+        categoryPercentage: 0.7,
+        layout: {
+          padding: {
+            top: 0,
+            right: 0,
+            bottom: 16,
+            left: 0
+          }
+        }
       }
     });
 
@@ -117,9 +145,42 @@ const RevenueChart = ({ data }) => {
     };
   }, [data]);
 
+  // Function to trim data arrays to include only months since first financial activity
+  const trimFinancialData = (data) => {
+    // Make copies of the arrays
+    const months = [...data.months];
+    const revenue = [...data.revenue];
+    const expenses = [...data.expenses];
+    const netIncome = [...data.net_income];
+    
+    // Find the first month with any financial activity
+    let firstActivityIndex = -1;
+    for (let i = 0; i < revenue.length; i++) {
+      if (revenue[i] > 0 || expenses[i] > 0) {
+        firstActivityIndex = i;
+        break;
+      }
+    }
+    
+    // If no activity found, or already starts with activity, return original data
+    if (firstActivityIndex <= 0) {
+      return data;
+    }
+    
+    // Trim arrays to start from the first activity month
+    return {
+      months: months.slice(firstActivityIndex),
+      revenue: revenue.slice(firstActivityIndex),
+      expenses: expenses.slice(firstActivityIndex),
+      net_income: netIncome.slice(firstActivityIndex)
+    };
+  };
+
   return (
-    <div className="h-72 w-full">
-      <canvas ref={chartRef}></canvas>
+    <div className="flex-1 flex flex-col justify-center">
+      <div className="h-64">
+        <canvas ref={chartRef}></canvas>
+      </div>
     </div>
   );
 };

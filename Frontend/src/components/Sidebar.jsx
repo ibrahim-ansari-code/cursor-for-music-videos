@@ -24,7 +24,6 @@ const Sidebar = () => {
   // Configuration section
   const configItems = [
     { name: 'Settings', path: '/settings', icon: 'fa-gear' },
-    { name: 'Integrations', path: '/integrations', icon: 'fa-plug' },
   ];
 
   // Function to render nav items

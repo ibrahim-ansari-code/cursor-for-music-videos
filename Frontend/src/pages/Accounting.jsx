@@ -7,7 +7,9 @@ import {
   createPayment,
   createInvoice,
   createExpense,
-  fetchProperties
+  fetchProperties,
+  fetchOutstandingPayments,
+  fetchRentTracker
 } from '../utils/api';
 import { toast } from 'react-toastify';
 import NewPaymentModal from '../components/NewPaymentModal';
@@ -15,6 +17,9 @@ import NewExpenseModal from '../components/NewExpenseModal';
 import MonthlyMetricsCard from '../components/MonthlyMetricsCard';
 import YTDCard from '../components/YTDCard';
 import SnapshotCard from '../components/SnapshotCard';
+import RentTracker from '../components/RentTracker';
+import RevenueChart from '../components/RevenueChart';
+import ExpenseBreakdownChart from '../components/ExpenseBreakdownChart';
 
 const Accounting = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -29,8 +34,13 @@ const Accounting = () => {
   const [accountingData, setAccountingData] = useState({
     monthly: { revenue: 0, expenses: 0, netIncome: 0 },
     ytd: { revenue: 0, expenses: 0, netIncome: 0 },
-    snapshot: { occupancyRate: 0, outstandingPayments: 0, avgRent: 0 }
+    snapshot: { occupancyRate: 0, paidRent: 0, totalRent: 0, avgRent: 0 }
   });
+  
+  // Add state for rent tracker data
+  const [rentTrackerData, setRentTrackerData] = useState([]);
+  const [currentMonth] = useState(new Date().getMonth() + 1); // JavaScript months are 0-indexed
+  const [currentYear] = useState(new Date().getFullYear());
   
   // Modal states
   const [showModal, setShowModal] = useState(false);
@@ -54,9 +64,20 @@ const Accounting = () => {
     dateRange: 'month'
   });
 
+  // Add state for outstanding payments
+  const [outstandingPayments, setOutstandingPayments] = useState([]);
+
+  // Get overdue payments from rent tracker data
+  const overduePayments = rentTrackerData.filter(rent => 
+    rent.status === 'DUE' || rent.status === 'PARTIAL'
+  );
+
   useEffect(() => {
     if (activeTab === 'overview') {
       loadOverviewData();
+      loadOutstandingPayments();
+      loadRentTrackerData(); // Load rent tracker data for overview
+      loadExpensesData(); // Load expenses data for pie chart
     } else if (activeTab === 'payments') {
       loadPaymentsData();
     } else if (activeTab === 'invoices') {
@@ -66,6 +87,32 @@ const Accounting = () => {
     }
   }, [activeTab, paymentFilters, invoiceFilters, expenseFilters]);
 
+  const loadRentTrackerData = async () => {
+    try {
+      const data = await fetchRentTracker({
+        month: currentMonth,
+        year: currentYear
+      });
+      setRentTrackerData(data);
+      
+      // Calculate paid and total rent
+      const totalRent = data.length;
+      const paidRent = data.filter(rent => rent.status === 'PAID').length;
+      
+      // Update the accounting data with rent tracking information
+      setAccountingData(prevData => ({
+        ...prevData,
+        snapshot: {
+          ...prevData.snapshot,
+          paidRent,
+          totalRent
+        }
+      }));
+    } catch (err) {
+      console.error('Error loading rent tracker data:', err);
+    }
+  };
+
   const loadOverviewData = async () => {
     try {
       setLoading(true);
@@ -73,7 +120,7 @@ const Accounting = () => {
       setOverviewData(data);
       
       // Update the accounting data structure for the cards using the new API fields
-      setAccountingData({
+      setAccountingData(prevData => ({
         monthly: {
           revenue: data.monthly_revenue,
           expenses: data.monthly_expenses,
@@ -86,10 +133,11 @@ const Accounting = () => {
         },
         snapshot: {
           occupancyRate: data.occupancy_rate,
-          outstandingPayments: data.outstanding_payments,
+          paidRent: prevData.snapshot.paidRent,
+          totalRent: prevData.snapshot.totalRent,
           avgRent: data.average_rent
         }
-      });
+      }));
       
       setError(null);
     } catch (err) {
@@ -222,6 +270,17 @@ const Accounting = () => {
     }
   };
 
+  // Add function to load outstanding payments
+  const loadOutstandingPayments = async () => {
+    try {
+      const data = await fetchOutstandingPayments();
+      setOutstandingPayments(data);
+    } catch (err) {
+      console.error('Error loading outstanding payments:', err);
+      toast.error('Failed to load outstanding payments');
+    }
+  };
+
   const handleShowModal = (type) => {
     if (type === 'payment') {
       setShowNewPaymentModal(true);
@@ -317,6 +376,16 @@ const Accounting = () => {
             Expenses
           </button>
           <button
+            onClick={() => setActiveTab('rent-tracker')}
+            className={`${
+              activeTab === 'rent-tracker'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+          >
+            Rent Tracker
+          </button>
+          <button
             onClick={() => setActiveTab('invoices')}
             className={`${
               activeTab === 'invoices'
@@ -359,29 +428,27 @@ const Accounting = () => {
             <SnapshotCard data={accountingData.snapshot} />
           </div>
           
-          {/* Monthly Revenue Chart */}
-          <div className="dashboard-card">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Monthly Revenue & Expenses</h2>
+          {/* Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Revenue Chart */}
+            <div className="bg-white rounded-lg shadow-sm p-6 h-full">
+              <div className="flex items-center mb-4">
+                <h2 className="text-lg font-medium text-gray-800">Revenue Breakdown</h2>
+              </div>
+              <RevenueChart data={overviewData?.revenue_trends ? {
+                months: overviewData.revenue_trends.map(month => month.period),
+                revenue: overviewData.revenue_trends.map(month => month.revenue),
+                expenses: overviewData.revenue_trends.map(month => month.expenses),
+                net_income: overviewData.revenue_trends.map(month => month.net_income)
+              } : null} />
+            </div>
             
-            <div className="h-80">
-              {overviewData?.revenue_trends ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center text-gray-500">
-                    {/* This is where the chart would go in a real implementation */}
-                    <i className="fas fa-chart-bar text-6xl mb-2"></i>
-                    <p>Monthly Revenue Trend Chart</p>
-                    <p className="text-sm mt-2">
-                      {overviewData.revenue_trends.map(month => 
-                        `${month.period}: $${month.revenue.toLocaleString()}`
-                      ).join(' · ')}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-500">No revenue data available</p>
-                </div>
-              )}
+            {/* Expense Breakdown Chart */}
+            <div className="bg-white rounded-lg shadow-sm p-6 h-full">
+              <div className="flex items-center mb-4">
+                <h2 className="text-lg font-medium text-gray-800">Expense Breakdown</h2>
+              </div>
+              <ExpenseBreakdownChart expenses={expenses} />
             </div>
           </div>
           
@@ -393,9 +460,16 @@ const Accounting = () => {
               {overviewData?.occupancy_rate !== undefined ? (
                 <div className="flex items-center justify-center h-40">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-blue-600">
-                      {overviewData.occupancy_rate.toFixed(1)}%
-                    </div>
+                    {overviewData.occupancy_rate > 0 ? (
+                      <div className="text-3xl font-bold text-blue-600">
+                        {overviewData.occupancy_rate.toFixed(1)}%
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="text-2xl font-semibold text-gray-500">Coming Soon</div>
+                        <p className="text-sm text-gray-400 mt-2">Occupancy data is being prepared</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -405,22 +479,49 @@ const Accounting = () => {
               )}
             </div>
             
-            <div className="dashboard-card">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Outstanding Payments</h2>
+            {/* Outstanding Payments Card */}
+            <div className="bg-white rounded-lg shadow-sm p-6 h-full">
+              <div className="flex items-center mb-4">
+                <h2 className="text-lg font-medium text-gray-800">Outstanding Payments</h2>
+                {overduePayments.length > 0 && (
+                  <span className="ml-2 bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded-full">
+                    {overduePayments.length}
+                  </span>
+                )}
+              </div>
               
-              {overviewData?.outstanding_payments !== undefined ? (
-                <div className="flex items-center justify-center h-40">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-red-600">
-                      {overviewData.outstanding_payments}
+              {overduePayments.length > 0 ? (
+                <div>
+                  <div className="border-b border-gray-200 mb-2">
+                    <div className="grid grid-cols-2 text-sm">
+                      <div className="py-3 text-gray-500 font-medium uppercase tracking-wider">
+                        Tenant
                       </div>
-                    <p className="text-sm text-gray-500 mt-2">Payments pending</p>
+                      <div className="py-3 text-gray-500 font-medium uppercase tracking-wider text-right">
+                        Amount Due
                       </div>
                     </div>
+                  </div>
+                  <div className="space-y-1">
+                    {overduePayments.map((payment) => (
+                      <div key={payment.lease_id} className="grid grid-cols-2 py-4 border-b border-gray-100 hover:bg-gray-50">
+                        <div className="text-sm font-medium text-gray-900">
+                          {payment.tenant_name}
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 text-right">
+                          ${payment.remaining_due.toFixed(2)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ) : (
                 <div className="flex items-center justify-center h-40">
-                  <p className="text-gray-500">No outstanding payments data available</p>
-                    </div>
+                  <div className="text-center text-gray-500">
+                    <div className="text-3xl font-bold text-green-600">0</div>
+                    <p className="text-sm mt-2">All payments are up to date</p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -731,6 +832,25 @@ const Accounting = () => {
             </div>
           </div>
         </div>
+      )}
+      
+      {activeTab === 'rent-tracker' && (
+        <RentTracker
+          onDataLoaded={(data) => {
+            // Update the rent tracker metrics when data is loaded from the RentTracker component
+            const totalRent = data.length;
+            const paidRent = data.filter(rent => rent.status === 'PAID').length;
+            
+            setAccountingData(prevData => ({
+              ...prevData,
+              snapshot: {
+                ...prevData.snapshot,
+                paidRent,
+                totalRent
+              }
+            }));
+          }}
+        />
       )}
       
       {showNewPaymentModal && (

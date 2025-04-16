@@ -781,3 +781,25 @@ export const parseLease = async (formData) => {
     throw error;
   }
 };
+
+// Add these functions after the existing accounting API functions
+
+export const generateDuePayments = async () => {
+  return apiRequest('/accounting/generate-due-payments', {
+    method: 'POST'
+  });
+};
+
+export const fetchOutstandingPayments = async () => {
+  return apiRequest('/accounting/outstanding-payments');
+};
+
+export const fetchRentTracker = async (params = {}) => {
+  const queryParams = new URLSearchParams();
+  
+  if (params.month) queryParams.append('month', params.month);
+  if (params.year) queryParams.append('year', params.year);
+  
+  const queryString = queryParams.toString();
+  return apiRequest(`/rent-tracker${queryString ? '?' + queryString : ''}`);
+};

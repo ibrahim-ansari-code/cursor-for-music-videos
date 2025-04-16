@@ -1,31 +1,29 @@
 # Import the base models that don't have circular dependencies first
 from Backend.models.enums import UserType
 
-# Import supporting models
-from Backend.models.accounting import Payment, Invoice, Expense
-from Backend.models.message import Message, Conversation, ConversationParticipant
-
-# Import the enum classes
+# We need to import model classes in a specific order to avoid circular references
+# First, import only enums, which doesn't have dependencies
 from Backend.models.tenant import TenantStatus
 from Backend.models.property import PropertyStatus
 from Backend.models.lease import LeaseStatus
+from Backend.models.accounting import PaymentStatus, PaymentMethod
 
-# Import link tables first 
+# Import the user model first since other models depend on it
+from Backend.models.user import User, setup_user_relationships
+
+# Import link tables which typically have fewer dependencies 
 from Backend.models.tenant import TenantUnitLink
 from Backend.models.property import PropertyVendorLink
 
-# Import user model first since other models depend on it
-from Backend.models.user import User
+# Import the main models in the correct order to avoid circular references
+from Backend.models.tenant import Tenant, setup_relationships
+from Backend.models.property import Property, PropertyUnit, setup_property_relationships
+from Backend.models.lease import Lease, LeaseDocument, LeaseCreate
+from Backend.models.vendor import Vendor, VendorDocument, VendorStatus
 
-# Import the main models with circular dependencies in the correct order
-# Import Tenant first since Lease depends on it having a leases property
-from Backend.models.tenant import Tenant
-from Backend.models.lease import Lease, LeaseDocument
-from Backend.models.property import Property, PropertyUnit
-from Backend.models.vendor import Vendor, VendorDocument
-
-# Import the setup functions
-from Backend.models.tenant import setup_relationships
+# Now we can safely import models that reference the above
+from Backend.models.accounting import Payment, Invoice, Expense
+from Backend.models.message import Message, Conversation, ConversationParticipant, MessageType
 
 # Initialize models to resolve circular dependencies
 def initialize_models():
@@ -33,7 +31,9 @@ def initialize_models():
     # Start by registering models to ensure all classes are loaded
     from sqlalchemy.orm import configure_mappers
     
-    # Set up tenant relationships which will recursively set up other relationships
+    # Set up relationships in the correct order
+    setup_user_relationships()
+    setup_property_relationships()
     setup_relationships()
     
     # Finally configure all mappers to resolve any remaining circular dependencies
