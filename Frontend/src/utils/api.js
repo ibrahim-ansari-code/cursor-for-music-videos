@@ -581,23 +581,160 @@ export const fetchTenant = async (tenantId) => {
 export const createTenant = async (tenantData) => {
   console.log('Creating tenant with data:', tenantData);
   try {
-    const response = await apiRequest('/tenants', {
+    const sanitizedData = { ...tenantData };
+    
+    // Handle email sanitization
+    if (typeof sanitizedData.email === 'string') {
+      sanitizedData.email = sanitizedData.email.trim().toLowerCase();
+      
+      // Email format validation
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (sanitizedData.email && !emailRegex.test(sanitizedData.email)) {
+        throw new Error('Invalid email format');
+      }
+      
+      // If email is empty string, set to null to avoid validation issues
+      if (sanitizedData.email === '') {
+        sanitizedData.email = null;
+      }
+    }
+
+    // Ensure status is properly formatted for the backend enum (First letter uppercase, rest lowercase)
+    if (sanitizedData.status) {
+      sanitizedData.status = sanitizedData.status.charAt(0).toUpperCase() + sanitizedData.status.slice(1).toLowerCase();
+    }
+    
+    // Always set user_id to null for new tenants to avoid unique constraint violations
+    sanitizedData.user_id = null;
+    
+    console.log('Sending sanitized tenant data:', sanitizedData);
+    
+    // Get token from localStorage for authentication
+    const token = localStorage.getItem('token');
+    
+    // Check if token exists
+    if (!token) {
+      console.error('No token found for authenticated request');
+      throw new Error('Authentication required. Please log in.');
+    }
+    
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/tenants`, {
       method: 'POST',
-      body: JSON.stringify(tenantData)
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(sanitizedData),
     });
-    console.log('Tenant created successfully:', response);
-    return response;
+
+    // Log response headers for debugging
+    console.log('Create tenant response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response text:', errorText);
+      
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+        console.error('Parsed error data:', errorData);
+      } catch (e) {
+        console.error('Failed to parse error response as JSON');
+        errorData = { detail: errorText };
+      }
+      
+      // Enhanced error with response details
+      const error = new Error(`Failed to create tenant: ${response.statusText}`);
+      error.status = response.status;
+      error.data = errorData;
+      error.rawResponse = errorText;
+      throw error;
+    }
+
+    return await response.json();
   } catch (error) {
-    console.error('Error creating tenant:', error);
+    console.error('Error in createTenant:', error);
     throw error;
   }
 };
 
 export const updateTenant = async (tenantId, tenantData) => {
-  return apiRequest(`/tenants/${tenantId}`, {
-    method: 'PATCH',
-    body: JSON.stringify(tenantData)
-  });
+  console.log(`Updating tenant ${tenantId} with data:`, tenantData);
+  try {
+    const sanitizedData = { ...tenantData };
+    
+    // Handle email sanitization
+    if (typeof sanitizedData.email === 'string') {
+      sanitizedData.email = sanitizedData.email.trim().toLowerCase();
+      
+      // Email format validation
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (sanitizedData.email && !emailRegex.test(sanitizedData.email)) {
+        throw new Error('Invalid email format');
+      }
+      
+      // If email is empty string, set to null to avoid validation issues
+      if (sanitizedData.email === '') {
+        sanitizedData.email = null;
+      }
+    }
+
+    // Ensure status is properly formatted for the backend enum (First letter uppercase, rest lowercase)
+    if (sanitizedData.status) {
+      sanitizedData.status = sanitizedData.status.charAt(0).toUpperCase() + sanitizedData.status.slice(1).toLowerCase();
+    }
+    
+    // For updates, we should keep the existing user_id if provided
+    // This will be handled in the TenantModal.jsx file
+    
+    console.log('Sending sanitized tenant data for update:', sanitizedData);
+    
+    // Get token from localStorage for authentication
+    const token = localStorage.getItem('token');
+    
+    // Check if token exists
+    if (!token) {
+      console.error('No token found for authenticated request');
+      throw new Error('Authentication required. Please log in.');
+    }
+    
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/tenants/${tenantId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(sanitizedData),
+    });
+
+    console.log('Update tenant response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response text:', errorText);
+      
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+        console.error('Parsed error data:', errorData);
+      } catch (e) {
+        console.error('Failed to parse error response as JSON');
+        errorData = { detail: errorText };
+      }
+      
+      // Enhanced error with response details
+      const error = new Error(`Failed to update tenant: ${response.statusText}`);
+      error.status = response.status;
+      error.data = errorData;
+      error.rawResponse = errorText;
+      throw error;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error in updateTenant:', error);
+    throw error;
+  }
 };
 
 export const deleteTenant = async (tenantId) => {

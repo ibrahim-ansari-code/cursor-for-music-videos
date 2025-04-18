@@ -9,9 +9,10 @@ from pydantic import BaseModel, constr, EmailStr, validator
 from sqlmodel import col
 
 from Backend.database import get_session
-from Backend.models.tenant import Tenant, TenantStatus
+from Backend.models.tenant import Tenant, TenantStatus, TenantUnitLink
 from Backend.models.user import User
 from Backend.models.property import Property, PropertyUnit
+from Backend.models.lease import Lease
 from Backend.api.auth import get_current_user
 
 # Configure logging
@@ -102,6 +103,7 @@ async def get_tenants(
     """
     logger.info(f"User {current_user.email} is retrieving tenants")
     
+    # Use simple select without joinedload for now - we'll fetch relationships separately
     query = select(Tenant)
     
     # Apply filters if provided
@@ -125,12 +127,88 @@ async def get_tenants(
     tenants = result.scalars().all()
     logger.info(f"Retrieved {len(tenants)} tenants")
     
-    # Convert each tenant to a TenantResponse and include the full_name
+    # Convert each tenant to a response dictionary with all necessary data
     response_data = []
     for tenant in tenants:
-        tenant_response = TenantResponse.model_validate(tenant)
-        tenant_dict = tenant_response.model_dump()
-        tenant_dict["full_name"] = tenant_response.full_name
+        # Basic tenant data
+        tenant_dict = {
+            "id": tenant.id,
+            "first_name": tenant.first_name,
+            "last_name": tenant.last_name,
+            "full_name": f"{tenant.first_name} {tenant.last_name}".strip(),
+            "phone": tenant.phone,
+            "email": tenant.email,
+            "status": tenant.status,
+            "created_at": tenant.created_at,
+            "updated_at": tenant.updated_at,
+            
+            # Initialize empty related data
+            "properties": [],
+            "units": [],
+            "leases": []
+        }
+        
+        # Fetch current property if it exists
+        if tenant.current_property_id is not None:
+            property_query = select(Property).where(Property.id == tenant.current_property_id)
+            property_result = await session.execute(property_query)
+            current_property = property_result.scalar_one_or_none()
+            
+            if current_property:
+                tenant_dict["properties"] = [{
+                    "id": current_property.id,
+                    "name": current_property.name
+                }]
+        
+        # Fetch units for this tenant
+        unit_links_query = select(TenantUnitLink).where(TenantUnitLink.tenant_id == tenant.id)
+        unit_links_result = await session.execute(unit_links_query)
+        unit_links = unit_links_result.scalars().all()
+        
+        if unit_links:
+            unit_ids = [link.unit_id for link in unit_links]
+            units_query = select(PropertyUnit).where(PropertyUnit.id.in_(unit_ids))
+            units_result = await session.execute(units_query)
+            units = units_result.scalars().all()
+            
+            tenant_dict["units"] = [
+                {"id": unit.id, "unit_number": unit.unit_number} 
+                for unit in units
+            ]
+        
+        # Fetch leases for this tenant
+        leases_query = select(Lease).where(Lease.tenant_id == tenant.id)
+        leases_result = await session.execute(leases_query)
+        leases = leases_result.scalars().all()
+        
+        # Add lease information that we need for counts
+        if leases:
+            active_leases = []
+            now = datetime.utcnow().date()
+            
+            for lease in leases:
+                lease_data = {
+                    "id": lease.id,
+                    "start_date": lease.start_date,
+                    "end_date": lease.end_date,
+                    "status": lease.status,
+                    "monthly_rent": lease.monthly_rent
+                }
+                
+                # Add to active_leases array if it's current
+                if (lease.status == "ACTIVE" and 
+                    lease.start_date <= now and 
+                    lease.end_date >= now):
+                    active_leases.append(lease_data)
+                    
+                tenant_dict["leases"].append(lease_data)
+                
+            # Add helpful derived properties for dashboard counting
+            if active_leases:
+                active_lease = active_leases[0]  # Use the first active lease
+                tenant_dict["lease_start"] = active_lease["start_date"]
+                tenant_dict["lease_end"] = active_lease["end_date"]
+        
         response_data.append(tenant_dict)
     
     return response_data
@@ -146,7 +224,9 @@ async def get_tenant(
     """
     logger.info(f"User {current_user.email} is retrieving tenant {tenant_id}")
     
+    # Use simple select without joinedload
     query = select(Tenant).where(Tenant.id == tenant_id)
+    
     result = await session.execute(query)
     tenant = result.scalar_one_or_none()
     
@@ -157,9 +237,84 @@ async def get_tenant(
             detail="Tenant not found"
         )
     
-    tenant_response = TenantResponse.model_validate(tenant)
-    tenant_dict = tenant_response.model_dump()
-    tenant_dict["full_name"] = tenant_response.full_name
+    # Convert tenant to a dictionary with all necessary data
+    tenant_dict = {
+        "id": tenant.id,
+        "first_name": tenant.first_name,
+        "last_name": tenant.last_name,
+        "full_name": f"{tenant.first_name} {tenant.last_name}".strip(),
+        "phone": tenant.phone,
+        "email": tenant.email,
+        "status": tenant.status,
+        "created_at": tenant.created_at,
+        "updated_at": tenant.updated_at,
+        
+        # Initialize empty related data
+        "properties": [],
+        "units": [],
+        "leases": []
+    }
+    
+    # Fetch current property if it exists
+    if tenant.current_property_id is not None:
+        property_query = select(Property).where(Property.id == tenant.current_property_id)
+        property_result = await session.execute(property_query)
+        current_property = property_result.scalar_one_or_none()
+        
+        if current_property:
+            tenant_dict["properties"] = [{
+                "id": current_property.id,
+                "name": current_property.name
+            }]
+    
+    # Fetch units for this tenant
+    unit_links_query = select(TenantUnitLink).where(TenantUnitLink.tenant_id == tenant.id)
+    unit_links_result = await session.execute(unit_links_query)
+    unit_links = unit_links_result.scalars().all()
+    
+    if unit_links:
+        unit_ids = [link.unit_id for link in unit_links]
+        units_query = select(PropertyUnit).where(PropertyUnit.id.in_(unit_ids))
+        units_result = await session.execute(units_query)
+        units = units_result.scalars().all()
+        
+        tenant_dict["units"] = [
+            {"id": unit.id, "unit_number": unit.unit_number} 
+            for unit in units
+        ]
+    
+    # Fetch leases for this tenant
+    leases_query = select(Lease).where(Lease.tenant_id == tenant.id)
+    leases_result = await session.execute(leases_query)
+    leases = leases_result.scalars().all()
+    
+    # Add lease information that we need for counts
+    if leases:
+        active_leases = []
+        now = datetime.utcnow().date()
+        
+        for lease in leases:
+            lease_data = {
+                "id": lease.id,
+                "start_date": lease.start_date,
+                "end_date": lease.end_date,
+                "status": lease.status,
+                "monthly_rent": lease.monthly_rent
+            }
+            
+            # Add to active_leases array if it's current
+            if (lease.status == "ACTIVE" and 
+                lease.start_date <= now and 
+                lease.end_date >= now):
+                active_leases.append(lease_data)
+                
+            tenant_dict["leases"].append(lease_data)
+            
+        # Add helpful derived properties for dashboard counting
+        if active_leases:
+            active_lease = active_leases[0]  # Use the first active lease
+            tenant_dict["lease_start"] = active_lease["start_date"]
+            tenant_dict["lease_end"] = active_lease["end_date"]
     
     return tenant_dict
 
@@ -281,8 +436,29 @@ async def delete_tenant(
             detail="Tenant not found"
         )
     
-    await session.delete(tenant)
-    await session.commit()
+    # Check if tenant has any associated leases
+    lease_query = select(Lease).where(Lease.tenant_id == tenant_id)
+    lease_result = await session.execute(lease_query)
+    leases = lease_result.scalars().all()
     
-    logger.info(f"Tenant {tenant_id} deleted successfully")
-    return None
+    if leases:
+        logger.warning(f"Cannot delete tenant {tenant_id} because they have {len(leases)} associated leases")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete tenant because they have associated leases. Please delete the leases first or remove the tenant from the leases."
+        )
+    
+    # Check for any other database constraints (optional)
+    try:
+        await session.delete(tenant)
+        await session.commit()
+        
+        logger.info(f"Tenant {tenant_id} deleted successfully")
+        return None
+    except Exception as e:
+        logger.error(f"Error deleting tenant {tenant_id}: {str(e)}")
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete tenant: {str(e)}"
+        )

@@ -180,7 +180,8 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit }) => 
         property_id: parseInt(formData.property_id),
         tenant_id: parseInt(formData.tenant_id),
         unit_id: formData.unit_id ? parseInt(formData.unit_id) : null,
-        rent_due_day: parseInt(formData.rent_due_day || 1)
+        rent_due_day: parseInt(formData.rent_due_day || 1),
+        status: "ACTIVE"
       };
       
       console.log('Submitting lease data:', leaseSubmitData);

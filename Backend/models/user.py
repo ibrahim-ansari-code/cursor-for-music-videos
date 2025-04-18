@@ -25,8 +25,8 @@ class User(SQLModel, table=True):
     phone: Optional[str] = None
     address: Optional[str] = None
     city: Optional[str] = None
-    state: Optional[str] = None
-    zip_code: Optional[str] = None
+    province: Optional[str] = None
+    postal_code: Optional[str] = None
     profile_image_url: Optional[str] = None
     is_active: bool = Field(default=True)
     is_admin: bool = Field(default=False)

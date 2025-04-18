@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   fetchTenants, 
   deleteTenant,
-  fetchDashboardData
+  fetchDashboardData,
+  fetchOutstandingPayments
 } from '../utils/api';
 import TenantModal from '../components/TenantModal';
 
@@ -32,31 +33,74 @@ const Tenants = () => {
         if (searchTerm) {
           tenantParams.search = searchTerm;
         }
+        
+        console.log('Fetching tenants with params:', tenantParams);
         const tenantsData = await fetchTenants(tenantParams);
+        console.log('Tenants data received:', tenantsData);
         setTenants(tenantsData);
+
+        // Check active leases count based on tenant leases
+        const activeLeaseCount = countActiveLeases(tenantsData);
+        console.log('Active leases count:', activeLeaseCount);
+        
+        // Check expiring leases count
+        const expiringLeaseCount = countExpiringLeases(tenantsData);
+        console.log('Expiring leases count:', expiringLeaseCount);
 
         // Try to fetch dashboard data from API
         try {
           const dashData = await fetchDashboardData();
+          console.log('Dashboard data received:', dashData);
+          
+          // Try to fetch outstanding payments data
+          let overduePayments = 0;
+          try {
+            const outstandingPayments = await fetchOutstandingPayments();
+            console.log('Outstanding payments data:', outstandingPayments);
+            overduePayments = outstandingPayments?.length || 0;
+          } catch (paymentsError) {
+            console.warn('Failed to fetch overdue payments:', paymentsError);
+          }
+          
           setDashboardData({
-            totalTenants: dashData.total_tenants || tenantsData.length || 0,
-            activeLeases: dashData.active_leases || countActiveLeases(tenantsData) || 0,
-            expiringSoon: dashData.expiring_soon || countExpiringLeases(tenantsData) || 0,
-            overduePayments: dashData.overdue_payments || 0
+            totalTenants: dashData.summary?.total_tenants || tenantsData.length || 0,
+            activeLeases: activeLeaseCount,
+            expiringSoon: expiringLeaseCount,
+            overduePayments: overduePayments || dashData.payments_due?.length || 0
           });
         } catch (dashError) {
           console.warn('Failed to fetch dashboard data, using tenant data for counts:', dashError);
+          
+          // Try to fetch just the overdue payments if main dashboard failed
+          let overduePayments = 0;
+          try {
+            const outstandingPayments = await fetchOutstandingPayments();
+            overduePayments = outstandingPayments?.length || 0;
+          } catch (paymentsError) {
+            console.warn('Failed to fetch overdue payments:', paymentsError);
+          }
+          
           // Calculate dashboard data from tenant list if API call fails
           setDashboardData({
             totalTenants: tenantsData.length,
-            activeLeases: countActiveLeases(tenantsData),
-            expiringSoon: countExpiringLeases(tenantsData),
-            overduePayments: 0 // No way to determine this from tenant data alone
+            activeLeases: activeLeaseCount,
+            expiringSoon: expiringLeaseCount,
+            overduePayments: overduePayments
           });
         }
       } catch (err) {
         console.error('Error fetching data:', err);
-        setError('Failed to load data. Please try again.');
+        console.error('Error details:', err.response || err.message || err);
+        setError('Failed to load data. Please check console for details.');
+        
+        // Set empty data on error
+        setTenants([]);
+        setDashboardData({
+          totalTenants: 0,
+          activeLeases: 0,
+          expiringSoon: 0,
+          overduePayments: 0
+        });
       } finally {
         setIsLoading(false);
       }
@@ -68,18 +112,26 @@ const Tenants = () => {
   // Count active leases from tenant data
   const countActiveLeases = (tenantList) => {
     if (!tenantList) return 0;
-    return tenantList.filter(tenant => {
-      // Check if tenant has lease dates and status is active
-      if (!tenant.lease_start || !tenant.lease_end) return false;
+    
+    // Count unique tenants with at least one active lease
+    const tenantsWithActiveLeases = tenantList.filter(tenant => {
+      if (!tenant.leases || tenant.leases.length === 0) {
+        return false;
+      }
       
       const today = new Date();
-      const startDate = new Date(tenant.lease_start);
-      const endDate = new Date(tenant.lease_end);
       
-      return tenant.status?.toLowerCase() === 'active' && 
-             startDate <= today && 
-             endDate >= today;
-    }).length;
+      // Check if any lease is active and current
+      return tenant.leases.some(lease => {
+        const startDate = new Date(lease.start_date);
+        const endDate = new Date(lease.end_date);
+        return lease.status === "ACTIVE" && 
+               startDate <= today && 
+               endDate >= today;
+      });
+    });
+    
+    return tenantsWithActiveLeases.length;
   };
 
   // Count leases expiring this month
@@ -89,12 +141,20 @@ const Tenants = () => {
     const today = new Date();
     const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     
-    return tenantList.filter(tenant => {
-      if (!tenant.lease_end) return false;
+    // Count unique tenants with leases expiring this month
+    const tenantsWithExpiringLeases = tenantList.filter(tenant => {
+      if (!tenant.leases || tenant.leases.length === 0) {
+        return false;
+      }
       
-      const leaseEndDate = new Date(tenant.lease_end);
-      return leaseEndDate >= today && leaseEndDate <= endOfMonth;
-    }).length;
+      // Check if any lease is expiring this month
+      return tenant.leases.some(lease => {
+        const endDate = new Date(lease.end_date);
+        return endDate >= today && endDate <= endOfMonth;
+      });
+    });
+    
+    return tenantsWithExpiringLeases.length;
   };
 
   // Handle adding/editing a tenant
@@ -144,7 +204,12 @@ const Tenants = () => {
         }));
       } catch (err) {
         console.error('Failed to delete tenant:', err);
-        setError('Failed to delete tenant. Please try again.');
+        // Display the specific error message from the backend if available
+        if (err.data && err.data.detail) {
+          setError(err.data.detail);
+        } else {
+          setError('Failed to delete tenant. Please try again.');
+        }
       }
     }
     // Close action menu
@@ -404,34 +469,22 @@ const Tenants = () => {
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Name
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Property
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Unit
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Email
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Phone
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Lease Start
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Lease End
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Monthly Rent
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Leasing Agent
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -441,65 +494,49 @@ const Tenants = () => {
                     <tr key={tenant.id} className="hover:bg-gray-50 transition-colors duration-150">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
-                            {getInitials(tenant)}
+                          <div className="flex-shrink-0 h-10 w-10">
+                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                              <span className="text-gray-700 font-medium">{getInitials(tenant)}</span>
+                            </div>
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">
-                              {tenant.first_name && tenant.last_name 
-                                ? `${tenant.first_name} ${tenant.last_name}`
-                                : tenant.full_name || '--'}
+                              {tenant.first_name} {tenant.last_name}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {tenant.property_name || '--'}
+                        <div className="text-sm text-gray-900 text-center">
+                          {tenant.properties && tenant.properties.length > 0 && tenant.properties[0].name 
+                            ? tenant.properties[0].name 
+                            : '--'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {tenant.unit || '--'}
+                        <div className="text-sm text-gray-900 text-center">
+                          {tenant.units && tenant.units.length > 0 && tenant.units[0].unit_number
+                            ? tenant.units.map(u => u.unit_number).join(', ')
+                            : '--'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-gray-900 text-center">
                           {tenant.email || '--'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-gray-900 text-center">
                           {tenant.phone || '--'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {formatDate(tenant.lease_start)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {formatDate(tenant.lease_end)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {formatCurrency(tenant.monthly_rent)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(tenant.status)}`}>
                           {tenant.status || 'Unknown'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {tenant.leasing_agent || '--'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="relative">
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <div className="relative flex justify-center">
                           <button
                             onClick={() => setActionMenuOpen(actionMenuOpen === tenant.id ? null : tenant.id)}
                             className="text-gray-500 hover:text-gray-700 focus:outline-none p-1 rounded-full hover:bg-gray-100"

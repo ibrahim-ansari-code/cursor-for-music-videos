@@ -1,5 +1,7 @@
-import React, { useState, useEffect, createContext } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import Login from './pages/Login';
@@ -13,9 +15,9 @@ import Messages from './pages/Messages';
 import Properties from './pages/Properties';
 import PropertyDetail from './pages/PropertyDetail';
 import Tenants from './pages/Tenants';
-// Placeholder components for missing pages
-const Maintenance = () => <div className="p-6"><h1 className="text-2xl font-semibold">Maintenance</h1><p className="mt-4">Maintenance page is under construction.</p></div>;
-const Reports = () => <div className="p-6"><h1 className="text-2xl font-semibold">Reports</h1><p className="mt-4">Reports page is under construction.</p></div>;
+import Maintenance from './pages/Maintenance';
+import Reports from './pages/Reports';
+import Settings from './pages/Settings';
 
 // Auth Context
 export const AuthContext = createContext(null);
@@ -153,9 +155,10 @@ function App() {
   return (
     <AuthContext.Provider value={authValue}>
       <Router>
+        <ToastContainer position="top-right" autoClose={5000} />
         <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={user ? <Layout /> : <Navigate to="/login" />}>
+            <Route index element={<Navigate to="/dashboard" />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="properties" element={<Properties />} />
             <Route path="properties/:id" element={<PropertyDetail />} />
@@ -163,14 +166,14 @@ function App() {
             <Route path="vendors" element={<Vendors />} />
             <Route path="accounting" element={<Accounting />} />
             <Route path="messages" element={<Messages />} />
-            <Route path="leases" element={<Leases />} />
             <Route path="tenants" element={<Tenants />} />
             <Route path="maintenance" element={<Maintenance />} />
             <Route path="reports" element={<Reports />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
+          <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" />} />
+          <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
         </Routes>
       </Router>
     </AuthContext.Provider>

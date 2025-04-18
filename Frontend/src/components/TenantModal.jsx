@@ -119,13 +119,20 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
     if (!formData.email || formData.email.trim() === "") {
       newErrors.email = "Email is required";
       isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Invalid email format";
-      isValid = false;
+    } else {
+      // More robust email validation
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        newErrors.email = "Please enter a valid email address";
+        isValid = false;
+      }
     }
 
     if (!formData.phone || formData.phone.trim() === "") {
       newErrors.phone = "Phone number is required";
+      isValid = false;
+    } else if (!/^[0-9]{10,15}$/.test(formData.phone.replace(/[^0-9]/g, ''))) {
+      newErrors.phone = "Invalid phone number format (must contain 10-15 digits)";
       isValid = false;
     }
 
@@ -145,24 +152,47 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
     e.preventDefault();
     setFormSubmitted(true);
     
+    // Clear all previous errors
+    setError(null);
+    setFieldErrors({});
+    setApiError(null);
+    
+    // Get the current values directly from the form elements to ensure we have the latest
+    const formElements = e.target.elements;
+    const currentFormData = {
+      first_name: formElements.first_name.value.trim(),
+      last_name: formElements.last_name.value.trim(),
+      phone: formElements.phone.value.trim(),
+      email: formElements.email.value.trim(),
+      status: formData.status,
+      current_property_id: formData.current_property_id,
+      user_id: null // Explicitly set user_id to null for new tenants
+    };
+    
+    // Update the form data state with the latest values
+    setFormData(currentFormData);
+    
     if (!validateForm()) {
       return;
     }
     
     setIsLoading(true);
-    setError(null);
-    setFieldErrors({});
 
     try {
       // Extract only the fields that belong to the Tenant model
       const tenantPayload = {
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        phone: formData.phone,
-        email: formData.email,
-        status: formData.status,
-        current_property_id: formData.current_property_id
+        first_name: currentFormData.first_name,
+        last_name: currentFormData.last_name,
+        phone: currentFormData.phone,
+        email: currentFormData.email,
+        // Convert status to title case (first letter uppercase, rest lowercase)
+        status: (currentFormData.status || 'active').charAt(0).toUpperCase() + (currentFormData.status || 'active').slice(1).toLowerCase(),
+        current_property_id: currentFormData.current_property_id,
+        user_id: null // Explicitly set user_id to null for new tenants
       };
+      
+      // Log the payload for debugging
+      console.log('Sending tenant payload to server:', tenantPayload);
       
       // Remove undefined fields to avoid validation errors
       Object.keys(tenantPayload).forEach(key => 
@@ -173,6 +203,10 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
       // Only update if tenant exists and has an ID
       if (tenant && tenant.id) {
         console.log(`Updating existing tenant with ID: ${tenant.id}`, tenantPayload);
+        // For updates, don't change the user_id to avoid unique constraint issues
+        if (tenant.user_id) {
+          tenantPayload.user_id = tenant.user_id;
+        }
         // Update existing tenant
         response = await updateTenant(tenant.id, tenantPayload);
       } else {
@@ -193,18 +227,60 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
     } catch (err) {
       console.error('Failed to save tenant:', err);
       
+      // Enhanced error debugging
+      console.error('Error status:', err.status);
+      console.error('Error name:', err.name);
+      console.error('Error message:', err.message);
+      
       // Log more details about the error for debugging
       if (err.data) {
         console.error('Error data:', err.data);
       }
       if (err.rawResponse) {
         console.error('Raw error response:', err.rawResponse);
+        try {
+          const rawError = JSON.parse(err.rawResponse);
+          console.error('Parsed raw error:', rawError);
+        } catch (e) {
+          console.error('Could not parse raw error response');
+        }
       }
       
       // Handle different error scenarios
       if (err.status === 422) {
         // Validation error from backend
         handleValidationError(err);
+        
+        // Check specifically for email issues
+        if (err.data?.detail && Array.isArray(err.data.detail)) {
+          const emailErrors = err.data.detail.filter(e => 
+            e.loc && e.loc.length > 1 && e.loc[1] === 'email'
+          );
+          
+          const userIdErrors = err.data.detail.filter(e => 
+            e.loc && e.loc.length > 1 && e.loc[1] === 'user_id'
+          );
+          
+          if (userIdErrors.length > 0) {
+            setFieldErrors(prev => ({
+              ...prev,
+              user_id: "There's a constraint error with the user_id. Try a different tenant."
+            }));
+            setError("There's a database constraint issue. Please try with different information.");
+          } else if (emailErrors.length > 0) {
+            // We have specific email-related errors
+            setFieldErrors(prev => ({
+              ...prev,
+              email: emailErrors[0].msg || "Invalid email format or email already in use"
+            }));
+            setError("There seems to be an issue with the email address. It may be invalid or already in use.");
+          } else {
+            setError("Please correct the validation errors below.");
+          }
+        } else {
+          // Generic validation error
+          setError("Failed to validate tenant information. Please check your input and try again.");
+        }
       } else if (err.status === 401 || err.status === 403) {
         // Authentication/authorization error
         setError('You are not authorized to perform this action. Please check your permissions.');
@@ -239,11 +315,23 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
             // This is a field-specific error
             const fieldName = error.loc[1];
             validationErrors[fieldName] = error.msg;
+            
+            // Log which field has the error for debugging
+            console.log(`Field ${fieldName} has error: ${error.msg}`);
           } else {
             // This is a general error
             generalErrors.push(error.msg);
           }
         });
+        
+        // Check specifically for email-related errors in the response
+        const emailErrors = err.data.detail.filter(error => 
+          error.loc && error.loc.length > 1 && error.loc[1] === 'email'
+        );
+        
+        if (emailErrors.length > 0) {
+          console.log('Email validation errors found:', emailErrors);
+        }
         
         setFieldErrors(validationErrors);
         
@@ -310,7 +398,7 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
           <div className="space-y-4">
             <div className="mb-3">
               <label htmlFor="first_name" className="form-label">
-                First Name*
+                First Name<span className="text-red-600 font-bold text-lg">*</span>
               </label>
               <input
                 type="text"
@@ -322,13 +410,13 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
                 onChange={handleChange}
               />
               {fieldErrors.first_name && (touched.first_name || submitAttempted) && (
-                <div className="invalid-feedback">{fieldErrors.first_name}</div>
+                <div className="mt-1 text-sm text-red-600">{fieldErrors.first_name}</div>
               )}
             </div>
 
             <div className="mb-3">
               <label htmlFor="last_name" className="form-label">
-                Last Name*
+                Last Name<span className="text-red-600 font-bold text-lg">*</span>
               </label>
               <input
                 type="text"
@@ -340,13 +428,13 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
                 onChange={handleChange}
               />
               {fieldErrors.last_name && (touched.last_name || submitAttempted) && (
-                <div className="invalid-feedback">{fieldErrors.last_name}</div>
+                <div className="mt-1 text-sm text-red-600">{fieldErrors.last_name}</div>
               )}
             </div>
 
             <div className="mb-3">
               <label htmlFor="phone" className="form-label">
-                Phone Number*
+                Phone Number<span className="text-red-600 font-bold text-lg">*</span>
               </label>
               <input
                 type="tel"
@@ -358,13 +446,13 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
                 onChange={handleChange}
               />
               {fieldErrors.phone && (touched.phone || submitAttempted) && (
-                <div className="invalid-feedback">{fieldErrors.phone}</div>
+                <div className="mt-1 text-sm text-red-600">{fieldErrors.phone}</div>
               )}
             </div>
 
             <div className="mb-3">
               <label htmlFor="email" className="form-label">
-                Email*
+                Email<span className="text-red-600 font-bold text-lg">*</span>
               </label>
               <input
                 type="email"
@@ -376,13 +464,13 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
                 onChange={handleChange}
               />
               {fieldErrors.email && (touched.email || submitAttempted) && (
-                <div className="invalid-feedback">{fieldErrors.email}</div>
+                <div className="mt-1 text-sm text-red-600">{fieldErrors.email}</div>
               )}
             </div>
           </div>
 
-          <div className="mt-2 text-sm text-gray-500">
-            <span className="text-red-600">*</span> Required fields
+          <div className="mt-2 mb-4 text-sm text-gray-500">
+            <span className="text-red-600 font-bold">*</span> Required fields
           </div>
 
           <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-100">

@@ -49,8 +49,8 @@ class UserCreate(BaseModel):
     phone: Optional[str] = None
     address: Optional[str] = None
     city: Optional[str] = None
-    state: Optional[str] = None
-    zip_code: Optional[str] = None
+    province: Optional[str] = None
+    postal_code: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: int
@@ -61,8 +61,8 @@ class UserResponse(BaseModel):
     phone: Optional[str] = None
     address: Optional[str] = None
     city: Optional[str] = None
-    state: Optional[str] = None
-    zip_code: Optional[str] = None
+    province: Optional[str] = None
+    postal_code: Optional[str] = None
     profile_image_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -213,8 +213,8 @@ async def register_user(
         phone=user_data.phone,
         address=user_data.address,
         city=user_data.city,
-        state=user_data.state,
-        zip_code=user_data.zip_code,
+        province=user_data.province,
+        postal_code=user_data.postal_code,
     )
 
     session.add(db_user)
