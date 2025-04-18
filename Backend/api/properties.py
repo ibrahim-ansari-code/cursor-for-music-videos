@@ -4,10 +4,11 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from sqlalchemy.orm import joinedload
 from pydantic import BaseModel, constr
 
 from Backend.database import get_session
-from Backend.models.property import Property, PropertyStatus
+from Backend.models.property import Property, PropertyStatus, PropertyUnit
 from Backend.models.user import User
 from Backend.api.auth import get_current_user
 from Backend.models.lease import Lease, LeaseStatus
@@ -26,8 +27,8 @@ class PropertyCreate(BaseModel):
     name: constr(min_length=1, max_length=255)
     address: constr(min_length=1, max_length=255)
     city: constr(min_length=1, max_length=100)
-    state: constr(min_length=1, max_length=50)
-    zip_code: constr(min_length=1, max_length=20)
+    province: constr(min_length=1, max_length=50)
+    postal_code: constr(min_length=1, max_length=20)
     property_type: constr(min_length=1, max_length=50)
     description: Optional[str] = None
     year_built: Optional[int] = None
@@ -38,8 +39,8 @@ class PropertyResponse(BaseModel):
     name: str
     address: str
     city: str
-    state: str
-    zip_code: str
+    province: str
+    postal_code: str
     property_type: str
     description: Optional[str] = None
     year_built: Optional[int] = None
@@ -69,10 +70,26 @@ class OwnerResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class UnitResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    size: Optional[float] = None
+    monthly_rent: Optional[float] = None
+    is_rented: bool
+    bedrooms: Optional[int] = None
+    bathrooms: Optional[float] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class PropertyDetailResponse(PropertyResponse):
     owner: Optional[OwnerResponse] = None
     # Add additional fields for property details
     status: str = "vacant"  # Default status
+    units: List[UnitResponse] = []
 
     class Config:
         from_attributes = True
@@ -88,10 +105,11 @@ async def get_property(
     Get a specific property by ID with related data.
     """
     try:
-        # Get property with owner relationship loaded
-        query = select(Property).where(Property.id == property_id)
+        # Get property with owner and units relationship loaded
+        query = select(Property).options(joinedload(Property.owner), joinedload(Property.units)).where(Property.id == property_id)
         result = await session.execute(query)
-        property = result.scalar_one_or_none()
+        # Call .unique() before scalar_one_or_none() for joined collections
+        property = result.unique().scalar_one_or_none()
         
         if not property:
             raise HTTPException(
@@ -106,18 +124,23 @@ async def get_property(
                 detail="You don't have permission to access this property"
             )
         
-        # Determine property status based on units
-        status = "vacant"
+        # Use the property's database status as the default
+        response_status = property.status 
+        
+        # Determine property status based on units if they exist (using already loaded units)
         if property.units:
             occupied_units = [unit for unit in property.units if unit.is_rented]
-            if len(occupied_units) == len(property.units):
-                status = "rented"
+            if not occupied_units:
+                response_status = "vacant" # Override if units exist but none are rented
+            elif len(occupied_units) == len(property.units):
+                response_status = "rented"
             elif len(occupied_units) > 0:
-                status = "partially_rented"
+                response_status = "partially_rented"
+            # If units exist but logic doesn't set rented/partially_rented/vacant, keep original property.status
         
-        # Create response with owner info and status
-        response = PropertyDetailResponse.from_orm(property)
-        response.status = status
+        # Create response with owner info, status and units
+        response = PropertyDetailResponse.from_orm(property) # Includes units
+        response.status = response_status # Assign the determined status
         
         return response
         
@@ -187,8 +210,8 @@ async def create_property(
             name=property_data.name,
             address=property_data.address,
             city=property_data.city,
-            state=property_data.state,
-            zip_code=property_data.zip_code,
+            province=property_data.province,
+            postal_code=property_data.postal_code,
             property_type=property_data.property_type,
             description=property_data.description,
             year_built=property_data.year_built,

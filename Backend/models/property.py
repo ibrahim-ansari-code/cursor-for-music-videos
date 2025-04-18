@@ -38,8 +38,8 @@ class Property(SQLModel, table=True):
     name: str
     address: str
     city: str
-    state: str
-    zip_code: str
+    province: str
+    postal_code: str
     property_type: str  # residential, commercial, etc.
     year_built: Optional[int] = None
     description: Optional[str] = None
@@ -80,17 +80,14 @@ class PropertyUnit(SQLModel, table=True):
     is_rented: bool = Field(default=False)
     bedrooms: Optional[int] = None
     bathrooms: Optional[float] = None
+    floor: Optional[int] = Field(default=None, description="The floor number of the unit")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships
     property: Optional["Property"] = Relationship(back_populates="units")
-    
-    # Add the missing leases relationship
     leases: List["Lease"] = Relationship(back_populates="unit")
     
-    # tenants relationship will be set up in the setup_relationships function
-
 # Function to initialize relationships that would otherwise cause circular imports
 def setup_property_relationships():
     from Backend.models.tenant import Tenant, TenantUnitLink
