@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { AuthContext } from '../App';
 
 const Register = () => {
   const [firstName, setFirstName] = useState('');
@@ -10,30 +11,55 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    const fullName = `${firstName} ${lastName}`.trim();
-
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, {
+      // Step 1: Register the user
+      const registerResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ fullName, phone, email, password }),
+        body: JSON.stringify({ 
+          first_name: firstName, 
+          last_name: lastName, 
+          phone, 
+          email, 
+          password,
+          user_type: "LANDLORD" 
+        }),
       });
 
-      if (!response.ok) {
-        throw new Error('Registration failed');
+      const registerData = await registerResponse.json();
+
+      if (!registerResponse.ok) {
+        throw new Error(registerData.detail || 'Registration failed');
       }
 
-      navigate('/login');
+      // TODO: Trigger email verification via SendGrid
+      
+      // TODO: Trigger SMS OTP verification via Azure Communication Services
+
+      // Step 2: Auto login after successful registration
+      const success = await login(email, password);
+      
+      if (success) {
+        // Step 3: Redirect to dashboard (login function already saves the token)
+        navigate('/dashboard');
+      } else {
+        // If login fails, redirect to login page
+        setError('Registration successful, but automatic login failed. Please login manually.');
+        navigate('/login');
+      }
     } catch (err) {
-      setError('Registration failed. Please try again.');
+      // Step 4: Display backend error message
+      setError(err.message || 'Registration failed. Please try again.');
+      console.error('Registration error:', err);
     } finally {
       setLoading(false);
     }

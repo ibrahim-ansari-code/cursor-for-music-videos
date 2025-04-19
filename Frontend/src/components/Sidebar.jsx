@@ -71,7 +71,7 @@ const Sidebar = () => {
           <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
             <div className={`flex items-center ${collapsed ? 'w-full justify-center' : 'flex-1 justify-start pl-0'}`}>
               <div className="flex items-center justify-center h-12">
-                <img src="BrikliSidebar.png" alt="Brikli Logo" className="h-7 w-auto mx-auto my-4" />
+                <img src="BrikliLogoSidebar.png" alt="Brikli Logo" className="h-7 w-auto mx-auto my-4" />
               </div>
             </div>
             <button

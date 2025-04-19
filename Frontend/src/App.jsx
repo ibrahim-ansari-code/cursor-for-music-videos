@@ -5,7 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import Login from './pages/Login';
-import Register from './pages/Register';
+import RegisterPage from './pages/RegisterPage';
 
 // Pages
 import Leases from './pages/Leases';
@@ -172,7 +172,7 @@ function App() {
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
-          <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" />} />
+          <Route path="/register" element={!user ? <RegisterPage /> : <Navigate to="/dashboard" />} />
           <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
         </Routes>
       </Router>
