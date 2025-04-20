@@ -3,20 +3,34 @@ import debounce from 'lodash.debounce';
 import { AnimatePresence, motion } from 'framer-motion'; // For smooth animations
 
 // --- Helper Function for Azure Maps API ---
-const AZURE_MAPS_API_KEY = import.meta.env.VITE_API_BASE_URL;
+const AZURE_MAPS_API_KEY = import.meta.env.VITE_AZURE_MAPS_KEY;
 
 async function fetchAddressSuggestions(query) {
-  if (!query || query.length < 3 || !AZURE_MAPS_API_KEY) {
+  if (!query || query.length < 3) {
     return [];
   }
-  const url = `https://atlas.microsoft.com/search/address/autocomplete/json?api-version=1.0&query=${encodeURIComponent(query)}&countrySet=CA&limit=5&subscription-key=${AZURE_MAPS_API_KEY}`;
+  
+  if (!AZURE_MAPS_API_KEY) {
+    console.error("Azure Maps API key is missing. Please check your environment variables.");
+    return [];
+  }
+  
+  console.log("Fetching address suggestions for:", query);
+  const url = `https://atlas.microsoft.com/search/address/json?api-version=1.0&typeahead=true&query=${encodeURIComponent(query)}&countrySet=CA&limit=5&subscription-key=${AZURE_MAPS_API_KEY}`;
+  
   try {
+    console.log("Calling Azure Maps API:", url.replace(AZURE_MAPS_API_KEY, "API_KEY_HIDDEN"));
     const response = await fetch(url);
+    
     if (!response.ok) {
-      console.error("Azure Maps API error:", response.statusText);
+      console.error("Azure Maps API error:", response.status, response.statusText);
+      const errorText = await response.text();
+      console.error("Error details:", errorText);
       return [];
     }
+    
     const data = await response.json();
+    console.log("Azure Maps API response:", data);
     return data.results || [];
   } catch (error) {
     console.error("Error fetching address suggestions:", error);
@@ -36,7 +50,8 @@ function generateUnits(numFloors, unitsPerFloor) {
 
   for (let floor = 1; floor <= floors; floor++) {
     for (let unitNum = 1; unitNum <= perFloor; unitNum++) {
-      const unitName = `${floor}${String(unitNum).padStart(2, '0')}`; // e.g., 101, 102, 1001, 1002
+      // Format: floor number followed by 2-digit unit number (e.g., 101, 102, 201, etc.)
+      const unitName = `${floor}${String(unitNum).padStart(2, '0')}`;
       units.push({ name: unitName, floor: floor });
     }
   }
@@ -203,7 +218,7 @@ const ErrorMessage = ({ message }) => (
 );
 
 // --- Component ---
-const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
+const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading, propertyData, isEditing }) => {
   const initialFormData = {
     name: '',
     address: '',
@@ -220,6 +235,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
     auto_generate_units: true,
     manual_units: '', // Store as comma-separated string for simplicity for now
   };
+
   const [formData, setFormData] = useState(initialFormData);
   const [error, setError] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -230,15 +246,91 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
   // Ref for the suggestions dropdown to detect outside clicks
   const suggestionsRef = useRef(null);
   const modalRef = useRef(null);
+  
+  // Load propertyData for editing
+  useEffect(() => {
+    if (isEditing && propertyData) {
+      // Transform propertyData for the form
+      setFormData({
+        name: propertyData.name || '',
+        address: propertyData.address || '',
+        city: propertyData.city || '',
+        province: propertyData.province || '',
+        postal_code: propertyData.postal_code || '',
+        property_type: propertyData.property_type || '',
+        description: propertyData.description || '',
+        year_built: propertyData.year_built || '',
+        status: propertyData.status || 'active',
+        // For apartment properties, we'd need to fetch unit details separately
+        // or pass them with the propertyData
+        num_floors: '',
+        units_per_floor: '',
+        auto_generate_units: true,
+        manual_units: '',
+      });
+    } else {
+      // Reset form for new properties
+      setFormData(initialFormData);
+    }
+  }, [isEditing, propertyData, isOpen]);
+
+  // Helper function to check for unsaved changes
+  const hasUnsavedChanges = () => {
+    // For editing, compare with propertyData; for new properties, compare with initialFormData
+    const compareData = isEditing && propertyData ? {
+      name: propertyData.name || '',
+      address: propertyData.address || '',
+      city: propertyData.city || '',
+      province: propertyData.province || '',
+      postal_code: propertyData.postal_code || '',
+      property_type: propertyData.property_type || '',
+      description: propertyData.description || '',
+      year_built: propertyData.year_built || '',
+      status: propertyData.status || 'active',
+    } : initialFormData;
+    
+    // Compare each field in formData with compareData
+    for (const key in formData) {
+      // Skip apartment-specific fields if not an apartment
+      if (['num_floors', 'units_per_floor', 'auto_generate_units', 'manual_units'].includes(key) && 
+          !(formData.property_type === 'apartment-complex')) {
+        continue;
+      }
+      
+      if (formData[key] !== compareData[key]) {
+        return true;
+      }
+    }
+    return false;
+  };
+  
+  // Handler for closing the modal with confirmation if needed
+  const handleCloseWithConfirmation = () => {
+    if (hasUnsavedChanges()) {
+      const confirmed = window.confirm("You will lose your progress. Are you sure you want to close this form?");
+      if (!confirmed) return;
+    }
+    // Reset form and close modal
+    setFormData(initialFormData);
+    onClose();
+  };
 
   // Debounced fetch function
   const debouncedFetch = useCallback(
     debounce(async (query) => {
+      console.log("Debounced search triggered for:", query);
       setIsSuggestionLoading(true);
-      const results = await fetchAddressSuggestions(query);
-      setSuggestions(results);
-      setIsSuggestionLoading(false);
-      setShowSuggestions(true); // Show suggestions after fetching
+      try {
+        const results = await fetchAddressSuggestions(query);
+        console.log(`Got ${results.length} suggestions for "${query}":`, results);
+        setSuggestions(results);
+        setShowSuggestions(results.length > 0); // Only show if we have results
+      } catch (error) {
+        console.error("Error in debounced fetch:", error);
+        setSuggestions([]);
+      } finally {
+        setIsSuggestionLoading(false);
+      }
     }, 300), // 300ms debounce delay
     []
   );
@@ -255,8 +347,10 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
     // Handle address input for suggestions
     if (name === 'address') {
       if (value.length >= 3) {
+        console.log(`Address input changed: "${value}" (${value.length} chars). Triggering search...`);
         debouncedFetch(value);
       } else {
+        console.log(`Address too short: "${value}" (${value.length} chars). Need at least 3 chars.`);
         setSuggestions([]); // Clear suggestions if query is too short
         setShowSuggestions(false);
         debouncedFetch.cancel(); // Cancel any pending debounced calls
@@ -280,7 +374,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
   useEffect(() => {
     const handleEscapeKey = (e) => {
       if (e.key === 'Escape') {
-        onClose();
+        handleCloseWithConfirmation();
       }
     };
     
@@ -288,7 +382,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
     return () => {
       document.removeEventListener('keydown', handleEscapeKey);
     };
-  }, [onClose]);
+  }, [formData]); // Add formData as dependency to check for unsaved changes
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -308,7 +402,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
   useEffect(() => {
     function handleClickOutsideModal(event) {
       if (modalRef.current && !modalRef.current.contains(event.target)) {
-        onClose();
+        handleCloseWithConfirmation();
       }
     }
     
@@ -319,13 +413,14 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
     return () => {
       document.removeEventListener("mousedown", handleClickOutsideModal);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, formData]); // Add formData as dependency to check for unsaved changes
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsSubmittingUnits(false); // Reset unit submission state
 
+    // Only include essential fields in required validation
     let requiredFields = ['name', 'address', 'city', 'province', 'postal_code', 'property_type'];
     if (formData.property_type === 'apartment-complex') {
       requiredFields = [...requiredFields, 'num_floors', 'units_per_floor'];
@@ -333,6 +428,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
         requiredFields.push('manual_units');
       }
     }
+    // Note: 'year_built' and 'description' are deliberately excluded from required fields
 
     const missingFields = requiredFields.filter(field => !formData[field]);
 
@@ -341,25 +437,38 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
       return;
     }
 
-    // TODO: Add more specific validation (postal code, numbers)
-
     try {
-      // Separate apartment data from main property data for the initial POST
+      // Prepare property payload
       const propertyPayload = { ...formData };
+      
+      // Handle units for apartment complex
+      if (formData.property_type === 'apartment-complex') {
+        // Generate units if auto-generate is enabled
+        let units = [];
+        
+        if (formData.auto_generate_units) {
+          // Generate units based on num_floors and units_per_floor
+          units = generateUnits(formData.num_floors, formData.units_per_floor).map(unit => unit.name);
+        } else if (formData.manual_units) {
+          // Parse manual units from comma-separated string
+          units = formData.manual_units.split(',').map(unit => unit.trim()).filter(Boolean);
+        }
+        
+        // Add units array to payload
+        propertyPayload.units = units;
+      }
+      
+      // Remove apartment configuration fields from payload
       delete propertyPayload.num_floors;
       delete propertyPayload.units_per_floor;
       delete propertyPayload.auto_generate_units;
       delete propertyPayload.manual_units;
 
-      // Call the onSubmit passed from parent (likely to POST propertyPayload)
+      // Call the onSubmit passed from parent
       const createdProperty = await onSubmit(propertyPayload);
 
-      // --- Unit Creation Logic --- (To be added in the next step)
-      if (formData.property_type === 'apartment-complex' && createdProperty && createdProperty.id) {
-         console.log("Property created, now need to create units for ID:", createdProperty.id);
-         // Placeholder for unit creation logic
-      }
-      // ---------------------------
+      // Unit creation is now handled by the backend
+      console.log("Property and units created successfully:", createdProperty);
 
       // Reset form and close modal on overall success
       setFormData(initialFormData);
@@ -372,7 +481,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
           <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
           </svg>
-          <p>Property created successfully!</p>
+          <p>Property ${isEditing ? 'updated' : 'created'} successfully!</p>
         </div>
       `;
       document.body.appendChild(toast);
@@ -384,7 +493,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
       
       onClose();
     } catch (err) {
-      setError(err.message || 'Failed to create property');
+      setError(err.message || `Failed to ${isEditing ? 'update' : 'create'} property`);
     }
   };
 
@@ -409,9 +518,9 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
       >
         {/* Header */}
         <div className="sticky top-0 z-10 px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">Add New Property</h2>
+          <h2 className="text-xl font-semibold text-gray-900">{isEditing ? 'Edit Property' : 'Add New Property'}</h2>
           <button
-            onClick={onClose}
+            onClick={handleCloseWithConfirmation}
             className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full p-1 transition-colors duration-200"
             aria-label="Close modal"
           >
@@ -471,7 +580,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
                     name="address"
                     value={formData.address}
                     onChange={handleChange}
-                    onFocus={() => setShowSuggestions(suggestions.length > 0)}
+                    onFocus={() => formData.address.length >= 3 && setShowSuggestions(true)}
                     placeholder="Enter street address (e.g., 123 Main St)"
                     required
                     autoComplete="off"
@@ -529,7 +638,6 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
                     onChange={handleChange}
                     placeholder="Enter city"
                     required
-                    readOnly={formData.address.length > 0}
                   />
                 </div>
 
@@ -542,7 +650,6 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
                     onChange={handleChange}
                     placeholder="Enter province"
                     required
-                    readOnly={formData.address.length > 0}
                   />
                 </div>
 
@@ -555,7 +662,6 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
                     onChange={handleChange}
                     placeholder="Enter postal code"
                     required
-                    readOnly={formData.address.length > 0}
                   />
                 </div>
               </div>
@@ -563,7 +669,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
               {/* Additional Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                 <div>
-                  <Label htmlFor="year_built">Year Built</Label>
+                  <Label htmlFor="year_built">Year Built (Optional)</Label>
                   <Input
                     id="year_built"
                     name="year_built"
@@ -591,7 +697,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
               
               {/* Description */}
               <div className="mt-6">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">Description (Optional)</Label>
                 <TextArea
                   id="description"
                   name="description"
@@ -695,7 +801,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
           <Button 
             type="button" 
             variant="secondary" 
-            onClick={onClose}
+            onClick={handleCloseWithConfirmation}
           >
             Cancel
           </Button>
@@ -711,7 +817,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Creating Property
+                {isEditing ? 'Updating Property' : 'Creating Property'}
               </>
             ) : isSubmittingUnits ? (
               <>
@@ -722,7 +828,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
                 Creating Units
               </>
             ) : (
-              'Create Property'
+              isEditing ? 'Update Property' : 'Create Property'
             )}
           </Button>
         </div>

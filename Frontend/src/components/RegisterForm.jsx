@@ -10,6 +10,9 @@ const RegisterForm = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
 
@@ -17,6 +20,8 @@ const RegisterForm = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    setRegistrationSuccess(false);
+    setResendSuccess(false);
 
     try {
       // Step 1: Register the user
@@ -41,23 +46,18 @@ const RegisterForm = () => {
         throw new Error(registerData.detail || 'Registration failed');
       }
 
-      // TODO: Trigger email verification via SendGrid
+      // Registration successful
+      setRegistrationSuccess(true);
       
-      // TODO: Trigger SMS OTP verification via Azure Communication Services
-
-      // Step 2: Auto login after successful registration
-      const success = await login(email, password);
+      // Clear the form
+      setFirstName('');
+      setLastName('');
+      setPhone('');
+      setEmail('');
+      setPassword('');
       
-      if (success) {
-        // Step 3: Redirect to dashboard (login function already saves the token)
-        navigate('/dashboard');
-      } else {
-        // If login fails, redirect to login page
-        setError('Registration successful, but automatic login failed. Please login manually.');
-        navigate('/login');
-      }
     } catch (err) {
-      // Step 4: Display backend error message
+      // Display backend error message
       setError(err.message || 'Registration failed. Please try again.');
       console.error('Registration error:', err);
     } finally {
@@ -65,10 +65,81 @@ const RegisterForm = () => {
     }
   };
 
+  const handleResendVerification = async () => {
+    setResendingEmail(true);
+    setResendSuccess(false);
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/resend-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+      
+      if (response.ok) {
+        setResendSuccess(true);
+      } else {
+        const data = await response.json();
+        setError(data.detail || 'Failed to resend verification email');
+      }
+    } catch (err) {
+      setError('Failed to resend verification email. Please try again.');
+      console.error('Resend verification error:', err);
+    } finally {
+      setResendingEmail(false);
+    }
+  };
+
   const validatePhone = (value) => {
     const phoneRegex = /^[0-9]{10}$/;
     return phoneRegex.test(value);
   };
+
+  // If registration was successful, show success message instead of form
+  if (registrationSuccess) {
+    return (
+      <div className="w-full h-full flex flex-col justify-center items-center p-6">
+        <div className="text-center mb-8">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900">Account created!</h3>
+          <p className="mt-2 text-sm text-gray-600">
+            Please check your email to verify your account before signing in.
+          </p>
+        </div>
+        
+        <div className="w-full max-w-md">
+          <button
+            type="button"
+            onClick={handleResendVerification}
+            disabled={resendingEmail}
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-teal hover:bg-brand-teal/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-teal"
+          >
+            {resendingEmail ? 'Sending...' : 'Resend Verification Email'}
+          </button>
+          
+          {resendSuccess && (
+            <div className="mt-4 rounded-md bg-green-50 p-4">
+              <div className="flex">
+                <div className="text-sm text-green-700">Verification email sent! Please check your inbox.</div>
+              </div>
+            </div>
+          )}
+          
+          <div className="mt-6 text-center">
+            <Link to="/login" className="font-medium text-brand-teal hover:text-brand-teal/80">
+              Go to login page
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full flex flex-col justify-center">

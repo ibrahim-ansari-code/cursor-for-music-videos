@@ -4,7 +4,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from pydantic import BaseModel, constr
 
 from Backend.database import get_session
@@ -12,6 +12,7 @@ from Backend.models.property import Property, PropertyStatus, PropertyUnit
 from Backend.models.user import User
 from Backend.api.auth import get_current_user
 from Backend.models.lease import Lease, LeaseStatus
+from Backend.api.units import TenantInfo, UnitResponse, UnitBase
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ class PropertyCreate(BaseModel):
     description: Optional[str] = None
     year_built: Optional[int] = None
     status: Optional[str] = PropertyStatus.ACTIVE
+    units: Optional[List[str]] = None  # Optional list of unit names/numbers
 
 class PropertyResponse(BaseModel):
     id: int
@@ -79,13 +81,38 @@ class UnitResponse(BaseModel):
     is_rented: bool
     bedrooms: Optional[int] = None
     bathrooms: Optional[float] = None
+    floor: Optional[int] = None
     created_at: datetime
     updated_at: datetime
+    tenant: Optional[TenantInfo] = None
 
     class Config:
         from_attributes = True
 
-class PropertyDetailResponse(PropertyResponse):
+class PropertyDetailResponse_Standalone(BaseModel):
+    # Fields from PropertyResponse
+    id: int
+    name: str
+    address: str
+    city: str
+    province: str
+    postal_code: str
+    property_type: str
+    description: Optional[str] = None
+    year_built: Optional[int] = None
+    status: str # Will be populated with calculated status
+    owner_id: int
+    created_at: datetime
+    updated_at: datetime
+    # Additional fields for detail view
+    owner: Optional[OwnerResponse] = None
+    units: List[UnitResponse] = []
+
+    class Config:
+        from_attributes = True
+        # Ensure status default logic if needed, but we calculate it
+
+class PropertyDetailResponse(PropertyResponse): # Keep original for reference if needed
     owner: Optional[OwnerResponse] = None
     # Add additional fields for property details
     status: str = "vacant"  # Default status
@@ -95,7 +122,7 @@ class PropertyDetailResponse(PropertyResponse):
         from_attributes = True
 
 # === API Routes ===
-@router.get("/{property_id}", response_model=PropertyDetailResponse)
+@router.get("/{property_id}", response_model=PropertyDetailResponse_Standalone)
 async def get_property(
     property_id: int,
     current_user: User = Depends(get_current_user),
@@ -106,43 +133,96 @@ async def get_property(
     """
     try:
         # Get property with owner and units relationship loaded
-        query = select(Property).options(joinedload(Property.owner), joinedload(Property.units)).where(Property.id == property_id)
+        # Also ensure the tenant within each unit is loaded
+        query = (
+            select(Property)
+            .options(
+                joinedload(Property.owner), 
+                # Use selectinload for the collection of units
+                selectinload(Property.units).options(
+                    # Within each unit, use selectinload for the single tenant
+                    selectinload(PropertyUnit.tenant)
+                )
+            )
+            .where(Property.id == property_id)
+        )
         result = await session.execute(query)
         # Call .unique() before scalar_one_or_none() for joined collections
-        property = result.unique().scalar_one_or_none()
+        property_orm = result.unique().scalar_one_or_none()
         
-        if not property:
+        if not property_orm:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Property not found"
             )
         
         # Check permission - only owner or admin can view property details
-        if property.owner_id != current_user.id and not current_user.is_admin:
+        if property_orm.owner_id != current_user.id and not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to access this property"
             )
         
         # Use the property's database status as the default
-        response_status = property.status 
+        response_status = property_orm.status 
         
         # Determine property status based on units if they exist (using already loaded units)
-        if property.units:
-            occupied_units = [unit for unit in property.units if unit.is_rented]
+        if property_orm.units:
+            occupied_units = [unit for unit in property_orm.units if unit.is_rented]
             if not occupied_units:
                 response_status = "vacant" # Override if units exist but none are rented
-            elif len(occupied_units) == len(property.units):
+            elif len(occupied_units) == len(property_orm.units):
                 response_status = "rented"
             elif len(occupied_units) > 0:
                 response_status = "partially_rented"
             # If units exist but logic doesn't set rented/partially_rented/vacant, keep original property.status
         
-        # Create response with owner info, status and units
-        response = PropertyDetailResponse.from_orm(property) # Includes units
-        response.status = response_status # Assign the determined status
+        # Explicitly serialize units
+        serialized_units_models = [] # Store Pydantic models
+        if property_orm.units:
+            for unit in property_orm.units:
+                try:
+                    # Create the base UnitResponse model from the ORM object
+                    unit_model = UnitResponse.from_orm(unit)
+                    
+                    # Manually check and assign the tenant if loaded on the ORM object
+                    if unit.tenant: 
+                        try:
+                            # Create TenantInfo model from the loaded ORM tenant
+                            tenant_info_model = TenantInfo.from_orm(unit.tenant)
+                            unit_model.tenant = tenant_info_model # Assign the TenantInfo model
+                        except Exception as tenant_e:
+                            logger.error(f"Error serializing tenant for unit {unit.id}: {tenant_e}")
+                            unit_model.tenant = None # Ensure tenant is None if serialization fails
+                    else:
+                         unit_model.tenant = None # Ensure tenant is None if not loaded
+                         
+                    serialized_units_models.append(unit_model)
+
+                except Exception as e:
+                    logger.error(f"Error serializing unit {unit.id}: {e}")
+                    # Optionally add placeholder or skip
         
-        return response
+        # Construct the standalone response model instance
+        response = PropertyDetailResponse_Standalone(
+            id=property_orm.id,
+            name=property_orm.name,
+            address=property_orm.address,
+            city=property_orm.city,
+            province=property_orm.province,
+            postal_code=property_orm.postal_code,
+            property_type=property_orm.property_type,
+            description=property_orm.description,
+            year_built=property_orm.year_built,
+            status=response_status,  # Use calculated status
+            owner_id=property_orm.owner_id,
+            created_at=property_orm.created_at,
+            updated_at=property_orm.updated_at,
+            owner=OwnerResponse.from_orm(property_orm.owner) if property_orm.owner else None,
+            units=serialized_units_models # Assign the list of UnitResponse models
+        )
+        
+        return response # Return the Pydantic model instance directly
         
     except HTTPException:
         raise
@@ -194,7 +274,7 @@ async def get_properties(
             detail="An error occurred while fetching properties"
         )
 
-@router.post("/", response_model=PropertyResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=PropertyDetailResponse, status_code=status.HTTP_201_CREATED)
 async def create_property(
     property_data: PropertyCreate,
     current_user: User = Depends(get_current_user),
@@ -203,6 +283,7 @@ async def create_property(
     """
     Create a new property.
     The current authenticated user will be set as the owner.
+    Optionally create units if provided in the request.
     """
     try:
         # Create new property instance
@@ -225,14 +306,60 @@ async def create_property(
         session.add(new_property)
         await session.commit()
         await session.refresh(new_property)
-
-        return new_property
+        
+        # Remember the created property ID
+        property_id = new_property.id
+        
+        # Create units if provided
+        if property_data.units:
+            now = datetime.utcnow()
+            # Create unit objects
+            for unit_name in property_data.units:
+                # Extract floor from unit name if possible (e.g., "101" => floor 1)
+                floor = 0  # Default floor
+                if unit_name and unit_name[0].isdigit():
+                    try:
+                        floor = int(unit_name[0])
+                    except ValueError:
+                        pass
+                    
+                new_unit = PropertyUnit(
+                    property_id=property_id,
+                    name=unit_name,
+                    floor=floor,
+                    is_rented=False,  # Default to vacant
+                    created_at=now,
+                    updated_at=now
+                )
+                session.add(new_unit)
+            
+            await session.commit()
+        
+        # After creating everything, do a fresh query with proper relationship loading
+        # to ensure all related data is included in response
+        query = (select(Property)
+                .options(joinedload(Property.owner), joinedload(Property.units))
+                .where(Property.id == property_id))
+        
+        result = await session.execute(query)
+        loaded_property = result.unique().scalar_one_or_none()
+        
+        if not loaded_property:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Property was created but could not be retrieved"
+            )
+        
+        # Return the property with owner and units
+        response = PropertyDetailResponse.from_orm(loaded_property)
+        return response
 
     except Exception as e:
         logger.error(f"Error creating property: {str(e)}")
+        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while creating the property"
+            detail=f"An error occurred while creating the property: {str(e)}"
         )
 
 @router.delete("/{property_id}", status_code=status.HTTP_204_NO_CONTENT)

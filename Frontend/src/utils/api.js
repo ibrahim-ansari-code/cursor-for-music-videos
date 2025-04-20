@@ -56,17 +56,27 @@ const handleResponse = async (response) => {
       try {
         const textContent = await response.text();
         errorObj.rawResponse = textContent;
+        
+        throw Object.assign(
+          new Error(`API error: ${response.status}. ${textContent || response.statusText}`),
+          errorObj
+        );
       } catch (textError) {
         errorObj.rawResponseError = "Couldn't read response text";
+        throw Object.assign(
+          new Error(`API error: ${response.status}. ${response.statusText}`),
+          errorObj
+        );
       }
-      
-      throw Object.assign(
-        new Error(`API error: ${response.status}. ${response.statusText}`),
-        errorObj
-      );
     }
   }
   
+  // For 204 No Content responses, return null instead of trying to parse JSON
+  if (response.status === 204) {
+    return null;
+  }
+  
+  // For other successful responses, parse JSON
   return response.json();
 };
 
@@ -560,6 +570,61 @@ export const deleteProperty = async (propertyId) => {
 
 export const fetchPropertyUnits = async (propertyId) => {
   return apiRequest(`/properties/${propertyId}/units`);
+};
+
+export const createUnit = async (propertyId, unitData) => {
+  console.log(`Creating unit for property ${propertyId} with data:`, unitData);
+  return apiRequest(`/properties/${propertyId}/units`, {
+    method: 'POST',
+    body: JSON.stringify(unitData)
+  });
+};
+
+export const updateUnit = async (unitId, unitData) => {
+  console.log(`Updating unit ${unitId} with data:`, unitData);
+  
+  try {
+    // Ensure numeric values are properly formatted
+    const formattedData = {
+      ...unitData,
+      monthly_rent: unitData.monthly_rent ? parseFloat(unitData.monthly_rent) : null,
+      size: unitData.size ? parseFloat(unitData.size) : null,
+      bedrooms: unitData.bedrooms ? parseInt(unitData.bedrooms, 10) : null,
+      bathrooms: unitData.bathrooms ? parseFloat(unitData.bathrooms) : null,
+      floor: unitData.floor ? parseInt(unitData.floor, 10) : null,
+      tenant_id: unitData.tenant_id || null,
+    };
+    
+    const response = await apiRequest(`/units/${unitId}`, {
+      method: 'PUT',
+      body: JSON.stringify(formattedData)
+    });
+    
+    console.log(`Unit ${unitId} updated successfully:`, response);
+    return response;
+  } catch (error) {
+    console.error(`Error updating unit ${unitId}:`, error);
+    // Enhance error message for better user feedback
+    const errorMessage = error.message || 'Failed to update unit';
+    const enhancedError = new Error(errorMessage);
+    enhancedError.originalError = error;
+    throw enhancedError;
+  }
+};
+
+export const deleteUnit = async (unitId) => {
+  console.log(`Deleting unit with ID: ${unitId}`);
+  
+  try {
+    const response = await apiRequest(`/units/${unitId}`, {
+      method: 'DELETE'
+    });
+    // The response will be null for 204 status, which is OK
+    return response;
+  } catch (error) {
+    console.error(`Error deleting unit ${unitId}:`, error);
+    throw error;
+  }
 };
 
 // Tenant Management API Functions

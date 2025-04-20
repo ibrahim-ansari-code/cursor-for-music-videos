@@ -2,7 +2,7 @@ import React from 'react';
 import BrandingPanel from '../components/BrandingPanel';
 import LoginForm from '../components/LoginForm';
 
-const Login = () => {
+const LoginPage = () => {
   return (
     <div className="min-h-screen flex bg-gray-50">
       {/* Left Column - Branding Panel */}
@@ -20,4 +20,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default LoginPage; 

@@ -6,11 +6,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, session
 from sqlalchemy.future import select
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import and_, func
 from pydantic import validator
+from itsdangerous import URLSafeTimedSerializer
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+import random
 
 from Backend.config import settings
 from Backend.database import get_session
@@ -28,6 +32,9 @@ router = APIRouter(
 # Set up password hashing and JWT authentication
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
+
+# Initialize URLSafeTimedSerializer
+serializer = URLSafeTimedSerializer(settings.SECRET_KEY)
 
 # === Models ===
 class Token(BaseModel):
@@ -226,3 +233,45 @@ async def register_user(
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+# === Email Verification ===
+async def send_verification_email(user: User):
+    token = serializer.dumps(user.email, salt='email-confirm')
+    verification_link = f"http://yourdomain.com/auth/verify-email?token={token}"
+    message = Mail(
+        from_email='no-reply@yourdomain.com',
+        to_emails=user.email,
+        subject='Verify your email',
+        html_content=f'<p>Please verify your email by clicking <a href="{verification_link}">here</a>.</p>'
+    )
+    try:
+        # TODO: Replace with actual SendGrid API key
+        sg = SendGridAPIClient('SENDGRID_API_KEY')
+        response = sg.send(message)
+        logger.info(f"Email sent to {user.email}: {response.status_code}")
+    except Exception as e:
+        logger.error(f"Error sending email: {str(e)}")
+
+@router.get("/verify-email")
+async def verify_email(token: str, session: AsyncSession = Depends(get_session)):
+    try:
+        email = serializer.loads(token, salt='email-confirm', max_age=3600)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
+
+    result = await session.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    user.is_email_verified = True
+    await session.commit()
+    return {"message": "Email verified successfully"}
+
+# === Email Verification ===
+@router.post("/resend-verification")
+async def resend_verification(current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    if not current_user.is_email_verified:
+        await send_verification_email(current_user)
+    return {"message": "Verification email resent successfully"}

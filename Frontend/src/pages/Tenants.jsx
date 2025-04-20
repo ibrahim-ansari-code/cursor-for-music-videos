@@ -508,16 +508,20 @@ const Tenants = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 text-center">
-                          {tenant.properties && tenant.properties.length > 0 && tenant.properties[0].name 
-                            ? tenant.properties[0].name 
-                            : '--'}
+                          {tenant.unit && tenant.unit.property && tenant.unit.property.name 
+                            ? tenant.unit.property.name 
+                            : tenant.properties && tenant.properties.length > 0 && tenant.properties[0].name 
+                              ? tenant.properties[0].name 
+                              : '--'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 text-center">
-                          {tenant.units && tenant.units.length > 0 && tenant.units[0].unit_number
-                            ? tenant.units.map(u => u.unit_number).join(', ')
-                            : '--'}
+                          {tenant.unit && tenant.unit.name 
+                            ? tenant.unit.name
+                            : tenant.units && tenant.units.length > 0 && tenant.units[0].unit_number
+                              ? tenant.units.map(u => u.unit_number).join(', ')
+                              : '--'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

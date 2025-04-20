@@ -32,6 +32,7 @@ class User(SQLModel, table=True):
     is_admin: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    is_email_verified: bool = Field(default=False)
 
     properties: List["Property"] = Relationship(back_populates="owner")
     vendor_details: Optional["Vendor"] = Relationship(back_populates="user")
@@ -45,20 +46,14 @@ class User(SQLModel, table=True):
         sa_relationship_kwargs={"foreign_keys": "Message.recipient_id"}
     )
     
-    # We'll set up tenant_details in the setup_user_relationships function
+    # Define tenant_details relationship directly
+    tenant_details: Optional["Tenant"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={
+            "primaryjoin": "User.id==Tenant.user_id", # Specify join condition
+            "lazy": "selectin",
+            "uselist": False # Indicate one-to-one or one-to-zero/one
+        }
+    )
     
     conversations: List["ConversationParticipant"] = Relationship(back_populates="user")
-
-# Function to set up relationships that would cause circular imports
-def setup_user_relationships():
-    from Backend.models.tenant import Tenant
-    
-    # Add relationship with the primaryjoin explicitly defined
-    if not hasattr(User, "tenant_details"):
-        User.tenant_details = Relationship(
-            back_populates="user",
-            sa_relationship_kwargs={
-                "primaryjoin": "User.id==Tenant.user_id",
-                "lazy": "selectin"
-            }
-        )

@@ -5,11 +5,12 @@ from sqlmodel import SQLModel, Field, Relationship, Column
 from sqlalchemy import String
 
 from Backend.models.user import User
+from Backend.models.tenant import TenantUnitLink
 
 if TYPE_CHECKING:
     from Backend.models.lease import Lease
     from Backend.models.vendor import Vendor
-    from Backend.models.tenant import Tenant, TenantUnitLink
+    from Backend.models.tenant import Tenant
     from Backend.models.accounting import Expense
 
 class PropertyStatus(str, Enum):
@@ -54,17 +55,29 @@ class Property(SQLModel, table=True):
     
     # Relationships
     owner: Optional[User] = Relationship(back_populates="properties")
-    units: List["PropertyUnit"] = Relationship(back_populates="property")
+    
+    # Configure cascade delete for units
+    units: List["PropertyUnit"] = Relationship(
+        back_populates="property",
+        sa_relationship_kwargs={'cascade': 'all, delete-orphan'}
+    )
+    
     leases: List["Lease"] = Relationship(back_populates="property")
     vendors: List["Vendor"] = Relationship(
         back_populates="properties",
-        sa_relationship_kwargs={
-            "secondary": "property_vendor_links"
-        }
+        link_model=PropertyVendorLink
     )
     expenses: List["Expense"] = Relationship(back_populates="property")
     
-    # current_tenants relationship will be set up in the setup_relationships function
+    # Relationship to current tenants (One-to-many)
+    current_tenants: List["Tenant"] = Relationship(
+        back_populates="current_property",
+        sa_relationship_kwargs={
+            # Explicitly define foreign keys using string
+            "foreign_keys": "[Tenant.current_property_id]",
+             "lazy": "selectin"
+        }
+    )
 
 class PropertyUnit(SQLModel, table=True):
     """Unit model representing individual units within a property"""
@@ -73,6 +86,7 @@ class PropertyUnit(SQLModel, table=True):
     
     id: Optional[int] = Field(default=None, primary_key=True)
     property_id: Optional[int] = Field(default=None, foreign_key="properties.id")
+    tenant_id: Optional[int] = Field(default=None, foreign_key="tenants.id") # Foreign key to the assigned tenant
     name: str = Field(index=True)
     description: Optional[str] = None
     size: Optional[float] = None
@@ -85,30 +99,22 @@ class PropertyUnit(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships
-    property: Optional["Property"] = Relationship(back_populates="units")
+    property: Optional[Property] = Relationship(back_populates="units")
     leases: List["Lease"] = Relationship(back_populates="unit")
-    
-# Function to initialize relationships that would otherwise cause circular imports
-def setup_property_relationships():
-    from Backend.models.tenant import Tenant, TenantUnitLink
-    
-    # Add tenant relationships to PropertyUnit
-    PropertyUnit.tenants = Relationship(
-        back_populates="units",
+
+    # Relationship to the assigned Tenant (Many-to-one)
+    tenant: Optional["Tenant"] = Relationship(
+        back_populates="assigned_units",
         sa_relationship_kwargs={
-            "secondary": "tenant_unit_link"
+             # Explicitly define foreign keys using string
+            "foreign_keys": "[PropertyUnit.tenant_id]",
         }
     )
     
-    PropertyUnit.tenant_links = Relationship(
-        back_populates="unit"
-    )
-    
-    # Set up current_tenants relationship for Property
-    Property.current_tenants = Relationship(
-        back_populates="current_property",
-        sa_relationship_kwargs={
-            "foreign_keys": [Tenant.current_property_id]
-        }
+    # Relationship to Tenants via link table (Many-to-many)
+    tenants: List["Tenant"] = Relationship(
+        back_populates="units", 
+        link_model=TenantUnitLink,
+        sa_relationship_kwargs={"lazy": "selectin"}
     )
 

@@ -4,6 +4,7 @@ from sqlmodel import SQLModel, Field, Relationship
 from enum import Enum
 from sqlalchemy import Column, String, Integer, ForeignKey, Table
 
+# Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from Backend.models.user import User
     from Backend.models.property import Property, PropertyUnit
@@ -13,26 +14,18 @@ class TenantStatus(str, Enum):
     ACTIVE = "Active"
     INACTIVE = "Inactive"
     PENDING = "Pending"
-    EVICTION = "Eviction"
+    EVICTED = "Evicted"
+    MOVED_OUT = "Moved Out"
 
 # Link table for tenant-unit many-to-many relationship
 class TenantUnitLink(SQLModel, table=True):
-    """Link table for tenant to unit relationship"""
     __tablename__ = "tenant_unit_link"
-    
-    tenant_id: Optional[int] = Field(
-        default=None, foreign_key="tenants.id", primary_key=True
-    )
-    unit_id: Optional[int] = Field(
-        default=None, foreign_key="property_units.id", primary_key=True
-    )
-    assigned_date: datetime = Field(default_factory=datetime.utcnow)
-    is_primary: bool = Field(default=True)
-    
-    # Relationship fields will be set up in setup_relationships function
+    tenant_id: Optional[int] = Field(default=None, foreign_key="tenants.id", primary_key=True)
+    unit_id: Optional[int] = Field(default=None, foreign_key="property_units.id", primary_key=True)
+    start_date: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    end_date: Optional[datetime] = None
 
 class Tenant(SQLModel, table=True):
-    """Model representing a tenant's information"""
     __tablename__ = "tenants"
     
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -44,60 +37,39 @@ class Tenant(SQLModel, table=True):
     status: TenantStatus = Field(default=TenantStatus.ACTIVE)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    
-    # Optional foreign key for current property
     current_property_id: Optional[int] = Field(default=None, foreign_key="properties.id")
     
-    # Direct relationship definitions - adding leases here
+    # --- Relationships Defined Directly --- 
+    
+    # Relationship to User (Optional one-to-one or one-to-many backref)
+    user: Optional["User"] = Relationship(back_populates="tenant_details") 
+                                        # Primary join inferred from user_id FK
+
+    # Relationship to Property (Current Property - Optional one-to-many backref)
+    current_property: Optional["Property"] = Relationship(back_populates="current_tenants")
+                                              # Uses current_property_id FK
+                                              # Foreign keys inferred automatically here
+    
+    # Relationship to Leases (One-to-many)
     leases: List["Lease"] = Relationship(back_populates="tenant")
     
-    # Other relationships will be set up in setup_relationships function
+    # Relationship to PropertyUnits (Assigned Units - One-to-many)
+    # This is the crucial one causing issues
+    assigned_units: List["PropertyUnit"] = Relationship(
+        back_populates="tenant",
+        sa_relationship_kwargs={
+            # Explicitly defining foreign keys using strings for robustness
+            "foreign_keys": "[PropertyUnit.tenant_id]", 
+            "lazy": "selectin"
+        }
+    )
 
-# This function will be called after all models are defined
-# to avoid circular import issues
-def setup_relationships():
-    from Backend.models.property import PropertyUnit, setup_property_relationships
-    from Backend.models.lease import Lease
-    from Backend.models.user import User, setup_user_relationships
-    
-    # Set up tenant links
-    TenantUnitLink.tenant = Relationship(
-        back_populates="unit_links"
-    )
-    TenantUnitLink.unit = Relationship(
-        back_populates="tenant_links"
+    # Relationship to PropertyUnits (Units via link table - Many-to-many)
+    # Less likely to be used directly if assigned_units exists, but kept for completeness
+    units: List["PropertyUnit"] = Relationship(
+        back_populates="tenants", 
+        link_model=TenantUnitLink, 
+        sa_relationship_kwargs={"lazy": "selectin"}
     )
     
-    # Set up tenant relationships
-    Tenant.user = Relationship(
-        back_populates="tenant_details",
-        sa_relationship_kwargs={
-            "primaryjoin": "Tenant.user_id==User.id"
-        }
-    )
-    
-    Tenant.unit_links = Relationship(
-        back_populates="tenant"
-    )
-    
-    # Add relationship to current property
-    Tenant.current_property = Relationship(
-        back_populates="current_tenants", 
-        sa_relationship_kwargs={
-            "foreign_keys": [Tenant.current_property_id]
-        }
-    )
-    
-    # Set up units relationship for Tenant
-    Tenant.units = Relationship(
-        back_populates="tenants",
-        sa_relationship_kwargs={
-            "secondary": "tenant_unit_link"
-        }
-    )
-    
-    # Set up user relationships
-    setup_user_relationships()
-    
-    # Now set up property relationships
-    setup_property_relationships() 
+# Removed setup_relationships function 

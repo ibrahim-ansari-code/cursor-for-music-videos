@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { fetchPropertyById } from '../utils/api';
+import { fetchPropertyById, createUnit, updateUnit, deleteUnit } from '../utils/api';
 import StatCard from '../components/StatCard'; // Import StatCard
 import UnitTable from '../components/UnitTable'; // Import UnitTable
+import NewUnitModal from '../components/NewUnitModal'; // Import NewUnitModal
+import AssignTenantModal from '../components/AssignTenantModal'; // Import AssignTenantModal
 
 // Icons for StatCards
 const UnitIcon = () => <i className="fas fa-door-closed text-blue-600"></i>;
@@ -14,6 +16,19 @@ const PropertyDetail = () => {
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Unit modal states
+  const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notification, setNotification] = useState(null);
+  
+  // Assign tenant modal states
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [currentUnit, setCurrentUnit] = useState(null);
+  
+  // Edit unit states
+  const [unitModalMode, setUnitModalMode] = useState('create');
+  const [unitInitialData, setUnitInitialData] = useState(null);
 
   const [stats, setStats] = useState({
     totalUnits: 0,
@@ -22,57 +37,217 @@ const PropertyDetail = () => {
   });
 
   useEffect(() => {
-    const loadProperty = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        console.log(`Fetching property details for ID: ${id}`);
-        const data = await fetchPropertyById(id);
-        console.log('Property data received:', data);
-        setProperty(data);
-
-        // Calculate stats based on the fetched units
-        if (data && data.units) {
-          const totalUnits = data.units.length;
-          const vacantUnits = data.units.filter(unit => !unit.is_rented).length;
-          const monthlyRevenue = data.units
-            .filter(unit => unit.is_rented && unit.monthly_rent)
-            .reduce((sum, unit) => sum + unit.monthly_rent, 0);
-          
-          setStats({ totalUnits, vacantUnits, monthlyRevenue });
-        }
-
-      } catch (err) {
-        console.error('Error fetching property details:', err);
-        setError(err.message || 'Failed to load property details.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (id) {
-      loadProperty();
-    }
+    loadProperty();
   }, [id]);
+
+  const loadProperty = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log(`Fetching property details for ID: ${id}`);
+      const data = await fetchPropertyById(id);
+      console.log('Property data received:', data);
+      setProperty(data);
+
+      // Calculate stats based on the fetched units
+      if (data && data.units) {
+        const totalUnits = data.units.length;
+        const vacantUnits = data.units.filter(unit => !unit.is_rented).length;
+        const monthlyRevenue = data.units
+          .filter(unit => unit.is_rented && unit.monthly_rent)
+          .reduce((sum, unit) => sum + unit.monthly_rent, 0);
+        
+        setStats({ totalUnits, vacantUnits, monthlyRevenue });
+      }
+
+    } catch (err) {
+      console.error('Error fetching property details:', err);
+      setError(err.message || 'Failed to load property details.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
   };
 
-  // Functions for unit actions
+  // Function to handle unit editing
   const handleEditUnit = (unitId) => {
-    console.log(`Edit unit clicked: ${unitId}`);
-    // Open edit modal logic here
+    if (!property || !property.units) return;
+    
+    // Find the unit in the property data
+    const unitToEdit = property.units.find(unit => unit.id === unitId);
+    if (!unitToEdit) {
+      console.error(`Unit with ID ${unitId} not found`);
+      return;
+    }
+    
+    // Set up the edit mode
+    setUnitModalMode('edit');
+    setUnitInitialData({
+      name: unitToEdit.name,
+      floor: unitToEdit.floor,
+      monthly_rent: unitToEdit.monthly_rent || '',
+      is_rented: unitToEdit.is_rented
+    });
+    setCurrentUnit(unitToEdit);
+    setIsUnitModalOpen(true);
   };
 
-  const handleDeleteUnit = (unitId) => {
-    console.log(`Delete unit clicked: ${unitId}`);
-    // Confirm and call delete API logic here
+  // Function to handle unit deletion
+  const handleDeleteUnit = async (unitId) => {
+    if (!window.confirm('Are you sure you want to delete this unit? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      setIsSubmitting(true);
+      console.log(`Deleting unit with ID: ${unitId}`);
+      
+      // Call API to delete the unit
+      await deleteUnit(unitId);
+      
+      // Show success notification
+      setNotification({
+        type: 'success',
+        message: 'Unit deleted successfully'
+      });
+      
+      // Refresh property data
+      await loadProperty();
+      
+      // Clear notification after 3 seconds
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+    } catch (error) {
+      console.error('Error deleting unit:', error);
+      setNotification({
+        type: 'error',
+        message: error.message || 'Failed to delete unit'
+      });
+      
+      // Clear notification after 3 seconds
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleAddNewUnit = () => {
-    console.log('Add new unit clicked');
-    // Open add unit modal logic here
+    // Reset to create mode
+    setUnitModalMode('create');
+    setUnitInitialData(null);
+    setCurrentUnit(null);
+    setIsUnitModalOpen(true);
+  };
+
+  // Function to handle unit creation or update
+  const handleUnitSubmit = async (propertyId, unitData) => {
+    try {
+      setIsSubmitting(true);
+      let result;
+      
+      // If we're in edit mode and have a current unit
+      if (unitModalMode === 'edit' && currentUnit) {
+        console.log(`Updating unit ${currentUnit.id} with data:`, unitData);
+        
+        // Call API to update the unit
+        result = await updateUnit(currentUnit.id, unitData);
+        
+        // Show success notification
+        setNotification({
+          type: 'success',
+          message: 'Unit updated successfully'
+        });
+      } else {
+        // We're in create mode
+        console.log('Creating new unit with data:', unitData);
+        
+        // Call API to create the unit
+        result = await createUnit(propertyId, unitData);
+        
+        // Show success notification
+        setNotification({
+          type: 'success',
+          message: 'Unit created successfully'
+        });
+      }
+      
+      // Reset modal state
+      setUnitModalMode('create');
+      setUnitInitialData(null);
+      setCurrentUnit(null);
+      setIsUnitModalOpen(false);
+      
+      // Refresh property data to include the new/updated unit
+      await loadProperty();
+      
+      // Clear notification after 3 seconds
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      
+      return result;
+    } catch (error) {
+      console.error('Error saving unit:', error);
+      
+      // Display a more user-friendly error
+      const errorMessage = error.message || 'Failed to save unit';
+      setNotification({
+        type: 'error',
+        message: errorMessage
+      });
+      
+      // Clear notification after 3 seconds
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      
+      // Re-throw so the modal can handle display of the error
+      throw error;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Function to handle assign tenant action
+  const handleAssignTenant = (unit) => {
+    setCurrentUnit(unit);
+    setIsAssignModalOpen(true);
+  };
+
+  // Function to refresh data after tenant assignment
+  const handleTenantAssigned = async () => {
+    // Show success notification
+    setNotification({
+      type: 'success',
+      message: 'Tenant assigned successfully'
+    });
+    
+    // Refresh property data
+    await loadProperty();
+    
+    // Clear notification after 3 seconds
+    setTimeout(() => {
+      setNotification(null);
+    }, 3000);
+  };
+
+  // Close the assign tenant modal
+  const handleCloseAssignModal = () => {
+    setIsAssignModalOpen(false);
+    setCurrentUnit(null);
+  };
+
+  // Close the unit modal
+  const handleCloseUnitModal = () => {
+    setIsUnitModalOpen(false);
+    setCurrentUnit(null);
+    setUnitInitialData(null);
   };
 
   if (loading) return (
@@ -134,6 +309,28 @@ const PropertyDetail = () => {
         </nav>
       </div>
 
+      {/* Notification */}
+      {notification && (
+        <div className={`mb-6 p-4 rounded-lg ${notification.type === 'success' ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              {notification.type === 'success' ? (
+                <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium">{notification.message}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <StatCard 
@@ -183,9 +380,34 @@ const PropertyDetail = () => {
           loading={false} // We're already handling main page loading state
           error={null}
           onEdit={handleEditUnit} 
-          onDelete={handleDeleteUnit} 
+          onDelete={handleDeleteUnit}
+          onAssign={handleAssignTenant} 
         />
       </div>
+
+      {/* Unit Modal - Used for both creating and editing */}
+      <NewUnitModal
+        isOpen={isUnitModalOpen}
+        onClose={handleCloseUnitModal}
+        onSubmit={handleUnitSubmit}
+        propertyId={id}
+        isLoading={isSubmitting}
+        initialData={unitInitialData}
+        mode={unitModalMode}
+      />
+
+      {/* Assign Tenant Modal */}
+      {currentUnit && (
+        <AssignTenantModal
+          isOpen={isAssignModalOpen}
+          onClose={handleCloseAssignModal}
+          onSubmit={handleTenantAssigned}
+          propertyId={id}
+          unitId={currentUnit.id}
+          unitName={currentUnit.name}
+          isLoading={isSubmitting}
+        />
+      )}
     </div>
   );
 };
