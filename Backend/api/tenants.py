@@ -4,9 +4,11 @@ from datetime import datetime, date
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
-from sqlalchemy.orm import joinedload
-from pydantic import BaseModel, constr, EmailStr, validator
+from sqlalchemy.orm import joinedload, selectinload
+from pydantic import BaseModel, constr, EmailStr, validator, computed_field
 from sqlmodel import col
+# Explicitly import property decorator (though usually built-in)
+# from builtins import property # No longer needed
 
 from Backend.database import get_session
 from Backend.models.tenant import Tenant, TenantStatus, TenantUnitLink
@@ -25,6 +27,23 @@ router = APIRouter(
 )
 
 # === Models ===
+
+# Minimal response models for related entities
+class PropertyResponseSimple(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+class UnitResponseSimple(BaseModel):
+    id: int
+    name: str # Assuming unit has a 'name' or 'unit_number' field
+    property: Optional[PropertyResponseSimple] = None # Nested property info
+
+    class Config:
+        from_attributes = True
+
 class TenantBase(BaseModel):
     first_name: str
     last_name: str
@@ -80,16 +99,19 @@ class TenantResponse(BaseModel):
     status: TenantStatus
     created_at: datetime
     updated_at: datetime
+    # Add fields for unit and property
+    unit: Optional[UnitResponseSimple] = None
+    property: Optional[PropertyResponseSimple] = None
     
     class Config:
         from_attributes = True
     
-    @property
+    @computed_field
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}".strip()
 
 # === API Routes ===
-@router.get("/", response_model=List[dict])
+@router.get("/", response_model=List[TenantResponse])
 async def get_tenants(
     status: Optional[TenantStatus] = None,
     search: Optional[str] = None,
@@ -99,11 +121,11 @@ async def get_tenants(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Get all tenants with optional filtering.
+    Get all tenants with optional filtering, including their assigned unit and property.
     """
     logger.info(f"User {current_user.email} is retrieving tenants")
     
-    # Use simple select without joinedload for now - we'll fetch relationships separately
+    # Base query for tenants
     query = select(Tenant)
     
     # Apply filters if provided
@@ -112,7 +134,6 @@ async def get_tenants(
     
     if search:
         search_term = f"%{search}%"
-        # Search in both first and last name
         query = query.where(
             or_(
                 col(Tenant.first_name).ilike(search_term),
@@ -124,96 +145,38 @@ async def get_tenants(
     query = query.offset(skip).limit(limit)
     
     result = await session.execute(query)
-    tenants = result.scalars().all()
-    logger.info(f"Retrieved {len(tenants)} tenants")
+    tenants_orm = result.scalars().all()
+    logger.info(f"Retrieved {len(tenants_orm)} tenants")
     
-    # Convert each tenant to a response dictionary with all necessary data
+    # Convert ORM objects to response models
     response_data = []
-    for tenant in tenants:
-        # Basic tenant data
-        tenant_dict = {
-            "id": tenant.id,
-            "first_name": tenant.first_name,
-            "last_name": tenant.last_name,
-            "full_name": f"{tenant.first_name} {tenant.last_name}".strip(),
-            "phone": tenant.phone,
-            "email": tenant.email,
-            "status": tenant.status,
-            "created_at": tenant.created_at,
-            "updated_at": tenant.updated_at,
-            
-            # Initialize empty related data
-            "properties": [],
-            "units": [],
-            "leases": []
-        }
-        
-        # Fetch current property if it exists
-        if tenant.current_property_id is not None:
-            property_query = select(Property).where(Property.id == tenant.current_property_id)
-            property_result = await session.execute(property_query)
-            current_property = property_result.scalar_one_or_none()
-            
-            if current_property:
-                tenant_dict["properties"] = [{
-                    "id": current_property.id,
-                    "name": current_property.name
-                }]
-        
-        # Fetch units for this tenant
-        unit_links_query = select(TenantUnitLink).where(TenantUnitLink.tenant_id == tenant.id)
-        unit_links_result = await session.execute(unit_links_query)
-        unit_links = unit_links_result.scalars().all()
-        
-        if unit_links:
-            unit_ids = [link.unit_id for link in unit_links]
-            units_query = select(PropertyUnit).where(PropertyUnit.id.in_(unit_ids))
-            units_result = await session.execute(units_query)
-            units = units_result.scalars().all()
-            
-            tenant_dict["units"] = [
-                {"id": unit.id, "unit_number": unit.unit_number} 
-                for unit in units
-            ]
-        
-        # Fetch leases for this tenant
-        leases_query = select(Lease).where(Lease.tenant_id == tenant.id)
-        leases_result = await session.execute(leases_query)
-        leases = leases_result.scalars().all()
-        
-        # Add lease information that we need for counts
-        if leases:
-            active_leases = []
-            now = datetime.utcnow().date()
-            
-            for lease in leases:
-                lease_data = {
-                    "id": lease.id,
-                    "start_date": lease.start_date,
-                    "end_date": lease.end_date,
-                    "status": lease.status,
-                    "monthly_rent": lease.monthly_rent
-                }
-                
-                # Add to active_leases array if it's current
-                if (lease.status == "ACTIVE" and 
-                    lease.start_date <= now and 
-                    lease.end_date >= now):
-                    active_leases.append(lease_data)
-                    
-                tenant_dict["leases"].append(lease_data)
-                
-            # Add helpful derived properties for dashboard counting
-            if active_leases:
-                active_lease = active_leases[0]  # Use the first active lease
-                tenant_dict["lease_start"] = active_lease["start_date"]
-                tenant_dict["lease_end"] = active_lease["end_date"]
-        
-        response_data.append(tenant_dict)
+    for tenant in tenants_orm:
+        # Fetch the assigned unit and property
+        assigned_unit_query = (
+            select(PropertyUnit)
+            .options(selectinload(PropertyUnit.property)) 
+            .where(PropertyUnit.tenant_id == tenant.id)
+            .limit(1)
+        )
+        unit_result = await session.execute(assigned_unit_query)
+        assigned_unit = unit_result.scalar_one_or_none()
+
+        # Create the Pydantic response model instance
+        tenant_response = TenantResponse.model_validate(tenant) # Use Pydantic validation
+
+        # Populate unit and property details if found
+        if assigned_unit and assigned_unit.property:
+            property_info = PropertyResponseSimple.model_validate(assigned_unit.property)
+            unit_info = UnitResponseSimple.model_validate(assigned_unit)
+            unit_info.property = property_info
+            tenant_response.unit = unit_info
+            tenant_response.property = property_info
+
+        response_data.append(tenant_response)
     
     return response_data
 
-@router.get("/{tenant_id}", response_model=dict)
+@router.get("/{tenant_id}", response_model=TenantResponse)
 async def get_tenant(
     tenant_id: int,
     current_user: User = Depends(get_current_user),
@@ -224,101 +187,41 @@ async def get_tenant(
     """
     logger.info(f"User {current_user.email} is retrieving tenant {tenant_id}")
     
-    # Use simple select without joinedload
     query = select(Tenant).where(Tenant.id == tenant_id)
-    
     result = await session.execute(query)
-    tenant = result.scalar_one_or_none()
+    tenant_orm = result.scalar_one_or_none()
     
-    if not tenant:
+    if not tenant_orm:
         logger.warning(f"Tenant {tenant_id} not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Tenant not found"
         )
-    
-    # Convert tenant to a dictionary with all necessary data
-    tenant_dict = {
-        "id": tenant.id,
-        "first_name": tenant.first_name,
-        "last_name": tenant.last_name,
-        "full_name": f"{tenant.first_name} {tenant.last_name}".strip(),
-        "phone": tenant.phone,
-        "email": tenant.email,
-        "status": tenant.status,
-        "created_at": tenant.created_at,
-        "updated_at": tenant.updated_at,
-        
-        # Initialize empty related data
-        "properties": [],
-        "units": [],
-        "leases": []
-    }
-    
-    # Fetch current property if it exists
-    if tenant.current_property_id is not None:
-        property_query = select(Property).where(Property.id == tenant.current_property_id)
-        property_result = await session.execute(property_query)
-        current_property = property_result.scalar_one_or_none()
-        
-        if current_property:
-            tenant_dict["properties"] = [{
-                "id": current_property.id,
-                "name": current_property.name
-            }]
-    
-    # Fetch units for this tenant
-    unit_links_query = select(TenantUnitLink).where(TenantUnitLink.tenant_id == tenant.id)
-    unit_links_result = await session.execute(unit_links_query)
-    unit_links = unit_links_result.scalars().all()
-    
-    if unit_links:
-        unit_ids = [link.unit_id for link in unit_links]
-        units_query = select(PropertyUnit).where(PropertyUnit.id.in_(unit_ids))
-        units_result = await session.execute(units_query)
-        units = units_result.scalars().all()
-        
-        tenant_dict["units"] = [
-            {"id": unit.id, "unit_number": unit.unit_number} 
-            for unit in units
-        ]
-    
-    # Fetch leases for this tenant
-    leases_query = select(Lease).where(Lease.tenant_id == tenant.id)
-    leases_result = await session.execute(leases_query)
-    leases = leases_result.scalars().all()
-    
-    # Add lease information that we need for counts
-    if leases:
-        active_leases = []
-        now = datetime.utcnow().date()
-        
-        for lease in leases:
-            lease_data = {
-                "id": lease.id,
-                "start_date": lease.start_date,
-                "end_date": lease.end_date,
-                "status": lease.status,
-                "monthly_rent": lease.monthly_rent
-            }
-            
-            # Add to active_leases array if it's current
-            if (lease.status == "ACTIVE" and 
-                lease.start_date <= now and 
-                lease.end_date >= now):
-                active_leases.append(lease_data)
-                
-            tenant_dict["leases"].append(lease_data)
-            
-        # Add helpful derived properties for dashboard counting
-        if active_leases:
-            active_lease = active_leases[0]  # Use the first active lease
-            tenant_dict["lease_start"] = active_lease["start_date"]
-            tenant_dict["lease_end"] = active_lease["end_date"]
-    
-    return tenant_dict
 
-@router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
+    # Fetch the assigned unit and property (similar to get_tenants)
+    assigned_unit_query = (
+        select(PropertyUnit)
+        .options(selectinload(PropertyUnit.property))
+        .where(PropertyUnit.tenant_id == tenant_orm.id)
+        .limit(1)
+    )
+    unit_result = await session.execute(assigned_unit_query)
+    assigned_unit = unit_result.scalar_one_or_none()
+
+    # Create the Pydantic response model instance
+    tenant_response = TenantResponse.model_validate(tenant_orm) # Use Pydantic validation
+
+    # Populate unit and property details if found
+    if assigned_unit and assigned_unit.property:
+        property_info = PropertyResponseSimple.model_validate(assigned_unit.property)
+        unit_info = UnitResponseSimple.model_validate(assigned_unit)
+        unit_info.property = property_info
+        tenant_response.unit = unit_info
+        tenant_response.property = property_info
+
+    return tenant_response # Return the Pydantic model
+
+@router.post("/", response_model=TenantResponse, status_code=status.HTTP_201_CREATED)
 async def create_tenant(
     tenant_data: TenantCreate,
     current_user: User = Depends(get_current_user),
@@ -330,14 +233,13 @@ async def create_tenant(
     logger.info(f"User {current_user.email} is creating a new tenant with data: {tenant_data}")
     
     try:
-        # Create new tenant without requiring a user ID
+        # Create new tenant ORM instance
         tenant = Tenant(
             first_name=tenant_data.first_name,
             last_name=tenant_data.last_name,
             phone=tenant_data.phone,
             email=tenant_data.email,
             status=tenant_data.status,
-            # Don't default to current user ID to avoid unique constraint errors
             user_id=tenant_data.user_id,
             current_property_id=tenant_data.current_property_id
         )
@@ -348,11 +250,8 @@ async def create_tenant(
         
         logger.info(f"Tenant {tenant.id} created successfully")
         
-        tenant_response = TenantResponse.model_validate(tenant)
-        tenant_dict = tenant_response.model_dump()
-        tenant_dict["full_name"] = tenant_response.full_name
-        
-        return tenant_dict
+        # Return validated Pydantic model
+        return TenantResponse.model_validate(tenant)
     except Exception as e:
         logger.error(f"Error creating tenant: {str(e)}")
         await session.rollback()
@@ -361,7 +260,7 @@ async def create_tenant(
             detail=f"Failed to create tenant: {str(e)}"
         )
 
-@router.patch("/{tenant_id}", response_model=dict)
+@router.patch("/{tenant_id}", response_model=TenantResponse)
 async def update_tenant(
     tenant_id: int,
     tenant_data: TenantUpdate,
@@ -390,7 +289,6 @@ async def update_tenant(
         for key, value in update_data.items():
             setattr(tenant, key, value)
         
-        # Update the updated_at timestamp
         tenant.updated_at = datetime.utcnow()
         
         session.add(tenant)
@@ -399,11 +297,8 @@ async def update_tenant(
         
         logger.info(f"Tenant {tenant_id} updated successfully")
         
-        tenant_response = TenantResponse.model_validate(tenant)
-        tenant_dict = tenant_response.model_dump()
-        tenant_dict["full_name"] = tenant_response.full_name
-        
-        return tenant_dict
+        # Return validated Pydantic model
+        return TenantResponse.model_validate(tenant)
     except HTTPException:
         raise
     except Exception as e:

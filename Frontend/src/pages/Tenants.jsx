@@ -6,6 +6,7 @@ import {
   fetchOutstandingPayments
 } from '../utils/api';
 import TenantModal from '../components/TenantModal';
+import UpdateTenantModal from '../components/UpdateTenantModal';
 
 const Tenants = () => {
   const [tenants, setTenants] = useState([]);
@@ -17,6 +18,7 @@ const Tenants = () => {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -157,10 +159,16 @@ const Tenants = () => {
     return tenantsWithExpiringLeases.length;
   };
 
-  // Handle adding/editing a tenant
-  const handleAddEditTenant = (tenant = null) => {
-    setSelectedTenant(tenant);
+  // Handle adding a tenant
+  const handleAddTenant = () => {
+    setSelectedTenant(null);
     setIsModalOpen(true);
+  };
+
+  // Handle editing a tenant
+  const handleEditTenant = (tenant) => {
+    setSelectedTenant(tenant);
+    setIsUpdateModalOpen(true);
   };
 
   // Handle tenant save (create/update)
@@ -178,8 +186,9 @@ const Tenants = () => {
         expiringSoon: countExpiringLeases(updatedTenants)
       }));
       
-      // Close modal
+      // Close modals
       setIsModalOpen(false);
+      setIsUpdateModalOpen(false);
       setSelectedTenant(null);
     } catch (err) {
       console.error('Failed to refresh tenant data:', err);
@@ -388,7 +397,7 @@ const Tenants = () => {
           <h2 className="text-lg font-medium text-gray-900">Tenant Directory</h2>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => handleAddEditTenant()}
+              onClick={handleAddTenant}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -448,7 +457,7 @@ const Tenants = () => {
             <h3 className="text-lg font-medium text-gray-900 mb-2">No tenants yet</h3>
             <p className="text-gray-500 mb-6">Start by adding your first tenant.</p>
             <button
-              onClick={() => handleAddEditTenant()}
+              onClick={handleAddTenant}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -466,7 +475,7 @@ const Tenants = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Name
                     </th>
                     <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -492,14 +501,14 @@ const Tenants = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {tenants.map((tenant) => (
                     <tr key={tenant.id} className="hover:bg-gray-50 transition-colors duration-150">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center">
                           <div className="flex-shrink-0 h-10 w-10">
                             <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
                               <span className="text-gray-700 font-medium">{getInitials(tenant)}</span>
                             </div>
                           </div>
-                          <div className="ml-4">
+                          <div className="ml-4 text-left">
                             <div className="text-sm font-medium text-gray-900">
                               {tenant.first_name} {tenant.last_name}
                             </div>
@@ -508,20 +517,13 @@ const Tenants = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 text-center">
-                          {tenant.unit && tenant.unit.property && tenant.unit.property.name 
-                            ? tenant.unit.property.name 
-                            : tenant.properties && tenant.properties.length > 0 && tenant.properties[0].name 
-                              ? tenant.properties[0].name 
-                              : '--'}
+                          {tenant.property ? tenant.property.name : 
+                           (tenant.unit && tenant.unit.property ? tenant.unit.property.name : '--')}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 text-center">
-                          {tenant.unit && tenant.unit.name 
-                            ? tenant.unit.name
-                            : tenant.units && tenant.units.length > 0 && tenant.units[0].unit_number
-                              ? tenant.units.map(u => u.unit_number).join(', ')
-                              : '--'}
+                          {tenant.unit ? tenant.unit.name : '--'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -540,47 +542,19 @@ const Tenants = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                        <div className="relative flex justify-center">
+                        <div className="flex justify-center space-x-3">
                           <button
-                            onClick={() => setActionMenuOpen(actionMenuOpen === tenant.id ? null : tenant.id)}
-                            className="text-gray-500 hover:text-gray-700 focus:outline-none p-1 rounded-full hover:bg-gray-100"
-                            aria-label="Tenant actions"
+                            onClick={() => handleEditTenant(tenant)}
+                            className="text-blue-600 hover:text-blue-900 focus:outline-none"
                           >
-                            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
-                            </svg>
+                            Edit
                           </button>
-                          {actionMenuOpen === tenant.id && (
-                            <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10 divide-y divide-gray-100">
-                              <div className="py-1" role="menu" aria-orientation="vertical">
-                                <button
-                                  onClick={() => {
-                                    setActionMenuOpen(null);
-                                    handleAddEditTenant(tenant);
-                                  }}
-                                  className="group flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                                  role="menuitem"
-                                >
-                                  <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                  </svg>
-                                  Edit
-                                </button>
-                              </div>
-                              <div className="py-1" role="menu" aria-orientation="vertical">
-                                <button
-                                  onClick={() => handleDeleteTenant(tenant.id)}
-                                  className="group flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100 hover:text-red-700"
-                                  role="menuitem"
-                                >
-                                  <svg className="mr-3 h-5 w-5 text-red-400 group-hover:text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                  </svg>
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                          <button
+                            onClick={() => handleDeleteTenant(tenant.id)}
+                            className="text-red-600 hover:text-red-900 focus:outline-none"
+                          >
+                            Delete
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -613,16 +587,20 @@ const Tenants = () => {
         </div>
       )}
 
-      {/* Tenant Modal */}
+      {/* Add Tenant Modal */}
       <TenantModal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedTenant(null);
-        }}
-        tenant={selectedTenant}
+        onClose={() => setIsModalOpen(false)}
         onSave={handleSaveTenant}
         source="tenantsPage"
+      />
+
+      {/* Edit Tenant Modal */}
+      <UpdateTenantModal
+        isOpen={isUpdateModalOpen}
+        onClose={() => setIsUpdateModalOpen(false)}
+        tenant={selectedTenant}
+        onSave={handleSaveTenant}
       />
     </div>
   );

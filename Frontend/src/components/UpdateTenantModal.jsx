@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createTenant } from '../utils/api';
+import { updateTenant } from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // UI Components
@@ -62,14 +62,13 @@ const Button = ({ type, onClick, variant = "primary", disabled, children, classN
   );
 };
 
-const TenantModal = ({ isOpen, onClose, onSave, source }) => {
+const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
     phone: '',
     email: '',
     status: 'active',
-    current_property_id: null,
   });
   
   const [isLoading, setIsLoading] = useState(false);
@@ -79,23 +78,25 @@ const TenantModal = ({ isOpen, onClose, onSave, source }) => {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const modalRef = useRef(null);
 
-  // Reset form when modal opens/closes
+  // Sync tenant prop to formData state
   useEffect(() => {
-    if (isOpen) {
+    if (tenant && isOpen) {
       setFormData({
-        first_name: '',
-        last_name: '',
-        phone: '',
-        email: '',
-        status: 'active',
-        current_property_id: null,
+        first_name: tenant.first_name || '',
+        last_name: tenant.last_name || '',
+        phone: tenant.phone || '',
+        email: tenant.email || '',
+        status: tenant.status || 'active',
+        current_property_id: tenant.current_property_id || null,
       });
+      
+      // Clear any previous errors
       setFieldErrors({});
       setError(null);
       setTouched({});
       setSubmitAttempted(false);
     }
-  }, [isOpen]);
+  }, [tenant, isOpen]);
 
   // Handle form field changes
   const handleChange = (e) => {
@@ -197,17 +198,15 @@ const TenantModal = ({ isOpen, onClose, onSave, source }) => {
     setIsLoading(true);
 
     try {
-      const response = await createTenant(formData);
+      const response = await updateTenant(tenant.id, formData);
       
       if (onSave) {
         onSave(response);
       }
       
-      if (!source || source !== "importLeaseModal") {
-        onClose();
-      }
+      onClose();
     } catch (err) {
-      console.error('Failed to create tenant:', err);
+      console.error('Failed to update tenant:', err);
       
       if (err.data?.detail && Array.isArray(err.data.detail)) {
         const validationErrors = {};
@@ -220,7 +219,7 @@ const TenantModal = ({ isOpen, onClose, onSave, source }) => {
         setFieldErrors(validationErrors);
         setError('Please correct the validation errors below.');
       } else {
-        setError(err.message || 'Failed to create tenant. Please try again.');
+        setError(err.message || 'Failed to update tenant. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -246,7 +245,7 @@ const TenantModal = ({ isOpen, onClose, onSave, source }) => {
       >
         {/* Header */}
         <div className="sticky top-0 z-10 px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">Add Tenant</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Edit Tenant</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full p-1 transition-colors duration-200"
@@ -360,10 +359,10 @@ const TenantModal = ({ isOpen, onClose, onSave, source }) => {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Creating...
+                Updating...
               </>
             ) : (
-              'Save'
+              'Save Changes'
             )}
           </Button>
         </div>
@@ -372,4 +371,4 @@ const TenantModal = ({ isOpen, onClose, onSave, source }) => {
   );
 };
 
-export default TenantModal; 
+export default UpdateTenantModal; 

@@ -975,6 +975,18 @@ build-docs = ["cloud-sptheme (>=1.10.1)", "sphinx (>=1.6)", "sphinxcontrib-fullt
 totp = ["cryptography"]
 
 [[package]]
+name = "property"
+version = "2.6.2"
+description = "A python module to load property files. Recursively define properties, load from env."
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "property-2.6.2-py3-none-any.whl", hash = "sha256:643c36a4f072e158d87f67da1a946a581eca4059b356cd6f557f33d3bb1be693"},
+    {file = "property-2.6.2.tar.gz", hash = "sha256:9e4a44b554f3d045ee2f8260c15bdd262e658cd98a0a136b30ee96690933cf21"},
+]
+
+[[package]]
 name = "psycopg"
 version = "3.2.6"
 description = "PostgreSQL database adapter for Python"
@@ -1754,4 +1766,4 @@ watchdog = ["watchdog (>=2.3)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11"
-content-hash = "336e67303daefef7e97eada31c2103529f945604c06d5bdb8bccf397e8ab66ad"
+content-hash = "73e26cffdf5d4435e778c1a699269c53ff8ec60fb2581f34447ca779f275776b"
