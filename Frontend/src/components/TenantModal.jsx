@@ -113,7 +113,7 @@ const TenantModal = ({ isOpen, onClose, onSave, source, tenant = {}, propertyId 
       setTouched({});
       setSubmitAttempted(false);
     }
-  }, [isOpen, tenant, propertyId, unitId, unitName]);
+  }, [isOpen, propertyId, unitId, unitName, tenant?.id]);
 
   // Handle form field changes
   const handleChange = (e) => {

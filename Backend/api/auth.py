@@ -217,6 +217,7 @@ async def register_user(
         city=user_data.city,
         province=user_data.province,
         postal_code=user_data.postal_code,
+        is_email_verified=True
     )
 
     session.add(db_user)
@@ -373,23 +374,23 @@ async def upload_user_avatar(
             detail="Failed to upload avatar. Please try again."
         )
 
-# === Email Verification ===
-async def send_verification_email(user: User):
-    token = serializer.dumps(user.email, salt='email-confirm')
-    verification_link = f"http://yourdomain.com/auth/verify-email?token={token}"
-    message = Mail(
-        from_email='no-reply@yourdomain.com',
-        to_emails=user.email,
-        subject='Verify your email',
-        html_content=f'<p>Please verify your email by clicking <a href="{verification_link}">here</a>.</p>'
-    )
-    try:
-        # TODO: Replace with actual SendGrid API key
-        sg = SendGridAPIClient('SENDGRID_API_KEY')
-        response = sg.send(message)
-        logger.info(f"Email sent to {user.email}: {response.status_code}")
-    except Exception as e:
-        logger.error(f"Error sending email: {str(e)}")
+# # === Email Verification ===
+# async def send_verification_email(user: User):
+#     token = serializer.dumps(user.email, salt='email-confirm')
+#     verification_link = f"http://yourdomain.com/auth/verify-email?token={token}"
+#     message = Mail(
+#         from_email='no-reply@yourdomain.com',
+#         to_emails=user.email,
+#         subject='Verify your email',
+#         html_content=f'<p>Please verify your email by clicking <a href="{verification_link}">here</a>.</p>'
+#     )
+#     try:
+#         # TODO: Replace with actual SendGrid API key
+#         sg = SendGridAPIClient('SENDGRID_API_KEY')
+#         response = sg.send(message)
+#         logger.info(f"Email sent to {user.email}: {response.status_code}")
+#     except Exception as e:
+#         logger.error(f"Error sending email: {str(e)}")
 
 @router.get("/verify-email")
 async def verify_email(token: str, session: AsyncSession = Depends(get_session)):
@@ -409,8 +410,8 @@ async def verify_email(token: str, session: AsyncSession = Depends(get_session))
     return {"message": "Email verified successfully"}
 
 # === Email Verification ===
-@router.post("/resend-verification")
-async def resend_verification(current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
-    if not current_user.is_email_verified:
-        await send_verification_email(current_user)
-    return {"message": "Verification email resent successfully"}
+# @router.post("/resend-verification")
+# async def resend_verification(current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+#     if not current_user.is_email_verified:
+#         await send_verification_email(current_user)
+#     return {"message": "Verification email resent successfully"}

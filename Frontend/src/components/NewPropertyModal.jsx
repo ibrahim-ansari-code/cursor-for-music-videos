@@ -422,7 +422,9 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading, propertyData, 
 
     // Only include essential fields in required validation
     let requiredFields = ['name', 'address', 'city', 'province', 'postal_code', 'property_type'];
-    if (formData.property_type === 'apartment-complex') {
+    
+    // Add apartment-specific fields ONLY when creating, not editing
+    if (formData.property_type === 'apartment-complex' && !isEditing) { 
       requiredFields = [...requiredFields, 'num_floors', 'units_per_floor'];
       if (!formData.auto_generate_units) {
         requiredFields.push('manual_units');
@@ -441,8 +443,16 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading, propertyData, 
       // Prepare property payload
       const propertyPayload = { ...formData };
       
+      // Convert empty optional fields to null for backend validation
+      if (propertyPayload.year_built === '') {
+        propertyPayload.year_built = null;
+      }
+      if (propertyPayload.description === '') {
+        propertyPayload.description = null;
+      }
+
       // Handle units for apartment complex
-      if (formData.property_type === 'apartment-complex') {
+      if (formData.property_type === 'apartment-complex' && !isEditing) { // Only handle units on create
         // Generate units if auto-generate is enabled
         let units = [];
         
@@ -458,17 +468,21 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading, propertyData, 
         propertyPayload.units = units;
       }
       
-      // Remove apartment configuration fields from payload
+      // Remove apartment configuration fields from payload, ESPECIALLY for updates
       delete propertyPayload.num_floors;
       delete propertyPayload.units_per_floor;
       delete propertyPayload.auto_generate_units;
       delete propertyPayload.manual_units;
+      if (isEditing) { // Also remove units array if editing
+          delete propertyPayload.units;
+          delete propertyPayload.property_type; // Don't send property_type on updates
+      }
 
-      // Call the onSubmit passed from parent
-      const createdProperty = await onSubmit(propertyPayload);
+      // Call the onSubmit passed from parent (will call createProperty or updateProperty)
+      const savedProperty = await onSubmit(propertyPayload);
 
-      // Unit creation is now handled by the backend
-      console.log("Property and units created successfully:", createdProperty);
+      // Unit creation is now handled by the backend (or ignored on update)
+      console.log(`Property ${isEditing ? 'updated' : 'created/units created'} successfully:`, savedProperty);
 
       // Reset form and close modal on overall success
       setFormData(initialFormData);
@@ -493,7 +507,20 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading, propertyData, 
       
       onClose();
     } catch (err) {
-      setError(err.message || `Failed to ${isEditing ? 'update' : 'create'} property`);
+       // Improved error handling
+      let errorMessage = `Failed to ${isEditing ? 'update' : 'create'} property`;
+      // Attempt to get a more specific message from the backend response
+      if (err.response && err.response.data && err.response.data.detail) {
+        // Handle FastAPI validation errors (often an array)
+        if (Array.isArray(err.response.data.detail)) {
+          errorMessage = err.response.data.detail.map(d => `${d.loc ? d.loc.join(' -> ') + ': ' : ''}${d.msg}`).join('; ');
+        } else {
+          errorMessage = err.response.data.detail; // Standard string detail
+        }
+      } else if (err.message) {
+        errorMessage = err.message; // Fallback to generic JS error message
+      }
+      setError(errorMessage);
     }
   };
 
@@ -711,7 +738,8 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading, propertyData, 
 
             {/* --- Apartment Complex Specific Fields --- */}
             <AnimatePresence>
-              {isApartmentComplex && (
+              {/* Only show apartment details section when CREATING a new apartment complex */}
+              {!isEditing && isApartmentComplex && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}

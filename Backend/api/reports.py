@@ -131,7 +131,7 @@ async def get_report_summary(
             Payment.payment_date <= end_date,
             Payment.status.in_([PaymentStatus.PAID, PaymentStatus.PARTIAL]),
             Lease.property_id.in_(accessible_property_ids)
-        ).group_by(func.date_trunc('month', Payment.payment_date))
+        ).group_by(text('month'))
         
     # Query expenses grouped by month
     expenses_query = select(
@@ -141,7 +141,7 @@ async def get_report_summary(
             Expense.expense_date >= start_date,
             Expense.expense_date <= end_date,
             Expense.property_id.in_(accessible_property_ids)
-        ).group_by(func.date_trunc('month', Expense.expense_date))
+        ).group_by(text('month'))
         
     payments_result = await session.execute(payments_query)
     monthly_income_data = {row.month.date(): float(row.total_income) for row in payments_result.all()}
@@ -244,16 +244,22 @@ async def get_report_summary(
     income_by_property = []
     
     # Fetch income for the *last month* only, grouped by property
-    last_month_payments_query = select(Lease.property_id, func.sum(Payment.amount).label('last_month_income'))\
+    last_month_payments_query = select(
+            Property.id.label('property_id'),
+            Property.name.label('property_name'), # Select property name
+            func.sum(Payment.amount).label('last_month_income')
+        )\
         .join(Lease, Lease.id == Payment.lease_id)\
+        .join(Property, Property.id == Lease.property_id)\
         .where(
             Payment.payment_date >= last_month_start,
             Payment.payment_date <= end_date, # Use end_date of overall range
             Payment.status.in_([PaymentStatus.PAID, PaymentStatus.PARTIAL]),
             Lease.property_id.in_(accessible_property_ids)
-        ).group_by(Lease.property_id)
+        ).group_by(Property.id, Property.name) # Group by Property ID and Name
         
     last_month_payments_res = await session.execute(last_month_payments_query)
+    # Map needs property_id now
     last_month_income_map = {p.property_id: float(p.last_month_income) for p in last_month_payments_res.all()}
     
     for prop in properties:

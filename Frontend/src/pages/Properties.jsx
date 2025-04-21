@@ -229,6 +229,21 @@ const Properties = () => {
   const filterMenuRef = useRef(null);
   const sortMenuRef = useRef(null);
 
+  // Helper function to calculate status counts
+  const calculateStatusCounts = (propertiesList) => {
+    return propertiesList.reduce((acc, property) => {
+      acc.total++;
+      const status = property.status || 'active'; // Default to active if status is null/undefined
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {
+      active: 0,
+      maintenance: 0,
+      vacant: 0,
+      total: 0
+    });
+  };
+
   useEffect(() => {
     fetchPropertiesData();
   }, []);
@@ -330,7 +345,14 @@ const Properties = () => {
       });
     }
 
+    console.log("[Properties useEffect] Filtered/Sorted Properties:", result);
     setFilteredProperties(result);
+
+    // Also update status counts whenever properties change
+    const newCounts = calculateStatusCounts(result); 
+    console.log("[Properties useEffect] Setting statusCounts state:", newCounts);
+    setStatusCounts(newCounts);
+
   }, [properties, statusFilter, searchTerm, filterOptions, sortOption]);
 
   const fetchPropertiesData = async () => {
@@ -345,19 +367,8 @@ const Properties = () => {
       setProperties(response);
       setFilteredProperties(response);
       
-      // Calculate status counts
-      const counts = response.reduce((acc, property) => {
-        acc.total++;
-        const status = property.status || 'active';
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-      }, {
-        active: 0,
-        maintenance: 0,
-        vacant: 0,
-        total: 0
-      });
-      
+      // Calculate status counts using the helper
+      const counts = calculateStatusCounts(response);
       setStatusCounts(counts);
     } catch (err) {
       console.error('Error fetching properties:', err);
@@ -374,32 +385,90 @@ const Properties = () => {
     setIsSubmitting(true);
     try {
       let result;
+      let updatedProperties; // Declare here to be accessible for both branches
       
       if (isEditing && currentProperty) {
+        console.log("[handleCreateProperty - Edit] Updating property:", currentProperty.id, "with data:", propertyData);
         // Update existing property
         result = await updateProperty(currentProperty.id, propertyData);
+        console.log("[handleCreateProperty - Edit] API Response:", result);
         
         // Update the properties list
-        setProperties(prev => prev.map(p => p.id === currentProperty.id ? result : p));
+        updatedProperties = properties.map(p => p.id === currentProperty.id ? result : p);
+        console.log("[handleCreateProperty - Edit] Setting properties state:", updatedProperties);
+        setProperties(updatedProperties);
         
         setNotification({
           type: 'success',
           message: 'Property updated successfully'
         });
       } else {
+        console.log("[handleCreateProperty - Create] Creating property with data:", propertyData);
         // Create new property
         result = await createProperty(propertyData);
+        console.log("[handleCreateProperty - Create] API Response:", result);
         
         // Add new property to the list
-        setProperties(prev => [result, ...prev]);
+        updatedProperties = [result, ...properties];
+        console.log("[handleCreateProperty - Create] Setting properties state:", updatedProperties);
+        setProperties(updatedProperties);
         
-        // Update status counts
-        setStatusCounts(prev => ({
-          ...prev,
-          total: prev.total + 1,
-          [result.status]: (prev[result.status] || 0) + 1
-        }));
-        
+        // Ensure filtered list and counts are updated using the final list
+        // Apply current filters/sorting to the new list
+        let finalFilteredProperties = [...updatedProperties];
+        // Re-apply filters (this logic is duplicated from the useEffect hook, consider extracting)
+        if (statusFilter) {
+            finalFilteredProperties = finalFilteredProperties.filter(p => p.status === statusFilter);
+        }
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            finalFilteredProperties = finalFilteredProperties.filter(p => 
+                p.name.toLowerCase().includes(term) || 
+                p.address.toLowerCase().includes(term) || 
+                p.city.toLowerCase().includes(term) ||
+                p.property_type.toLowerCase().includes(term)
+            );
+        }
+         if (filterOptions.propertyType) {
+             finalFilteredProperties = finalFilteredProperties.filter(p => p.property_type === filterOptions.propertyType);
+         }
+         if (filterOptions.status) {
+             finalFilteredProperties = finalFilteredProperties.filter(p => p.status === filterOptions.status);
+         }
+        if (filterOptions.dateAdded) {
+             const now = new Date();
+             const cutoffDate = new Date();
+             switch (filterOptions.dateAdded) {
+                 case 'last-week': cutoffDate.setDate(now.getDate() - 7); break;
+                 case 'last-month': cutoffDate.setMonth(now.getMonth() - 1); break;
+                 case 'last-year': cutoffDate.setFullYear(now.getFullYear() - 1); break;
+             }
+             finalFilteredProperties = finalFilteredProperties.filter(p => new Date(p.created_at) >= cutoffDate);
+         }
+         // Re-apply sorting
+         if (sortOption) {
+             finalFilteredProperties.sort((a, b) => {
+                switch (sortOption) {
+                     case 'name-asc': return a.name.localeCompare(b.name);
+                     case 'name-desc': return b.name.localeCompare(a.name);
+                     case 'type-asc': return a.property_type.localeCompare(b.property_type);
+                     case 'type-desc': return b.property_type.localeCompare(a.property_type);
+                     case 'status-asc': return a.status.localeCompare(b.status);
+                     case 'status-desc': return b.status.localeCompare(a.status);
+                     case 'date-asc': return new Date(a.created_at) - new Date(b.created_at);
+                     case 'date-desc': return new Date(b.created_at) - new Date(a.created_at);
+                     default: return 0;
+                 }
+             });
+         }
+         console.log("[handleCreateProperty] Setting filteredProperties state:", finalFilteredProperties);
+         setFilteredProperties(finalFilteredProperties); // Update filtered properties
+
+        // Update counts based on the complete updated list
+        const newCounts = calculateStatusCounts(updatedProperties);
+        console.log("[handleCreateProperty] Setting statusCounts state:", newCounts);
+        setStatusCounts(newCounts);
+
         setNotification({
           type: 'success',
           message: 'Property created successfully'
@@ -469,6 +538,7 @@ const Properties = () => {
   const handleDeleteProperty = async (propertyId) => {
     setIsDeleting(true);
     try {
+      console.log(`[handleDeleteProperty] Deleting property ID: ${propertyId}`);
       // The delete endpoint returns 204 No Content which doesn't have a JSON body
       // so we need to handle it differently
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/properties/${propertyId}`, {
@@ -483,18 +553,10 @@ const Properties = () => {
       }
       
       // Update properties list after successful deletion
-      setProperties(prev => prev.filter(p => p.id !== propertyId));
+      const newPropertiesList = properties.filter(p => p.id !== propertyId);
+      console.log("[handleDeleteProperty] Setting properties state:", newPropertiesList);
+      setProperties(newPropertiesList);
       
-      // Update status counts
-      const deletedProperty = properties.find(p => p.id === propertyId);
-      if (deletedProperty) {
-        setStatusCounts(prev => ({
-          ...prev,
-          total: prev.total - 1,
-          [deletedProperty.status]: prev[deletedProperty.status] - 1
-        }));
-      }
-
       // Show success notification
       setNotification({
         type: 'success',
@@ -588,7 +650,7 @@ const Properties = () => {
             <div className="flex-shrink-0">
               {notification.type === 'success' ? (
                 <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               ) : (
                 <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">

@@ -221,15 +221,40 @@ const PropertyDetail = () => {
   };
 
   // Function to refresh data after tenant assignment
-  const handleTenantAssigned = async () => {
+  const handleTenantAssigned = async (updatedUnitData) => {
+    console.log("[PropertyDetail] handleTenantAssigned called with:", updatedUnitData);
+    
+    // Optimistically update the unit in the local state
+    setProperty(prevProperty => {
+      if (!prevProperty || !prevProperty.units) {
+        return prevProperty; // Should not happen if modal opened
+      }
+      const newUnits = prevProperty.units.map(unit => 
+        unit.id === updatedUnitData.id ? updatedUnitData : unit
+      );
+      const updatedPropertyState = { ...prevProperty, units: newUnits };
+      console.log("[PropertyDetail] Optimistically updated property state:", updatedPropertyState);
+      
+      // Recalculate stats based on the new state
+      if (updatedPropertyState && updatedPropertyState.units) {
+        const totalUnits = updatedPropertyState.units.length;
+        const vacantUnits = updatedPropertyState.units.filter(unit => !unit.is_rented).length;
+        const monthlyRevenue = updatedPropertyState.units
+          .filter(unit => unit.is_rented && unit.monthly_rent)
+          .reduce((sum, unit) => sum + unit.monthly_rent, 0);
+        
+        setStats({ totalUnits, vacantUnits, monthlyRevenue });
+        console.log("[PropertyDetail] Optimistically updated stats:", { totalUnits, vacantUnits, monthlyRevenue });
+      }
+      
+      return updatedPropertyState;
+    });
+    
     // Show success notification
     setNotification({
       type: 'success',
       message: 'Tenant assigned successfully'
     });
-    
-    // Refresh property data
-    await loadProperty();
     
     // Clear notification after 3 seconds
     setTimeout(() => {

@@ -157,49 +157,53 @@ async def update_unit(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No update data provided"
         )
-    
-    # Handle tenant assignment more explicitly
-    is_assigning_tenant = 'tenant_id' in update_data or 'monthly_rent' in update_data or 'is_rented' in update_data
-    
-    if is_assigning_tenant:
-        # If assigning/updating tenant info, only apply these fields
-        tenant_id_value = update_data.get('tenant_id')
-        monthly_rent_value = update_data.get('monthly_rent')
-        is_rented_value = update_data.get('is_rented')
-        
-        if tenant_id_value is not None:
-            # Verify tenant exists if ID is provided
-            tenant_result = await session.execute(select(Tenant).where(Tenant.id == tenant_id_value))
-            tenant = tenant_result.scalar_one_or_none()
-            if not tenant:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, 
-                    detail=f"Tenant with ID {tenant_id_value} not found"
-                )
-            unit_to_update.tenant_id = tenant_id_value
-            # If assigning a tenant, assume is_rented should be true unless explicitly false
-            unit_to_update.is_rented = is_rented_value if is_rented_value is not None else True 
-        elif tenant_id_value is None and 'tenant_id' in update_data: # Handle explicit unassignment
-             unit_to_update.tenant_id = None
-             unit_to_update.is_rented = False # Unassigning means vacant
-             
-        # Update rent if provided
-        if monthly_rent_value is not None:
-             unit_to_update.monthly_rent = monthly_rent_value
-             
-        # If only is_rented is provided without tenant_id, update it
-        elif 'is_rented' in update_data and 'tenant_id' not in update_data:
-             unit_to_update.is_rented = is_rented_value
-             if not is_rented_value:
-                 unit_to_update.tenant_id = None # If setting to not rented, remove tenant
-                 unit_to_update.monthly_rent = None # Optionally clear rent
-                 
-    else:
-        # Update other provided fields if not specifically assigning tenant
-        for key, value in update_data.items():
-            # Avoid overwriting tenant_id/is_rented if handled above
-            if key not in ['tenant_id', 'is_rented', 'monthly_rent']:
-                setattr(unit_to_update, key, value)
+
+    # Apply all provided updates directly first
+    tenant_id_updated = False
+    new_tenant_id_value = update_data.get('tenant_id') # Get potential new value
+    is_rented_updated = False
+    new_is_rented_value = update_data.get('is_rented') # Get potential new value
+    rent_explicitly_set = 'monthly_rent' in update_data
+
+    for key, value in update_data.items():
+        if hasattr(unit_to_update, key):
+            setattr(unit_to_update, key, value)
+            if key == 'tenant_id':
+                tenant_id_updated = True
+                # Verify tenant exists if ID is not None
+                if value is not None:
+                    tenant_result = await session.execute(select(Tenant).where(Tenant.id == value))
+                    tenant = tenant_result.scalar_one_or_none()
+                    if not tenant:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND, 
+                            detail=f"Tenant with ID {value} not found"
+                        )
+            elif key == 'is_rented':
+                is_rented_updated = True
+        else:
+             logger.warning(f"Attempted to update non-existent field '{key}' on PropertyUnit")
+
+    # Handle dependencies after direct updates
+
+    # Scenario 1: Unit is being made vacant
+    if (tenant_id_updated and new_tenant_id_value is None) or \
+       (is_rented_updated and new_is_rented_value is False):
+        unit_to_update.tenant_id = None
+        unit_to_update.is_rented = False
+        # Clear rent ONLY if it wasn't explicitly provided in this update
+        if not rent_explicitly_set:
+            unit_to_update.monthly_rent = None
+            
+    # Scenario 2: Tenant is being assigned
+    elif tenant_id_updated and new_tenant_id_value is not None:
+        # If tenant assigned and is_rented wasn't explicitly set to False, mark as rented
+        # (Handles case where is_rented is provided as True, or not provided at all)
+        if not (is_rented_updated and new_is_rented_value is False):
+             unit_to_update.is_rented = True
+    # Scenario 3: Only is_rented changed (to True, handled by setattr)
+    # Scenario 4: Only monthly_rent changed (handled by setattr)
+    # Scenario 5: Only other fields changed (handled by setattr)
 
     unit_to_update.updated_at = datetime.utcnow()
 
@@ -222,6 +226,9 @@ async def update_unit(
              logger.error(f"Failed to re-fetch unit {unit_id} after update.")
              raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Updated unit could not be found.")
 
+        # Log the final unit state before returning
+        logger.info(f"Final unit state before return: id={final_unit.id}, name={final_unit.name}, floor={final_unit.floor}, rent={final_unit.monthly_rent}, is_rented={final_unit.is_rented}, tenant_id={final_unit.tenant_id}")
+        
         logger.info(f"Successfully updated and re-fetched unit {final_unit.id}. Tenant loaded: {final_unit.tenant}")
         return final_unit # Return the newly fetched instance
 

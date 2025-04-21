@@ -36,6 +36,20 @@ class PropertyCreate(BaseModel):
     status: Optional[str] = PropertyStatus.ACTIVE
     units: Optional[List[str]] = None  # Optional list of unit names/numbers
 
+# New Model for Property Updates (Excludes units and potentially immutable fields like property_type)
+class PropertyUpdate(BaseModel):
+    name: Optional[constr(min_length=1, max_length=255)] = None
+    address: Optional[constr(min_length=1, max_length=255)] = None
+    city: Optional[constr(min_length=1, max_length=100)] = None
+    province: Optional[constr(min_length=1, max_length=50)] = None
+    postal_code: Optional[constr(min_length=1, max_length=20)] = None
+    description: Optional[str] = None
+    year_built: Optional[int] = None
+    status: Optional[str] = None # Allow updating status
+
+    class Config:
+        extra = 'forbid' # Prevent unexpected fields like 'units'
+
 class PropertyResponse(BaseModel):
     id: int
     name: str
@@ -360,6 +374,132 @@ async def create_property(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while creating the property: {str(e)}"
+        )
+
+# New PUT Endpoint for Updating Properties
+@router.put("/{property_id}", response_model=PropertyDetailResponse_Standalone)
+async def update_property(
+    property_id: int,
+    property_data: PropertyUpdate,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Update an existing property's details.
+    This endpoint does NOT handle unit creation/modification.
+    """
+    # Fetch the existing property
+    result = await session.execute(
+        select(Property)
+        .where(Property.id == property_id)
+    )
+    property_to_update = result.scalar_one_or_none()
+
+    if not property_to_update:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Property not found"
+        )
+
+    # Check permission - only owner or admin can update
+    if property_to_update.owner_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to update this property"
+        )
+
+    # Get update data, excluding unset fields
+    update_data = property_data.model_dump(exclude_unset=True)
+
+    if not update_data:
+         raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No update data provided"
+        )
+
+    # Update the property fields
+    for key, value in update_data.items():
+        setattr(property_to_update, key, value)
+
+    property_to_update.updated_at = datetime.utcnow()
+
+    try:
+        session.add(property_to_update)
+        await session.commit()
+        await session.refresh(property_to_update)
+
+        # Re-fetch with relationships for the response model
+        query = (
+            select(Property)
+            .options(
+                joinedload(Property.owner),
+                selectinload(Property.units).options(
+                    selectinload(PropertyUnit.tenant)
+                )
+            )
+            .where(Property.id == property_id)
+        )
+        result = await session.execute(query)
+        updated_property_orm = result.unique().scalar_one_or_none()
+
+        if not updated_property_orm:
+             raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Property updated but could not be re-retrieved"
+            )
+
+        # Manually construct the response to recalculate status if needed
+        # (similar logic as get_property)
+        response_status = updated_property_orm.status
+        if updated_property_orm.units:
+            occupied_units = [unit for unit in updated_property_orm.units if unit.is_rented]
+            if not occupied_units:
+                response_status = "vacant"
+            elif len(occupied_units) == len(updated_property_orm.units):
+                response_status = "rented"
+            elif len(occupied_units) > 0:
+                response_status = "partially_rented"
+
+        serialized_units = []
+        if updated_property_orm.units:
+             for unit in updated_property_orm.units:
+                 unit_model = UnitResponse.from_orm(unit)
+                 if unit.tenant:
+                     try:
+                         tenant_info = TenantInfo.from_orm(unit.tenant)
+                         unit_model.tenant = tenant_info
+                     except Exception as e:
+                         logger.error(f"Tenant serialization error in update response: {e}")
+                         unit_model.tenant = None
+                 else:
+                      unit_model.tenant = None
+                 serialized_units.append(unit_model)
+
+        response = PropertyDetailResponse_Standalone(
+            id=updated_property_orm.id,
+            name=updated_property_orm.name,
+            address=updated_property_orm.address,
+            city=updated_property_orm.city,
+            province=updated_property_orm.province,
+            postal_code=updated_property_orm.postal_code,
+            property_type=updated_property_orm.property_type,
+            description=updated_property_orm.description,
+            year_built=updated_property_orm.year_built,
+            status=response_status,
+            owner_id=updated_property_orm.owner_id,
+            created_at=updated_property_orm.created_at,
+            updated_at=updated_property_orm.updated_at,
+            owner=OwnerResponse.from_orm(updated_property_orm.owner) if updated_property_orm.owner else None,
+            units=serialized_units
+        )
+        return response
+
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Error updating property {property_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while updating the property: {str(e)}"
         )
 
 @router.delete("/{property_id}", status_code=status.HTTP_204_NO_CONTENT)
