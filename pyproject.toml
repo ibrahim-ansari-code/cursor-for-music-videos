@@ -34,4 +34,9 @@ dependencies = [
     "python-dateutil (>=2.9.0.post0,<3.0.0)",
 ]
 [tool.poetry]
+name = "brikli-backend"
+version = "0.1.0"
+description = ""
+authors = ["Zubin <zubin@brikli.com>"]
 packages = []
+
