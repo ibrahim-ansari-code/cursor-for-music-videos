@@ -228,7 +228,7 @@ const Leases = () => {
                         {lease.property?.name || `Property #${lease.property_id}`}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {lease.unit?.name || lease.unit_id ? `Unit: ${lease.unit?.name || lease.unit_id}` : 'No unit specified'}
+                        {lease.unit?.name ? `Unit: ${lease.unit.name}` : (lease.unit_id ? `Unit ID: ${lease.unit_id}` : 'No unit specified')}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

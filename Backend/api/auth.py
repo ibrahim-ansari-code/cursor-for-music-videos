@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -19,6 +19,7 @@ import random
 from Backend.config import settings
 from Backend.database import get_session
 from Backend.models.user import User, UserType
+from Backend.utils.azure_blob import upload_avatar_to_blob
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -85,6 +86,17 @@ class UserResponse(BaseModel):
             return v.upper()
         return v
 
+class ProfileUpdateRequest(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+
+class PasswordChangeRequest(BaseModel):
+    password: str
+
+class AvatarUploadResponse(BaseModel):
+    profile_image_url: str
+
 # === Password + Token Helpers ===
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -122,8 +134,7 @@ async def get_current_user(
         user_id = payload.get("user_id")
         user_type = payload.get("user_type")
         
-        # Log token contents for debugging
-        logger.info(f"Token payload: email={email}, user_id={user_id}, user_type={user_type}")
+        logger.debug(f"Token payload: email={email}, user_id={user_id}, user_type={user_type}")
         
         if email is None or user_id is None or user_type is None:
             logger.error("Missing required claims in token")
@@ -134,40 +145,25 @@ async def get_current_user(
         logger.error(f"JWT decode error: {str(e)}")
         raise credentials_exception
 
-    # Debug the query we're using to find the user
-    query = select(User).where(
-        and_(
-            User.id == token_data.user_id,
-            User.email == token_data.email,
-            func.upper(User.user_type) == token_data.user_type
-        )
-    )
-    logger.info(f"User lookup query: {query}")
-    
-    result = await session.execute(query)
-    user = result.scalar_one_or_none()
+    # Use a simpler query first based on user_id, then validate email/type
+    user = await session.get(User, token_data.user_id)
     
     if user is None:
-        logger.error(f"User not found for token data: {token_data}")
-        # Try a simpler query to debug why we can't find the user
-        simple_query = select(User).where(User.id == token_data.user_id)
-        simple_result = await session.execute(simple_query)
-        simple_user = simple_result.scalar_one_or_none()
-        
-        if simple_user:
-            logger.info(f"Found user by ID only: {simple_user.id}, email={simple_user.email}, type={simple_user.user_type}")
-            logger.info(f"User type comparison: token={token_data.user_type}, db={simple_user.user_type}")
-            
-            # If only the case is different, update the user type to match the token
-            if simple_user.user_type.upper() == token_data.user_type.upper():
-                logger.info(f"Updating user type from {simple_user.user_type} to {token_data.user_type}")
-                simple_user.user_type = token_data.user_type
-                await session.commit()
-                return simple_user
-        
+        logger.error(f"User not found for ID in token: {token_data.user_id}")
         raise credentials_exception
         
-    logger.info(f"User authenticated: id={user.id}, email={user.email}, type={user.user_type}")
+    # Validate email and user type match the token
+    if user.email != token_data.email or user.user_type.upper() != token_data.user_type.upper():
+        logger.error(f"Token data mismatch for user ID {user.id}. Token: {token_data}, DB: email={user.email}, type={user.user_type}")
+        # Optional: Maybe update DB user_type if only case differs, but stricter validation is safer.
+        # if user.email == token_data.email and user.user_type.upper() == token_data.user_type.upper():
+        #     user.user_type = token_data.user_type # Align case
+        #     await session.commit()
+        # else:
+        #     raise credentials_exception
+        raise credentials_exception # Be strict for now
+        
+    logger.debug(f"User authenticated: id={user.id}, email={user.email}, type={user.user_type}")
     return user
 
 # === API Routes ===
@@ -184,7 +180,6 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Convert user_type to uppercase to match the enum
     user_type = user.user_type.upper()
     
     access_token = create_access_token(
@@ -213,10 +208,10 @@ async def register_user(
     hashed_password = get_password_hash(user_data.password)
     db_user = User(
         email=user_data.email,
-        hashed_password=hashed_password,  # <-- FIXED
+        hashed_password=hashed_password, 
         first_name=user_data.first_name,
         last_name=user_data.last_name,
-        user_type=user_data.user_type,
+        user_type=user_data.user_type.upper(), # Ensure uppercase on creation
         phone=user_data.phone,
         address=user_data.address,
         city=user_data.city,
@@ -233,6 +228,150 @@ async def register_user(
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+# --- User Profile Management Endpoints ---
+
+@router.put("/users/{user_id}/profile", response_model=UserResponse)
+async def update_user_profile(
+    user_id: int,
+    profile_update: ProfileUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    logger.info(f"User {current_user.id} attempting to update profile for user {user_id}")
+    # Permission Check: User can update their own profile, or admin can update any
+    if current_user.id != user_id and not current_user.is_admin:
+        logger.warning(f"Permission denied: User {current_user.id} cannot update profile for user {user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update this user's profile"
+        )
+
+    # Fetch the user to update
+    user_to_update = await session.get(User, user_id)
+    if not user_to_update:
+        logger.error(f"User with ID {user_id} not found for profile update.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Update fields if they are provided in the request
+    update_data = profile_update.dict(exclude_unset=True)
+    if not update_data:
+         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No update data provided")
+
+    for key, value in update_data.items():
+        setattr(user_to_update, key, value)
+    
+    user_to_update.updated_at = datetime.utcnow()
+    
+    try:
+        await session.commit()
+        await session.refresh(user_to_update)
+        logger.info(f"Successfully updated profile for user {user_id}")
+        return user_to_update
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Database error updating profile for user {user_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not update user profile"
+        )
+
+@router.post("/users/{user_id}/password")
+async def change_user_password(
+    user_id: int,
+    password_request: PasswordChangeRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    logger.info(f"User {current_user.id} attempting to change password for user {user_id}")
+    # Permission Check
+    if current_user.id != user_id and not current_user.is_admin:
+        logger.warning(f"Permission denied: User {current_user.id} cannot change password for user {user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to change this user's password"
+        )
+
+    # Fetch the user
+    user_to_update = await session.get(User, user_id)
+    if not user_to_update:
+        logger.error(f"User with ID {user_id} not found for password change.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Hash the new password and update
+    user_to_update.hashed_password = get_password_hash(password_request.password)
+    user_to_update.updated_at = datetime.utcnow()
+
+    try:
+        await session.commit()
+        logger.info(f"Successfully changed password for user {user_id}")
+        return {"message": "Password updated successfully"}
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Database error changing password for user {user_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not update password"
+        )
+
+@router.post("/users/{user_id}/avatar", response_model=AvatarUploadResponse)
+async def upload_user_avatar(
+    user_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    logger.info(f"User {current_user.id} attempting to upload avatar for user {user_id}")
+    # Permission check
+    if current_user.id != user_id and not current_user.is_admin:
+        logger.warning(f"Permission denied: User {current_user.id} cannot upload avatar for user {user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to upload avatar for this user"
+        )
+
+    # Fetch the user
+    user_to_update = await session.get(User, user_id)
+    if not user_to_update:
+        logger.error(f"User with ID {user_id} not found for avatar upload.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Validate file type (optional but recommended)
+    allowed_content_types = ["image/jpeg", "image/png", "image/jpg"]
+    if file.content_type not in allowed_content_types:
+        logger.error(f"Invalid avatar file type: {file.content_type}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid file type. Allowed types: {', '.join(allowed_content_types)}"
+        )
+
+    try:
+        # Upload to Azure Blob Storage
+        avatar_url = await upload_avatar_to_blob(file, user_id)
+        
+        # Update user profile URL in DB
+        user_to_update.profile_image_url = avatar_url
+        user_to_update.updated_at = datetime.utcnow()
+        
+        await session.commit()
+        await session.refresh(user_to_update)
+        logger.info(f"Successfully uploaded avatar and updated profile for user {user_id}")
+        
+        return AvatarUploadResponse(profile_image_url=avatar_url)
+
+    except ConnectionError as ce:
+         logger.error(f"Azure Blob Storage connection error: {ce}")
+         raise HTTPException(
+             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+             detail="Avatar storage service is unavailable. Please try again later."
+         )
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Error during avatar upload/update for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to upload avatar. Please try again."
+        )
 
 # === Email Verification ===
 async def send_verification_email(user: User):

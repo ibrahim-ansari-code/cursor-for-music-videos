@@ -25,6 +25,10 @@ class Settings(BaseSettings):
 
     # AI Integration (placeholder for future integration)
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+
+    # Azure Storage Connection String and Blob Public URL
+    AZURE_STORAGE_CONNECTION_STRING: str = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "")
+    AZURE_BLOB_PUBLIC_URL: str = os.getenv("AZURE_BLOB_PUBLIC_URL", "")
     
     class Config:
         env_file = ".env"

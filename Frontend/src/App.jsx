@@ -143,6 +143,7 @@ function App() {
 
   const authValue = {
     user,
+    setUser,
     login,
     logout,
     isAuthenticated: !!user,

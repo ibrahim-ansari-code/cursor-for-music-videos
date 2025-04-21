@@ -1,8 +1,76 @@
 import React, { useState, useEffect } from 'react';
-import { fetchProperties, parseLease, fetchTenantsByProperty, getCurrentUser } from '../utils/api';
+import { fetchProperties, parseLease, fetchTenantsByProperty, getCurrentUser, fetchPropertyUnits } from '../utils/api';
 import TenantModal from './TenantModal';
 import ConfirmLeaseModal from './ConfirmLeaseModal';
-import { getInputClassName } from '../utils/formUtils';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// UI Components
+const Label = ({ htmlFor, required, children }) => (
+  <label 
+    htmlFor={htmlFor} 
+    className={`block text-sm font-medium text-gray-700 mb-1.5 ${required ? 'after:content-["*"] after:ml-0.5 after:text-red-500' : ''}`}
+  >
+    {children}
+  </label>
+);
+
+const Input = ({ id, name, value, onChange, placeholder, required, readOnly, type = "text", className = "", ...props }) => (
+  <input
+    id={id || name}
+    name={name}
+    type={type}
+    value={value}
+    onChange={onChange}
+    placeholder={placeholder}
+    required={required}
+    readOnly={readOnly}
+    className={`w-full px-4 py-2.5 text-gray-900 bg-white border ${readOnly ? 'bg-gray-50 border-gray-200' : 'border-gray-300'} rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 ${className}`}
+    {...props}
+  />
+);
+
+const ErrorMessage = ({ message }) => (
+  <motion.div 
+    initial={{ opacity: 0, y: -10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0 }}
+    className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg flex items-start gap-2"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+    </svg>
+    <span>{message}</span>
+  </motion.div>
+);
+
+const Button = ({ type, onClick, variant = "primary", disabled, children, className = "", ...props }) => {
+  const baseClasses = "px-4 py-2.5 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed";
+  
+  const variants = {
+    primary: "bg-blue-600 hover:bg-blue-700 text-white border border-transparent focus:ring-blue-500",
+    secondary: "bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 focus:ring-blue-500",
+    danger: "bg-red-600 hover:bg-red-700 text-white border border-transparent focus:ring-red-500"
+  };
+  
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={`${baseClasses} ${variants[variant]} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
+
+const FormSection = ({ title, children, className = "" }) => (
+  <div className={`space-y-6 ${className}`}>
+    {title && <h3 className="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200">{title}</h3>}
+    {children}
+  </div>
+);
 
 const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
   const [properties, setProperties] = useState([]);
@@ -30,6 +98,8 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
   const [propertySearchTerm, setPropertySearchTerm] = useState('');
   const [tenantData, setTenantData] = useState({});
   const [createdTenant, setCreatedTenant] = useState(null);
+  const [availableUnits, setAvailableUnits] = useState([]);
+  const [isLoadingUnits, setIsLoadingUnits] = useState(false);
   
   // Load properties on component mount
   useEffect(() => {
@@ -77,9 +147,11 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
       }
     };
 
-    loadProperties();
-    validateUserPermissions();
-  }, []);
+    if (isOpen) {
+      loadProperties();
+      validateUserPermissions();
+    }
+  }, [isOpen]);
 
   // Load tenants when property is selected
   useEffect(() => {
@@ -91,6 +163,9 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
           const data = await fetchTenantsByProperty(selectedProperty);
           setTenants(data);
           setError(null); // Clear any previous errors
+          
+          // Now fetch units for this property
+          await loadUnits(selectedProperty);
         } catch (error) {
           console.error('Failed to fetch tenants:', error);
           setTenantLoadError('Failed to load tenants for this property. Please try again.');
@@ -101,11 +176,29 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
         setTenants([]);
         setSelectedTenant(null);
         setTenantLoadError(null);
+        setAvailableUnits([]);
       }
     };
 
     loadTenants();
   }, [selectedProperty]);
+
+  // Fetch available units for a property
+  const loadUnits = async (propertyId) => {
+    if (!propertyId) return;
+    
+    setIsLoadingUnits(true);
+    try {
+      const units = await fetchPropertyUnits(propertyId);
+      console.log('Available units:', units);
+      setAvailableUnits(units || []);
+    } catch (error) {
+      console.error('Failed to fetch units for property:', error);
+      // Don't set an error for the user, just log it
+    } finally {
+      setIsLoadingUnits(false);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -174,13 +267,13 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
       console.log('Storing lease data:', extractedLeaseData);
       setLeaseData(extractedLeaseData);
 
-      // Set tenant data
+      // Set tenant data from LLM extracted information
       const tenantData = {
         full_name: response.tenant_name,
         first_name: '',
         last_name: '',
-        phone: '',
-        email: '',
+        phone: '', // This will be filled in by the user in TenantModal
+        email: '', // This will be filled in by the user in TenantModal
         current_property_id: parseInt(selectedProperty),
         unit: response.unit || '',
         lease_start: response.start_date,
@@ -194,6 +287,19 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
         const nameParts = response.tenant_name.split(' ');
         tenantData.first_name = nameParts[0] || '';
         tenantData.last_name = nameParts.slice(1).join(' ') || '';
+      }
+
+      // Find unitId based on unit name if available
+      let unitId = null;
+      if (response.unit && availableUnits && availableUnits.length > 0) {
+        const matchedUnit = availableUnits.find(unit => 
+          unit.name.toLowerCase() === response.unit.toLowerCase()
+        );
+        if (matchedUnit) {
+          unitId = matchedUnit.id;
+          tenantData.unit_id = unitId;
+          console.log(`Found matching unit ID ${unitId} for unit name ${response.unit}`);
+        }
       }
 
       console.log('Setting tenant data:', tenantData);
@@ -232,6 +338,15 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
   };
 
   const filteredTenants = tenants.filter(tenant => {
+    // Check if tenant has any active leases
+    const hasActiveLease = tenant.leases && tenant.leases.some(lease => lease.status === 'ACTIVE');
+    
+    // If tenant has an active lease, exclude them
+    if (hasActiveLease) {
+      return false;
+    }
+
+    // Existing search term filtering
     const tenantName = tenant.name || tenant.full_name || '';
     const tenantEmail = tenant.email || '';
     
@@ -255,182 +370,236 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
 
   if (!isOpen) return null;
 
+  // Define animation variants for modal transitions
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { 
+      opacity: 1, 
+      scale: 1,
+      transition: { 
+        type: "spring", 
+        stiffness: 300, 
+        damping: 30 
+      }
+    },
+    exit: { 
+      opacity: 0, 
+      scale: 0.95,
+      transition: { 
+        duration: 0.15 
+      }
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-lg bg-white">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">Import Lease</h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-600 hover:text-gray-800"
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
+    >
+      <AnimatePresence mode="wait">
+        {!showTenantModal && !showConfirmLeaseModal && (
+          <motion.div 
+            key="importModal"
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden"
           >
-            <i className="fas fa-times"></i>
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Select Property
-            </label>
-            <div className="relative tenant-dropdown">
-              <input
-                type="text"
-                placeholder="Search or select property..."
-                value={propertySearchTerm}
-                onChange={(e) => {
-                  setPropertySearchTerm(e.target.value);
-                  setDropdownOpen('property');
-                }}
-                className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
-              {dropdownOpen === 'property' && (
-                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md">
-                  <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                    {properties.filter(property => property.name.toLowerCase().includes(propertySearchTerm.toLowerCase())).map((property) => (
-                      <li
-                        key={property.id}
-                        className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
-                        onClick={() => {
-                          setSelectedProperty(property.id);
-                          setPropertySearchTerm(property.name);
-                          setDropdownOpen(false);
-                        }}
-                      >
-                        <span className="font-normal block truncate">
-                          {property.name}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {selectedProperty && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Select or Create Tenant
-              </label>
-              <div className="relative tenant-dropdown">
-                <input
-                  type="text"
-                  placeholder="Search or create tenant..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setDropdownOpen('tenant');
-                  }}
-                  className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-                {dropdownOpen === 'tenant' && (
-                  <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md">
-                    <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                      {filteredTenants.length > 0 ? (
-                        filteredTenants.map((tenant) => (
-                          <li
-                            key={tenant.id}
-                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
-                            onClick={() => {
-                              setSelectedTenant(tenant);
-                              setSearchTerm(tenant.name || tenant.full_name);
-                              setIsCreatingNewTenant(false);
-                              setDropdownOpen(false);
-                            }}
-                          >
-                            <span className="font-normal block truncate">
-                              {tenant.name || tenant.full_name} {tenant.email ? `(${tenant.email})` : ''}
-                            </span>
-                          </li>
-                        ))
-                      ) : (
-                        <li className="text-gray-500 py-2 px-3">No tenants found</li>
-                      )}
-                      <li
-                        className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
-                        onClick={() => {
-                          setIsCreatingNewTenant(true);
-                          setSelectedTenant(null);
-                          setSearchTerm('Create New Tenant');
-                          setDropdownOpen(false);
-                        }}
-                      >
-                        <span className="font-normal block truncate text-blue-600">
-                          + Create New Tenant
-                        </span>
-                      </li>
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div
-            onDrop={handleFileDrop}
-            onDragOver={(e) => e.preventDefault()}
-            className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer"
-            onClick={() => document.getElementById('fileInput').click()}
-          >
-            {file ? file.name : 'Click to select or drop lease PDF here'}
-            <input
-              type="file"
-              id="fileInput"
-              accept=".pdf"
-              onChange={handleFileSelect}
-              style={{ display: 'none' }}
-            />
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
-              <span className="block sm:inline">{error}</span>
+            <div className="sticky top-0 z-10 px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-900">Import Lease</h2>
               <button
-                onClick={() => setError(null)}
-                className="absolute top-0 right-0 px-4 py-3"
+                onClick={handleClose}
+                className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full p-1 transition-colors duration-200"
+                aria-label="Close modal"
               >
-                <span className="sr-only">Dismiss</span>
-                <svg
-                  className="h-6 w-6 text-red-500"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-          )}
 
-          <button
-            onClick={handleImportClick}
-            disabled={!file || !selectedProperty || (!selectedTenant && !isCreatingNewTenant) || isLoading}
-            className="w-full inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Importing...
-              </>
-            ) : (
-              'Import'
-            )}
-          </button>
-        </div>
+            <div className="p-6 max-h-[calc(100vh-12rem)] overflow-y-auto">
+              <AnimatePresence>
+                {error && <ErrorMessage message={error} />}
+              </AnimatePresence>
 
-        {/* Tenant Modal for creating a new tenant */}
+              <form className="space-y-6">
+                <FormSection title="Property & Tenant Selection">
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="property" required>Select Property</Label>
+                      <div className="relative tenant-dropdown">
+                        <Input
+                          type="text"
+                          placeholder="Search or select property..."
+                          value={propertySearchTerm}
+                          onChange={(e) => {
+                            setPropertySearchTerm(e.target.value);
+                            setDropdownOpen('property');
+                          }}
+                        />
+                        {dropdownOpen === 'property' && (
+                          <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg border border-gray-200">
+                            <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                              {properties.filter(property => property.name.toLowerCase().includes(propertySearchTerm.toLowerCase())).map((property) => (
+                                <li
+                                  key={property.id}
+                                  className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-50 transition-colors"
+                                  onClick={() => {
+                                    setSelectedProperty(property.id);
+                                    setPropertySearchTerm(property.name);
+                                    setDropdownOpen(false);
+                                  }}
+                                >
+                                  <span className="font-normal block truncate">
+                                    {property.name}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {selectedProperty && (
+                      <div>
+                        <Label htmlFor="tenant" required>Select or Create Tenant</Label>
+                        <div className="relative tenant-dropdown">
+                          <Input
+                            type="text"
+                            placeholder="Search or create tenant..."
+                            value={searchTerm}
+                            onChange={(e) => {
+                              setSearchTerm(e.target.value);
+                              setDropdownOpen('tenant');
+                            }}
+                          />
+                          {dropdownOpen === 'tenant' && (
+                            <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg border border-gray-200">
+                              <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                                {isLoadingTenants ? (
+                                  <li className="text-gray-500 py-2 px-3 flex items-center">
+                                    <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Loading tenants...
+                                  </li>
+                                ) : filteredTenants.length > 0 ? (
+                                  filteredTenants.map((tenant) => (
+                                    <li
+                                      key={tenant.id}
+                                      className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-50 transition-colors"
+                                      onClick={() => {
+                                        setSelectedTenant(tenant);
+                                        setSearchTerm(tenant.name || tenant.full_name);
+                                        setIsCreatingNewTenant(false);
+                                        setDropdownOpen(false);
+                                      }}
+                                    >
+                                      <span className="font-normal block truncate">
+                                        {tenant.name || tenant.full_name} {tenant.email ? `(${tenant.email})` : ''}
+                                      </span>
+                                    </li>
+                                  ))
+                                ) : (
+                                  <li className="text-gray-500 py-2 px-3">No tenants found</li>
+                                )}
+                                <li
+                                  className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-50 transition-colors border-t border-gray-100"
+                                  onClick={() => {
+                                    setIsCreatingNewTenant(true);
+                                    setSelectedTenant(null);
+                                    setSearchTerm('Create New Tenant');
+                                    setDropdownOpen(false);
+                                  }}
+                                >
+                                  <span className="font-normal block truncate text-blue-600">
+                                    + Create New Tenant
+                                  </span>
+                                </li>
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </FormSection>
+
+                <FormSection title="Upload Lease Document">
+                  <div
+                    onDrop={handleFileDrop}
+                    onDragOver={(e) => e.preventDefault()}
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => document.getElementById('fileInput').click()}
+                  >
+                    {file ? (
+                      <div className="flex flex-col items-center">
+                        <svg className="h-12 w-12 text-green-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm font-medium text-gray-900">{file.name}</span>
+                        <span className="text-xs text-gray-500 mt-1">Click to change file</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <svg className="h-12 w-12 text-gray-400 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <span className="text-sm font-medium text-gray-900">Click to select or drop lease PDF here</span>
+                        <span className="text-xs text-gray-500 mt-1">Only PDF files are accepted</span>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      id="fileInput"
+                      accept=".pdf"
+                      onChange={handleFileSelect}
+                      style={{ display: 'none' }}
+                    />
+                  </div>
+                </FormSection>
+              </form>
+            </div>
+
+            <div className="sticky bottom-0 z-10 px-6 py-4 bg-white border-t border-gray-200 flex justify-end space-x-3">
+              <Button 
+                type="button" 
+                variant="secondary" 
+                onClick={handleClose}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleImportClick}
+                disabled={!file || !selectedProperty || (!selectedTenant && !isCreatingNewTenant) || isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Importing...
+                  </>
+                ) : (
+                  'Import'
+                )}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Tenant Modal for creating a new tenant */}
+      <AnimatePresence>
         {showTenantModal && (
           <TenantModal
             isOpen={showTenantModal}
@@ -438,10 +607,15 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
             tenant={tenantData}
             onSave={handleTenantSave}
             source="importLeaseModal"
+            propertyId={parseInt(selectedProperty)}
+            unitId={tenantData.unit_id}
+            unitName={tenantData.unit}
           />
         )}
+      </AnimatePresence>
 
-        {/* Confirm Lease Modal */}
+      {/* Confirm Lease Modal */}
+      <AnimatePresence>
         {showConfirmLeaseModal && (
           <ConfirmLeaseModal
             isOpen={showConfirmLeaseModal}
@@ -449,22 +623,30 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
             leaseData={leaseData}
             tenant={createdTenant}
             onSubmit={handleLeaseSubmit}
+            availableUnits={availableUnits}
           />
         )}
+      </AnimatePresence>
 
-        {/* Loading overlay */}
+      {/* Loading overlay */}
+      <AnimatePresence>
         {isLoading && (
-          <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center"
+          >
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
               <p className="mt-3 text-gray-600">
                 Processing lease...
               </p>
             </div>
-          </div>
+          </motion.div>
         )}
-      </div>
-    </div>
+      </AnimatePresence>
+    </motion.div>
   );
 };
 

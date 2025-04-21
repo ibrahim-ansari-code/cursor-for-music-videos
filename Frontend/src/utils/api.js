@@ -1005,3 +1005,71 @@ export const fetchRentTracker = async (params = {}) => {
   const queryString = queryParams.toString();
   return apiRequest(`/rent-tracker${queryString ? '?' + queryString : ''}`);
 };
+
+// User Settings API Functions
+
+/**
+ * Update user profile information.
+ * @param {number} userId - The ID of the user to update.
+ * @param {object} profileData - Object containing first_name, last_name, phone.
+ * @returns {Promise<object>} The updated user data.
+ */
+export const updateUserProfile = async (userId, profileData) => {
+  if (!userId) throw new Error("User ID is required to update profile.");
+  return apiRequest(`/users/${userId}/profile`, {
+    method: 'PUT', // Or PATCH depending on your backend implementation
+    body: JSON.stringify(profileData)
+  });
+};
+
+/**
+ * Change the user's password.
+ * @param {number} userId - The ID of the user.
+ * @param {string} newPassword - The new password.
+ * @returns {Promise<object>} Success message or error.
+ */
+export const changeUserPassword = async (userId, newPassword) => {
+  if (!userId) throw new Error("User ID is required to change password.");
+  return apiRequest(`/users/${userId}/password`, {
+    method: 'POST',
+    body: JSON.stringify({ password: newPassword })
+  });
+};
+
+/**
+ * Upload a new avatar for the user.
+ * @param {number} userId - The ID of the user.
+ * @param {FormData} formData - FormData object containing the avatar file under the key 'avatar'.
+ * @returns {Promise<object>} Object containing the new profile_image_url.
+ */
+export const uploadUserAvatar = async (userId, formData) => {
+  if (!userId) throw new Error("User ID is required to upload avatar.");
+  const token = localStorage.getItem('token');
+
+  // Use fetch directly for FormData as apiRequest might stringify it
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/users/${userId}/avatar`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      // 'Content-Type' header is automatically set by the browser for FormData
+    },
+    body: formData
+  });
+
+  return handleResponse(response);
+};
+
+// Add the new report summary function
+export const fetchReportSummary = async (params = {}) => {
+  const queryParams = new URLSearchParams();
+  
+  if (params.report_type) queryParams.append('report_type', params.report_type);
+  if (params.date_range) queryParams.append('date_range', params.date_range);
+  if (params.property_ids && params.property_ids.length > 0) {
+    params.property_ids.forEach(id => queryParams.append('property_ids', id));
+  }
+  
+  const queryString = queryParams.toString();
+  console.log(`Fetching report summary with query: ${queryString}`); // Debug log
+  return apiRequest(`/reports/summary?${queryString}`);
+};

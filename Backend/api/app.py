@@ -41,6 +41,7 @@ from Backend.api.properties import router as properties_router
 from Backend.api.tenants import router as tenants_router
 from Backend.api.rent_tracker import router as rent_tracker_router
 from Backend.api.units import router as units_router
+from Backend.api.reports import router as reports_router
 
 app = FastAPI()
 
@@ -93,6 +94,7 @@ app.include_router(properties_router, prefix="/api")
 app.include_router(tenants_router, prefix="/api")
 app.include_router(rent_tracker_router, prefix="/api")
 app.include_router(units_router, prefix="/api")
+app.include_router(reports_router, prefix="/api")
 
 @app.get("/")
 def root():

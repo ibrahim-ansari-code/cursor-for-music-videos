@@ -9,7 +9,8 @@ import {
   createExpense,
   fetchProperties,
   fetchOutstandingPayments,
-  fetchRentTracker
+  fetchRentTracker,
+  fetchReportSummary
 } from '../utils/api';
 import { toast } from 'react-toastify';
 import NewPaymentModal from '../components/NewPaymentModal';
@@ -20,6 +21,7 @@ import SnapshotCard from '../components/SnapshotCard';
 import RentTracker from '../components/RentTracker';
 import RevenueChart from '../components/RevenueChart';
 import ExpenseBreakdownChart from '../components/ExpenseBreakdownChart';
+import IncomeByPropertyCard from '../components/IncomeByPropertyCard';
 
 const Accounting = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -36,6 +38,7 @@ const Accounting = () => {
     ytd: { revenue: 0, expenses: 0, netIncome: 0 },
     snapshot: { occupancyRate: 0, paidRent: 0, totalRent: 0, avgRent: 0 }
   });
+  const [incomeByPropertyData, setIncomeByPropertyData] = useState([]);
   
   // Add state for rent tracker data
   const [rentTrackerData, setRentTrackerData] = useState([]);
@@ -78,6 +81,7 @@ const Accounting = () => {
       loadOutstandingPayments();
       loadRentTrackerData(); // Load rent tracker data for overview
       loadExpensesData(); // Load expenses data for pie chart
+      loadIncomeByProperty(); // Load income by property data
     } else if (activeTab === 'payments') {
       loadPaymentsData();
     } else if (activeTab === 'invoices') {
@@ -281,6 +285,30 @@ const Accounting = () => {
     }
   };
 
+  // Function to load Income By Property data
+  const loadIncomeByProperty = async () => {
+    try {
+      // Fetch using the reports summary endpoint, default to current month
+      const reportParams = { date_range: 'Current Month' }; 
+      const reportData = await fetchReportSummary(reportParams);
+      
+      // Map the data to the format expected by IncomeByPropertyCard
+      const mappedData = reportData.income_by_property.map(item => ({
+        id: item.property_id, // Use property_id as key
+        name: item.property,
+        monthlyIncome: item.monthly_income,
+        occupancyRate: item.occupancy_rate
+      }));
+      
+      setIncomeByPropertyData(mappedData);
+      
+    } catch (err) {
+      console.error('Error loading income by property data:', err);
+      toast.error('Failed to load income by property chart data.');
+      setIncomeByPropertyData([]); // Set to empty on error
+    }
+  };
+
   const handleShowModal = (type) => {
     if (type === 'payment') {
       setShowNewPaymentModal(true);
@@ -454,30 +482,7 @@ const Accounting = () => {
           
           {/* Occupancy & Outstanding Payments */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="dashboard-card">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Occupancy Rate</h2>
-              
-              {overviewData?.occupancy_rate !== undefined ? (
-                <div className="flex items-center justify-center h-40">
-                  <div className="text-center">
-                    {overviewData.occupancy_rate > 0 ? (
-                      <div className="text-3xl font-bold text-blue-600">
-                        {overviewData.occupancy_rate.toFixed(1)}%
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="text-2xl font-semibold text-gray-500">Coming Soon</div>
-                        <p className="text-sm text-gray-400 mt-2">Occupancy data is being prepared</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-40">
-                  <p className="text-gray-500">No occupancy data available</p>
-                </div>
-              )}
-            </div>
+            <IncomeByPropertyCard properties={incomeByPropertyData} />
             
             {/* Outstanding Payments Card */}
             <div className="bg-white rounded-lg shadow-sm p-6 h-full">

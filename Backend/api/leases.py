@@ -1,4 +1,5 @@
 import logging
+import json
 from typing import List, Optional
 from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Body
@@ -8,6 +9,7 @@ from sqlalchemy import and_, or_
 from pydantic import BaseModel
 import fitz  # PyMuPDF
 from sqlalchemy.orm import selectinload
+import re # Added import for regex
 
 from Backend.database import get_session
 from Backend.models.lease import Lease, LeaseStatus, LeaseDocument
@@ -297,7 +299,12 @@ async def get_leases(
     current_user: User = Depends(get_current_user)
 ):
     """Get all leases with optional filtering"""
-    query = select(Lease).options(selectinload(Lease.tenant), selectinload(Lease.property))
+    # Eagerly load tenant, property, and unit relationships
+    query = select(Lease).options(
+        selectinload(Lease.tenant),
+        selectinload(Lease.property),
+        selectinload(Lease.unit)
+    )
     
     # Apply filters
     conditions = []
@@ -318,10 +325,10 @@ async def get_leases(
         query = query.where(Lease.tenant_id == current_user.id)
     elif current_user.user_type == UserType.LANDLORD:
         # Landlords can see leases for their properties
-        query = query.join(Property).where(Property.landlord_id == current_user.id)
+        query = query.join(Property).where(Property.owner_id == current_user.id)
     
     result = await session.execute(query)
-    leases = result.scalars().all()
+    leases = result.scalars().unique().all()
     return leases
 
 @router.get("/{lease_id}", response_model=LeaseResponse)
@@ -757,19 +764,91 @@ async def parse_lease(
         pdf_document.close()
         
         # Analyze text using LLM
-        logger.info(f"Sending lease text for analysis, length: {len(text[:100])}...")
+        logger.info(f"Sending lease text for analysis (first 100 chars): {text[:100]!r}")
+        logger.info(f"Total characters sent to LLM: {len(text)}")
+
         raw_parsed_data = analyze_lease_text(text)
+
+        # Log the full raw data
+        logger.info(f"Raw LLM parsed data:\n{json.dumps(raw_parsed_data, indent=2)}")
         
         # Restructure the data to match LeaseAnalysisResponse model
-        parsed_data = {
-            'monthly_rent': float(raw_parsed_data.get('rent_payment', {}).get('monthly_rent', 0)),
-            'start_date': raw_parsed_data.get('term_details', {}).get('lease_start_date', ''),
-            'end_date': raw_parsed_data.get('term_details', {}).get('lease_end_date', ''),
-            'security_deposit': float(raw_parsed_data.get('deposits', {}).get('security_deposit', 0)),
-            'tenant_name': raw_parsed_data.get('core_identifiers', {}).get('tenant_name', ''),
-            'unit': raw_parsed_data.get('core_identifiers', {}).get('unit_number', '')
-        }
+        parsed_data = {}
+        try:
+            # Safely parse monthly_rent
+            raw_monthly_rent = raw_parsed_data.get('rent_payment', {}).get('monthly_rent', '0')
+            logger.info(f"Attempting to parse monthly_rent from raw string: {raw_monthly_rent!r}")
+            
+            monthly_rent_value = 0.0
+            try:
+                # Attempt direct float conversion first
+                monthly_rent_value = float(raw_monthly_rent)
+            except ValueError:
+                # If direct conversion fails, try regex to find the first number
+                logger.warning(f"Direct float conversion failed for monthly_rent. Attempting regex extraction.")
+                # Regex to find the first floating point number (potentially with commas)
+                match = re.match(r"^\s*([\d,]+(?:\.\d+)?|\d+(?:\.\d+)?)", str(raw_monthly_rent).strip())
+                if match:
+                    number_str = match.group(1).replace(",", "") # Remove commas before conversion
+                    try:
+                        monthly_rent_value = float(number_str)
+                        logger.info(f"Successfully extracted monthly_rent using regex: {monthly_rent_value}")
+                    except ValueError:
+                        logger.error(f"Could not convert regex match '{number_str}' to float.")
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail=f"Could not extract a valid rent amount from: '{raw_monthly_rent}'"
+                        )
+                else:
+                    logger.error(f"Could not find a valid number pattern in monthly_rent string: '{raw_monthly_rent}'")
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"Could not parse monthly rent value: '{raw_monthly_rent}'"
+                    )
+            
+            parsed_data['monthly_rent'] = monthly_rent_value
+            parsed_data['start_date'] = raw_parsed_data.get('term_details', {}).get('lease_start_date', '')
+            parsed_data['end_date'] = raw_parsed_data.get('term_details', {}).get('lease_end_date', '')
+            
+            # Safely parse security_deposit
+            raw_security_deposit = raw_parsed_data.get('deposits', {}).get('security_deposit', '0')
+            logger.info(f"Attempting to parse security_deposit from raw string: {raw_security_deposit!r}")
+            security_deposit_value = 0.0
+            try:
+                security_deposit_value = float(raw_security_deposit)
+            except ValueError:
+                logger.warning(f"Direct float conversion failed for security_deposit. Attempting regex extraction.")
+                # Use the same improved regex
+                match = re.match(r"^\s*([\d,]+(?:\.\d+)?|\d+(?:\.\d+)?)", str(raw_security_deposit).strip())
+                if match:
+                    number_str = match.group(1).replace(",", "") # Remove commas before conversion
+                    try:
+                        security_deposit_value = float(number_str)
+                        logger.info(f"Successfully extracted security_deposit using regex: {security_deposit_value}")
+                    except ValueError:
+                        logger.error(f"Could not convert security_deposit regex match '{number_str}' to float.")
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail=f"Could not extract a valid security deposit amount from: '{raw_security_deposit}'"
+                        )
+                else:
+                    logger.error(f"Could not find a valid number pattern in security_deposit string: '{raw_security_deposit}'")
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"Could not parse security deposit value: '{raw_security_deposit}'"
+                    )
+            parsed_data['security_deposit'] = security_deposit_value
+            
+            parsed_data['tenant_name'] = raw_parsed_data.get('core_identifiers', {}).get('tenant_name', '')
+            parsed_data['unit'] = raw_parsed_data.get('core_identifiers', {}).get('unit_number', '')
         
+        except KeyError as e:
+            logger.error(f"Missing key in LLM response: {e}")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Missing expected field in parsed lease data: {e}")
+        except ValueError as e:
+            logger.error(f"Value conversion error during parsing: {e}")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid data format in parsed lease: {e}")
+            
         logger.info(f"Restructured data: {parsed_data}")
         
         # Convert string dates to date objects
@@ -789,8 +868,10 @@ async def parse_lease(
         return parsed_data
         
     except Exception as e:
-        logger.error(f"Failed to parse lease: {str(e)}")
+        # Log the detailed error including stack trace
+        logger.error(f"Failed to parse lease document: {str(e)}", exc_info=True) 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to parse lease document: {str(e)}"
+            # Provide a more specific error message if possible, otherwise keep generic
+            detail=f"Failed to parse lease document: {str(e)}" 
         )

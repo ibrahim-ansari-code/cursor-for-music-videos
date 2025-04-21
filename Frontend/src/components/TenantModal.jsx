@@ -62,14 +62,16 @@ const Button = ({ type, onClick, variant = "primary", disabled, children, classN
   );
 };
 
-const TenantModal = ({ isOpen, onClose, onSave, source }) => {
+const TenantModal = ({ isOpen, onClose, onSave, source, tenant = {}, propertyId = null, unitId = null, unitName = "" }) => {
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
     phone: '',
     email: '',
     status: 'active',
-    current_property_id: null,
+    current_property_id: propertyId || null,
+    unit: unitName || '',
+    unit_id: unitId || null,
   });
   
   const [isLoading, setIsLoading] = useState(false);
@@ -79,23 +81,39 @@ const TenantModal = ({ isOpen, onClose, onSave, source }) => {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const modalRef = useRef(null);
 
-  // Reset form when modal opens/closes
+  // Populate form when tenant data is provided
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && tenant) {
+      console.log("Setting tenant form data from:", tenant);
+      
+      // Extract first and last name from full_name if provided
+      let firstName = tenant.first_name || '';
+      let lastName = tenant.last_name || '';
+      
+      // If tenant has full_name but no first/last name, split it
+      if (tenant.full_name && (!firstName || !lastName)) {
+        const nameParts = tenant.full_name.split(' ');
+        firstName = nameParts[0] || '';
+        lastName = nameParts.slice(1).join(' ') || '';
+      }
+      
       setFormData({
-        first_name: '',
-        last_name: '',
-        phone: '',
-        email: '',
-        status: 'active',
-        current_property_id: null,
+        first_name: firstName,
+        last_name: lastName,
+        phone: tenant.phone || '',
+        email: tenant.email || '',
+        status: tenant.status || 'active',
+        current_property_id: propertyId || tenant.current_property_id || null,
+        unit: unitName || tenant.unit || '',
+        unit_id: unitId || tenant.unit_id || null,
       });
+      
       setFieldErrors({});
       setError(null);
       setTouched({});
       setSubmitAttempted(false);
     }
-  }, [isOpen]);
+  }, [isOpen, tenant, propertyId, unitId, unitName]);
 
   // Handle form field changes
   const handleChange = (e) => {
@@ -197,10 +215,28 @@ const TenantModal = ({ isOpen, onClose, onSave, source }) => {
     setIsLoading(true);
 
     try {
-      const response = await createTenant(formData);
+      // Prepare tenant data with property_id and unit information if available
+      const tenantToCreate = {
+        ...formData,
+        // Ensure current_property_id is set if available
+        current_property_id: formData.current_property_id || propertyId || null,
+        // Unit info - will be used by backend if needed
+        unit: formData.unit || unitName || '',
+        unit_id: formData.unit_id || unitId || null,
+      };
+      
+      console.log('Creating tenant with data:', tenantToCreate);
+      const response = await createTenant(tenantToCreate);
       
       if (onSave) {
-        onSave(response);
+        // Add unit and property info to response for downstream processing
+        const tenantResponse = {
+          ...response,
+          unit: formData.unit || unitName || '',
+          unit_id: formData.unit_id || unitId || null,
+          current_property_id: formData.current_property_id || propertyId || null,
+        };
+        onSave(tenantResponse);
       }
       
       if (!source || source !== "importLeaseModal") {
