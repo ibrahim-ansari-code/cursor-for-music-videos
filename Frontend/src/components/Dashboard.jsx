@@ -16,7 +16,7 @@ const Dashboard = () => {
   const [tenantCount, setTenantCount] = useState(0);
   const [tenantsLoading, setTenantsLoading] = useState(true);
   
-  // Fetch list of properties for the dropdown
+  //  Fetch list of properties for the dropdown
   useEffect(() => {
     const fetchProperties = async () => {
       try {
