@@ -20,7 +20,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchProperties = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/properties`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/properties`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }

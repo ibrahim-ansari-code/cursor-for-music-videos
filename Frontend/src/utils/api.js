@@ -114,7 +114,7 @@ const apiRequest = async (endpoint, options = {}) => {
   }
   
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api${endpoint}`, requestOptions);
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api${endpoint}`, requestOptions);
     
     // For debugging: Log the raw response for payment creation
     if (endpoint.includes('/accounting/payments') && options.method === 'POST') {
@@ -148,7 +148,7 @@ export const login = async (email, password) => {
   formData.append('username', email);
   formData.append('password', password);
   
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/token`, {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/token`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -246,7 +246,7 @@ export const updateLeaseStatus = async (leaseId, status) => {
       if (apiError.message && (apiError.message.includes('Failed to fetch') || apiError.message.includes('NetworkError'))) {
         console.log('Attempting direct fetch as fallback...');
         const token = localStorage.getItem('token');
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/leases/${leaseId}/status`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/leases/${leaseId}/status`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -281,7 +281,7 @@ export const updateLeaseStatus = async (leaseId, status) => {
 export const uploadLeaseDocument = async (leaseId, formData) => {
   const token = localStorage.getItem('token');
   
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/leases/${leaseId}/upload`, {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/api/leases/${leaseId}/upload`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -683,7 +683,7 @@ export const createTenant = async (tenantData) => {
       throw new Error('Authentication required. Please log in.');
     }
     
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/tenants`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tenants`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -763,7 +763,7 @@ export const updateTenant = async (tenantId, tenantData) => {
       throw new Error('Authentication required. Please log in.');
     }
     
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/tenants/${tenantId}`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tenants/${tenantId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -895,7 +895,7 @@ export const assignMaintenanceRequest = async (requestId, vendorId) => {
 export const analyzeLease = async (formData) => {
   const token = localStorage.getItem('token');
   
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/leases/analyze`, {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/api/leases/analyze`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -916,7 +916,7 @@ export const submitLease = async (leaseData) => {
     console.log('Submitting lease data:', leaseData);
     const token = localStorage.getItem('token');
     
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/leases`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/leases`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -944,7 +944,7 @@ export const parseLease = async (formData) => {
   try {
     console.log('Calling parseLease API endpoint...');
     // Ensure URL is correctly formatted - normalize the URL to not have a trailing slash
-    const baseUrl = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
+    const baseUrl = import.meta.env.VITE_API_URL.replace(/\/$/, '');
     const url = `${baseUrl}/api/leases/parse`;
     
     console.log('API URL:', url);
@@ -1047,7 +1047,7 @@ export const uploadUserAvatar = async (userId, formData) => {
   const token = localStorage.getItem('token');
 
   // Use fetch directly for FormData as apiRequest might stringify it
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/users/${userId}/avatar`, {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/users/${userId}/avatar`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,

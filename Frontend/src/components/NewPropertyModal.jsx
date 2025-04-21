@@ -63,7 +63,7 @@ async function createUnitsForProperty(propertyId, units) {
   if (!propertyId || !units || units.length === 0) return;
 
   const unitCreationPromises = units.map(unit => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'; // Get API URL from env
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://brikli.azurewebsites.net'; // Get API URL from env
     return fetch(`${apiUrl}/api/properties/${propertyId}/units`, {
         method: 'POST',
         headers: {

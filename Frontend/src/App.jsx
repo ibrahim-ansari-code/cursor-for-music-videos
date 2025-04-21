@@ -36,7 +36,7 @@ function App() {
       }
 
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -77,7 +77,7 @@ function App() {
 
   const login = async (email, password) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/token`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -107,7 +107,7 @@ function App() {
       localStorage.setItem('user_type', userType);
       console.log('Stored user type:', userType);
 
-      const userResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, {
+      const userResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${data.access_token}`
         }

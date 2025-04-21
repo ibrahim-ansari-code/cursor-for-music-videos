@@ -31,7 +31,7 @@ const LoginForm = () => {
         // Check if this is an email verification issue
         // The actual API response would determine this logic
         try {
-          const checkResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/check-email-status`, {
+          const checkResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/check-email-status`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -69,7 +69,7 @@ const LoginForm = () => {
     setResendSuccess(false);
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/resend-verification`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/resend-verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

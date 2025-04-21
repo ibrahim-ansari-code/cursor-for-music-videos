@@ -541,7 +541,7 @@ const Properties = () => {
       console.log(`[handleDeleteProperty] Deleting property ID: ${propertyId}`);
       // The delete endpoint returns 204 No Content which doesn't have a JSON body
       // so we need to handle it differently
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/properties/${propertyId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/properties/${propertyId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

@@ -25,7 +25,7 @@ const RegisterForm = () => {
 
     try {
       // Step 1: Register the user
-      const registerResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, {
+      const registerResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -70,7 +70,7 @@ const RegisterForm = () => {
     setResendSuccess(false);
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/resend-verification`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/resend-verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
