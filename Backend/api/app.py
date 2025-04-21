@@ -50,7 +50,7 @@ origins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://lemon-island-038ac790f.6.azurestaticapps.net"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
