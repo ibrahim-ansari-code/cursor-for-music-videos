@@ -1,4 +1,5 @@
 import logging
+import json
 from typing import List, Optional
 from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Body
@@ -8,6 +9,7 @@ from sqlalchemy import and_, or_
 from pydantic import BaseModel
 import fitz  # PyMuPDF
 from sqlalchemy.orm import selectinload
+import re # Added import for regex
 
 from Backend.database import get_session
 from Backend.models.lease import Lease, LeaseStatus, LeaseDocument
@@ -44,7 +46,7 @@ class LeaseBase(BaseModel):
     tenant_id: int
 
 class LeaseCreate(LeaseBase):
-    pass
+    status: Optional[LeaseStatus] = LeaseStatus.DRAFT
 
 class LeaseUpdate(BaseModel):
     start_date: Optional[date] = None
@@ -118,69 +120,175 @@ async def create_lease(
 
     # If user is a landlord, verify they own the property
     if scope == "own_properties":
-        property_query = select(Property).where(
-            and_(
-                Property.id == lease_data.property_id,
-                Property.owner_id == current_user.id
-            )
+        from sqlalchemy import text
+        property_ownership_query = text("""
+            SELECT id FROM properties 
+            WHERE id = :property_id AND owner_id = :owner_id
+        """)
+        result = await session.execute(
+            property_ownership_query, 
+            {"property_id": lease_data.property_id, "owner_id": current_user.id}
         )
-        property_result = await session.execute(property_query)
-        property = property_result.scalar_one_or_none()
+        property_record = result.first()
         
-        if not property:
+        if not property_record:
             logger.warning(f"Landlord {current_user.id} attempted to create lease for property {lease_data.property_id} they don't own")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to create leases for this property"
             )
     
-    # Validate tenant
-    tenant_query = select(Tenant).where(Tenant.id == lease_data.tenant_id)
-    tenant_result = await session.execute(tenant_query)
-    tenant = tenant_result.scalar_one_or_none()
+    # Validate tenant using raw SQL
+    from sqlalchemy import text
+    tenant_query = text("SELECT id FROM tenants WHERE id = :tenant_id")
+    tenant_result = await session.execute(tenant_query, {"tenant_id": lease_data.tenant_id})
+    tenant_record = tenant_result.first()
 
-    if not tenant:
+    if not tenant_record:
         logger.error(f"Tenant not found with ID: {lease_data.tenant_id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid tenant ID"
         )
 
-    # Validate property and unit
-    property_query = select(Property).where(Property.id == lease_data.property_id)
-    property_result = await session.execute(property_query)
-    property = property_result.scalar_one_or_none()
-    if not property:
+    # Validate property using raw SQL
+    property_query = text("SELECT id FROM properties WHERE id = :property_id")
+    property_result = await session.execute(property_query, {"property_id": lease_data.property_id})
+    property_record = property_result.first()
+    if not property_record:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid property ID"
         )
 
+    # Validate unit if provided
     if lease_data.unit_id:
-        unit_query = select(PropertyUnit).where(
-            and_(
-                PropertyUnit.id == lease_data.unit_id,
-                PropertyUnit.property_id == lease_data.property_id
-            )
+        unit_query = text("""
+            SELECT id FROM property_units 
+            WHERE id = :unit_id AND property_id = :property_id
+        """)
+        unit_result = await session.execute(
+            unit_query, 
+            {"unit_id": lease_data.unit_id, "property_id": lease_data.property_id}
         )
-        unit_result = await session.execute(unit_query)
-        unit = unit_result.scalar_one_or_none()
-        if not unit:
+        unit_record = unit_result.first()
+        if not unit_record:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid unit ID"
             )
 
-    # Create the lease
-    new_lease = Lease(**lease_data.dict())
-    # Explicitly set the initial status to DRAFT
-    new_lease.status = LeaseStatus.DRAFT
-    session.add(new_lease)
-    await session.commit()
-    await session.refresh(new_lease)
-
-    logger.info(f"Lease created: {new_lease.id} with status {new_lease.status} by user {current_user.id}")
-    return new_lease
+    # Create lease using raw SQL
+    now = datetime.utcnow()
+    insert_query = text("""
+        INSERT INTO leases (
+            start_date, end_date, monthly_rent, security_deposit, status, 
+            is_renewable, auto_renew, rent_due_day, late_fee_amount, late_fee_after_days, 
+            special_terms, property_id, unit_id, tenant_id, created_at, updated_at
+        ) VALUES (
+            :start_date, :end_date, :monthly_rent, :security_deposit, :status,
+            :is_renewable, :auto_renew, :rent_due_day, :late_fee_amount, :late_fee_after_days,
+            :special_terms, :property_id, :unit_id, :tenant_id, :created_at, :updated_at
+        )
+        RETURNING id
+    """)
+    
+    try:
+        params = {
+            "start_date": lease_data.start_date,
+            "end_date": lease_data.end_date,
+            "monthly_rent": lease_data.monthly_rent,
+            "security_deposit": lease_data.security_deposit,
+            "status": getattr(lease_data, "status", LeaseStatus.DRAFT.value),
+            "is_renewable": lease_data.is_renewable,
+            "auto_renew": lease_data.auto_renew,
+            "rent_due_day": lease_data.rent_due_day,
+            "late_fee_amount": lease_data.late_fee_amount,
+            "late_fee_after_days": lease_data.late_fee_after_days,
+            "special_terms": lease_data.special_terms,
+            "property_id": lease_data.property_id,
+            "unit_id": lease_data.unit_id,
+            "tenant_id": lease_data.tenant_id,
+            "created_at": now,
+            "updated_at": now
+        }
+        
+        result = await session.execute(insert_query, params)
+        lease_id = result.scalar_one()
+        await session.commit()
+        
+        # Fetch the created lease data
+        lease_query = text("""
+            SELECT 
+                l.id, l.start_date, l.end_date, l.monthly_rent, l.security_deposit, 
+                l.status, l.is_renewable, l.auto_renew, l.rent_due_day, 
+                l.late_fee_amount, l.late_fee_after_days, l.special_terms,
+                l.property_id, l.unit_id, l.tenant_id, l.created_at, l.updated_at
+            FROM leases l
+            WHERE l.id = :lease_id
+        """)
+        
+        lease_result = await session.execute(lease_query, {"lease_id": lease_id})
+        lease_data = lease_result.first()
+        
+        # Convert the result to a dict for the response
+        response_data = {
+            "id": lease_data.id,
+            "start_date": lease_data.start_date,
+            "end_date": lease_data.end_date, 
+            "monthly_rent": lease_data.monthly_rent,
+            "security_deposit": lease_data.security_deposit,
+            "status": lease_data.status,
+            "is_renewable": lease_data.is_renewable,
+            "auto_renew": lease_data.auto_renew,
+            "rent_due_day": lease_data.rent_due_day,
+            "late_fee_amount": lease_data.late_fee_amount,
+            "late_fee_after_days": lease_data.late_fee_after_days,
+            "special_terms": lease_data.special_terms,
+            "property_id": lease_data.property_id,
+            "unit_id": lease_data.unit_id,
+            "tenant_id": lease_data.tenant_id,
+            "created_at": lease_data.created_at,
+            "updated_at": lease_data.updated_at,
+            # These would be populated by SQLAlchemy relationships
+            # Since we're using raw SQL, we need to provide empty placeholders
+            "tenant": None,
+            "property": None
+        }
+        
+        # If lease is created with status ACTIVE, update tenant's current_property_id
+        if lease_data.status == "ACTIVE":
+            try:
+                logger.info(f"Updating tenant's current property: tenant ID={lease_data.tenant_id}, property ID={lease_data.property_id}")
+                
+                # Update tenant's current_property_id
+                update_tenant_query = text("""
+                    UPDATE tenants 
+                    SET current_property_id = :property_id, updated_at = :now
+                    WHERE id = :tenant_id
+                """)
+                
+                await session.execute(
+                    update_tenant_query, 
+                    {"tenant_id": lease_data.tenant_id, "property_id": lease_data.property_id, "now": now}
+                )
+                await session.commit()
+                
+                logger.info(f"Tenant's current property updated successfully")
+            except Exception as tenant_update_error:
+                logger.error(f"Error updating tenant's current property: {str(tenant_update_error)}", exc_info=True)
+                # Don't fail the whole operation if this part fails, just log the error
+        
+        logger.info(f"Lease created: {lease_id} with status {lease_data.status} by user {current_user.id}")
+        return response_data
+        
+    except Exception as db_error:
+        await session.rollback()
+        logger.error(f"Database error during lease creation: {str(db_error)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(db_error)}"
+        )
 
 @router.get("/", response_model=List[LeaseResponse])
 async def get_leases(
@@ -191,7 +299,12 @@ async def get_leases(
     current_user: User = Depends(get_current_user)
 ):
     """Get all leases with optional filtering"""
-    query = select(Lease).options(selectinload(Lease.tenant), selectinload(Lease.property))
+    # Eagerly load tenant, property, and unit relationships
+    query = select(Lease).options(
+        selectinload(Lease.tenant),
+        selectinload(Lease.property),
+        selectinload(Lease.unit)
+    )
     
     # Apply filters
     conditions = []
@@ -212,10 +325,10 @@ async def get_leases(
         query = query.where(Lease.tenant_id == current_user.id)
     elif current_user.user_type == UserType.LANDLORD:
         # Landlords can see leases for their properties
-        query = query.join(Property).where(Property.landlord_id == current_user.id)
+        query = query.join(Property).where(Property.owner_id == current_user.id)
     
     result = await session.execute(query)
-    leases = result.scalars().all()
+    leases = result.scalars().unique().all()
     return leases
 
 @router.get("/{lease_id}", response_model=LeaseResponse)
@@ -344,7 +457,7 @@ async def update_lease_status(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to update lease status"
             )
-        
+    
         # Get status from request body
         new_status = status_data.get("status")
         if not new_status:
@@ -375,7 +488,7 @@ async def update_lease_status(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Lease with ID {lease_id} not found"
             )
-        
+    
         old_status = lease_record.status
         now = datetime.utcnow()
         
@@ -439,6 +552,29 @@ async def update_lease_status(
                 "tenant": None,
                 "property": None
             }
+            
+            # If lease is activated, update tenant's current_property_id
+            if new_status == "ACTIVE":
+                try:
+                    logger.info(f"Updating tenant's current property: tenant ID={lease_data.tenant_id}, property ID={lease_data.property_id}")
+                    
+                    # Update tenant's current_property_id
+                    update_tenant_query = text("""
+                        UPDATE tenants 
+                        SET current_property_id = :property_id, updated_at = :now
+                        WHERE id = :tenant_id
+                    """)
+                    
+                    await session.execute(
+                        update_tenant_query, 
+                        {"tenant_id": lease_data.tenant_id, "property_id": lease_data.property_id, "now": now}
+                    )
+                    await session.commit()
+                    
+                    logger.info(f"Tenant's current property updated successfully")
+                except Exception as tenant_update_error:
+                    logger.error(f"Error updating tenant's current property: {str(tenant_update_error)}", exc_info=True)
+                    # Don't fail the whole operation if this part fails, just log the error
             
             logger.info(f"Lease status updated successfully: ID {lease_id} status changed from {old_status} to {new_status} by user {current_user.id}")
             return response_data
@@ -628,19 +764,91 @@ async def parse_lease(
         pdf_document.close()
         
         # Analyze text using LLM
-        logger.info(f"Sending lease text for analysis, length: {len(text[:100])}...")
+        logger.info(f"Sending lease text for analysis (first 100 chars): {text[:100]!r}")
+        logger.info(f"Total characters sent to LLM: {len(text)}")
+
         raw_parsed_data = analyze_lease_text(text)
+
+        # Log the full raw data
+        logger.info(f"Raw LLM parsed data:\n{json.dumps(raw_parsed_data, indent=2)}")
         
         # Restructure the data to match LeaseAnalysisResponse model
-        parsed_data = {
-            'monthly_rent': float(raw_parsed_data.get('rent_payment', {}).get('monthly_rent', 0)),
-            'start_date': raw_parsed_data.get('term_details', {}).get('lease_start_date', ''),
-            'end_date': raw_parsed_data.get('term_details', {}).get('lease_end_date', ''),
-            'security_deposit': float(raw_parsed_data.get('deposits', {}).get('security_deposit', 0)),
-            'tenant_name': raw_parsed_data.get('core_identifiers', {}).get('tenant_name', ''),
-            'unit': raw_parsed_data.get('core_identifiers', {}).get('unit_number', '')
-        }
+        parsed_data = {}
+        try:
+            # Safely parse monthly_rent
+            raw_monthly_rent = raw_parsed_data.get('rent_payment', {}).get('monthly_rent', '0')
+            logger.info(f"Attempting to parse monthly_rent from raw string: {raw_monthly_rent!r}")
+            
+            monthly_rent_value = 0.0
+            try:
+                # Attempt direct float conversion first
+                monthly_rent_value = float(raw_monthly_rent)
+            except ValueError:
+                # If direct conversion fails, try regex to find the first number
+                logger.warning(f"Direct float conversion failed for monthly_rent. Attempting regex extraction.")
+                # Regex to find the first floating point number (potentially with commas)
+                match = re.match(r"^\s*([\d,]+(?:\.\d+)?|\d+(?:\.\d+)?)", str(raw_monthly_rent).strip())
+                if match:
+                    number_str = match.group(1).replace(",", "") # Remove commas before conversion
+                    try:
+                        monthly_rent_value = float(number_str)
+                        logger.info(f"Successfully extracted monthly_rent using regex: {monthly_rent_value}")
+                    except ValueError:
+                        logger.error(f"Could not convert regex match '{number_str}' to float.")
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail=f"Could not extract a valid rent amount from: '{raw_monthly_rent}'"
+                        )
+                else:
+                    logger.error(f"Could not find a valid number pattern in monthly_rent string: '{raw_monthly_rent}'")
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"Could not parse monthly rent value: '{raw_monthly_rent}'"
+                    )
+            
+            parsed_data['monthly_rent'] = monthly_rent_value
+            parsed_data['start_date'] = raw_parsed_data.get('term_details', {}).get('lease_start_date', '')
+            parsed_data['end_date'] = raw_parsed_data.get('term_details', {}).get('lease_end_date', '')
+            
+            # Safely parse security_deposit
+            raw_security_deposit = raw_parsed_data.get('deposits', {}).get('security_deposit', '0')
+            logger.info(f"Attempting to parse security_deposit from raw string: {raw_security_deposit!r}")
+            security_deposit_value = 0.0
+            try:
+                security_deposit_value = float(raw_security_deposit)
+            except ValueError:
+                logger.warning(f"Direct float conversion failed for security_deposit. Attempting regex extraction.")
+                # Use the same improved regex
+                match = re.match(r"^\s*([\d,]+(?:\.\d+)?|\d+(?:\.\d+)?)", str(raw_security_deposit).strip())
+                if match:
+                    number_str = match.group(1).replace(",", "") # Remove commas before conversion
+                    try:
+                        security_deposit_value = float(number_str)
+                        logger.info(f"Successfully extracted security_deposit using regex: {security_deposit_value}")
+                    except ValueError:
+                        logger.error(f"Could not convert security_deposit regex match '{number_str}' to float.")
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail=f"Could not extract a valid security deposit amount from: '{raw_security_deposit}'"
+                        )
+                else:
+                    logger.error(f"Could not find a valid number pattern in security_deposit string: '{raw_security_deposit}'")
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"Could not parse security deposit value: '{raw_security_deposit}'"
+                    )
+            parsed_data['security_deposit'] = security_deposit_value
+            
+            parsed_data['tenant_name'] = raw_parsed_data.get('core_identifiers', {}).get('tenant_name', '')
+            parsed_data['unit'] = raw_parsed_data.get('core_identifiers', {}).get('unit_number', '')
         
+        except KeyError as e:
+            logger.error(f"Missing key in LLM response: {e}")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Missing expected field in parsed lease data: {e}")
+        except ValueError as e:
+            logger.error(f"Value conversion error during parsing: {e}")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid data format in parsed lease: {e}")
+            
         logger.info(f"Restructured data: {parsed_data}")
         
         # Convert string dates to date objects
@@ -660,8 +868,10 @@ async def parse_lease(
         return parsed_data
         
     except Exception as e:
-        logger.error(f"Failed to parse lease: {str(e)}")
+        # Log the detailed error including stack trace
+        logger.error(f"Failed to parse lease document: {str(e)}", exc_info=True) 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to parse lease document: {str(e)}"
+            # Provide a more specific error message if possible, otherwise keep generic
+            detail=f"Failed to parse lease document: {str(e)}" 
         )

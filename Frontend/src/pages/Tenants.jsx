@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   fetchTenants, 
   deleteTenant,
-  fetchDashboardData
+  fetchDashboardData,
+  fetchOutstandingPayments
 } from '../utils/api';
 import TenantModal from '../components/TenantModal';
+import UpdateTenantModal from '../components/UpdateTenantModal';
 
 const Tenants = () => {
   const [tenants, setTenants] = useState([]);
@@ -16,6 +18,7 @@ const Tenants = () => {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,31 +35,74 @@ const Tenants = () => {
         if (searchTerm) {
           tenantParams.search = searchTerm;
         }
+        
+        console.log('Fetching tenants with params:', tenantParams);
         const tenantsData = await fetchTenants(tenantParams);
+        console.log('Tenants data received:', tenantsData);
         setTenants(tenantsData);
+
+        // Check active leases count based on tenant leases
+        const activeLeaseCount = countActiveLeases(tenantsData);
+        console.log('Active leases count:', activeLeaseCount);
+        
+        // Check expiring leases count
+        const expiringLeaseCount = countExpiringLeases(tenantsData);
+        console.log('Expiring leases count:', expiringLeaseCount);
 
         // Try to fetch dashboard data from API
         try {
           const dashData = await fetchDashboardData();
+          console.log('Dashboard data received:', dashData);
+          
+          // Try to fetch outstanding payments data
+          let overduePayments = 0;
+          try {
+            const outstandingPayments = await fetchOutstandingPayments();
+            console.log('Outstanding payments data:', outstandingPayments);
+            overduePayments = outstandingPayments?.length || 0;
+          } catch (paymentsError) {
+            console.warn('Failed to fetch overdue payments:', paymentsError);
+          }
+          
           setDashboardData({
-            totalTenants: dashData.total_tenants || tenantsData.length || 0,
-            activeLeases: dashData.active_leases || countActiveLeases(tenantsData) || 0,
-            expiringSoon: dashData.expiring_soon || countExpiringLeases(tenantsData) || 0,
-            overduePayments: dashData.overdue_payments || 0
+            totalTenants: dashData.summary?.total_tenants || tenantsData.length || 0,
+            activeLeases: activeLeaseCount,
+            expiringSoon: expiringLeaseCount,
+            overduePayments: overduePayments || dashData.payments_due?.length || 0
           });
         } catch (dashError) {
           console.warn('Failed to fetch dashboard data, using tenant data for counts:', dashError);
+          
+          // Try to fetch just the overdue payments if main dashboard failed
+          let overduePayments = 0;
+          try {
+            const outstandingPayments = await fetchOutstandingPayments();
+            overduePayments = outstandingPayments?.length || 0;
+          } catch (paymentsError) {
+            console.warn('Failed to fetch overdue payments:', paymentsError);
+          }
+          
           // Calculate dashboard data from tenant list if API call fails
           setDashboardData({
             totalTenants: tenantsData.length,
-            activeLeases: countActiveLeases(tenantsData),
-            expiringSoon: countExpiringLeases(tenantsData),
-            overduePayments: 0 // No way to determine this from tenant data alone
+            activeLeases: activeLeaseCount,
+            expiringSoon: expiringLeaseCount,
+            overduePayments: overduePayments
           });
         }
       } catch (err) {
         console.error('Error fetching data:', err);
-        setError('Failed to load data. Please try again.');
+        console.error('Error details:', err.response || err.message || err);
+        setError('Failed to load data. Please check console for details.');
+        
+        // Set empty data on error
+        setTenants([]);
+        setDashboardData({
+          totalTenants: 0,
+          activeLeases: 0,
+          expiringSoon: 0,
+          overduePayments: 0
+        });
       } finally {
         setIsLoading(false);
       }
@@ -68,18 +114,26 @@ const Tenants = () => {
   // Count active leases from tenant data
   const countActiveLeases = (tenantList) => {
     if (!tenantList) return 0;
-    return tenantList.filter(tenant => {
-      // Check if tenant has lease dates and status is active
-      if (!tenant.lease_start || !tenant.lease_end) return false;
+    
+    // Count unique tenants with at least one active lease
+    const tenantsWithActiveLeases = tenantList.filter(tenant => {
+      if (!tenant.leases || tenant.leases.length === 0) {
+        return false;
+      }
       
       const today = new Date();
-      const startDate = new Date(tenant.lease_start);
-      const endDate = new Date(tenant.lease_end);
       
-      return tenant.status?.toLowerCase() === 'active' && 
-             startDate <= today && 
-             endDate >= today;
-    }).length;
+      // Check if any lease is active and current
+      return tenant.leases.some(lease => {
+        const startDate = new Date(lease.start_date);
+        const endDate = new Date(lease.end_date);
+        return lease.status === "ACTIVE" && 
+               startDate <= today && 
+               endDate >= today;
+      });
+    });
+    
+    return tenantsWithActiveLeases.length;
   };
 
   // Count leases expiring this month
@@ -89,18 +143,32 @@ const Tenants = () => {
     const today = new Date();
     const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     
-    return tenantList.filter(tenant => {
-      if (!tenant.lease_end) return false;
+    // Count unique tenants with leases expiring this month
+    const tenantsWithExpiringLeases = tenantList.filter(tenant => {
+      if (!tenant.leases || tenant.leases.length === 0) {
+        return false;
+      }
       
-      const leaseEndDate = new Date(tenant.lease_end);
-      return leaseEndDate >= today && leaseEndDate <= endOfMonth;
-    }).length;
+      // Check if any lease is expiring this month
+      return tenant.leases.some(lease => {
+        const endDate = new Date(lease.end_date);
+        return endDate >= today && endDate <= endOfMonth;
+      });
+    });
+    
+    return tenantsWithExpiringLeases.length;
   };
 
-  // Handle adding/editing a tenant
-  const handleAddEditTenant = (tenant = null) => {
-    setSelectedTenant(tenant);
+  // Handle adding a tenant
+  const handleAddTenant = () => {
+    setSelectedTenant(null);
     setIsModalOpen(true);
+  };
+
+  // Handle editing a tenant
+  const handleEditTenant = (tenant) => {
+    setSelectedTenant(tenant);
+    setIsUpdateModalOpen(true);
   };
 
   // Handle tenant save (create/update)
@@ -118,8 +186,9 @@ const Tenants = () => {
         expiringSoon: countExpiringLeases(updatedTenants)
       }));
       
-      // Close modal
+      // Close modals
       setIsModalOpen(false);
+      setIsUpdateModalOpen(false);
       setSelectedTenant(null);
     } catch (err) {
       console.error('Failed to refresh tenant data:', err);
@@ -144,7 +213,12 @@ const Tenants = () => {
         }));
       } catch (err) {
         console.error('Failed to delete tenant:', err);
-        setError('Failed to delete tenant. Please try again.');
+        // Display the specific error message from the backend if available
+        if (err.data && err.data.detail) {
+          setError(err.data.detail);
+        } else {
+          setError('Failed to delete tenant. Please try again.');
+        }
       }
     }
     // Close action menu
@@ -323,7 +397,7 @@ const Tenants = () => {
           <h2 className="text-lg font-medium text-gray-900">Tenant Directory</h2>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => handleAddEditTenant()}
+              onClick={handleAddTenant}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -383,7 +457,7 @@ const Tenants = () => {
             <h3 className="text-lg font-medium text-gray-900 mb-2">No tenants yet</h3>
             <p className="text-gray-500 mb-6">Start by adding your first tenant.</p>
             <button
-              onClick={() => handleAddEditTenant()}
+              onClick={handleAddTenant}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -401,37 +475,25 @@ const Tenants = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Name
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Property
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Unit
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Email
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Phone
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Lease Start
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Lease End
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Monthly Rent
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Leasing Agent
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -439,107 +501,60 @@ const Tenants = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {tenants.map((tenant) => (
                     <tr key={tenant.id} className="hover:bg-gray-50 transition-colors duration-150">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
-                            {getInitials(tenant)}
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center">
+                          <div className="flex-shrink-0 h-10 w-10">
+                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                              <span className="text-gray-700 font-medium">{getInitials(tenant)}</span>
+                            </div>
                           </div>
-                          <div className="ml-4">
+                          <div className="ml-4 text-left">
                             <div className="text-sm font-medium text-gray-900">
-                              {tenant.first_name && tenant.last_name 
-                                ? `${tenant.first_name} ${tenant.last_name}`
-                                : tenant.full_name || '--'}
+                              {tenant.first_name} {tenant.last_name}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {tenant.property_name || '--'}
+                        <div className="text-sm text-gray-900 text-center">
+                          {tenant.property ? tenant.property.name : 
+                           (tenant.unit && tenant.unit.property ? tenant.unit.property.name : '--')}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {tenant.unit || '--'}
+                        <div className="text-sm text-gray-900 text-center">
+                          {tenant.unit ? tenant.unit.name : '--'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-gray-900 text-center">
                           {tenant.email || '--'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-gray-900 text-center">
                           {tenant.phone || '--'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {formatDate(tenant.lease_start)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {formatDate(tenant.lease_end)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {formatCurrency(tenant.monthly_rent)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(tenant.status)}`}>
                           {tenant.status || 'Unknown'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {tenant.leasing_agent || '--'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="relative">
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <div className="flex justify-center space-x-3">
                           <button
-                            onClick={() => setActionMenuOpen(actionMenuOpen === tenant.id ? null : tenant.id)}
-                            className="text-gray-500 hover:text-gray-700 focus:outline-none p-1 rounded-full hover:bg-gray-100"
-                            aria-label="Tenant actions"
+                            onClick={() => handleEditTenant(tenant)}
+                            className="text-blue-600 hover:text-blue-900 focus:outline-none"
                           >
-                            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
-                            </svg>
+                            Edit
                           </button>
-                          {actionMenuOpen === tenant.id && (
-                            <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10 divide-y divide-gray-100">
-                              <div className="py-1" role="menu" aria-orientation="vertical">
-                                <button
-                                  onClick={() => {
-                                    setActionMenuOpen(null);
-                                    handleAddEditTenant(tenant);
-                                  }}
-                                  className="group flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                                  role="menuitem"
-                                >
-                                  <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                  </svg>
-                                  Edit
-                                </button>
-                              </div>
-                              <div className="py-1" role="menu" aria-orientation="vertical">
-                                <button
-                                  onClick={() => handleDeleteTenant(tenant.id)}
-                                  className="group flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100 hover:text-red-700"
-                                  role="menuitem"
-                                >
-                                  <svg className="mr-3 h-5 w-5 text-red-400 group-hover:text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                  </svg>
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                          <button
+                            onClick={() => handleDeleteTenant(tenant.id)}
+                            className="text-red-600 hover:text-red-900 focus:outline-none"
+                          >
+                            Delete
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -572,16 +587,20 @@ const Tenants = () => {
         </div>
       )}
 
-      {/* Tenant Modal */}
+      {/* Add Tenant Modal */}
       <TenantModal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedTenant(null);
-        }}
-        tenant={selectedTenant}
+        onClose={() => setIsModalOpen(false)}
         onSave={handleSaveTenant}
         source="tenantsPage"
+      />
+
+      {/* Edit Tenant Modal */}
+      <UpdateTenantModal
+        isOpen={isUpdateModalOpen}
+        onClose={() => setIsUpdateModalOpen(false)}
+        tenant={selectedTenant}
+        onSave={handleSaveTenant}
       />
     </div>
   );

@@ -120,7 +120,7 @@ def analyze_lease_text(text: str) -> Dict[str, Any]:
         "renewal_terms": ""
       },
       "rent_payment": {
-        "monthly_rent": "",
+        "monthly_rent": "",  # IMPORTANT: Provide only the Year 1 base rent as a single float (e.g., 4400.00). No currency, ranges, or extra text.
         "rent_frequency": "",
         "due_date": "",
         "payment_methods": "",
@@ -129,7 +129,7 @@ def analyze_lease_text(text: str) -> Dict[str, Any]:
         "deposit_usage_policy": ""
       },
       "deposits": {
-        "security_deposit": "",
+        "security_deposit": "", # IMPORTANT: Provide a single float value only (e.g., 7500.00). No currency or extra text.
         "pet_deposit": "",
         "deposit_due_date": "",
         "interest_on_deposit": "",

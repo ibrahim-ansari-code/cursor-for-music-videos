@@ -1,81 +1,119 @@
-import React, { useState, useEffect } from 'react';
-import { createTenant, updateTenant } from '../utils/api';
-import { getInputClassName } from '../utils/formUtils';
+import React, { useState, useEffect, useRef } from 'react';
+import { createTenant } from '../utils/api';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
+// UI Components
+const Label = ({ htmlFor, required, children }) => (
+  <label 
+    htmlFor={htmlFor} 
+    className={`block text-sm font-medium text-gray-700 mb-1.5 ${required ? 'after:content-["*"] after:ml-0.5 after:text-red-500' : ''}`}
+  >
+    {children}
+  </label>
+);
+
+const Input = ({ id, name, value, onChange, placeholder, required, type = "text", className = "", ...props }) => (
+  <input
+    id={id || name}
+    name={name}
+    type={type}
+    value={value}
+    onChange={onChange}
+    placeholder={placeholder}
+    required={required}
+    className={`w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 ${className}`}
+    {...props}
+  />
+);
+
+const ErrorMessage = ({ message }) => (
+  <motion.div 
+    initial={{ opacity: 0, y: -10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0 }}
+    className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg flex items-start gap-2"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+    </svg>
+    <span>{message}</span>
+  </motion.div>
+);
+
+const Button = ({ type, onClick, variant = "primary", disabled, children, className = "", ...props }) => {
+  const baseClasses = "px-4 py-2.5 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed";
+  
+  const variants = {
+    primary: "bg-blue-600 hover:bg-blue-700 text-white border border-transparent focus:ring-blue-500",
+    secondary: "bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 focus:ring-blue-500",
+    danger: "bg-red-600 hover:bg-red-700 text-white border border-transparent focus:ring-red-500"
+  };
+  
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={`${baseClasses} ${variants[variant]} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
+
+const TenantModal = ({ isOpen, onClose, onSave, source, tenant = {}, propertyId = null, unitId = null, unitName = "" }) => {
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
     phone: '',
     email: '',
     status: 'active',
-    current_property_id: null,
+    current_property_id: propertyId || null,
+    unit: unitName || '',
+    unit_id: unitId || null,
   });
+  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [fieldErrors, setFieldErrors] = useState({
-    first_name: '',
-    last_name: '',
-    phone: '',
-    email: ''
-  });
-  const [formSubmitted, setFormSubmitted] = useState(false);
-  const [apiError, setApiError] = useState(null);
-  const [touched, setTouched] = useState({
-    first_name: false,
-    last_name: false,
-    phone: false,
-    email: false,
-  });
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const modalRef = useRef(null);
 
-  // Sync tenant prop to formData state
+  // Populate form when tenant data is provided
   useEffect(() => {
-    if (tenant) {
-      console.log('TenantModal - tenant prop received:', tenant);
+    if (isOpen && tenant) {
+      console.log("Setting tenant form data from:", tenant);
       
-      // Handle both the old format (full_name) and new format (first_name, last_name)
-      let first = '';
-      let last = '';
+      // Extract first and last name from full_name if provided
+      let firstName = tenant.first_name || '';
+      let lastName = tenant.last_name || '';
       
-      if (tenant.first_name && tenant.last_name) {
-        // New format
-        first = tenant.first_name;
-        last = tenant.last_name;
-      } else if (tenant.full_name) {
-        // Old format - split full_name into first_name and last_name
+      // If tenant has full_name but no first/last name, split it
+      if (tenant.full_name && (!firstName || !lastName)) {
         const nameParts = tenant.full_name.split(' ');
-        first = nameParts[0] || '';
-        last = nameParts.slice(1).join(' ') || '';
+        firstName = nameParts[0] || '';
+        lastName = nameParts.slice(1).join(' ') || '';
       }
       
-      const updatedFormData = {
-        first_name: first,
-        last_name: last,
+      setFormData({
+        first_name: firstName,
+        last_name: lastName,
         phone: tenant.phone || '',
         email: tenant.email || '',
         status: tenant.status || 'active',
-        current_property_id: tenant.current_property_id || null,
-      };
-
-      console.log('TenantModal - updating formData:', updatedFormData);
-      setFormData(updatedFormData);
+        current_property_id: propertyId || tenant.current_property_id || null,
+        unit: unitName || tenant.unit || '',
+        unit_id: unitId || tenant.unit_id || null,
+      });
       
-      // Clear any previous errors
       setFieldErrors({});
       setError(null);
-    } else {
-      // New tenant flow
-      setFormData({
-        first_name: '',
-        last_name: '',
-        phone: '',
-        email: '',
-        status: 'active',
-        current_property_id: null,
-      });
+      setTouched({});
+      setSubmitAttempted(false);
     }
-  }, [tenant, isOpen]);
+  }, [isOpen, tenant, propertyId, unitId, unitName]);
 
   // Handle form field changes
   const handleChange = (e) => {
@@ -119,13 +157,20 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
     if (!formData.email || formData.email.trim() === "") {
       newErrors.email = "Email is required";
       isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Invalid email format";
-      isValid = false;
+    } else {
+      // More robust email validation
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        newErrors.email = "Please enter a valid email address";
+        isValid = false;
+      }
     }
 
     if (!formData.phone || formData.phone.trim() === "") {
       newErrors.phone = "Phone number is required";
+      isValid = false;
+    } else if (!/^[0-9]{10,15}$/.test(formData.phone.replace(/[^0-9]/g, ''))) {
+      newErrors.phone = "Invalid phone number format (must contain 10-15 digits)";
       isValid = false;
     }
 
@@ -141,279 +186,225 @@ const TenantModal = ({ isOpen, onClose, tenant = null, onSave, source }) => {
     return isValid;
   };
 
+  // Click outside modal to close it
+  useEffect(() => {
+    function handleClickOutsideModal(event) {
+      if (modalRef.current && !modalRef.current.contains(event.target)) {
+        onClose();
+      }
+    }
+    
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutsideModal);
+    }
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutsideModal);
+    };
+  }, [isOpen, onClose]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setFormSubmitted(true);
+    setError(null);
+    setFieldErrors({});
     
     if (!validateForm()) {
       return;
     }
     
     setIsLoading(true);
-    setError(null);
-    setFieldErrors({});
 
     try {
-      // Extract only the fields that belong to the Tenant model
-      const tenantPayload = {
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        phone: formData.phone,
-        email: formData.email,
-        status: formData.status,
-        current_property_id: formData.current_property_id
+      // Prepare tenant data with property_id and unit information if available
+      const tenantToCreate = {
+        ...formData,
+        // Ensure current_property_id is set if available
+        current_property_id: formData.current_property_id || propertyId || null,
+        // Unit info - will be used by backend if needed
+        unit: formData.unit || unitName || '',
+        unit_id: formData.unit_id || unitId || null,
       };
       
-      // Remove undefined fields to avoid validation errors
-      Object.keys(tenantPayload).forEach(key => 
-        tenantPayload[key] === undefined && delete tenantPayload[key]
-      );
+      console.log('Creating tenant with data:', tenantToCreate);
+      const response = await createTenant(tenantToCreate);
       
-      let response;
-      // Only update if tenant exists and has an ID
-      if (tenant && tenant.id) {
-        console.log(`Updating existing tenant with ID: ${tenant.id}`, tenantPayload);
-        // Update existing tenant
-        response = await updateTenant(tenant.id, tenantPayload);
-      } else {
-        console.log('Creating new tenant:', tenantPayload);
-        // Create new tenant
-        response = await createTenant(tenantPayload);
-      }
-
-      console.log('Tenant created/updated successfully:', response);
-
       if (onSave) {
-        onSave(response);
+        // Add unit and property info to response for downstream processing
+        const tenantResponse = {
+          ...response,
+          unit: formData.unit || unitName || '',
+          unit_id: formData.unit_id || unitId || null,
+          current_property_id: formData.current_property_id || propertyId || null,
+        };
+        onSave(tenantResponse);
       }
       
       if (!source || source !== "importLeaseModal") {
         onClose();
       }
     } catch (err) {
-      console.error('Failed to save tenant:', err);
+      console.error('Failed to create tenant:', err);
       
-      // Log more details about the error for debugging
-      if (err.data) {
-        console.error('Error data:', err.data);
-      }
-      if (err.rawResponse) {
-        console.error('Raw error response:', err.rawResponse);
-      }
-      
-      // Handle different error scenarios
-      if (err.status === 422) {
-        // Validation error from backend
-        handleValidationError(err);
-      } else if (err.status === 401 || err.status === 403) {
-        // Authentication/authorization error
-        setError('You are not authorized to perform this action. Please check your permissions.');
-      } else if (err.status === 404) {
-        // Not found error
-        setError('The requested resource was not found. Please refresh and try again.');
-      } else if (err.status === 500) {
-        // Server error
-        setError('An unexpected server error occurred. Please try again later.');
+      if (err.data?.detail && Array.isArray(err.data.detail)) {
+        const validationErrors = {};
+        err.data.detail.forEach(error => {
+          if (error.loc && error.loc.length > 1) {
+            validationErrors[error.loc[1]] = error.msg;
+          }
+        });
+        
+        setFieldErrors(validationErrors);
+        setError('Please correct the validation errors below.');
       } else {
-        // Generic error handling
-        setError('Failed to save tenant. Please check your connection and try again.');
+        setError(err.message || 'Failed to create tenant. Please try again.');
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Helper function to handle validation errors from the backend
-  const handleValidationError = (err) => {
-    console.log('Handling validation error:', err);
-    
-    if (err.data?.detail) {
-      // Handle field validation errors
-      if (Array.isArray(err.data.detail)) {
-        const validationErrors = {};
-        const generalErrors = [];
-        
-        err.data.detail.forEach(error => {
-          console.log('Validation error detail:', error);
-          if (error.loc && error.loc.length > 1) {
-            // This is a field-specific error
-            const fieldName = error.loc[1];
-            validationErrors[fieldName] = error.msg;
-          } else {
-            // This is a general error
-            generalErrors.push(error.msg);
-          }
-        });
-        
-        setFieldErrors(validationErrors);
-        
-        if (generalErrors.length > 0) {
-          setError(`Please correct the following: ${generalErrors.join(', ')}`);
-        } else {
-          setError('Please correct the validation errors below.');
-        }
-      } else if (typeof err.data.detail === 'string') {
-        setError(err.data.detail);
-      }
-    } else {
-      // If we got a raw error message without structure, use it directly
-      const errorMessage = err.message || 'Validation failed. Please check your input and try again.';
-      setError(errorMessage);
-      console.error('Raw error response:', err);
-    }
-  };
-
-  // Wrap getInputClassName in a try-catch block
-  const safeGetInputClassName = (field) => {
-    try {
-      const errors = fieldErrors || {};
-      const data = formData || {};
-      return getInputClassName(field, errors, formSubmitted, data);
-    } catch (error) {
-      console.error(`Error getting input class name for ${field}:`, error);
-      return 'border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm'; // Fallback class
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-      <div className="relative p-6 border w-full max-w-md shadow-lg rounded-lg bg-white">
-        <div className="flex justify-between items-center mb-5">
-          <h2 className="text-xl font-bold text-gray-800">
-            {tenant && tenant.id ? 'Edit Tenant' : 'Add Tenant'}
-          </h2>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
+    >
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        ref={modalRef}
+        className="relative w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden"
+      >
+        {/* Header */}
+        <div className="sticky top-0 z-10 px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-900">Add Tenant</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 transition-colors duration-150"
+            className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full p-1 transition-colors duration-200"
+            aria-label="Close modal"
           >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path>
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
+        
+        {/* Body */}
+        <div className="p-6 max-h-[calc(100vh-12rem)] overflow-y-auto">
+          <AnimatePresence>
+            {error && <ErrorMessage message={error} />}
+          </AnimatePresence>
 
-        {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
-            {error}
-          </div>
-        )}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="first_name" required>First Name</Label>
+                <Input
+                  id="first_name"
+                  name="first_name"
+                  value={formData.first_name}
+                  onChange={handleChange}
+                  placeholder="Enter first name"
+                  required
+                  className={fieldErrors.first_name && touched.first_name ? "border-red-500" : ""}
+                />
+                {fieldErrors.first_name && touched.first_name && (
+                  <p className="mt-1 text-sm text-red-600">{fieldErrors.first_name}</p>
+                )}
+              </div>
 
-        {apiError && (
-          <div className="alert alert-danger mb-3" role="alert">
-            {apiError}
-          </div>
-        )}
+              <div>
+                <Label htmlFor="last_name" required>Last Name</Label>
+                <Input
+                  id="last_name"
+                  name="last_name"
+                  value={formData.last_name}
+                  onChange={handleChange}
+                  placeholder="Enter last name"
+                  required
+                  className={fieldErrors.last_name && touched.last_name ? "border-red-500" : ""}
+                />
+                {fieldErrors.last_name && touched.last_name && (
+                  <p className="mt-1 text-sm text-red-600">{fieldErrors.last_name}</p>
+                )}
+              </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-4">
-            <div className="mb-3">
-              <label htmlFor="first_name" className="form-label">
-                First Name*
-              </label>
-              <input
-                type="text"
-                className={safeGetInputClassName("first_name")}
-                id="first_name"
-                name="first_name"
-                placeholder="Enter first name"
-                value={formData.first_name || ""}
-                onChange={handleChange}
-              />
-              {fieldErrors.first_name && (touched.first_name || submitAttempted) && (
-                <div className="invalid-feedback">{fieldErrors.first_name}</div>
-              )}
+              <div>
+                <Label htmlFor="phone" required>Phone Number</Label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="Enter phone number"
+                  required
+                  className={fieldErrors.phone && touched.phone ? "border-red-500" : ""}
+                />
+                {fieldErrors.phone && touched.phone && (
+                  <p className="mt-1 text-sm text-red-600">{fieldErrors.phone}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="email" required>Email</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="Enter email"
+                  required
+                  className={fieldErrors.email && touched.email ? "border-red-500" : ""}
+                />
+                {fieldErrors.email && touched.email && (
+                  <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>
+                )}
+              </div>
             </div>
 
-            <div className="mb-3">
-              <label htmlFor="last_name" className="form-label">
-                Last Name*
-              </label>
-              <input
-                type="text"
-                className={safeGetInputClassName("last_name")}
-                id="last_name"
-                name="last_name"
-                placeholder="Enter last name"
-                value={formData.last_name || ""}
-                onChange={handleChange}
-              />
-              {fieldErrors.last_name && (touched.last_name || submitAttempted) && (
-                <div className="invalid-feedback">{fieldErrors.last_name}</div>
-              )}
+            <div className="mt-2 mb-4 text-sm text-gray-500">
+              <span className="text-red-600 font-bold">*</span> Required fields
             </div>
-
-            <div className="mb-3">
-              <label htmlFor="phone" className="form-label">
-                Phone Number*
-              </label>
-              <input
-                type="tel"
-                className={safeGetInputClassName("phone")}
-                id="phone"
-                name="phone"
-                placeholder="Enter phone number"
-                value={formData.phone || ""}
-                onChange={handleChange}
-              />
-              {fieldErrors.phone && (touched.phone || submitAttempted) && (
-                <div className="invalid-feedback">{fieldErrors.phone}</div>
-              )}
-            </div>
-
-            <div className="mb-3">
-              <label htmlFor="email" className="form-label">
-                Email*
-              </label>
-              <input
-                type="email"
-                className={safeGetInputClassName("email")}
-                id="email"
-                name="email"
-                placeholder="Enter email"
-                value={formData.email || ""}
-                onChange={handleChange}
-              />
-              {fieldErrors.email && (touched.email || submitAttempted) && (
-                <div className="invalid-feedback">{fieldErrors.email}</div>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-2 text-sm text-gray-500">
-            <span className="text-red-600">*</span> Required fields
-          </div>
-
-          <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Saving...
-                </>
-              ) : (
-                'Save'
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          </form>
+        </div>
+        
+        {/* Footer */}
+        <div className="sticky bottom-0 z-10 px-6 py-4 bg-white border-t border-gray-200 flex justify-end space-x-3">
+          <Button 
+            type="button" 
+            variant="secondary" 
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            onClick={handleSubmit}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Creating...
+              </>
+            ) : (
+              'Save'
+            )}
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

@@ -56,17 +56,27 @@ const handleResponse = async (response) => {
       try {
         const textContent = await response.text();
         errorObj.rawResponse = textContent;
+        
+        throw Object.assign(
+          new Error(`API error: ${response.status}. ${textContent || response.statusText}`),
+          errorObj
+        );
       } catch (textError) {
         errorObj.rawResponseError = "Couldn't read response text";
+        throw Object.assign(
+          new Error(`API error: ${response.status}. ${response.statusText}`),
+          errorObj
+        );
       }
-      
-      throw Object.assign(
-        new Error(`API error: ${response.status}. ${response.statusText}`),
-        errorObj
-      );
     }
   }
   
+  // For 204 No Content responses, return null instead of trying to parse JSON
+  if (response.status === 204) {
+    return null;
+  }
+  
+  // For other successful responses, parse JSON
   return response.json();
 };
 
@@ -562,6 +572,61 @@ export const fetchPropertyUnits = async (propertyId) => {
   return apiRequest(`/properties/${propertyId}/units`);
 };
 
+export const createUnit = async (propertyId, unitData) => {
+  console.log(`Creating unit for property ${propertyId} with data:`, unitData);
+  return apiRequest(`/properties/${propertyId}/units`, {
+    method: 'POST',
+    body: JSON.stringify(unitData)
+  });
+};
+
+export const updateUnit = async (unitId, unitData) => {
+  console.log(`Updating unit ${unitId} with data:`, unitData);
+  
+  try {
+    // Ensure numeric values are properly formatted
+    const formattedData = {
+      ...unitData,
+      monthly_rent: unitData.monthly_rent ? parseFloat(unitData.monthly_rent) : null,
+      size: unitData.size ? parseFloat(unitData.size) : null,
+      bedrooms: unitData.bedrooms ? parseInt(unitData.bedrooms, 10) : null,
+      bathrooms: unitData.bathrooms ? parseFloat(unitData.bathrooms) : null,
+      floor: unitData.floor ? parseInt(unitData.floor, 10) : null,
+      tenant_id: unitData.tenant_id || null,
+    };
+    
+    const response = await apiRequest(`/units/${unitId}`, {
+      method: 'PUT',
+      body: JSON.stringify(formattedData)
+    });
+    
+    console.log(`Unit ${unitId} updated successfully:`, response);
+    return response;
+  } catch (error) {
+    console.error(`Error updating unit ${unitId}:`, error);
+    // Enhance error message for better user feedback
+    const errorMessage = error.message || 'Failed to update unit';
+    const enhancedError = new Error(errorMessage);
+    enhancedError.originalError = error;
+    throw enhancedError;
+  }
+};
+
+export const deleteUnit = async (unitId) => {
+  console.log(`Deleting unit with ID: ${unitId}`);
+  
+  try {
+    const response = await apiRequest(`/units/${unitId}`, {
+      method: 'DELETE'
+    });
+    // The response will be null for 204 status, which is OK
+    return response;
+  } catch (error) {
+    console.error(`Error deleting unit ${unitId}:`, error);
+    throw error;
+  }
+};
+
 // Tenant Management API Functions
 export const fetchTenants = async (params = {}) => {
   const queryParams = new URLSearchParams();
@@ -581,23 +646,160 @@ export const fetchTenant = async (tenantId) => {
 export const createTenant = async (tenantData) => {
   console.log('Creating tenant with data:', tenantData);
   try {
-    const response = await apiRequest('/tenants', {
+    const sanitizedData = { ...tenantData };
+    
+    // Handle email sanitization
+    if (typeof sanitizedData.email === 'string') {
+      sanitizedData.email = sanitizedData.email.trim().toLowerCase();
+      
+      // Email format validation
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (sanitizedData.email && !emailRegex.test(sanitizedData.email)) {
+        throw new Error('Invalid email format');
+      }
+      
+      // If email is empty string, set to null to avoid validation issues
+      if (sanitizedData.email === '') {
+        sanitizedData.email = null;
+      }
+    }
+
+    // Ensure status is properly formatted for the backend enum (First letter uppercase, rest lowercase)
+    if (sanitizedData.status) {
+      sanitizedData.status = sanitizedData.status.charAt(0).toUpperCase() + sanitizedData.status.slice(1).toLowerCase();
+    }
+    
+    // Always set user_id to null for new tenants to avoid unique constraint violations
+    sanitizedData.user_id = null;
+    
+    console.log('Sending sanitized tenant data:', sanitizedData);
+    
+    // Get token from localStorage for authentication
+    const token = localStorage.getItem('token');
+    
+    // Check if token exists
+    if (!token) {
+      console.error('No token found for authenticated request');
+      throw new Error('Authentication required. Please log in.');
+    }
+    
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/tenants`, {
       method: 'POST',
-      body: JSON.stringify(tenantData)
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(sanitizedData),
     });
-    console.log('Tenant created successfully:', response);
-    return response;
+
+    // Log response headers for debugging
+    console.log('Create tenant response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response text:', errorText);
+      
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+        console.error('Parsed error data:', errorData);
+      } catch (e) {
+        console.error('Failed to parse error response as JSON');
+        errorData = { detail: errorText };
+      }
+      
+      // Enhanced error with response details
+      const error = new Error(`Failed to create tenant: ${response.statusText}`);
+      error.status = response.status;
+      error.data = errorData;
+      error.rawResponse = errorText;
+      throw error;
+    }
+
+    return await response.json();
   } catch (error) {
-    console.error('Error creating tenant:', error);
+    console.error('Error in createTenant:', error);
     throw error;
   }
 };
 
 export const updateTenant = async (tenantId, tenantData) => {
-  return apiRequest(`/tenants/${tenantId}`, {
-    method: 'PATCH',
-    body: JSON.stringify(tenantData)
-  });
+  console.log(`Updating tenant ${tenantId} with data:`, tenantData);
+  try {
+    const sanitizedData = { ...tenantData };
+    
+    // Handle email sanitization
+    if (typeof sanitizedData.email === 'string') {
+      sanitizedData.email = sanitizedData.email.trim().toLowerCase();
+      
+      // Email format validation
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (sanitizedData.email && !emailRegex.test(sanitizedData.email)) {
+        throw new Error('Invalid email format');
+      }
+      
+      // If email is empty string, set to null to avoid validation issues
+      if (sanitizedData.email === '') {
+        sanitizedData.email = null;
+      }
+    }
+
+    // Ensure status is properly formatted for the backend enum (First letter uppercase, rest lowercase)
+    if (sanitizedData.status) {
+      sanitizedData.status = sanitizedData.status.charAt(0).toUpperCase() + sanitizedData.status.slice(1).toLowerCase();
+    }
+    
+    // For updates, we should keep the existing user_id if provided
+    // This will be handled in the TenantModal.jsx file
+    
+    console.log('Sending sanitized tenant data for update:', sanitizedData);
+    
+    // Get token from localStorage for authentication
+    const token = localStorage.getItem('token');
+    
+    // Check if token exists
+    if (!token) {
+      console.error('No token found for authenticated request');
+      throw new Error('Authentication required. Please log in.');
+    }
+    
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/tenants/${tenantId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(sanitizedData),
+    });
+
+    console.log('Update tenant response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response text:', errorText);
+      
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+        console.error('Parsed error data:', errorData);
+      } catch (e) {
+        console.error('Failed to parse error response as JSON');
+        errorData = { detail: errorText };
+      }
+      
+      // Enhanced error with response details
+      const error = new Error(`Failed to update tenant: ${response.statusText}`);
+      error.status = response.status;
+      error.data = errorData;
+      error.rawResponse = errorText;
+      throw error;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error in updateTenant:', error);
+    throw error;
+  }
 };
 
 export const deleteTenant = async (tenantId) => {
@@ -780,4 +982,94 @@ export const parseLease = async (formData) => {
     console.error('Error in parseLease:', error);
     throw error;
   }
+};
+
+// Add these functions after the existing accounting API functions
+
+export const generateDuePayments = async () => {
+  return apiRequest('/accounting/generate-due-payments', {
+    method: 'POST'
+  });
+};
+
+export const fetchOutstandingPayments = async () => {
+  return apiRequest('/accounting/outstanding-payments');
+};
+
+export const fetchRentTracker = async (params = {}) => {
+  const queryParams = new URLSearchParams();
+  
+  if (params.month) queryParams.append('month', params.month);
+  if (params.year) queryParams.append('year', params.year);
+  
+  const queryString = queryParams.toString();
+  return apiRequest(`/rent-tracker${queryString ? '?' + queryString : ''}`);
+};
+
+// User Settings API Functions
+
+/**
+ * Update user profile information.
+ * @param {number} userId - The ID of the user to update.
+ * @param {object} profileData - Object containing first_name, last_name, phone.
+ * @returns {Promise<object>} The updated user data.
+ */
+export const updateUserProfile = async (userId, profileData) => {
+  if (!userId) throw new Error("User ID is required to update profile.");
+  return apiRequest(`/users/${userId}/profile`, {
+    method: 'PUT', // Or PATCH depending on your backend implementation
+    body: JSON.stringify(profileData)
+  });
+};
+
+/**
+ * Change the user's password.
+ * @param {number} userId - The ID of the user.
+ * @param {string} newPassword - The new password.
+ * @returns {Promise<object>} Success message or error.
+ */
+export const changeUserPassword = async (userId, newPassword) => {
+  if (!userId) throw new Error("User ID is required to change password.");
+  return apiRequest(`/users/${userId}/password`, {
+    method: 'POST',
+    body: JSON.stringify({ password: newPassword })
+  });
+};
+
+/**
+ * Upload a new avatar for the user.
+ * @param {number} userId - The ID of the user.
+ * @param {FormData} formData - FormData object containing the avatar file under the key 'avatar'.
+ * @returns {Promise<object>} Object containing the new profile_image_url.
+ */
+export const uploadUserAvatar = async (userId, formData) => {
+  if (!userId) throw new Error("User ID is required to upload avatar.");
+  const token = localStorage.getItem('token');
+
+  // Use fetch directly for FormData as apiRequest might stringify it
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/users/${userId}/avatar`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      // 'Content-Type' header is automatically set by the browser for FormData
+    },
+    body: formData
+  });
+
+  return handleResponse(response);
+};
+
+// Add the new report summary function
+export const fetchReportSummary = async (params = {}) => {
+  const queryParams = new URLSearchParams();
+  
+  if (params.report_type) queryParams.append('report_type', params.report_type);
+  if (params.date_range) queryParams.append('date_range', params.date_range);
+  if (params.property_ids && params.property_ids.length > 0) {
+    params.property_ids.forEach(id => queryParams.append('property_ids', id));
+  }
+  
+  const queryString = queryParams.toString();
+  console.log(`Fetching report summary with query: ${queryString}`); // Debug log
+  return apiRequest(`/reports/summary?${queryString}`);
 };

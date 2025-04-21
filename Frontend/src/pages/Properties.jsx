@@ -1,7 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { fetchProperties, createProperty, deleteProperty } from '../utils/api';
+import { fetchProperties, createProperty, deleteProperty, updateProperty, fetchPropertyById } from '../utils/api';
 import NewPropertyModal from '../components/NewPropertyModal';
+
+// Utility functions
+// Capitalize first letter of string
+const capitalize = (str) => {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
 
 const StatusCard = ({ title, count, bgColor = 'bg-white', textColor = 'text-gray-900', onClick, icon }) => (
   <div 
@@ -45,7 +52,7 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const PropertyTable = ({ properties, loading, error, onDelete }) => {
+const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
   const navigate = useNavigate();
   
   if (loading) return (
@@ -82,12 +89,6 @@ const PropertyTable = ({ properties, loading, error, onDelete }) => {
     return <div className="p-4 text-center text-gray-500">No properties found. Create your first property!</div>;
   }
 
-  // Capitalize first letter of string
-  const capitalize = (str) => {
-    if (!str) return '';
-    return str.charAt(0).toUpperCase() + str.slice(1);
-  };
-
   // Generate image placeholder based on property name
   const getImageInitial = (name) => {
     if (!name) return '';
@@ -106,22 +107,22 @@ const PropertyTable = ({ properties, loading, error, onDelete }) => {
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
               Property
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
               Type
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
               Address
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
               Status
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
               Added
             </th>
-            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
               Actions
             </th>
           </tr>
@@ -134,7 +135,7 @@ const PropertyTable = ({ properties, loading, error, onDelete }) => {
               onClick={() => navigate(`/properties/${property.id}`)}
             >
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center">
+                <div className="flex items-center justify-center">
                   <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold">
                     {getImageInitial(property.name)}
                   </div>
@@ -143,20 +144,24 @@ const PropertyTable = ({ properties, loading, error, onDelete }) => {
                   </div>
                 </div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                 {capitalize(property.property_type)}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {property.address}, {property.city}, {property.state}
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                <div className="max-w-xs truncate" title={`${property.address}, ${property.city}, ${property.state}`}>
+                  {property.address}, {property.city}, {property.state}
+                </div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                <StatusBadge status={property.status || 'active'} />
+              <td className="px-6 py-4 whitespace-nowrap text-center">
+                <div className="flex justify-center">
+                  <StatusBadge status={property.status || 'active'} />
+                </div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                 {new Date(property.created_at).toLocaleDateString()}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <div className="flex justify-end space-x-3">
+              <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                <div className="flex justify-center space-x-3">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -169,7 +174,7 @@ const PropertyTable = ({ properties, loading, error, onDelete }) => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Edit functionality will be added later
+                      onEdit(property.id);
                     }}
                     className="text-blue-600 hover:text-blue-900"
                   >
@@ -209,21 +214,54 @@ const Properties = () => {
   });
   const [isDeleting, setIsDeleting] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [currentProperty, setCurrentProperty] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [sortOption, setSortOption] = useState(null);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [filterOptions, setFilterOptions] = useState({
+    propertyType: null,
+    status: null,
+    dateAdded: null
+  });
+  
+  // Refs for clicking outside filter/sort menus
+  const filterMenuRef = useRef(null);
+  const sortMenuRef = useRef(null);
 
   useEffect(() => {
     fetchPropertiesData();
   }, []);
 
   useEffect(() => {
-    // Filter properties based on search term and status filter
+    // Close menus when clicking outside
+    function handleClickOutside(event) {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target)) {
+        setShowFilterMenu(false);
+      }
+      if (sortMenuRef.current && !sortMenuRef.current.contains(event.target)) {
+        setShowSortMenu(false);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Filter and sort properties based on search term, status filter and sort option
     if (!properties.length) return;
 
     let result = [...properties];
 
+    // Apply status filter from cards or dropdown
     if (statusFilter) {
       result = result.filter(p => p.status === statusFilter);
     }
-
+    
+    // Apply search term filter
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       result = result.filter(p => 
@@ -233,9 +271,67 @@ const Properties = () => {
         p.property_type.toLowerCase().includes(term)
       );
     }
+    
+    // Apply property type filter
+    if (filterOptions.propertyType) {
+      result = result.filter(p => p.property_type === filterOptions.propertyType);
+    }
+
+    // Apply status filter from dropdown (overrides card selection)
+    if (filterOptions.status) {
+      result = result.filter(p => p.status === filterOptions.status);
+    }
+    
+    // Apply date filter
+    if (filterOptions.dateAdded) {
+      const now = new Date();
+      const cutoffDate = new Date();
+      
+      switch (filterOptions.dateAdded) {
+        case 'last-week':
+          cutoffDate.setDate(now.getDate() - 7);
+          break;
+        case 'last-month':
+          cutoffDate.setMonth(now.getMonth() - 1);
+          break;
+        case 'last-year':
+          cutoffDate.setFullYear(now.getFullYear() - 1);
+          break;
+        default:
+          break;
+      }
+      
+      result = result.filter(p => new Date(p.created_at) >= cutoffDate);
+    }
+    
+    // Apply sorting
+    if (sortOption) {
+      result.sort((a, b) => {
+        switch (sortOption) {
+          case 'name-asc':
+            return a.name.localeCompare(b.name);
+          case 'name-desc':
+            return b.name.localeCompare(a.name);
+          case 'type-asc':
+            return a.property_type.localeCompare(b.property_type);
+          case 'type-desc':
+            return b.property_type.localeCompare(a.property_type);
+          case 'status-asc':
+            return a.status.localeCompare(b.status);
+          case 'status-desc':
+            return b.status.localeCompare(a.status);
+          case 'date-asc':
+            return new Date(a.created_at) - new Date(b.created_at);
+          case 'date-desc':
+            return new Date(b.created_at) - new Date(a.created_at);
+          default:
+            return 0;
+        }
+      });
+    }
 
     setFilteredProperties(result);
-  }, [properties, statusFilter, searchTerm]);
+  }, [properties, statusFilter, searchTerm, filterOptions, sortOption]);
 
   const fetchPropertiesData = async () => {
     try {
@@ -277,22 +373,77 @@ const Properties = () => {
   const handleCreateProperty = async (propertyData) => {
     setIsSubmitting(true);
     try {
-      const newProperty = await createProperty(propertyData);
+      let result;
       
-      // Update properties and counts
-      setProperties(prev => [newProperty, ...prev]);
-      setStatusCounts(prev => ({
-        ...prev,
-        total: prev.total + 1,
-        [newProperty.status]: (prev[newProperty.status] || 0) + 1
-      }));
+      if (isEditing && currentProperty) {
+        // Update existing property
+        result = await updateProperty(currentProperty.id, propertyData);
+        
+        // Update the properties list
+        setProperties(prev => prev.map(p => p.id === currentProperty.id ? result : p));
+        
+        setNotification({
+          type: 'success',
+          message: 'Property updated successfully'
+        });
+      } else {
+        // Create new property
+        result = await createProperty(propertyData);
+        
+        // Add new property to the list
+        setProperties(prev => [result, ...prev]);
+        
+        // Update status counts
+        setStatusCounts(prev => ({
+          ...prev,
+          total: prev.total + 1,
+          [result.status]: (prev[result.status] || 0) + 1
+        }));
+        
+        setNotification({
+          type: 'success',
+          message: 'Property created successfully'
+        });
+      }
       
+      // Reset state and close modal
       setIsModalOpen(false);
+      setCurrentProperty(null);
+      setIsEditing(false);
+      
+      // Clear notification after 3 seconds
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      
+      return result;
     } catch (error) {
-      console.error('Error creating property:', error);
+      console.error('Error saving property:', error);
       throw error;
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleEditProperty = async (propertyId) => {
+    try {
+      setLoading(true);
+      const property = await fetchPropertyById(propertyId);
+      setCurrentProperty(property);
+      setIsEditing(true);
+      setIsModalOpen(true);
+    } catch (error) {
+      console.error('Error fetching property details:', error);
+      setNotification({
+        type: 'error',
+        message: 'Failed to load property details'
+      });
+      
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -305,8 +456,14 @@ const Properties = () => {
   };
 
   const clearFilters = () => {
+    setFilterOptions({
+      propertyType: null,
+      status: null,
+      dateAdded: null
+    });
     setStatusFilter(null);
     setSearchTerm('');
+    setSortOption(null);
   };
 
   const handleDeleteProperty = async (propertyId) => {
@@ -366,6 +523,28 @@ const Properties = () => {
     }
   };
 
+  const handleFilterToggle = () => {
+    setShowFilterMenu(!showFilterMenu);
+    setShowSortMenu(false);
+  };
+  
+  const handleSortToggle = () => {
+    setShowSortMenu(!showSortMenu);
+    setShowFilterMenu(false);
+  };
+  
+  const handleFilterSelect = (type, value) => {
+    setFilterOptions(prev => ({
+      ...prev,
+      [type]: value === prev[type] ? null : value
+    }));
+  };
+  
+  const handleSortSelect = (option) => {
+    setSortOption(option === sortOption ? null : option);
+    setShowSortMenu(false);
+  };
+
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
       {/* Status Cards */}
@@ -400,16 +579,6 @@ const Properties = () => {
           onClick={clearFilters}
           icon={<svg className="h-6 w-6 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>}
         />
-      </div>
-
-      <div className="flex justify-between items-center mb-8">
-        <button
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-          onClick={() => setIsModalOpen(true)}
-        >
-          <i className="fas fa-plus"></i>
-          Add new property
-        </button>
       </div>
 
       {/* Notification */}
@@ -451,10 +620,26 @@ const Properties = () => {
               />
             </div>
             <div className="flex items-center gap-4">
-              {statusFilter && (
+              {(statusFilter || Object.values(filterOptions).some(val => val !== null)) && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-500">Filtered by:</span>
-                  <StatusBadge status={statusFilter} />
+                  {statusFilter && <StatusBadge status={statusFilter} />}
+                  {filterOptions.propertyType && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                      Type: {capitalize(filterOptions.propertyType)}
+                    </span>
+                  )}
+                  {filterOptions.status && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                      Status: {capitalize(filterOptions.status)}
+                    </span>
+                  )}
+                  {filterOptions.dateAdded && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                      Date: {filterOptions.dateAdded === 'last-week' ? 'Last week' : 
+                              filterOptions.dateAdded === 'last-month' ? 'Last month' : 'Last year'}
+                    </span>
+                  )}
                   <button 
                     onClick={clearFilters}
                     className="text-sm text-gray-500 hover:text-gray-700"
@@ -463,14 +648,204 @@ const Properties = () => {
                   </button>
                 </div>
               )}
-              <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                <i className="fas fa-filter mr-2"></i>
-                Filter
+              
+              <button
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                onClick={() => setIsModalOpen(true)}
+              >
+                <i className="fas fa-plus"></i>
+                Add new property
               </button>
-              <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                <i className="fas fa-sort mr-2"></i>
-                Sort
-              </button>
+              
+              {/* Filter Dropdown */}
+              <div className="relative" ref={filterMenuRef}>
+                <button 
+                  onClick={handleFilterToggle}
+                  className={`inline-flex items-center px-4 py-2 border rounded-lg shadow-sm text-sm font-medium ${
+                    Object.values(filterOptions).some(val => val !== null) 
+                    ? 'bg-blue-50 text-blue-700 border-blue-300' 
+                    : 'text-gray-700 bg-white border-gray-300'
+                  } hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+                >
+                  <i className="fas fa-filter mr-2"></i>
+                  Filter
+                </button>
+                
+                {showFilterMenu && (
+                  <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-10">
+                    <div className="p-2">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3 pt-1">Property Type</h3>
+                      <div className="space-y-1">
+                        {['residential', 'commercial', 'industrial', 'mixed-use', 'apartment-complex'].map(type => (
+                          <button
+                            key={type}
+                            onClick={() => handleFilterSelect('propertyType', type)}
+                            className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
+                              filterOptions.propertyType === type ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            {filterOptions.propertyType === type && (
+                              <svg className="mr-2 h-4 w-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                            {capitalize(type)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="p-2">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3 pt-1">Status</h3>
+                      <div className="space-y-1">
+                        {['active', 'maintenance', 'vacant'].map(status => (
+                          <button
+                            key={status}
+                            onClick={() => handleFilterSelect('status', status)}
+                            className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
+                              filterOptions.status === status ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            {filterOptions.status === status && (
+                              <svg className="mr-2 h-4 w-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                            {capitalize(status)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="p-2">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3 pt-1">Date Added</h3>
+                      <div className="space-y-1">
+                        {[
+                          { id: 'last-week', label: 'Last Week' },
+                          { id: 'last-month', label: 'Last Month' },
+                          { id: 'last-year', label: 'Last Year' }
+                        ].map(option => (
+                          <button
+                            key={option.id}
+                            onClick={() => handleFilterSelect('dateAdded', option.id)}
+                            className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
+                              filterOptions.dateAdded === option.id ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            {filterOptions.dateAdded === option.id && (
+                              <svg className="mr-2 h-4 w-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="p-2">
+                      <button
+                        onClick={clearFilters}
+                        className="w-full flex justify-center items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md"
+                      >
+                        <i className="fas fa-times-circle mr-2"></i>
+                        Clear All Filters
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Sort Dropdown */}
+              <div className="relative" ref={sortMenuRef}>
+                <button 
+                  onClick={handleSortToggle}
+                  className={`inline-flex items-center px-4 py-2 border rounded-lg shadow-sm text-sm font-medium ${
+                    sortOption 
+                    ? 'bg-blue-50 text-blue-700 border-blue-300' 
+                    : 'text-gray-700 bg-white border-gray-300'
+                  } hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+                >
+                  <i className="fas fa-sort mr-2"></i>
+                  Sort
+                </button>
+                
+                {showSortMenu && (
+                  <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-10">
+                    <div className="p-2">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3 pt-1">Name</h3>
+                      <div className="space-y-1">
+                        <button
+                          onClick={() => handleSortSelect('name-asc')}
+                          className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
+                            sortOption === 'name-asc' ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <i className="fas fa-sort-alpha-down mr-2"></i>
+                          A to Z
+                        </button>
+                        <button
+                          onClick={() => handleSortSelect('name-desc')}
+                          className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
+                            sortOption === 'name-desc' ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <i className="fas fa-sort-alpha-down-alt mr-2"></i>
+                          Z to A
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="p-2">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3 pt-1">Type</h3>
+                      <div className="space-y-1">
+                        <button
+                          onClick={() => handleSortSelect('type-asc')}
+                          className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
+                            sortOption === 'type-asc' ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <i className="fas fa-sort-alpha-down mr-2"></i>
+                          A to Z
+                        </button>
+                        <button
+                          onClick={() => handleSortSelect('type-desc')}
+                          className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
+                            sortOption === 'type-desc' ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <i className="fas fa-sort-alpha-down-alt mr-2"></i>
+                          Z to A
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="p-2">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3 pt-1">Date Added</h3>
+                      <div className="space-y-1">
+                        <button
+                          onClick={() => handleSortSelect('date-desc')}
+                          className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
+                            sortOption === 'date-desc' ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <i className="fas fa-sort-numeric-down-alt mr-2"></i>
+                          Newest First
+                        </button>
+                        <button
+                          onClick={() => handleSortSelect('date-asc')}
+                          className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
+                            sortOption === 'date-asc' ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <i className="fas fa-sort-numeric-down mr-2"></i>
+                          Oldest First
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -478,16 +853,23 @@ const Properties = () => {
           properties={filteredProperties} 
           loading={loading || isDeleting} 
           error={error}
-          onDelete={handleDeleteProperty} 
+          onDelete={handleDeleteProperty}
+          onEdit={handleEditProperty}
         />
       </div>
 
-      {/* New Property Modal */}
+      {/* New/Edit Property Modal */}
       <NewPropertyModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setCurrentProperty(null);
+          setIsEditing(false);
+        }}
         onSubmit={handleCreateProperty}
         isLoading={isSubmitting}
+        propertyData={currentProperty}
+        isEditing={isEditing}
       />
     </div>
   );

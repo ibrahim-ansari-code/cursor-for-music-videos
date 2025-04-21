@@ -2,7 +2,7 @@ import React from 'react';
 import CountUp from 'react-countup';
 
 const SnapshotCard = ({ data }) => {
-  const { occupancyRate = 0, outstandingPayments = 0, avgRent = 0 } = data || {};
+  const { occupancyRate = 0, paidRent = 0, totalRent = 0, avgRent = 0 } = data || {};
   
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm h-full flex flex-col">
@@ -17,9 +17,9 @@ const SnapshotCard = ({ data }) => {
         </div>
         
         <div className="border-r border-gray-200 px-4 flex flex-col justify-center">
-          <p className="text-sm font-medium text-gray-500 mb-2">Outstanding</p>
-          <p className="text-xl font-semibold text-red-600">
-            <CountUp end={outstandingPayments} duration={1.5} separator="," />
+          <p className="text-sm font-medium text-gray-500 mb-2">Paid Rent</p>
+          <p className="text-xl font-semibold text-green-600">
+            {paidRent}<span className="text-gray-500">/{totalRent}</span>
           </p>
         </div>
         

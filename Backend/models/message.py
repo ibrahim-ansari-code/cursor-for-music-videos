@@ -1,8 +1,10 @@
-from Backend.models.user import User
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship
+
+if TYPE_CHECKING:
+    from Backend.models.user import User
 
 class MessageType(str, Enum):
     DIRECT = "direct"
@@ -36,7 +38,7 @@ class ConversationParticipant(SQLModel, table=True):
     
     # Relationships
     conversation: Conversation = Relationship(back_populates="participants")
-    user: User = Relationship(back_populates="conversations")
+    user: "User" = Relationship(back_populates="conversations")
 
 class Message(SQLModel, table=True):
     """Message model for communication between users"""
@@ -59,11 +61,11 @@ class Message(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships
-    sender: User = Relationship(
+    sender: "User" = Relationship(
         back_populates="sent_messages", 
         sa_relationship_kwargs={"foreign_keys": "Message.sender_id"}
     )
-    recipient: Optional[User] = Relationship(
+    recipient: Optional["User"] = Relationship(
         back_populates="received_messages", 
         sa_relationship_kwargs={"foreign_keys": "Message.recipient_id"}
     )

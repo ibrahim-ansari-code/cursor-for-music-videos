@@ -4,14 +4,17 @@ from datetime import datetime, date
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
-from sqlalchemy.orm import joinedload
-from pydantic import BaseModel, constr, EmailStr, validator
+from sqlalchemy.orm import joinedload, selectinload
+from pydantic import BaseModel, constr, EmailStr, validator, computed_field
 from sqlmodel import col
+# Explicitly import property decorator (though usually built-in)
+# from builtins import property # No longer needed
 
 from Backend.database import get_session
-from Backend.models.tenant import Tenant, TenantStatus
+from Backend.models.tenant import Tenant, TenantStatus, TenantUnitLink
 from Backend.models.user import User
 from Backend.models.property import Property, PropertyUnit
+from Backend.models.lease import Lease
 from Backend.api.auth import get_current_user
 
 # Configure logging
@@ -24,6 +27,23 @@ router = APIRouter(
 )
 
 # === Models ===
+
+# Minimal response models for related entities
+class PropertyResponseSimple(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+class UnitResponseSimple(BaseModel):
+    id: int
+    name: str # Assuming unit has a 'name' or 'unit_number' field
+    property: Optional[PropertyResponseSimple] = None # Nested property info
+
+    class Config:
+        from_attributes = True
+
 class TenantBase(BaseModel):
     first_name: str
     last_name: str
@@ -79,16 +99,19 @@ class TenantResponse(BaseModel):
     status: TenantStatus
     created_at: datetime
     updated_at: datetime
+    # Add fields for unit and property
+    unit: Optional[UnitResponseSimple] = None
+    property: Optional[PropertyResponseSimple] = None
     
     class Config:
         from_attributes = True
     
-    @property
+    @computed_field
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}".strip()
 
 # === API Routes ===
-@router.get("/", response_model=List[dict])
+@router.get("/", response_model=List[TenantResponse])
 async def get_tenants(
     status: Optional[TenantStatus] = None,
     search: Optional[str] = None,
@@ -98,10 +121,11 @@ async def get_tenants(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Get all tenants with optional filtering.
+    Get all tenants with optional filtering, including their assigned unit and property.
     """
     logger.info(f"User {current_user.email} is retrieving tenants")
     
+    # Base query for tenants
     query = select(Tenant)
     
     # Apply filters if provided
@@ -110,7 +134,6 @@ async def get_tenants(
     
     if search:
         search_term = f"%{search}%"
-        # Search in both first and last name
         query = query.where(
             or_(
                 col(Tenant.first_name).ilike(search_term),
@@ -122,20 +145,38 @@ async def get_tenants(
     query = query.offset(skip).limit(limit)
     
     result = await session.execute(query)
-    tenants = result.scalars().all()
-    logger.info(f"Retrieved {len(tenants)} tenants")
+    tenants_orm = result.scalars().all()
+    logger.info(f"Retrieved {len(tenants_orm)} tenants")
     
-    # Convert each tenant to a TenantResponse and include the full_name
+    # Convert ORM objects to response models
     response_data = []
-    for tenant in tenants:
-        tenant_response = TenantResponse.model_validate(tenant)
-        tenant_dict = tenant_response.model_dump()
-        tenant_dict["full_name"] = tenant_response.full_name
-        response_data.append(tenant_dict)
+    for tenant in tenants_orm:
+        # Fetch the assigned unit and property
+        assigned_unit_query = (
+            select(PropertyUnit)
+            .options(selectinload(PropertyUnit.property)) 
+            .where(PropertyUnit.tenant_id == tenant.id)
+            .limit(1)
+        )
+        unit_result = await session.execute(assigned_unit_query)
+        assigned_unit = unit_result.scalar_one_or_none()
+
+        # Create the Pydantic response model instance
+        tenant_response = TenantResponse.model_validate(tenant) # Use Pydantic validation
+
+        # Populate unit and property details if found
+        if assigned_unit and assigned_unit.property:
+            property_info = PropertyResponseSimple.model_validate(assigned_unit.property)
+            unit_info = UnitResponseSimple.model_validate(assigned_unit)
+            unit_info.property = property_info
+            tenant_response.unit = unit_info
+            tenant_response.property = property_info
+
+        response_data.append(tenant_response)
     
     return response_data
 
-@router.get("/{tenant_id}", response_model=dict)
+@router.get("/{tenant_id}", response_model=TenantResponse)
 async def get_tenant(
     tenant_id: int,
     current_user: User = Depends(get_current_user),
@@ -148,22 +189,39 @@ async def get_tenant(
     
     query = select(Tenant).where(Tenant.id == tenant_id)
     result = await session.execute(query)
-    tenant = result.scalar_one_or_none()
+    tenant_orm = result.scalar_one_or_none()
     
-    if not tenant:
+    if not tenant_orm:
         logger.warning(f"Tenant {tenant_id} not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Tenant not found"
         )
-    
-    tenant_response = TenantResponse.model_validate(tenant)
-    tenant_dict = tenant_response.model_dump()
-    tenant_dict["full_name"] = tenant_response.full_name
-    
-    return tenant_dict
 
-@router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
+    # Fetch the assigned unit and property (similar to get_tenants)
+    assigned_unit_query = (
+        select(PropertyUnit)
+        .options(selectinload(PropertyUnit.property))
+        .where(PropertyUnit.tenant_id == tenant_orm.id)
+        .limit(1)
+    )
+    unit_result = await session.execute(assigned_unit_query)
+    assigned_unit = unit_result.scalar_one_or_none()
+
+    # Create the Pydantic response model instance
+    tenant_response = TenantResponse.model_validate(tenant_orm) # Use Pydantic validation
+
+    # Populate unit and property details if found
+    if assigned_unit and assigned_unit.property:
+        property_info = PropertyResponseSimple.model_validate(assigned_unit.property)
+        unit_info = UnitResponseSimple.model_validate(assigned_unit)
+        unit_info.property = property_info
+        tenant_response.unit = unit_info
+        tenant_response.property = property_info
+
+    return tenant_response # Return the Pydantic model
+
+@router.post("/", response_model=TenantResponse, status_code=status.HTTP_201_CREATED)
 async def create_tenant(
     tenant_data: TenantCreate,
     current_user: User = Depends(get_current_user),
@@ -175,14 +233,13 @@ async def create_tenant(
     logger.info(f"User {current_user.email} is creating a new tenant with data: {tenant_data}")
     
     try:
-        # Create new tenant without requiring a user ID
+        # Create new tenant ORM instance
         tenant = Tenant(
             first_name=tenant_data.first_name,
             last_name=tenant_data.last_name,
             phone=tenant_data.phone,
             email=tenant_data.email,
             status=tenant_data.status,
-            # Don't default to current user ID to avoid unique constraint errors
             user_id=tenant_data.user_id,
             current_property_id=tenant_data.current_property_id
         )
@@ -193,11 +250,8 @@ async def create_tenant(
         
         logger.info(f"Tenant {tenant.id} created successfully")
         
-        tenant_response = TenantResponse.model_validate(tenant)
-        tenant_dict = tenant_response.model_dump()
-        tenant_dict["full_name"] = tenant_response.full_name
-        
-        return tenant_dict
+        # Return validated Pydantic model
+        return TenantResponse.model_validate(tenant)
     except Exception as e:
         logger.error(f"Error creating tenant: {str(e)}")
         await session.rollback()
@@ -206,7 +260,7 @@ async def create_tenant(
             detail=f"Failed to create tenant: {str(e)}"
         )
 
-@router.patch("/{tenant_id}", response_model=dict)
+@router.patch("/{tenant_id}", response_model=TenantResponse)
 async def update_tenant(
     tenant_id: int,
     tenant_data: TenantUpdate,
@@ -235,7 +289,6 @@ async def update_tenant(
         for key, value in update_data.items():
             setattr(tenant, key, value)
         
-        # Update the updated_at timestamp
         tenant.updated_at = datetime.utcnow()
         
         session.add(tenant)
@@ -244,11 +297,8 @@ async def update_tenant(
         
         logger.info(f"Tenant {tenant_id} updated successfully")
         
-        tenant_response = TenantResponse.model_validate(tenant)
-        tenant_dict = tenant_response.model_dump()
-        tenant_dict["full_name"] = tenant_response.full_name
-        
-        return tenant_dict
+        # Return validated Pydantic model
+        return TenantResponse.model_validate(tenant)
     except HTTPException:
         raise
     except Exception as e:
@@ -281,8 +331,29 @@ async def delete_tenant(
             detail="Tenant not found"
         )
     
-    await session.delete(tenant)
-    await session.commit()
+    # Check if tenant has any associated leases
+    lease_query = select(Lease).where(Lease.tenant_id == tenant_id)
+    lease_result = await session.execute(lease_query)
+    leases = lease_result.scalars().all()
     
-    logger.info(f"Tenant {tenant_id} deleted successfully")
-    return None
+    if leases:
+        logger.warning(f"Cannot delete tenant {tenant_id} because they have {len(leases)} associated leases")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete tenant because they have associated leases. Please delete the leases first or remove the tenant from the leases."
+        )
+    
+    # Check for any other database constraints (optional)
+    try:
+        await session.delete(tenant)
+        await session.commit()
+        
+        logger.info(f"Tenant {tenant_id} deleted successfully")
+        return None
+    except Exception as e:
+        logger.error(f"Error deleting tenant {tenant_id}: {str(e)}")
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete tenant: {str(e)}"
+        )

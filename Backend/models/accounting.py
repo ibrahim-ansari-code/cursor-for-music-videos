@@ -1,7 +1,14 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from datetime import date, datetime
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship
+
+# Use TYPE_CHECKING to prevent circular imports at runtime
+if TYPE_CHECKING:
+    from Backend.models.lease import Lease
+    from Backend.models.property import Property
+    from Backend.models.user import User
+    from Backend.models.vendor import Vendor
 
 class PaymentStatus(str, Enum):
     PENDING = "PENDING"

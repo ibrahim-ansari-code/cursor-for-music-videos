@@ -1,13 +1,14 @@
-from Backend.models.user import User
-from Backend.models.property import PropertyVendorLink
 from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime, date
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship
 
 if TYPE_CHECKING:
+    from Backend.models.user import User
     from Backend.models.property import Property, PropertyVendorLink
-    from Backend.models.vendor import VendorDocument
+
+# Import only what's needed at runtime
+from Backend.models.property import PropertyVendorLink
 
 class VendorStatus(str, Enum):
     PENDING = "PENDING"
@@ -40,7 +41,7 @@ class Vendor(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships
-    user: User = Relationship(back_populates="vendor_details")
+    user: "User" = Relationship(back_populates="vendor_details")
     properties: List["Property"] = Relationship(
         back_populates="vendors",
         link_model=PropertyVendorLink

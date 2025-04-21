@@ -1,10 +1,14 @@
 import React, { useState, useContext } from 'react';
 import { NavLink } from 'react-router-dom';
 import { AuthContext } from '../App';
+import InviteModal from './InviteModal';
+import AskAIModal from './AskAIModal';
 
 const Sidebar = () => {
   const { user } = useContext(AuthContext);
   const [collapsed, setCollapsed] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showAskModal, setShowAskModal] = useState(false);
 
   // Navigation items organized by section
   const overviewItems = [
@@ -24,7 +28,6 @@ const Sidebar = () => {
   // Configuration section
   const configItems = [
     { name: 'Settings', path: '/settings', icon: 'fa-gear' },
-    { name: 'Integrations', path: '/integrations', icon: 'fa-plug' },
   ];
 
   // Function to render nav items
@@ -61,90 +64,99 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className={`bg-white border-r border-gray-200 transition-all duration-300 ease-in-out h-full ${collapsed ? 'w-16' : 'w-64'}`}>
-      <div className="h-full flex flex-col">
-        {/* Logo */}
-        <div className="flex items-center h-16 px-4 border-b border-gray-200">
-          <div className="flex items-center">
-            {!collapsed && (
-              <span className="ml-2 text-lg font-medium text-gray-900">Brikli</span>
+    <>
+      <aside className={`bg-white border-r border-gray-200 transition-all duration-300 ease-in-out h-full ${collapsed ? 'w-16' : 'w-64'}`}>
+        <div className="h-full flex flex-col">
+          {/* Logo */}
+          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+            <div className={`flex items-center ${collapsed ? 'w-full justify-center' : 'flex-1 justify-start pl-0'}`}>
+              <div className="flex items-center justify-center h-12">
+                <img src="BrikliLogoSidebar.png" alt="Brikli Logo" className="h-7 w-auto mx-auto my-4" />
+              </div>
+            </div>
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="p-1.5 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none flex-shrink-0"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              <i className={`fas ${collapsed ? 'fa-angles-right' : 'fa-angles-left'}`}></i>
+            </button>
+          </div>
+
+          {/* Navigation */}
+          <div className="flex-1 overflow-y-auto py-4">
+            <nav className="space-y-2 px-2">
+              {/* Overview section */}
+              <div className="mb-6">
+                {renderSectionHeader('OVERVIEW')}
+                <div className="space-y-1.5">
+                  {renderNavItems(overviewItems)}
+                </div>
+              </div>
+              
+              {/* Management section */}
+              <div className="mb-6">
+                {renderSectionHeader('MANAGEMENT')}
+                <div className="space-y-1.5">
+                  {renderNavItems(managementItems)}
+                </div>
+              </div>
+              
+              {/* Configuration section */}
+              <div className="mb-6">
+                {renderSectionHeader('CONFIGURATION')}
+                <div className="space-y-1.5">
+                  {renderNavItems(configItems)}
+                </div>
+              </div>
+            </nav>
+          </div>
+          
+          {/* Footer with two buttons */}
+          <div className="p-4 border-t border-gray-200">
+            {!collapsed ? (
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setShowInviteModal(true)}
+                  className="w-1/2 flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                >
+                  <i className="fas fa-user-plus mr-2"></i>
+                  Invite
+                </button>
+                <button
+                  onClick={() => setShowAskModal(true)}
+                  className="w-1/2 flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
+                >
+                  <i className="fas fa-robot mr-2"></i>
+                  Ask
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col space-y-2">
+                <button
+                  onClick={() => setShowInviteModal(true)}
+                  className="w-full flex items-center justify-center p-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                  aria-label="Invite"
+                >
+                  <i className="fas fa-user-plus"></i>
+                </button>
+                <button
+                  onClick={() => setShowAskModal(true)}
+                  className="w-full flex items-center justify-center p-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
+                  aria-label="Ask AI"
+                >
+                  <i className="fas fa-robot"></i>
+                </button>
+              </div>
             )}
           </div>
-          <div className="flex-grow"></div>
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            <i className={`fas ${collapsed ? 'fa-angles-right' : 'fa-angles-left'}`}></i>
-          </button>
         </div>
-
-        {/* Navigation */}
-        <div className="flex-1 overflow-y-auto py-4">
-          <nav className="space-y-2 px-2">
-            {/* Overview section */}
-            <div className="mb-6">
-              {renderSectionHeader('OVERVIEW')}
-              <div className="space-y-1.5">
-                {renderNavItems(overviewItems)}
-              </div>
-            </div>
-            
-            {/* Management section */}
-            <div className="mb-6">
-              {renderSectionHeader('MANAGEMENT')}
-              <div className="space-y-1.5">
-                {renderNavItems(managementItems)}
-              </div>
-            </div>
-            
-            {/* Configuration section */}
-            <div className="mb-6">
-              {renderSectionHeader('CONFIGURATION')}
-              <div className="space-y-1.5">
-                {renderNavItems(configItems)}
-              </div>
-            </div>
-          </nav>
-        </div>
-        
-        {/* Footer with two buttons */}
-        <div className="p-4 border-t border-gray-200">
-          {!collapsed ? (
-            <div className="flex space-x-2">
-              <button
-                className="w-1/2 flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-              >
-                <i className="fas fa-user-plus mr-2"></i>
-                Invite
-              </button>
-              <button
-                className="w-1/2 flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
-              >
-                <i className="fas fa-robot mr-2"></i>
-                Ask
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col space-y-2">
-              <button
-                className="w-full flex items-center justify-center p-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-                aria-label="Invite"
-              >
-                <i className="fas fa-user-plus"></i>
-              </button>
-              <button
-                className="w-full flex items-center justify-center p-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
-                aria-label="Ask AI"
-              >
-                <i className="fas fa-robot"></i>
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </aside>
+      </aside>
+      
+      {/* Modals */}
+      <InviteModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
+      <AskAIModal isOpen={showAskModal} onClose={() => setShowAskModal(false)} />
+    </>
   );
 };
 

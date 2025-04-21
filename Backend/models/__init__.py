@@ -1,43 +1,42 @@
 # Import the base models that don't have circular dependencies first
 from Backend.models.enums import UserType
 
-# Import supporting models
-from Backend.models.accounting import Payment, Invoice, Expense
-from Backend.models.message import Message, Conversation, ConversationParticipant
-
-# Import the enum classes
+# Import enums first
 from Backend.models.tenant import TenantStatus
 from Backend.models.property import PropertyStatus
 from Backend.models.lease import LeaseStatus
+from Backend.models.accounting import PaymentStatus, PaymentMethod
 
-# Import link tables first 
+# Import models in a logical order. 
+# User is often foundational.
+from Backend.models.user import User
+
+# Import link tables next
 from Backend.models.tenant import TenantUnitLink
 from Backend.models.property import PropertyVendorLink
 
-# Import user model first since other models depend on it
-from Backend.models.user import User
-
-# Import the main models with circular dependencies in the correct order
-# Import Tenant first since Lease depends on it having a leases property
+# Import main entity models
 from Backend.models.tenant import Tenant
-from Backend.models.lease import Lease, LeaseDocument
 from Backend.models.property import Property, PropertyUnit
-from Backend.models.vendor import Vendor, VendorDocument
+from Backend.models.lease import Lease, LeaseDocument, LeaseCreate
+from Backend.models.vendor import Vendor, VendorDocument, VendorStatus
 
-# Import the setup functions
-from Backend.models.tenant import setup_relationships
+# Import models that reference the above
+from Backend.models.accounting import Payment, Invoice, Expense
+from Backend.models.message import Message, Conversation, ConversationParticipant, MessageType
 
-# Initialize models to resolve circular dependencies
+# Initialize models to resolve circular dependencies if needed
 def initialize_models():
-    """Initialize all models in the correct order and setup their relationships."""
-    # Start by registering models to ensure all classes are loaded
-    from sqlalchemy.orm import configure_mappers
-    
-    # Set up tenant relationships which will recursively set up other relationships
-    setup_relationships()
-    
-    # Finally configure all mappers to resolve any remaining circular dependencies
-    configure_mappers()
+    """Configure mappers after all models are imported."""
+    try:
+        from sqlalchemy.orm import configure_mappers
+        # Configure all mappers to resolve relationships defined within classes
+        configure_mappers()
+        print("SQLAlchemy mappers configured successfully.")
+    except Exception as e:
+        print(f"Error configuring SQLAlchemy mappers: {e}")
+        # Optionally re-raise or handle the error
+        raise
 
 # Run the initialization function
 initialize_models() 

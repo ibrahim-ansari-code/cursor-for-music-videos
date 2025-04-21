@@ -8,6 +8,10 @@ from sqlalchemy import pool
 
 from alembic import context
 
+# Import your models' metadata
+from Backend.database import SQLModel
+from Backend import *  # ensures all models are imported
+target_metadata = SQLModel.metadata
 # ───────────────────────────────────────────────
 # Ensure project root is in sys.path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -23,12 +27,6 @@ config.set_main_option(
 # Logging setup
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-
-# Import your models' metadata
-from Backend.database import SQLModel
-from Backend import models  # ensures all models are imported
-target_metadata = SQLModel.metadata
-
 # ───────────────────────────────────────────────
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
