@@ -23,8 +23,9 @@ jobs:
           curl -sSL https://install.python-poetry.org | python3 -
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Install dependencies
-        run: poetry install
+      - name: Install dependencies (no-root)
+        run: poetry install --no-root
+
 
       - name: Zip project
         run: zip -r brikli.zip . -x "*.git*"
