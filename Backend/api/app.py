@@ -46,11 +46,11 @@ from Backend.api.reports import router as reports_router
 app = FastAPI()
 
 # Define CORS settings
-origins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8000", "http://127.0.0.1:8000"]
+origins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8000", "http://127.0.0.1:8000", "https://brikli.azurewebsites.net", "https://lemon-island-038ac790f.6.azurestaticapps.net", "https://app.brikli.com"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["https://lemon-island-038ac790f.6.azurestaticapps.net"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
