@@ -1,4 +1,4 @@
-name: Deploy FastAPI Backend to Azure
+name: Deploy Brikli Backend
 
 on:
   push:
@@ -6,30 +6,15 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install Poetry
-        run: pip install poetry
-
-      - name: Install dependencies
-        run: poetry install --no-root
-
-      - name: Export requirements.txt for Azure
-        run: poetry export -f requirements.txt --output requirements.txt --without-hashes
-
-      - name: Deploy to Azure Web App (Oryx source deployment)
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
           app-name: Brikli
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          scm-do-build-during-deployment: true
+          package: .
