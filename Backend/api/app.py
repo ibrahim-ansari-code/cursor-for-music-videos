@@ -50,6 +50,7 @@ origins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8
 
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=origins,
     allow_origin_regex=r"https://.*\.brikli\.com",
     allow_credentials=True,
     allow_methods=["*"],
@@ -84,7 +85,7 @@ async def add_cors_headers_on_error(request: Request, call_next):
         return response
 
 # Include routers
-app.include_router(auth_router, prefix="/api")
+app.include_router(auth_router, prefix="/api/auth")
 app.include_router(vendors_router, prefix="/api")
 app.include_router(leases_router, prefix="/api")
 app.include_router(accounting_router, prefix="/api")
