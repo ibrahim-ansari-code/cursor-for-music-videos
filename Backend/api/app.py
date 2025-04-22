@@ -50,12 +50,13 @@ origins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origin_regex=r"https://.*\.brikli\.com",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
 
 # Exception handler middleware to ensure CORS headers are sent even on errors
 @app.middleware("http")
