@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from Backend.models.tenant import Tenant
     from Backend.models.accounting import Payment
 
+# Enum for lease status
 class LeaseStatus(str, Enum):
     DRAFT = "DRAFT"
     PENDING = "PENDING"
