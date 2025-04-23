@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 import logging
 
 # Configure logging
@@ -24,6 +25,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add ProxyHeadersMiddleware to handle X-Forwarded-Proto from Azure's proxy
+# This ensures HTTPS is maintained in redirects and URL generation
+logger.info("🔒 Adding ProxyHeadersMiddleware for HTTPS enforcement...")
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Router import + error trapping
 try:
