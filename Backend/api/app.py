@@ -12,7 +12,9 @@ app = FastAPI()
 # CORS Configuration
 origins = [
     "http://localhost:5173",
-    "https://app.brikli.com"
+    "https://app.brikli.com",
+    "https://brikli.azurewebsites.net",
+    "https://lemon-island-038ac790f.6.azurestaticapps.net"
 ]
 
 app.add_middleware(
@@ -25,11 +27,10 @@ app.add_middleware(
 
 # Router import + error trapping
 try:
-    # Corrected import paths based on project structure
+    # Router Imports
     from Backend.api.auth import router as auth_router
     from Backend.api.properties import router as properties_router
     from Backend.api.dashboard import router as dashboard_router
-    # Add other routers as needed, following the same pattern
     from Backend.api.vendors import router as vendors_router
     from Backend.api.leases import router as leases_router
     from Backend.api.accounting import router as accounting_router
@@ -41,7 +42,6 @@ try:
     from Backend.api.reports import router as reports_router
 
 
-    # Corrected prefixes to match the actual API structure
     app.include_router(auth_router, prefix="/api") 
     app.include_router(properties_router, prefix="/api")
     app.include_router(dashboard_router, prefix="/api")
