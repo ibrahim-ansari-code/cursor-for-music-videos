@@ -16,6 +16,7 @@ from Backend.models.lease import Lease, LeaseStatus, LeaseDocument
 from Backend.models.user import User
 from Backend.api.auth import get_current_user
 from Backend.utils.llm_utils import analyze_lease_text
+from Backend.utils.azure_blob import upload_lease_to_blob
 from Backend.models.enums import UserType
 from Backend.models.property import Property, PropertyUnit
 from Backend.models.tenant import Tenant
@@ -47,6 +48,7 @@ class LeaseBase(BaseModel):
 
 class LeaseCreate(LeaseBase):
     status: Optional[LeaseStatus] = LeaseStatus.DRAFT
+    file_url: Optional[str] = None
 
 class LeaseUpdate(BaseModel):
     start_date: Optional[date] = None
@@ -90,6 +92,54 @@ class LeaseAnalysisResponse(BaseModel):
     tenant_name: str
     unit: Optional[str] = None
 
+class LeaseUploadResponse(BaseModel):
+    file_url: str
+
+# New route for uploading lease PDFs to Azure Blob Storage
+@router.post("/upload-lease", response_model=LeaseUploadResponse, status_code=status.HTTP_201_CREATED)
+async def upload_lease(
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Upload a lease PDF to Azure Blob Storage and return the public URL.
+    This is used as part of the lease import pipeline.
+    """
+    try:
+        logger.info(f"Uploading lease file: {file.filename} for user ID: {current_user.id}")
+        
+        # Check if user is authorized based on their type
+        user_type = current_user.user_type.upper() if isinstance(current_user.user_type, str) else current_user.user_type
+        
+        if user_type not in [UserType.ADMIN.value, UserType.LANDLORD.value, 'ADMIN', 'LANDLORD']:
+            logger.warning(f"Authorization failed: User {current_user.id} with type {user_type} attempted to upload lease")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to upload leases"
+            )
+        
+        # Check if file is a PDF
+        if not file.filename.lower().endswith('.pdf'):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only PDF files are accepted"
+            )
+            
+        # Upload the file to Azure Blob Storage
+        file_url = await upload_lease_to_blob(file, current_user.id)
+        
+        logger.info(f"Lease file uploaded successfully: {file_url}")
+        return {"file_url": file_url}
+    
+    except Exception as e:
+        # Log the detailed error including stack trace
+        logger.error(f"Failed to upload lease document: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload lease document: {str(e)}"
+        )
+
 # API endpoints
 @router.post("/", response_model=LeaseResponse, status_code=status.HTTP_201_CREATED)
 async def create_lease(
@@ -100,6 +150,11 @@ async def create_lease(
     """Create a new lease"""
     # Log detailed user information for debugging
     logger.info(f"Create lease request by user: id={current_user.id}, email={current_user.email}, type={current_user.user_type}")
+    
+    # Get and log any file_url that might be included in the request
+    file_url = getattr(lease_data, "file_url", None)
+    if file_url:
+        logger.info(f"Lease creation includes document URL: {file_url}")
     
     # Case-insensitive comparison of user types
     user_type = current_user.user_type.upper() if current_user.user_type else None
@@ -215,6 +270,34 @@ async def create_lease(
         
         result = await session.execute(insert_query, params)
         lease_id = result.scalar_one()
+        
+        # If file_url is provided, create a lease document record
+        if file_url:
+            try:
+                logger.info(f"Creating lease document record for lease {lease_id} with URL: {file_url}")
+                document_insert_query = text("""
+                    INSERT INTO lease_documents (
+                        name, file_path, document_type, upload_date, lease_id, uploaded_by_id
+                    ) VALUES (
+                        :name, :file_path, :document_type, :upload_date, :lease_id, :uploaded_by_id
+                    )
+                """)
+                
+                document_params = {
+                    "name": "Lease Agreement",
+                    "file_path": file_url,
+                    "document_type": "contract",
+                    "upload_date": now,
+                    "lease_id": lease_id,
+                    "uploaded_by_id": current_user.id
+                }
+                
+                await session.execute(document_insert_query, document_params)
+                logger.info(f"Lease document record created successfully for lease {lease_id}")
+            except Exception as doc_error:
+                logger.error(f"Error creating lease document record: {str(doc_error)}", exc_info=True)
+                # Don't fail the whole lease creation if document record fails
+        
         await session.commit()
         
         # Fetch the created lease data

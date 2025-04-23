@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     )
     
     # JWT Settings
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-for-jwt")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 day
     DEBUG: bool = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")

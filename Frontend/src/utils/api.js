@@ -1101,3 +1101,47 @@ export const fetchReportSummary = async (params = {}) => {
   console.log(`Fetching report summary with query: ${queryString}`); // Debug log
   return apiRequest(`/reports/summary?${queryString}`);
 };
+
+// New function to upload lease PDF to blob storage
+export const uploadLeasePDF = async (file) => {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Authentication required. Please log in.');
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    console.log('Uploading lease PDF to blob storage...');
+    const url = `${API_BASE_URL}/api/leases/upload-lease`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+    
+    if (!response.ok) {
+      let errorMessage = 'Failed to upload lease PDF';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorMessage;
+      } catch (e) {
+        const errorText = await response.text();
+        errorMessage = `${errorMessage}: ${response.status} ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+    
+    const data = await response.json();
+    console.log('Lease PDF uploaded successfully:', data);
+    return data.file_url;
+  } catch (error) {
+    console.error('Error uploading lease PDF:', error);
+    throw error;
+  }
+};

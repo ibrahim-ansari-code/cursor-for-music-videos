@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchProperties, parseLease, fetchTenantsByProperty, getCurrentUser, fetchPropertyUnits } from '../utils/api';
+import { fetchProperties, parseLease, fetchTenantsByProperty, getCurrentUser, fetchPropertyUnits, uploadLeasePDF } from '../utils/api';
 import TenantModal from './TenantModal';
 import ConfirmLeaseModal from './ConfirmLeaseModal';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -240,6 +240,11 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
       setIsLoading(true);
       setError(null);
 
+      // First, upload the PDF file to Azure Blob Storage
+      console.log('Uploading lease PDF to Azure Blob Storage...');
+      const fileUrl = await uploadLeasePDF(file);
+      console.log('Lease PDF uploaded successfully, URL:', fileUrl);
+
       // Analyze the lease to get LLM data
       const formData = new FormData();
       formData.append('file', file);
@@ -262,7 +267,8 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
         late_fee_amount: null,
         late_fee_after_days: null,
         special_terms: null,
-        unit: response.unit || ''
+        unit: response.unit || '',
+        file_url: fileUrl // Add the file URL to lease data
       };
       console.log('Storing lease data:', extractedLeaseData);
       setLeaseData(extractedLeaseData);

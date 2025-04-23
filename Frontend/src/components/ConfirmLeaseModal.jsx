@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { submitLease, fetchProperties, fetchPropertyUnits, fetchLeases } from '../utils/api';
+import { submitLease, fetchProperties, fetchPropertyUnits, fetchLeases, createLease, updateLeaseStatus } from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion'; // Add framer-motion for animations
+import { format } from 'date-fns';
 
 // UI Components
 const Label = ({ htmlFor, required, children }) => (
@@ -134,6 +135,8 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
   const [filteredAvailableUnits, setFilteredAvailableUnits] = useState([]);
   const [isLoadingUnits, setIsLoadingUnits] = useState(false);
   const [isLoadingLeases, setIsLoadingLeases] = useState(false);
+  const [selectedUnit, setSelectedUnit] = useState(leaseData.unit || '');
+  const [selectedUnitId, setSelectedUnitId] = useState(null);
 
   // Initialize allUnitsForProperty from prop
   useEffect(() => {
@@ -436,6 +439,75 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
     }
   };
 
+  const handleCreateLease = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Prepare lease data with tenant and unit info
+      const leaseSubmitData = {
+        ...leaseData,
+        tenant_id: tenant.id,
+        unit_id: selectedUnitId || null,
+        status: "DRAFT", // Default status for a new lease
+        file_url: leaseData.file_url // Explicitly include the file_url from leaseData
+      };
+
+      // Log if we have a document URL to include
+      if (leaseData.file_url) {
+        console.log(`Including document URL in lease creation: ${leaseData.file_url}`);
+      }
+      
+      console.log('Creating lease with data:', leaseSubmitData);
+      
+      // Call API to create the lease
+      const createdLease = await createLease(leaseSubmitData);
+      console.log('Lease created successfully:', createdLease);
+      
+      // Optionally activate the lease immediately
+      if (createdLease && createdLease.id) {
+        console.log('Activating lease...');
+        const updatedLease = await updateLeaseStatus(createdLease.id, "ACTIVE");
+        console.log('Lease activated:', updatedLease);
+      }
+      
+      // Call the onSubmit callback with the created lease
+      onSubmit(createdLease);
+    } catch (error) {
+      console.error('Error creating lease:', error);
+      setError(error.message || 'Failed to create lease. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Attempt to find the unit ID based on name if we have a unit name
+  useEffect(() => {
+    if (leaseData.unit && initialAvailableUnits && initialAvailableUnits.length > 0) {
+      const matchedUnit = initialAvailableUnits.find(unit => 
+        unit.name.toLowerCase() === leaseData.unit.toLowerCase()
+      );
+      if (matchedUnit) {
+        setSelectedUnitId(matchedUnit.id);
+        console.log(`Found matching unit ID ${matchedUnit.id} for unit name ${leaseData.unit}`);
+      }
+    }
+  }, [leaseData.unit, initialAvailableUnits]);
+
+  const handleUnitChange = (e) => {
+    const unitId = parseInt(e.target.value);
+    setSelectedUnitId(unitId);
+    
+    if (unitId) {
+      const unit = initialAvailableUnits.find(u => u.id === unitId);
+      if (unit) {
+        setSelectedUnit(unit.name);
+      }
+    } else {
+      setSelectedUnit('');
+    }
+  };
+
   if (!isOpen) return null;
 
   // Modal animations
@@ -707,7 +779,7 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
               <Button
                 type="submit"
                 variant="primary"
-                onClick={handleSubmit}
+                onClick={handleCreateLease}
                 disabled={isLoading || isLoadingUnits || isLoadingProperties || isLoadingLeases}
               >
                 {isLoading ? (

@@ -53,3 +53,37 @@ async def upload_avatar_to_blob(file, user_id: int) -> str:
     public_url = f"{settings.AZURE_BLOB_PUBLIC_URL.rstrip('/')}/{blob_name}"
     logger.info(f"Avatar public URL: {public_url}")
     return public_url 
+
+async def upload_lease_to_blob(file, user_id: int) -> str:
+    if not blob_service_client:
+        raise ConnectionError("Azure Blob Storage client is not initialized. Check connection string.")
+
+    container_name = "lease-uploads"
+    # Use a unique identifier to prevent filename collisions and potential overwrites
+    blob_name = f"user_{user_id}/{uuid.uuid4()}_{file.filename}"
+    
+    container_client = blob_service_client.get_container_client(container_name)
+    try:
+        await container_client.create_container()
+        logger.info(f"Container '{container_name}' created.")
+    except ResourceExistsError:
+        logger.debug(f"Container '{container_name}' already exists.")
+        pass  # container already exists
+    except Exception as e:
+        logger.error(f"Failed to create or access container '{container_name}': {e}")
+        raise
+
+    blob_client = container_client.get_blob_client(blob_name)
+    
+    try:
+        file_content = await file.read()
+        await blob_client.upload_blob(file_content, overwrite=True)
+        logger.info(f"Successfully uploaded lease PDF to {container_name}/{blob_name}")
+    except Exception as e:
+        logger.error(f"Failed to upload blob '{blob_name}' to container '{container_name}': {e}")
+        raise
+
+    # Construct the public URL
+    public_url = f"{settings.AZURE_BLOB_PUBLIC_URL.rstrip('/')}/{blob_name}"
+    logger.info(f"Lease PDF public URL: {public_url}")
+    return public_url 
