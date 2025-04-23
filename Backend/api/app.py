@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 import logging
 
 # Configure logging
@@ -26,10 +27,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add ProxyHeadersMiddleware to handle X-Forwarded-Proto from Azure's proxy
-# This ensures HTTPS is maintained in redirects and URL generation
-logger.info("🔒 Adding ProxyHeadersMiddleware for HTTPS enforcement...")
+# Azure App Service runs behind a proxy, so we need to:
+# 1. Trust X-Forwarded-* headers to ensure the app knows requests are HTTPS
+# 2. Add host validation for security (optional but recommended)
+# This prevents 307 redirects to HTTP and mixed content errors
+logger.info("🔒 Adding security middleware for HTTPS enforcement...")
+
+# Make FastAPI respect the X-Forwarded-Proto header from Azure's proxy
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
+# Optional: Validate Host headers for security
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 # Router import + error trapping
 try:

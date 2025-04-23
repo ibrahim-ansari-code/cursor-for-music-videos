@@ -33,7 +33,7 @@ dependencies = [
     "aiohttp (>=3.11.16,<4.0.0)",
     "python-dateutil (>=2.9.0.post0,<3.0.0)",
     "uvicorn[standard]>=0.23.0",
-    "starlette (>=0.46.2,<0.47.0)"
+    "starlette (>=0.46.2)"
 ]
 [tool.poetry]
 name = "brikli-backend"
