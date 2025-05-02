@@ -17,17 +17,11 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def get_database_url() -> str:
     """
     Get the appropriate database URL based on environment configuration.
-    Falls back to SQLite if no DATABASE_URL is provided.
     """
     database_url = os.getenv("DATABASE_URL")
     if database_url:
         logger.info("Using provided DATABASE_URL for database connection")
         return database_url
-    
-    # Default to SQLite
-    sqlite_path = "sqlite:///./brikli.db"
-    logger.info(f"No DATABASE_URL provided, falling back to SQLite at {sqlite_path}")
-    return sqlite_path
 
 # Create async database engine
 engine = create_async_engine(
@@ -77,8 +71,12 @@ async def init_db():
                 admin_user = User(
                     email="admin@brikli.com",
                     hashed_password=pwd_context.hash("admin123"),
+                    first_name="Admin",
+                    last_name="User",
+                    user_type="ADMIN",
                     is_admin=True
                 )
+
                 session.add(admin_user)
                 await session.commit()
                 logger.info("Admin user created successfully")

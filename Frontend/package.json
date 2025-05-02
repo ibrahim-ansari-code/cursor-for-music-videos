@@ -9,7 +9,6 @@
     },
     "dependencies": {
         "chart.js": "^4.4.9",
-        "date-fns": "^4.1.0",
         "framer-motion": "^12.7.4",
         "lodash": "^4.17.21",
         "lodash.debounce": "^4.0.8",
