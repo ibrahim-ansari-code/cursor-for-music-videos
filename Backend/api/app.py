@@ -101,7 +101,6 @@ async def health():
 # --- Ensure initialization logic is still present ---
 # Load environment variables at startup (assuming this logic was previously working)
 # If you had find_dotenv() and load_dotenv() logic here before, re-add it.
-
 # Initialize all models before creating the FastAPI app
 # (Assuming this import handles SQLAlchemy/SQLModel setup)
 import Backend.models
