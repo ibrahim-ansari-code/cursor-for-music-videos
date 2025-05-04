@@ -8,7 +8,8 @@ from sqlalchemy.orm import joinedload, selectinload
 from pydantic import BaseModel, constr
 
 from Backend.database import get_session
-from Backend.models.property import Property, PropertyStatus, PropertyUnit
+from Backend.models.property import Property, PropertyUnit
+from Backend.models.enums import PropertyStatus
 from Backend.models.user import User
 from Backend.api.auth import get_current_user
 from Backend.models.lease import Lease, LeaseStatus
@@ -33,7 +34,7 @@ class PropertyCreate(BaseModel):
     property_type: constr(min_length=1, max_length=50)
     description: Optional[str] = None
     year_built: Optional[int] = None
-    status: Optional[str] = PropertyStatus.ACTIVE
+    status: Optional[PropertyStatus] = PropertyStatus.ACTIVE
     units: Optional[List[str]] = None  # Optional list of unit names/numbers
 
 # New Model for Property Updates (Excludes units and potentially immutable fields like property_type)
@@ -45,7 +46,7 @@ class PropertyUpdate(BaseModel):
     postal_code: Optional[constr(min_length=1, max_length=20)] = None
     description: Optional[str] = None
     year_built: Optional[int] = None
-    status: Optional[str] = None # Allow updating status
+    status: Optional[PropertyStatus] = None
 
     class Config:
         extra = 'forbid' # Prevent unexpected fields like 'units'
@@ -60,20 +61,13 @@ class PropertyResponse(BaseModel):
     property_type: str
     description: Optional[str] = None
     year_built: Optional[int] = None
-    status: str = PropertyStatus.ACTIVE  # Default to ACTIVE if None
-    owner_id: int
+    status: PropertyStatus = PropertyStatus.ACTIVE
+    user_id: int
     created_at: datetime
     updated_at: datetime
 
     class Config:
         from_attributes = True
-        
-    @classmethod
-    def from_orm(cls, obj):
-        # Make sure obj has all expected attributes with proper values
-        if obj.status is None:
-            obj.status = PropertyStatus.ACTIVE
-        return super().from_orm(obj)
 
 class OwnerResponse(BaseModel):
     id: int
@@ -114,8 +108,8 @@ class PropertyDetailResponse_Standalone(BaseModel):
     property_type: str
     description: Optional[str] = None
     year_built: Optional[int] = None
-    status: str # Will be populated with calculated status
-    owner_id: int
+    status: PropertyStatus
+    user_id: int
     created_at: datetime
     updated_at: datetime
     # Additional fields for detail view
@@ -171,7 +165,7 @@ async def get_property(
             )
         
         # Check permission - only owner or admin can view property details
-        if property_orm.owner_id != current_user.id and not current_user.is_admin:
+        if property_orm.user_id != current_user.id and not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to access this property"
@@ -229,7 +223,7 @@ async def get_property(
             description=property_orm.description,
             year_built=property_orm.year_built,
             status=response_status,  # Use calculated status
-            owner_id=property_orm.owner_id,
+            user_id=property_orm.user_id,
             created_at=property_orm.created_at,
             updated_at=property_orm.updated_at,
             owner=OwnerResponse.from_orm(property_orm.owner) if property_orm.owner else None,
@@ -249,7 +243,7 @@ async def get_property(
 
 @router.get("/", response_model=List[PropertyResponse])
 async def get_properties(
-    status: Optional[str] = Query(None, description="Filter by property status"),
+    status: Optional[PropertyStatus] = Query(None, description="Filter by property status"),
     property_type: Optional[str] = Query(None, description="Filter by property type"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
@@ -270,7 +264,7 @@ async def get_properties(
             
         if not current_user.is_admin:
             # Regular users can only see their own properties
-            query = query.where(Property.owner_id == current_user.id)
+            query = query.where(Property.user_id == current_user.id)
         
         result = await session.execute(query)
         properties = result.scalars().all()
@@ -288,7 +282,7 @@ async def get_properties(
             detail="An error occurred while fetching properties"
         )
 
-@router.post("/", response_model=PropertyDetailResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=PropertyDetailResponse_Standalone, status_code=status.HTTP_201_CREATED)
 async def create_property(
     property_data: PropertyCreate,
     current_user: User = Depends(get_current_user),
@@ -310,8 +304,8 @@ async def create_property(
             property_type=property_data.property_type,
             description=property_data.description,
             year_built=property_data.year_built,
-            status=property_data.status,
-            owner_id=current_user.id,
+            status=property_data.status or PropertyStatus.ACTIVE,
+            user_id=current_user.id,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
@@ -365,7 +359,7 @@ async def create_property(
             )
         
         # Return the property with owner and units
-        response = PropertyDetailResponse.from_orm(loaded_property)
+        response = PropertyDetailResponse_Standalone.from_orm(loaded_property)
         return response
 
     except Exception as e:
@@ -402,7 +396,7 @@ async def update_property(
         )
 
     # Check permission - only owner or admin can update
-    if property_to_update.owner_id != current_user.id and not current_user.is_admin:
+    if property_to_update.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to update this property"
@@ -486,7 +480,7 @@ async def update_property(
             description=updated_property_orm.description,
             year_built=updated_property_orm.year_built,
             status=response_status,
-            owner_id=updated_property_orm.owner_id,
+            user_id=updated_property_orm.user_id,
             created_at=updated_property_orm.created_at,
             updated_at=updated_property_orm.updated_at,
             owner=OwnerResponse.from_orm(updated_property_orm.owner) if updated_property_orm.owner else None,
@@ -525,7 +519,7 @@ async def delete_property(
             )
         
         # Check permission - only owner or admin can delete property
-        if property_to_delete.owner_id != current_user.id and not current_user.is_admin:
+        if property_to_delete.user_id != current_user.id and not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to delete this property"
