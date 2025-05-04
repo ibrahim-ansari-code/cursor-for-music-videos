@@ -26,12 +26,12 @@ router = APIRouter(
 
 # === Models ===
 class PropertyCreate(BaseModel):
-    name: constr(min_length=1, max_length=255)
-    address: constr(min_length=1, max_length=255)
-    city: constr(min_length=1, max_length=100)
-    province: constr(min_length=1, max_length=50)
-    postal_code: constr(min_length=1, max_length=20)
-    property_type: constr(min_length=1, max_length=50)
+    name: str
+    address: str
+    city: str
+    province: str
+    postal_code: str
+    property_type: str
     description: Optional[str] = None
     year_built: Optional[int] = None
     status: Optional[PropertyStatus] = PropertyStatus.ACTIVE
@@ -39,11 +39,11 @@ class PropertyCreate(BaseModel):
 
 # New Model for Property Updates (Excludes units and potentially immutable fields like property_type)
 class PropertyUpdate(BaseModel):
-    name: Optional[constr(min_length=1, max_length=255)] = None
-    address: Optional[constr(min_length=1, max_length=255)] = None
-    city: Optional[constr(min_length=1, max_length=100)] = None
-    province: Optional[constr(min_length=1, max_length=50)] = None
-    postal_code: Optional[constr(min_length=1, max_length=20)] = None
+    name: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    province: Optional[str] = None
+    postal_code: Optional[str] = None
     description: Optional[str] = None
     year_built: Optional[int] = None
     status: Optional[PropertyStatus] = None
