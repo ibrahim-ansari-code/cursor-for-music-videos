@@ -2,21 +2,17 @@ from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship, Column
-from sqlalchemy import String
+from sqlalchemy import String, Enum as PgEnum
 
 from Backend.models.user import User
 from Backend.models.tenant import TenantUnitLink
+from Backend.models.enums import PropertyStatus
 
 if TYPE_CHECKING:
     from Backend.models.lease import Lease
     from Backend.models.vendor import Vendor
     from Backend.models.tenant import Tenant
     from Backend.models.accounting import Expense
-
-class PropertyStatus(str, Enum):
-    ACTIVE = "active"
-    MAINTENANCE = "maintenance"
-    VACANT = "vacant"
 
 class PropertyVendorLink(SQLModel, table=True):
     """Link table for properties and vendors (many-to-many)"""
@@ -36,25 +32,28 @@ class Property(SQLModel, table=True):
     __tablename__ = "properties"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    name: str
-    address: str
-    city: str
-    province: str
-    postal_code: str
-    property_type: str  # residential, commercial, etc.
-    year_built: Optional[int] = None
-    description: Optional[str] = None
-    status: str = Field(sa_column=Column(String), default=PropertyStatus.ACTIVE)  # Using String column to store enum
+    name: str = Field(sa_column=Column(String(255)), description="Name of the property (max 255 chars)")
+    address: str = Field(sa_column=Column(String(255)), description="Street address (max 255 chars)")
+    city: str = Field(sa_column=Column(String(100)), description="City (max 100 chars)")
+    province: str = Field(sa_column=Column(String(50)), description="Province or state (max 50 chars)")
+    postal_code: str = Field(sa_column=Column(String(20)), description="Postal or ZIP code (max 20 chars)")
+    property_type: str = Field(sa_column=Column(String(50)), description="Type of property (residential, commercial, etc.)")
+    year_built: Optional[int] = Field(default=None, description="Year the property was built")
+    description: Optional[str] = Field(default=None, sa_column=Column(String(500)), description="Optional property description (max 500 chars)")
+    status: PropertyStatus = Field(
+        sa_column=Column(PgEnum(PropertyStatus, name="propertystatus", create_constraint=True), nullable=False, default=PropertyStatus.ACTIVE),
+        description="Status of the property (enum: ACTIVE, INACTIVE, DRAFT, ARCHIVED)"
+    )
     
     # Foreign keys
-    owner_id: Optional[int] = Field(default=None, foreign_key="users.id")
+    user_id: int = Field(foreign_key="users.id", nullable=False, description="Landlord/owner user ID")
     
     # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(default=datetime.utcnow), description="Creation timestamp")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(default=datetime.utcnow, onupdate=datetime.utcnow), description="Last update timestamp")
     
     # Relationships
-    owner: Optional[User] = Relationship(back_populates="properties")
+    owner: Optional[User] = Relationship(back_populates="properties", sa_relationship_kwargs={"foreign_keys": "[Property.user_id]"})
     
     # Configure cascade delete for units
     units: List["PropertyUnit"] = Relationship(
@@ -73,9 +72,8 @@ class Property(SQLModel, table=True):
     current_tenants: List["Tenant"] = Relationship(
         back_populates="current_property",
         sa_relationship_kwargs={
-            # Explicitly define foreign keys using string
             "foreign_keys": "[Tenant.current_property_id]",
-             "lazy": "selectin"
+            "lazy": "selectin"
         }
     )
 

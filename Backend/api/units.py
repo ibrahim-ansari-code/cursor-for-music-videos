@@ -6,12 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, selectinload
 from pydantic import BaseModel, constr, ValidationError
+from sqlalchemy import and_
 
 from Backend.database import get_session
 from Backend.models.property import Property, PropertyUnit
 from Backend.models.user import User
 from Backend.models.tenant import Tenant
 from Backend.api.auth import get_current_user
+from Backend.models.lease import Lease
+from Backend.models.lease_status import LeaseStatus
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +85,7 @@ async def get_unit_or_404(unit_id: int, session: AsyncSession, current_user: Use
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unit not found")
 
     # Permission check: User must own the parent property or be an admin
-    if unit.property.owner_id != current_user.id and not current_user.is_admin:
+    if not current_user.is_admin and unit.property.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to access this unit"
@@ -98,7 +101,7 @@ async def create_unit_for_property(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Create a new unit for a specific property."""
+    """Create a new unit, ensuring user owns the property."""
     # Check if property exists and user has permission
     result = await session.execute(select(Property).where(Property.id == property_id))
     property_obj = result.scalar_one_or_none()
@@ -106,25 +109,28 @@ async def create_unit_for_property(
     if not property_obj:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found")
 
-    if property_obj.owner_id != current_user.id and not current_user.is_admin:
+    # Permission check using user_id
+    if not current_user.is_admin and property_obj.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to add units to this property"
         )
 
     # Create the new unit
+    # Ensure created_at/updated_at are handled by model defaults if configured
     new_unit = PropertyUnit(
         **unit_data.model_dump(),
-        property_id=property_id,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        property_id=property_id
+        # created_at=datetime.utcnow(), # Handled by model?
+        # updated_at=datetime.utcnow() # Handled by model?
     )
     session.add(new_unit)
     try:
         await session.commit()
         await session.refresh(new_unit)
-        logger.info(f"Created unit {new_unit.id}. Returning response without tenant info.")
-        return new_unit
+        logger.info(f"Created unit {new_unit.id} for property {property_id} by user {current_user.id}")
+        # Use the specific create response model which omits tenant info
+        return UnitCreateResponse.from_orm(new_unit)
     except ValidationError as e: # Catch Pydantic validation errors specifically
         logger.error(f"Response validation error for new unit: {e.errors()}")
         # Don't rollback if commit succeeded but response failed
@@ -134,7 +140,7 @@ async def create_unit_for_property(
         )
     except Exception as e:
         await session.rollback()
-        logger.error(f"Error creating unit for property {property_id}: {e}")
+        logger.error(f"Error creating unit for property {property_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while creating the unit."
@@ -148,108 +154,96 @@ async def update_unit(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Update an existing unit, including tenant assignment."""
+    """Update an existing unit, using helper for permission check."""
+    # get_unit_or_404 already performs the ownership check
     unit_to_update = await get_unit_or_404(unit_id, session, current_user)
 
-    update_data = unit_data.model_dump(exclude_unset=True) # Get only fields that were provided
+    update_data = unit_data.model_dump(exclude_unset=True)
     if not update_data:
          raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No update data provided"
         )
 
-    # Apply all provided updates directly first
-    tenant_id_updated = False
-    new_tenant_id_value = update_data.get('tenant_id') # Get potential new value
-    is_rented_updated = False
-    new_is_rented_value = update_data.get('is_rented') # Get potential new value
+    # Check if assigning a tenant
+    new_tenant_id = update_data.get('tenant_id')
+    if new_tenant_id is not None:
+        # Verify tenant exists
+        tenant_result = await session.execute(select(Tenant.id).where(Tenant.id == new_tenant_id))
+        if not tenant_result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Tenant with ID {new_tenant_id} not found"
+            )
+        # Optionally: Verify tenant is associated with the landlord if needed?
+        # This might be too complex here, assume tenant assignment is allowed if landlord owns property.
+
+    tenant_id_updated = 'tenant_id' in update_data
+    is_rented_updated = 'is_rented' in update_data
     rent_explicitly_set = 'monthly_rent' in update_data
 
+    # Apply updates from request
     for key, value in update_data.items():
         if hasattr(unit_to_update, key):
             setattr(unit_to_update, key, value)
-            if key == 'tenant_id':
-                tenant_id_updated = True
-                # Verify tenant exists if ID is not None
-                if value is not None:
-                    tenant_result = await session.execute(select(Tenant).where(Tenant.id == value))
-                    tenant = tenant_result.scalar_one_or_none()
-                    if not tenant:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND, 
-                            detail=f"Tenant with ID {value} not found"
-                        )
-            elif key == 'is_rented':
-                is_rented_updated = True
         else:
              logger.warning(f"Attempted to update non-existent field '{key}' on PropertyUnit")
 
-    # Handle dependencies after direct updates
+    # --- Logic to handle dependencies (tenant assignment <-> is_rented) ---
+    # Scenario 1: Explicitly setting tenant_id to null (vacating)
+    if tenant_id_updated and new_tenant_id is None:
+        unit_to_update.is_rented = False # Vacant units are not rented
+        if not rent_explicitly_set: # Clear rent only if not explicitly set in this request
+            unit_to_update.monthly_rent = None
 
-    # Scenario 1: Unit is being made vacant
-    if (tenant_id_updated and new_tenant_id_value is None) or \
-       (is_rented_updated and new_is_rented_value is False):
-        unit_to_update.tenant_id = None
-        unit_to_update.is_rented = False
-        # Clear rent ONLY if it wasn't explicitly provided in this update
+    # Scenario 2: Explicitly setting is_rented to False (vacating)
+    elif is_rented_updated and update_data.get('is_rented') is False:
+        unit_to_update.tenant_id = None # Vacant units have no tenant assigned
         if not rent_explicitly_set:
             unit_to_update.monthly_rent = None
-            
-    # Scenario 2: Tenant is being assigned
-    elif tenant_id_updated and new_tenant_id_value is not None:
-        # If tenant assigned and is_rented wasn't explicitly set to False, mark as rented
-        # (Handles case where is_rented is provided as True, or not provided at all)
-        if not (is_rented_updated and new_is_rented_value is False):
-             unit_to_update.is_rented = True
-    # Scenario 3: Only is_rented changed (to True, handled by setattr)
-    # Scenario 4: Only monthly_rent changed (handled by setattr)
-    # Scenario 5: Only other fields changed (handled by setattr)
 
-    unit_to_update.updated_at = datetime.utcnow()
+    # Scenario 3: Explicitly assigning a tenant (making rented)
+    elif tenant_id_updated and new_tenant_id is not None:
+        unit_to_update.is_rented = True # Assigning a tenant implies rented
+
+    # Scenario 4: Explicitly setting is_rented to True (but no tenant assigned yet)
+    elif is_rented_updated and update_data.get('is_rented') is True and not tenant_id_updated:
+        # If marking as rented without assigning a tenant, we might leave tenant_id as is or null?
+        # Current logic: simply marks is_rented=True. tenant_id remains unchanged unless specified.
+        pass # is_rented already set by setattr loop
+
+    # updated_at handled by model?
+    # unit_to_update.updated_at = datetime.utcnow()
 
     try:
-        session.add(unit_to_update) 
+        session.add(unit_to_update)
         await session.commit()
 
-        # Explicitly re-fetch the unit with the tenant relationship loaded
-        # This ensures the data is ready for Pydantic serialization.
+        # Re-fetch with tenant loaded for response
         query = (
             select(PropertyUnit)
-            .options(selectinload(PropertyUnit.tenant)) # Use selectinload
+            .options(selectinload(PropertyUnit.tenant))
             .where(PropertyUnit.id == unit_id)
         )
         result = await session.execute(query)
         final_unit = result.unique().scalar_one_or_none()
 
         if not final_unit:
-             # This case is highly unlikely after a successful commit but good practice to check
              logger.error(f"Failed to re-fetch unit {unit_id} after update.")
              raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Updated unit could not be found.")
 
-        # Log the final unit state before returning
-        logger.info(f"Final unit state before return: id={final_unit.id}, name={final_unit.name}, floor={final_unit.floor}, rent={final_unit.monthly_rent}, is_rented={final_unit.is_rented}, tenant_id={final_unit.tenant_id}")
-        
-        logger.info(f"Successfully updated and re-fetched unit {final_unit.id}. Tenant loaded: {final_unit.tenant}")
-        return final_unit # Return the newly fetched instance
+        logger.info(f"Unit {final_unit.id} updated successfully by user {current_user.id}")
+        return final_unit
 
     except ValidationError as e:
-        # Handle Pydantic validation errors during response serialization
         logger.error(f"Response validation error for unit {unit_id}: {e.errors()}")
-        # Don't rollback if commit succeeded but response failed
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unit updated, but failed to serialize response: {e.errors()}"
         )
     except Exception as e:
-        await session.rollback() # Rollback on other commit/DB errors
-        logger.error(f"Error updating unit {unit_id}: {e}")
-        # Check for the specific loader strategy error to provide a clearer message
-        if "expected ORM mapped attribute for loader strategy argument" in str(e):
-             logger.error("Loader strategy error still occurring despite API changes.")
-             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"ORM relationship loading error after update. Please check model definitions. Error: {str(e)}"
-             )
+        await session.rollback()
+        logger.error(f"Error updating unit {unit_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while updating the unit: {str(e)}"
@@ -262,22 +256,26 @@ async def delete_unit(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Delete a unit."""
+    """Delete a unit, using helper for permission check."""
+    # get_unit_or_404 already performs the ownership check
     unit_to_delete = await get_unit_or_404(unit_id, session, current_user)
 
-    # Potential future check: Ensure unit is not tied to active leases before deletion
-    # query = select(Lease).where(Lease.unit_id == unit_id, Lease.status == LeaseStatus.ACTIVE)
-    # active_lease = await session.scalar(query)
-    # if active_lease:
-    #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete unit with an active lease.")
+    # Add check for active leases associated with the unit
+    active_lease_query = select(Lease.id).where(
+        and_(Lease.unit_id == unit_id, Lease.status == LeaseStatus.ACTIVE)
+    ).limit(1)
+    active_lease_exists = await session.scalar(active_lease_query)
+    if active_lease_exists:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete unit with an active lease.")
 
     await session.delete(unit_to_delete)
     try:
         await session.commit()
-        return None # No content response
+        logger.info(f"Unit {unit_id} deleted successfully by user {current_user.id}")
+        return None
     except Exception as e:
         await session.rollback()
-        logger.error(f"Error deleting unit {unit_id}: {e}")
+        logger.error(f"Error deleting unit {unit_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while deleting the unit."
@@ -289,7 +287,7 @@ async def get_units_for_property(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Get all units for a specific property, ensuring tenant data is loaded."""
+    """Get units for a property, ensuring user owns the property."""
     # Check if property exists and user has permission
     result = await session.execute(select(Property).where(Property.id == property_id))
     property_obj = result.scalar_one_or_none()
@@ -297,7 +295,8 @@ async def get_units_for_property(
     if not property_obj:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found")
 
-    if property_obj.owner_id != current_user.id and not current_user.is_admin:
+    # Permission check using user_id
+    if not current_user.is_admin and property_obj.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to view units for this property"
@@ -308,11 +307,11 @@ async def get_units_for_property(
         select(PropertyUnit)
         .options(
             selectinload(PropertyUnit.tenant),
-            selectinload(PropertyUnit.property)
+            # selectinload(PropertyUnit.property) # Property already fetched and checked
         )
         .where(PropertyUnit.property_id == property_id)
+        .order_by(PropertyUnit.name) # Add consistent ordering
     )
     units = result.unique().scalars().all()
 
-    
     return units 
