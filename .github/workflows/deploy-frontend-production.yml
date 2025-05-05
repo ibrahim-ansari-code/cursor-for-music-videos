@@ -45,6 +45,8 @@ jobs:
           app_location: "./Frontend" # App source code path
           api_location: "" # No API
           output_location: "build" # Built app content directory
+          # Add explicit build command
+          app_build_command: "npx vite build"
           # Let Oryx handle the build
           # skip_app_build: true # Remove this to allow Oryx build
           skip_api_build: true # No API to build
