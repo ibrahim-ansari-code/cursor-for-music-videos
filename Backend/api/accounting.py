@@ -234,7 +234,7 @@ async def create_payment(
 
     # Determine tenant_id from the lease
     tenant_id = lease.tenant_id
-
+    
     # Create payment record
     payment_obj = Payment(
         lease_id=payment.lease_id,
@@ -248,12 +248,12 @@ async def create_payment(
         tenant_name=payment.tenant_name # Store provided name, could also fetch from Tenant record
         # created_at/updated_at handled by model defaults
     )
-
+    
     try:
         session.add(payment_obj)
         await session.commit()
         await session.refresh(payment_obj)
-
+        
         # Create response manually to include property name
         response = PaymentResponse(
             id=payment_obj.id,
@@ -353,11 +353,11 @@ async def get_payments(
 
         # Add ordering
         query = query.order_by(Payment.payment_date.desc())
-
+        
         # Execute query
         result = await session.execute(query)
         payments_orm = result.unique().scalars().all()
-
+        
         # Convert ORM objects to response models
         payment_responses = []
         for p in payments_orm:
@@ -383,9 +383,9 @@ async def get_payments(
                 property_name=p.lease.property.name if p.lease and p.lease.property else "Unknown Property"
             )
             payment_responses.append(response)
-
+            
         return payment_responses
-
+        
     except Exception as e:
         logger.error(f"Error fetching payments for user {current_user.id}: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -408,7 +408,7 @@ async def get_payment(
     ).where(Payment.id == payment_id)
     result = await session.execute(query)
     payment = result.unique().scalar_one_or_none()
-
+    
     if not payment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Payment {payment_id} not found")
 
@@ -462,7 +462,7 @@ async def update_payment(
     ).where(Payment.id == payment_id)
     result = await session.execute(query)
     payment = result.scalar_one_or_none()
-
+    
     if not payment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Payment {payment_id} not found")
 
@@ -470,17 +470,17 @@ async def update_payment(
     if not current_user.is_admin:
         if not payment.lease or not payment.lease.property or payment.lease.property.user_id != current_user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this payment")
-
+    
     # Update payment fields
     payment_data_dict = payment_data.model_dump(exclude_unset=True)
     for key, value in payment_data_dict.items():
         setattr(payment, key, value)
-
+    
     payment.updated_at = datetime.utcnow() # Manually update timestamp
-
+    
     try:
         session.add(payment)
-        await session.commit()
+    await session.commit()
         await session.refresh(payment) # Refresh to get updated data
         # Re-fetch related data if needed for response formatting
         await session.refresh(payment.lease)
@@ -559,16 +559,16 @@ async def create_invoice(
          if not current_user.is_admin and not owned_property_found:
               raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot create invoice for a tenant not associated with your properties")
 
-
+    
     # Create new invoice
     try:
         new_invoice = Invoice(**invoice_data.model_dump())
-        session.add(new_invoice)
-        await session.commit()
-        await session.refresh(new_invoice)
-
+    session.add(new_invoice)
+    await session.commit()
+    await session.refresh(new_invoice)
+    
         logger.info(f"Invoice {new_invoice.id} created for tenant {invoice_data.tenant_id} by user {current_user.id}")
-        return new_invoice
+    return new_invoice
     except Exception as e:
         await session.rollback()
         logger.error(f"Error creating invoice for tenant {invoice_data.tenant_id}: {str(e)}", exc_info=True)
@@ -610,7 +610,7 @@ async def get_invoices(
         landlord_filters = [Property.user_id == current_user.id] # Direct link via property_id
 
         # If filtering by a specific tenant, ensure they are linked to landlord's property
-        if tenant_id:
+    if tenant_id:
              # Subquery to check if tenant is linked via lease or current_prop to landlord's properties
              tenant_link_check = exists().where(
                  or_(
@@ -634,7 +634,7 @@ async def get_invoices(
 
 
         # Apply specific property filter if provided by landlord
-        if property_id:
+    if property_id:
              filters.append(Invoice.property_id == property_id)
              # Ensure landlord owns this specific property (redundant if already filtered above, but safe)
              filters.append(Property.user_id == current_user.id)
@@ -680,11 +680,11 @@ async def create_expense(
 
     try:
         new_expense = Expense(**expense_data.model_dump())
-        session.add(new_expense)
-        await session.commit()
-        await session.refresh(new_expense)
+    session.add(new_expense)
+    await session.commit()
+    await session.refresh(new_expense)
         logger.info(f"Expense {new_expense.id} created for property {expense_data.property_id} by user {current_user.id}")
-        return new_expense
+    return new_expense
     except Exception as e:
         await session.rollback()
         logger.error(f"Error creating expense for property {expense_data.property_id}: {str(e)}", exc_info=True)
@@ -726,7 +726,7 @@ async def get_expenses(
 
     elif current_user.is_admin:
         # Admin can filter by any property_id
-        if property_id:
+    if property_id:
              filters.append(Expense.property_id == property_id)
 
     if filters:
@@ -751,7 +751,7 @@ async def get_occupancy_rates(
 
     # Base query
     query = text("""
-    SELECT
+    SELECT 
         p.id as property_id, p.name as property_name, p.user_id as owner_user_id,
         COUNT(u.id) as total_units,
         SUM(CASE WHEN u.is_rented THEN 1 ELSE 0 END) as occupied_units
@@ -771,19 +771,19 @@ async def get_occupancy_rates(
         params["user_id"] = current_user.id
         if property_id: # Landlord requests specific owned property
             prop_filter_sql += " AND p.id = :property_id"
-            params["property_id"] = property_id
-
+        params["property_id"] = property_id
+    
     elif current_user.is_admin:
         if property_id: # Admin requests specific property
             prop_filter_sql += " AND p.id = :property_id"
             params["property_id"] = property_id
-
+    
     # Format query with filter
     final_query = query.format(property_ownership_filter=prop_filter_sql)
 
     result = await session.execute(text(final_query), params)
     occupancy_data = result.mappings().all()
-
+    
     # Calculate remaining fields in Python
     response_list = []
     for row in occupancy_data:
@@ -792,9 +792,9 @@ async def get_occupancy_rates(
         vacant = total - occupied
         rate = (occupied / total * 100) if total > 0 else 0.0
         response_list.append(
-             OccupancyResponse(
-                property_id=row['property_id'],
-                property_name=row['property_name'],
+        OccupancyResponse(
+            property_id=row['property_id'],
+            property_name=row['property_name'],
                 total_units=total,
                 occupied_units=occupied,
                 vacant_units=vacant,
@@ -889,7 +889,7 @@ async def get_revenue_trends(
         result = await session.execute(query, params)
         trends_data = result.mappings().all()
         return [
-             RevenueTrendResponse(
+            RevenueTrendResponse(
                 period=str(int(row['year'])), revenue=float(row['revenue']), expenses=float(row['expenses']),
                 net_income=float(row['revenue']) - float(row['expenses'])
             ) for row in trends_data
@@ -1009,8 +1009,8 @@ async def generate_due_payments(
     if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
-    today = date.today()
-    current_month = date(today.year, today.month, 1)
+        today = date.today()
+        current_month = date(today.year, today.month, 1)
     logger.info(f"Generating payments for {current_month} by user {current_user.id}")
 
     # Query active leases, filtering by ownership for landlords
@@ -1018,23 +1018,23 @@ async def generate_due_payments(
         selectinload(Lease.property),
         selectinload(Lease.tenant)
     ).where(
-        and_(
-            Lease.start_date <= today,
-            or_(Lease.end_date >= today, Lease.end_date.is_(None)),
-            Lease.status == LeaseStatus.ACTIVE
+            and_(
+                Lease.start_date <= today,
+                or_(Lease.end_date >= today, Lease.end_date.is_(None)),
+                Lease.status == LeaseStatus.ACTIVE
+            )
         )
-    )
     if current_user.user_type == UserType.LANDLORD:
         lease_query = lease_query.join(Lease.property).where(Property.user_id == current_user.id)
-
+        
     active_leases_result = await session.execute(lease_query)
     active_leases = active_leases_result.scalars().unique().all()
     logger.info(f"Found {len(active_leases)} active leases for user {current_user.id}")
-
+        
     created_payments_responses = []
     processed_lease_ids = set() # To handle potential duplicates if join logic is complex
-
-    for lease in active_leases:
+        
+        for lease in active_leases:
         if lease.id in processed_lease_ids: continue
         processed_lease_ids.add(lease.id)
 
@@ -1042,22 +1042,22 @@ async def generate_due_payments(
             # Check if payment already exists using helper
             if await get_month_payments(session, lease.id, current_month):
                 logger.info(f"Payment exists for lease {lease.id}, skipping.")
-                continue
-
-            tenant_name = "Unknown Tenant"
-            if lease.tenant:
+                    continue
+                
+                tenant_name = "Unknown Tenant"
+                if lease.tenant:
                 t = lease.tenant
                 tenant_name = f"{t.first_name} {t.last_name}".strip() if t.first_name else f"Tenant #{t.id}"
 
             # Create new payment - ensure we use the correct tenant_id from the lease
-            new_payment = Payment(
-                lease_id=lease.id,
+                    new_payment = Payment(
+                        lease_id=lease.id,
                 tenant_id=lease.tenant_id, # Crucial: Use Lease's tenant_id
-                amount=lease.monthly_rent,
+                        amount=lease.monthly_rent,
                 payment_date=datetime.combine(today, datetime.min.time()), # Use today's date with time
                 payment_method=PaymentMethod.OTHER.value,
-                status=PaymentStatus.PENDING,
-                tenant_name=tenant_name
+                        status=PaymentStatus.PENDING,
+                        tenant_name=tenant_name
                 # created/updated handled by default
             )
 
@@ -1099,7 +1099,7 @@ async def get_outstanding_payments(
     """Get outstanding payments for the current month, filtered by ownership."""
     today = date.today()
     month_start = date(today.year, today.month, 1)
-
+    
     try:
         query = select(Payment).options(
             selectinload(Payment.lease).options(
@@ -1124,7 +1124,7 @@ async def get_outstanding_payments(
         query = query.order_by(Payment.payment_date)
         result = await session.execute(query)
         payments = result.unique().scalars().all()
-
+        
         # Format response
         payment_responses = []
         for p in payments:
@@ -1141,9 +1141,9 @@ async def get_outstanding_payments(
                 updated_at=p.updated_at, tenant_name=tenant_name, property_name=property_name
             )
             payment_responses.append(response)
-
+            
         return payment_responses
-
+        
     except Exception as e:
         logger.error(f"Error fetching outstanding payments for user {current_user.id}: {str(e)}", exc_info=True)
         raise HTTPException(
