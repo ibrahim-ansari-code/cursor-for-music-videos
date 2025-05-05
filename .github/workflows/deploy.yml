@@ -1,4 +1,4 @@
-name: Deploy Brikli Backend
+name: Deploy Brikli Backend (Production)
 
 on:
   push:

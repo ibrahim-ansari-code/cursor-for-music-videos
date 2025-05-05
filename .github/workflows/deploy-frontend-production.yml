@@ -1,4 +1,4 @@
-name: Deploy Production Frontend # Updated name
+name: Deploy Brikli Frontend (Production) # Updated name
 
 on:
   push:
