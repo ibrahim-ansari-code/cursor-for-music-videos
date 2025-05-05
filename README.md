@@ -20,7 +20,7 @@ Brikli-V2/
 - **Backend**: FastAPI (Python 3.11+)  
 - **ORM**: SQLModel  
 - **Auth**: OAuth2 with JWT  
-- **DB**: Azure PostgreSQL
+- **DB**: Azure PostgreSQL & Supabase PostgreSQL
 
 ---
 
