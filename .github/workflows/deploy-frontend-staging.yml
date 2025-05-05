@@ -16,6 +16,6 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_STAGING }}
           action: "upload"
-          app_location: "/"
-          output_location: "Frontend/dist"
-          app_build_command: cd Frontend && VITE_API_URL='https://icy-glacier-00294140f.6.azurestaticapps.net' npm run build
+          app_location: "Frontend"
+          output_location: "dist"
+          app_build_command: "VITE_API_URL='https://icy-glacier-00294140f.6.azurestaticapps.net' npm run build"
