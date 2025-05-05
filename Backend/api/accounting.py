@@ -480,7 +480,7 @@ async def update_payment(
     
     try:
         session.add(payment)
-    await session.commit()
+        await session.commit()
         await session.refresh(payment) # Refresh to get updated data
         # Re-fetch related data if needed for response formatting
         await session.refresh(payment.lease)
@@ -563,12 +563,12 @@ async def create_invoice(
     # Create new invoice
     try:
         new_invoice = Invoice(**invoice_data.model_dump())
-    session.add(new_invoice)
-    await session.commit()
-    await session.refresh(new_invoice)
+        session.add(new_invoice)
+        await session.commit()
+        await session.refresh(new_invoice)
     
         logger.info(f"Invoice {new_invoice.id} created for tenant {invoice_data.tenant_id} by user {current_user.id}")
-    return new_invoice
+        return new_invoice
     except Exception as e:
         await session.rollback()
         logger.error(f"Error creating invoice for tenant {invoice_data.tenant_id}: {str(e)}", exc_info=True)
@@ -628,9 +628,9 @@ async def get_invoices(
                   )
              )
              filters.append(Invoice.tenant_id == tenant_id) # Add the tenant filter itself
-        else:
-            # If not filtering by tenant, just show invoices linked to owned properties
-             filters.append(Invoice.property_id.in_(owned_prop_ids_subquery))
+    else:
+        # If not filtering by tenant, just show invoices linked to owned properties
+        filters.append(Invoice.property_id.in_(owned_prop_ids_subquery))
 
 
         # Apply specific property filter if provided by landlord
@@ -680,11 +680,11 @@ async def create_expense(
 
     try:
         new_expense = Expense(**expense_data.model_dump())
-    session.add(new_expense)
-    await session.commit()
-    await session.refresh(new_expense)
+        session.add(new_expense)
+        await session.commit()
+        await session.refresh(new_expense)
         logger.info(f"Expense {new_expense.id} created for property {expense_data.property_id} by user {current_user.id}")
-    return new_expense
+        return new_expense
     except Exception as e:
         await session.rollback()
         logger.error(f"Error creating expense for property {expense_data.property_id}: {str(e)}", exc_info=True)
@@ -726,7 +726,7 @@ async def get_expenses(
 
     elif current_user.is_admin:
         # Admin can filter by any property_id
-    if property_id:
+        if property_id:
              filters.append(Expense.property_id == property_id)
 
     if filters:
@@ -1009,8 +1009,8 @@ async def generate_due_payments(
     if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
-        today = date.today()
-        current_month = date(today.year, today.month, 1)
+    today = date.today()
+    current_month = date(today.year, today.month, 1)
     logger.info(f"Generating payments for {current_month} by user {current_user.id}")
 
     # Query active leases, filtering by ownership for landlords
@@ -1026,38 +1026,38 @@ async def generate_due_payments(
         )
     if current_user.user_type == UserType.LANDLORD:
         lease_query = lease_query.join(Lease.property).where(Property.user_id == current_user.id)
-        
-    active_leases_result = await session.execute(lease_query)
-    active_leases = active_leases_result.scalars().unique().all()
-    logger.info(f"Found {len(active_leases)} active leases for user {current_user.id}")
-        
-    created_payments_responses = []
-    processed_lease_ids = set() # To handle potential duplicates if join logic is complex
-        
-        for lease in active_leases:
-        if lease.id in processed_lease_ids: continue
-        processed_lease_ids.add(lease.id)
 
-        try:
+    try:
+        active_leases_result = await session.execute(lease_query)
+        active_leases = active_leases_result.scalars().unique().all()
+        logger.info(f"Found {len(active_leases)} active leases for user {current_user.id}")
+
+        created_payments_responses = []
+        processed_lease_ids = set() # To handle potential duplicates if join logic is complex
+
+        for lease in active_leases:
+            if lease.id in processed_lease_ids: continue
+            processed_lease_ids.add(lease.id)
+
             # Check if payment already exists using helper
             if await get_month_payments(session, lease.id, current_month):
                 logger.info(f"Payment exists for lease {lease.id}, skipping.")
-                    continue
-                
-                tenant_name = "Unknown Tenant"
-                if lease.tenant:
+                continue
+
+            tenant_name = "Unknown Tenant"
+            if lease.tenant:
                 t = lease.tenant
                 tenant_name = f"{t.first_name} {t.last_name}".strip() if t.first_name else f"Tenant #{t.id}"
 
             # Create new payment - ensure we use the correct tenant_id from the lease
-                    new_payment = Payment(
-                        lease_id=lease.id,
+            new_payment = Payment(
+                lease_id=lease.id,
                 tenant_id=lease.tenant_id, # Crucial: Use Lease's tenant_id
-                        amount=lease.monthly_rent,
+                amount=lease.monthly_rent,
                 payment_date=datetime.combine(today, datetime.min.time()), # Use today's date with time
                 payment_method=PaymentMethod.OTHER.value,
-                        status=PaymentStatus.PENDING,
-                        tenant_name=tenant_name
+                status=PaymentStatus.PENDING,
+                tenant_name=tenant_name
                 # created/updated handled by default
             )
 
@@ -1083,12 +1083,17 @@ async def generate_due_payments(
                  logger.error(f"Error committing payment for lease {lease.id}: {commit_err}", exc_info=True)
                  await session.rollback() # Rollback this specific payment attempt
 
-        except Exception as lease_proc_err:
-            logger.error(f"Error processing lease {lease.id} for payment generation: {lease_proc_err}", exc_info=True)
-            await session.rollback() # Rollback any potential changes from this lease iteration
+        logger.info(f"Generated {len(created_payments_responses)} payments for user {current_user.id}")
+        return created_payments_responses
 
-    logger.info(f"Generated {len(created_payments_responses)} payments for user {current_user.id}")
-    return created_payments_responses
+    except Exception as lease_proc_err: # Catch errors during lease processing loop
+        logger.error(f"Error processing leases for payment generation: {lease_proc_err}", exc_info=True)
+        # Rollback might be needed if the session is in a bad state, but individual errors are handled above
+        # await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred during payment generation: {lease_proc_err}"
+        )
 
 
 @router.get("/outstanding-payments", response_model=List[PaymentResponse])
