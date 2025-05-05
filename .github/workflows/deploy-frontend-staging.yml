@@ -48,6 +48,8 @@ jobs:
           app_location: "Frontend" # App source code path (relative to root)
           api_location: "" # No API
           output_location: "dist" # Output location within app_location after build
+          # Add explicit build command
+          app_build_command: "npm install && npm run build"
           # Removed app_build_command - letting SWA build detect and run npm run build
           # skip_api_build: true # Assuming no API
           ###### End of Repository/Build Configurations ######
