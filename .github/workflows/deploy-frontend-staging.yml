@@ -3,64 +3,19 @@ name: Deploy Brikli Frontend (Staging)
 on:
   push:
     branches:
-      - staging # Trigger on push to staging
-#  pull_request: # Keep disabled for now unless PR previews are needed for staging
-#    types: [opened, synchronize, reopened, closed]
-#    branches:
-#      - staging
+      - staging
 
 jobs:
-  build_and_deploy_job:
-    if: github.event_name == 'push'
+  build_and_deploy:
     runs-on: ubuntu-latest
-    name: Build and Deploy Staging Job
     steps:
       - uses: actions/checkout@v3
-        with:
-          submodules: true # Checkout submodules if needed
-          lfs: false
-# Removed obsolete OIDC client install steps - Azure/login handles this
-#      - name: Install OIDC Client from Core Package
-#        run: npm install @actions/core@1.6.0 @actions/http-client
-#      - name: Get Id Token
-#        uses: actions/github-script@v6
-#        id: idtoken
-#        with:
-#          script: |
-#            const coredemo = require('@actions/core')
-#            return await coredemo.getIDToken()
-#          result-encoding: string
 
-# Removed frontend build step - should be handled by SWA deploy action or separate build job
-#      - name: Install dependencies including devDependencies
-#        run: npm ci
-#        working-directory: Frontend
-
-      # Deploy Step using Deployment Token
-      - name: Build And Deploy Staging
-        id: builddeploy
+      - name: Build and Deploy
         uses: Azure/static-web-apps-deploy@v1
         with:
-          # Explicitly set the deployment token secret for staging
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_STAGING }}
           action: "upload"
-          ###### Repository/Build Configurations ######
-          app_location: "Frontend" # App source code path (relative to root)
-          api_location: "" # No API
-          output_location: "dist" # Output location within app_location after build
-          # Updated build command to use npx directly
-          app_build_command: "npm install && npx --no-install vite build"
-          # skip_api_build: true # Assuming no API
-          ###### End of Repository/Build Configurations ######
-
-# Removed PR closure job as PR trigger is commented out
-#  close_pull_request_job:
-#    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-#    runs-on: ubuntu-latest
-#    name: Close Pull Request Job
-#    steps:
-#      - name: Close Pull Request
-#        id: closepullrequest
-#        uses: Azure/static-web-apps-deploy@v1
-#        with:
-#          action: "close"
+          app_location: "/"
+          output_location: "Frontend/dist"
+          app_build_command: cd Frontend && VITE_API_URL='https://icy-glacier-00294140f.6.azurestaticapps.net' npm run build
