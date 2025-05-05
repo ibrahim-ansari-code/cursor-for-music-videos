@@ -32,8 +32,8 @@ jobs:
           app_location: "Frontend" # App source code path (relative to root)
           api_location: "" # No API
           output_location: "dist" # Output location within app_location after build
-          # Ensure build command installs deps and runs the build script from package.json
-          app_build_command: "npm install && npm run build"
+          # Updated build command to use npx directly
+          app_build_command: "npm install && npx --no-install vite build"
           # skip_api_build: true # Assuming no API
           ###### End of Repository/Build Configurations ######
 
