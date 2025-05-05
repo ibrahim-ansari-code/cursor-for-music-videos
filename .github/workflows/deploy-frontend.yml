@@ -1,17 +1,18 @@
-name: Deploy Staging Frontend
+name: Deploy Frontend # Renamed for clarity?
 
 on:
   push:
     branches:
-      - staging
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
-    branches:
-      - staging
+      - main # Deploy from main branch for production
+#  pull_request:
+#    types: [opened, synchronize, reopened, closed]
+#    branches:
+#      - main
 
 jobs:
   build_and_deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    # if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     permissions:
@@ -22,37 +23,51 @@ jobs:
         with:
           submodules: true
           lfs: false
-      - name: Install OIDC Client from Core Package
-        run: npm install @actions/core@1.6.0 @actions/http-client
-      - name: Get Id Token
-        uses: actions/github-script@v6
-        id: idtoken
+# Removed obsolete OIDC steps
+#      - name: Install OIDC Client from Core Package
+#        run: npm install @actions/core@1.6.0 @actions/http-client
+#      - name: Get Id Token
+#        uses: actions/github-script@v6
+#        id: idtoken
+#        with:
+#           script: |
+#               const coredemo = require('@actions/core')
+#               return await coredemo.getIDToken()
+#           result-encoding: string
+
+      # Step to log in to Azure using OIDC
+      - name: Log in to Azure
+        id: login # Changed step id for clarity
+        uses: Azure/login@v1
         with:
-           script: |
-               const coredemo = require('@actions/core')
-               return await coredemo.getIDToken()
-           result-encoding: string
+          client-id: ${{ secrets.AZURE_CLIENT_ID }} # Assuming same secrets used for prod
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ICY_GLACIER_00294140F }}
+          # Use OIDC, token can be empty
+          azure_static_web_apps_api_token: "" 
           action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
+          ###### Repository/Build Configurations - Use correct paths ######
           app_location: "./Frontend" # App source code path
           api_location: "" # Api source code path - optional
-          output_location: "build" # Built app content directory - optional
-          github_id_token: ${{ steps.idtoken.outputs.result }}
+          output_location: "build" # Built app content directory - assuming standard React build
+          # Removed github_id_token as Azure/login is used
+          skip_app_build: true # Assuming build happens elsewhere or via Oryx
+          skip_api_build: true # Assuming no API
           ###### End of Repository/Build Configurations ######
 
-  close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close Pull Request Job
-    steps:
-      - name: Close Pull Request
-        id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          action: "close"
+# Removed PR closure job as trigger is commented out
+#  close_pull_request_job:
+#    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+#    runs-on: ubuntu-latest
+#    name: Close Pull Request Job
+#    steps:
+#      - name: Close Pull Request
+#        id: closepullrequest
+#        uses: Azure/static-web-apps-deploy@v1
+#        with:
+#          action: "close"

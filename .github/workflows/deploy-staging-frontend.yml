@@ -1,19 +1,21 @@
-name: Deploy Frontend
+name: Deploy Staging Frontend
 
 on:
   push:
     branches:
-      - main
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
-    branches:
-      - main
+      - staging
+#  pull_request: # Keep disabled for now unless PR previews are needed for staging
+#    types: [opened, synchronize, reopened, closed]
+#    branches:
+#      - staging
 
 jobs:
   build_and_deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    # if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed') # Simplified trigger
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     name: Build and Deploy Job
+    # Permissions needed for OIDC
     permissions:
        id-token: write
        contents: read
@@ -22,42 +24,58 @@ jobs:
         with:
           submodules: true
           lfs: false
-      - name: Install OIDC Client from Core Package
-        run: npm install @actions/core@1.6.0 @actions/http-client
-      - name: Get Id Token
-        uses: actions/github-script@v6
-        id: idtoken
+# Removed obsolete OIDC client install steps - Azure/login handles this
+#      - name: Install OIDC Client from Core Package
+#        run: npm install @actions/core@1.6.0 @actions/http-client
+#      - name: Get Id Token
+#        uses: actions/github-script@v6
+#        id: idtoken
+#        with:
+#          script: |
+#            const coredemo = require('@actions/core')
+#            return await coredemo.getIDToken()
+#          result-encoding: string
+
+# Removed frontend build step - should be handled by SWA deploy action or separate build job
+#      - name: Install dependencies including devDependencies
+#        run: npm ci
+#        working-directory: Frontend
+
+      # Step to log in to Azure using OIDC
+      - name: Log in to Azure
+        id: login # Changed step id for clarity
+        uses: Azure/login@v1
         with:
-          script: |
-            const coredemo = require('@actions/core')
-            return await coredemo.getIDToken()
-          result-encoding: string
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Install dependencies including devDependencies
-        run: npm ci
-        working-directory: Frontend
-
+      # Deploy Step - Corrected indentation and uses OIDC token
       - name: Build And Deploy
-        id: builddeploy
+        id: builddeploy # Ensure correct indentation
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ICY_GLACIER_00294140F }}
-          action: "upload"
-          app_location: "/"
-          api_location: ""
-          output_location: "Frontend/dist"
-          app_build_command: cd Frontend && VITE_API_URL='https://brikli-staging.azurewebsites.net' npm run build
-          github_id_token: ${{ steps.idtoken.outputs.result }}
+          # Use output from Azure login step
+          azure_static_web_apps_api_token: "" # OIDC login handles auth, token can be empty
+          # Set production_branch if needed for your SWA config, otherwise remove
+          # production_branch: "main" # Example if main is production
+          # Ensure correct locations are used
+          app_location: "./Frontend" # App source code path
+          api_location: "" # Api source code path - optional
+          output_location: "build" # Built app content directory
+          # app_build_command: cd Frontend && VITE_API_URL='https://brikli-staging.azurewebsites.net' npm run build # Build handled by SWA or separate job
+          # Removed github_id_token as Azure/login is used
+          skip_app_build: true # Assuming build happens elsewhere or via Oryx
+          skip_api_build: true # Assuming no API
 
-          ###### End of Repository/Build Configurations ######
-
-  close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close Pull Request Job
-    steps:
-      - name: Close Pull Request
-        id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          action: "close"
+# Removed PR closure job as PR trigger is commented out
+#  close_pull_request_job:
+#    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+#    runs-on: ubuntu-latest
+#    name: Close Pull Request Job
+#    steps:
+#      - name: Close Pull Request
+#        id: closepullrequest
+#        uses: Azure/static-web-apps-deploy@v1
+#        with:
+#          action: "close"
