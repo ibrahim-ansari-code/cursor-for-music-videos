@@ -1,0 +1,62 @@
+name: Deploy Production Frontend # Updated name
+
+on:
+  push:
+    branches:
+      - main # Trigger on push to main
+#  pull_request:
+#    types: [opened, synchronize, reopened, closed]
+#    branches:
+#      - main
+
+jobs:
+  build_and_deploy_job:
+    if: github.event_name == 'push' # Simplified trigger
+    runs-on: ubuntu-latest
+    name: Build and Deploy Production Job # Updated job name
+    # Removed explicit OIDC permissions
+    # permissions:
+    #    id-token: write
+    #    contents: read
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          lfs: false
+
+      # Removed explicit Azure/login@v1 step
+      # - name: Log in to Azure
+      #   id: login
+      #   uses: Azure/login@v1
+      #   with:
+      #     client-id: ${{ secrets.AZURE_CLIENT_ID }}
+      #     tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+      #     subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Deploy Step - Uses default GitHub token auth for SWA
+      - name: Build And Deploy Production
+        id: builddeploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          # azure_static_web_apps_api_token is NOT needed
+          action: "upload"
+          ###### Repository/Build Configurations - Use correct paths ######
+          app_location: "./Frontend" # App source code path
+          api_location: "" # No API
+          output_location: "build" # Built app content directory
+          # Let Oryx handle the build
+          # skip_app_build: true # Remove this to allow Oryx build
+          skip_api_build: true # No API to build
+          ###### End of Repository/Build Configurations ######
+
+# Removed PR closure job as trigger is commented out
+#  close_pull_request_job:
+#    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+#    runs-on: ubuntu-latest
+#    name: Close Pull Request Job
+#    steps:
+#      - name: Close Pull Request
+#        id: closepullrequest
+#        uses: Azure/static-web-apps-deploy@v1
+#        with:
+#          action: "close"
