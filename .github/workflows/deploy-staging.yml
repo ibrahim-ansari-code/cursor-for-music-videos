@@ -1,9 +1,9 @@
-name: Deploy Brikli Backend (Production)
+name: Deploy Brikli Backend (Staging)
 
 on:
   push:
     branches:
-      - main
+      - staging  # Deploy from the staging branch
 
 jobs:
   deploy:
@@ -12,9 +12,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Deploy to Azure Web App
+      - name: Deploy to Azure Web App (Staging)
         uses: azure/webapps-deploy@v2
         with:
           app-name: Brikli
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          slot-name: staging
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_STAGING }}
           package: .
