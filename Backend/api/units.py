@@ -12,7 +12,6 @@ from Backend.database import get_session
 from Backend.models.property import Property, PropertyUnit
 from Backend.models.user import User
 from Backend.models.tenant import Tenant
-from Backend.api.tenants import TenantResponse
 from Backend.api.auth import get_current_user
 from Backend.models.lease import Lease, LeaseStatus
 
