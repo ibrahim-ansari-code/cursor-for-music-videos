@@ -29,5 +29,3 @@ jobs:
           api_location: ""
           output_location: "dist"
           app_build_command: npm run build
-        env:
-          VITE_API_URL: 'https://brikli.azurewebsites.net'
