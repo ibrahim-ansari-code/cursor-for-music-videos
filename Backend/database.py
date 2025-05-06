@@ -14,19 +14,20 @@ from Backend.models.user import User
 logger = logging.getLogger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-def get_database_url() -> str:
-    """
-    Get the appropriate database URL based on environment configuration.
-    """
-    database_url = os.getenv("DATABASE_URL")
-    if database_url:
-        logger.info("Using provided DATABASE_URL" + database_url + " for database connection")
-        return database_url
-
 # Create async database engine
+# Ensure settings.DATABASE_URL is loaded correctly by config.py
+if not settings.DATABASE_URL or not settings.DATABASE_URL.startswith("postgresql+asyncpg://"):
+    # Log the actual value for debugging if it exists but is wrong
+    logger.error(f"DATABASE_URL environment variable invalid: {settings.DATABASE_URL}") 
+    raise RuntimeError("DATABASE_URL environment variable not set/loaded correctly or missing asyncpg scheme.")
+
+# Log masked URL
+masked_db_url = settings.DATABASE_URL.split('@')[-1] if '@' in settings.DATABASE_URL else settings.DATABASE_URL
+logger.info(f"Creating async engine with URL: ...@{masked_db_url}")
+
 engine = create_async_engine(
-    get_database_url(),
-    echo=settings.DEBUG,  # Only echo SQL in debug mode
+    settings.DATABASE_URL,  # Use DATABASE_URL directly from settings
+    echo=settings.DEBUG,    # Only echo SQL in debug mode
     future=True
 )
 
