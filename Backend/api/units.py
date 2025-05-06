@@ -11,10 +11,9 @@ from sqlalchemy import and_
 from Backend.database import get_session
 from Backend.models.property import Property, PropertyUnit
 from Backend.models.user import User
-from Backend.models.tenant import Tenant
+from Backend.models.tenant import Tenant, TenantResponse
 from Backend.api.auth import get_current_user
-from Backend.models.lease import Lease
-from Backend.models.lease_status import LeaseStatus
+from Backend.models.lease import Lease, LeaseStatus
 
 logger = logging.getLogger(__name__)
 
