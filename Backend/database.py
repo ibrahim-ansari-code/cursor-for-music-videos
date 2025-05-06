@@ -20,15 +20,14 @@ def get_database_url() -> str:
     """
     database_url = os.getenv("DATABASE_URL")
     if database_url:
-        logger.info("Using provided DATABASE_URL for database connection")
+        logger.info("Using provided DATABASE_URL" + database_url + " for database connection")
         return database_url
 
 # Create async database engine
 engine = create_async_engine(
     get_database_url(),
     echo=settings.DEBUG,  # Only echo SQL in debug mode
-    future=True,
-    connect_args={"ssl": "require"}  # Use SQLAlchemy 2.0 style
+    future=True
 )
 
 # Create async session
