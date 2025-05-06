@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 
 # Load from the desired .env file (defaults to ".env")
 env_path = os.getenv("DOTENV_KEY", ".env")
-load_dotenv(dotenv_path=env_path)
+#load_dotenv(dotenv_path=env_path)
 
 class Settings(BaseSettings):
     """Application settings"""
