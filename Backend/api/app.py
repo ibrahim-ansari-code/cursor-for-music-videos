@@ -16,7 +16,9 @@ origins = [
     "http://localhost:5173",
     "https://app.brikli.com",
     "https://brikli.azurewebsites.net",
-    "https://lemon-island-038ac790f.6.azurestaticapps.net"
+    "https://lemon-island-038ac790f.6.azurestaticapps.net",
+    "https://icy-glacier-00294140f6.azurestaticapps.net",  # Staging frontend
+    "https://brikli-staging.azurewebsites.net"  # Staging frontend
 ]
 
 app.add_middleware(
