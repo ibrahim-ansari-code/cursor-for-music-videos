@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 from typing import Optional
+from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -172,24 +173,45 @@ async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: AsyncSession = Depends(get_session)
 ):
-    user = await authenticate_user(form_data.username, form_data.password, session)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    logger.info(f"Attempting login for username: {form_data.username}")
+    try:
+        user = await authenticate_user(form_data.username, form_data.password, session)
+        logger.info(f"Authentication result for {form_data.username}: {'User found' if user else 'User not found or password incorrect'}")
+        if not user:
+            logger.warning(f"Login failed for {form_data.username}: Incorrect email or password")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
-    user_type = user.user_type.upper()
-    
-    access_token = create_access_token(
-        data={"sub": user.email, "user_id": user.id, "user_type": user_type}
-    )
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user_type": user_type
-    }
+        # Ensure user_type is a string before calling upper()
+        user_type_value = user.user_type
+        if isinstance(user.user_type, Enum): # If it's an Enum member
+            user_type_value = user.user_type.value
+        
+        # Now safely call upper on the string value
+        user_type_upper = str(user_type_value).upper()
+
+        logger.info(f"Creating access token for {form_data.username}, user_id: {user.id}, db_user_type: {user.user_type}, token_user_type: {user_type_upper}")
+        access_token = create_access_token(
+            data={"sub": user.email, "user_id": user.id, "user_type": user_type_upper} # Use the uppercased string
+        )
+        logger.info(f"Token created successfully for {form_data.username}")
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user_type": user_type_upper # Ensure this matches the expected UserType enum/str for the Token model
+        }
+    except HTTPException as e: # Re-raise HTTPExceptions
+        logger.warning(f"HTTPException during login for {form_data.username}: {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"UNEXPECTED ERROR during login for {form_data.username}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred during login."
+        )
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(
