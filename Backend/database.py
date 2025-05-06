@@ -1,7 +1,7 @@
 import logging
 import os
 import Backend.models
-from typing import Optional
+from typing import Optional, AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel, select
@@ -38,7 +38,7 @@ async_session = sessionmaker(
     expire_on_commit=False,
 )
 
-async def get_session() -> AsyncSession:
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Get an async database session.
     This is a FastAPI dependency that can be used in route handlers.

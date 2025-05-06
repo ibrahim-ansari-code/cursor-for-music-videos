@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, selectinload
-from pydantic import BaseModel, constr, ValidationError
+from pydantic import BaseModel, constr, ValidationError, Field
 from sqlalchemy import and_
 
 from Backend.database import get_session
@@ -22,7 +22,7 @@ router = APIRouter()
 
 # === Models ===
 class UnitBase(BaseModel):
-    name: constr(min_length=1, max_length=255)
+    name: str = Field(min_length=1, max_length=255)
     description: Optional[str] = None
     size: Optional[float] = None
     monthly_rent: Optional[float] = None
@@ -35,7 +35,7 @@ class UnitCreate(UnitBase):
     pass
 
 class UnitUpdate(UnitBase):
-    name: Optional[constr(min_length=1, max_length=255)] = None # Allow partial updates
+    name: Optional[str] = None # Allow partial updates
     is_rented: Optional[bool] = None
     floor: Optional[int] = None
     tenant_id: Optional[int] = None # Added tenant_id for assignments
