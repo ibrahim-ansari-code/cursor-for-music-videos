@@ -140,6 +140,7 @@ venv
 .env.azure
 .env.local
 
+
 # Spyder project settings
 .spyderproject
 .spyproject
