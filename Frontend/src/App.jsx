@@ -23,6 +23,7 @@ import Settings from './pages/Settings';
 export const AuthContext = createContext(null);
 
 function App() {
+  console.log(`[App] Effective VITE_API_URL: ${import.meta.env.VITE_API_URL}`);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
