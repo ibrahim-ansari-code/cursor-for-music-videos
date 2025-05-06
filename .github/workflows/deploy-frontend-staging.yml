@@ -29,4 +29,4 @@ jobs:
           app_location: "Frontend"
           api_location: ""
           output_location: "dist"
-          app_build_command: npm run build
+          app_build_command: VITE_API_URL=https://brikli-api-staging.azurewebsites.net npm run build
