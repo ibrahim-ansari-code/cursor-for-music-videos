@@ -1,6 +1,9 @@
 name: Deploy Brikli Frontend (Staging)
 
 on:
+  push:
+    branches:
+      - staging
   workflow_dispatch:
 
 jobs:
