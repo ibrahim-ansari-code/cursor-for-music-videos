@@ -95,6 +95,7 @@ def root():
 @app.get("/api/health")
 async def health():
     """Health check endpoint for the API"""
+    logger.info("HEALTH CHECK ENDPOINT HIT - /api/health")
     return {
         "status": "ok",
         "message": "API is healthy"
