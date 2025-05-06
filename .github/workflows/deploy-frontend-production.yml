@@ -14,7 +14,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '>=20'
+          node-version: '20'
 
       - name: Install Dependencies
         run: npm ci
@@ -25,9 +25,9 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PRODUCTION }}
           action: "upload"
-          app_location: "/"
+          app_location: "Frontend"
           api_location: ""
-          output_location: "Frontend/dist"
-          app_build_command: "cd Frontend && npm run build"
+          output_location: "dist"
+          app_build_command: npm run build
         env:
           VITE_API_URL: 'https://brikli.azurewebsites.net'
