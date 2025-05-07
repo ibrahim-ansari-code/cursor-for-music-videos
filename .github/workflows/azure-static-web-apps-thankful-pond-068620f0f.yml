@@ -55,7 +55,7 @@ jobs:
           action: "upload"
           app_location: "./Frontend"
           api_location: ""
-          output_location: "build"
+          output_location: "dist"
           github_id_token: ${{ steps.idtoken.outputs.result }}
 
   close_pull_request_job:
