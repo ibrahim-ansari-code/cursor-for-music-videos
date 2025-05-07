@@ -45,7 +45,7 @@ jobs:
         working-directory: Frontend
 
       - name: Build
-        run: npm run build
+        run: VITE_API_URL=https://brikli-staging.azurewebsites.net npm run build
         working-directory: Frontend
 
       - name: Deploy
