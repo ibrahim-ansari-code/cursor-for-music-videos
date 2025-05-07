@@ -118,7 +118,7 @@ class PaymentResponse(BaseModel):
     property_name: Optional[str] = None
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class InvoiceBase(BaseModel):
     invoice_number: str
@@ -146,7 +146,7 @@ class InvoiceResponse(InvoiceBase):
     updated_at: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ExpenseBase(BaseModel):
     amount: float
@@ -174,7 +174,7 @@ class ExpenseResponse(ExpenseBase):
     updated_at: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class OccupancyResponse(BaseModel):
     property_id: Optional[int] = None

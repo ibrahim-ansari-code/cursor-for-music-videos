@@ -33,18 +33,39 @@ const RegisterForm = () => {
         body: JSON.stringify({ 
           first_name: firstName, 
           last_name: lastName, 
-          phone, 
+          phone: phone || null, // Send null if phone is empty
           email, 
           password,
-          user_type: "LANDLORD" 
+          user_type: "LANDLORD",
+          // Omit address, city, province, postal_code if not collected
+          // or send them as null if collected and empty:
+          // address: address || null,
+          // city: city || null,
+          // province: province || null,
+          // postal_code: postal_code || null,
         }),
       });
 
-      const registerData = await registerResponse.json();
-
       if (!registerResponse.ok) {
-        throw new Error(registerData.detail || 'Registration failed');
+        let errorText = 'Registration failed';
+        try {
+          // Try to get more specific error from backend if available
+          const errorData = await registerResponse.json();
+          errorText = errorData.detail || errorText;
+        } catch (jsonError) {
+          // If parsing JSON fails, try to get text (e.g., for unhandled server errors)
+          try {
+            errorText = await registerResponse.text();
+          } catch (textError) {
+            // Fallback if reading text also fails
+            errorText = `Registration failed with status: ${registerResponse.status}`;
+          }
+        }
+        throw new Error(errorText);
       }
+
+      // If response is OK, expect JSON
+      const registerData = await registerResponse.json(); 
 
       // Registration successful
       setRegistrationSuccess(true);
