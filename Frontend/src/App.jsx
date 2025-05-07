@@ -19,6 +19,9 @@ import Maintenance from './pages/Maintenance';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 
+// Import the login API function
+import { login as apiLogin, getCurrentUser } from './utils/api'; // Assuming getCurrentUser is also needed
+
 // Auth Context
 export const AuthContext = createContext(null);
 
@@ -26,6 +29,43 @@ function App() {
   console.log(`[App] Effective VITE_API_URL: ${import.meta.env.VITE_API_URL}`);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Login function to be provided by context
+  const login = async (email, password) => {
+    try {
+      const loginData = await apiLogin(email, password); // Call the API login
+      if (loginData && loginData.access_token) {
+        localStorage.setItem('token', loginData.access_token);
+        localStorage.setItem('user_type', loginData.user_type?.toUpperCase()); // Ensure user_type is stored
+
+        // Fetch full user details after login
+        const userInfo = await getCurrentUser(); // Use existing /me or create specific function
+        if (userInfo) {
+          const userType = userInfo.user_type?.toUpperCase();
+          userInfo.user_type = userType;
+          localStorage.setItem('user_type', userType); // Update with potentially more detailed user_type
+          localStorage.setItem('user', JSON.stringify(userInfo));
+          setUser(userInfo);
+          return true;
+        }
+      }
+      // If login or fetching user info fails, clear relevant items
+      localStorage.removeItem('token');
+      localStorage.removeItem('user_type');
+      localStorage.removeItem('user');
+      setUser(null);
+      return false;
+    } catch (error) {
+      console.error('Login process failed:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user_type');
+      localStorage.removeItem('user');
+      setUser(null);
+      // Propagate the error so LoginForm can display it
+      // The error object from handleResponse in api.js should have details
+      throw error; 
+    }
+  };
 
   // Check authentication status on mount
   useEffect(() => {
@@ -86,6 +126,7 @@ function App() {
   const authValue = {
     user,
     setUser,
+    login, // Provide the new login function
     logout,
     isAuthenticated: !!user,
   };
