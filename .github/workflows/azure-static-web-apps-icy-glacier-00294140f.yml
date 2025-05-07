@@ -1,4 +1,4 @@
-name: azure-static-web-apps-icy-glacier-00294140f.yml
+name: Deploy Brikli Frontend (Staging)
 
 on:
   push:
