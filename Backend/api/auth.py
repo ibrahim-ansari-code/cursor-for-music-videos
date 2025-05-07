@@ -414,22 +414,22 @@ async def upload_user_avatar(
 #     except Exception as e:
 #         logger.error(f"Error sending email: {str(e)}")
 
-@router.get("/verify-email")
-async def verify_email(token: str, session: AsyncSession = Depends(get_session)):
-    try:
-        email = serializer.loads(token, salt='email-confirm', max_age=3600)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
+# @router.get("/verify-email")
+# async def verify_email(token: str, session: AsyncSession = Depends(get_session)):
+#     try:
+#         email = serializer.loads(token, salt='email-confirm', max_age=3600)
+#     except Exception as e:
+#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
 
-    result = await session.execute(select(User).where(User.email == email))
-    user = result.scalar_one_or_none()
+#     result = await session.execute(select(User).where(User.email == email))
+#     user = result.scalar_one_or_none()
 
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+#     if not user:
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    user.is_email_verified = True
-    await session.commit()
-    return {"message": "Email verified successfully"}
+#     user.is_email_verified = True
+#     await session.commit()
+#     return {"message": "Email verified successfully"}
 
 # === Email Verification ===
 # @router.post("/resend-verification")
