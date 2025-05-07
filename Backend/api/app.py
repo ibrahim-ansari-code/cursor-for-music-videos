@@ -18,7 +18,8 @@ origins = [
     "https://brikli.azurewebsites.net",
     "https://lemon-island-038ac790f.6.azurestaticapps.net",
     "https://icy-glacier-00294140f.6.azurestaticapps.net", # Corrected Staging frontend
-    "https://brikli-staging.azurewebsites.net"
+    "https://brikli-staging.azurewebsites.net",
+    "http://brikli-staging.azurewebsites.net"
 ]
 
 app.add_middleware(
