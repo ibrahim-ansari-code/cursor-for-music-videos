@@ -76,65 +76,6 @@ function App() {
     checkAuth();
   }, []);
 
-  const login = async (email, password) => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          'username': email,
-          'password': password,
-        })
-      });
-
-      if (!response.ok) {
-        console.error('Login failed:', await response.text());
-        return false;
-      }
-
-      const data = await response.json();
-      
-      // Ensure the user_type is in uppercase to match the enum values
-      const userType = data.user_type?.toUpperCase();
-      console.log('Auth token response:', { 
-        originalType: data.user_type,
-        normalizedType: userType
-      });
-      
-      // Store the uppercase user_type value
-      localStorage.setItem('token', data.access_token);
-      localStorage.setItem('user_type', userType);
-      console.log('Stored user type:', userType);
-
-      const userResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${data.access_token}`
-        }
-      });
-
-      if (!userResponse.ok) {
-        console.error('Failed to get user info:', await userResponse.text());
-        return false;
-      }
-
-      const userInfo = await userResponse.json();
-      
-      // Make sure userInfo.user_type is also uppercase
-      userInfo.user_type = userType;
-      console.log('User info from /me endpoint:', userInfo);
-      
-      localStorage.setItem('user', JSON.stringify(userInfo));
-      setUser(userInfo);
-
-      return true;
-    } catch (error) {
-      console.error('Login error:', error);
-      return false;
-    }
-  };
-
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user_type');
@@ -145,7 +86,6 @@ function App() {
   const authValue = {
     user,
     setUser,
-    login,
     logout,
     isAuthenticated: !!user,
   };
