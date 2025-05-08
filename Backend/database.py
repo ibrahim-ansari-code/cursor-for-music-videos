@@ -64,7 +64,10 @@ else:
 
 # Log masked URL that will be used
 masked_db_url_to_use = db_url_to_use.split('@')[-1] if '@' in db_url_to_use else db_url_to_use
-logger.info(f"Creating async engine with URL: ...@{masked_db_url_to_use} and connect_args: {ssl_connect_args}")
+logger.info(f"Preparing to create async engine. Effective URL (masked): ...@{masked_db_url_to_use}")
+logger.info(f"Parsed hostname for connection: {parsed_url.hostname}") # Log parsed hostname
+logger.info(f"Parsed port for connection: {parsed_url.port}") # Log parsed port
+logger.info(f"SSL connect_args to be used: {ssl_connect_args}")
 
 engine = create_async_engine(
     db_url_to_use, 
