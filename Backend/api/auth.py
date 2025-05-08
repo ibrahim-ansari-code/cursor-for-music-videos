@@ -218,6 +218,8 @@ async def register_user(
     user_data: UserCreate,
     session: AsyncSession = Depends(get_session)
 ):
+    print("REGISTER HIT") # Added debug print
+    logger.info(f"Registration attempt for email: {user_data.email}, user_type: {user_data.user_type}")
     result = await session.execute(select(User).where(User.email == user_data.email))
     existing_user = result.scalar_one_or_none()
 
