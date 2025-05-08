@@ -1,6 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../App';
+import { register as apiRegister } from '../utils/api'; // Import the register function
 
 const RegisterForm = () => {
   const [firstName, setFirstName] = useState('');
@@ -23,51 +24,22 @@ const RegisterForm = () => {
     setRegistrationSuccess(false);
     setResendSuccess(false);
 
+    const userData = {
+      first_name: firstName,
+      last_name: lastName,
+      phone: phone || null, // Send null if phone is empty, or just phone if backend handles empty string
+      email,
+      password,
+      user_type: "LANDLORD" // As per requirements
+    };
+
     try {
-      // Step 1: Register the user
-      const registerResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          first_name: firstName, 
-          last_name: lastName, 
-          phone: phone || null, // Send null if phone is empty
-          email, 
-          password,
-          user_type: "LANDLORD",
-          // Omit address, city, province, postal_code if not collected
-          // or send them as null if collected and empty:
-          // address: address || null,
-          // city: city || null,
-          // province: province || null,
-          // postal_code: postal_code || null,
-        }),
-      });
+      // Call the register function from utils/api.js
+      // apiRegister handles JSON.stringify, Content-Type, and uses handleResponse for errors.
+      const registerData = await apiRegister(userData);
 
-      if (!registerResponse.ok) {
-        let errorText = 'Registration failed';
-        try {
-          // Try to get more specific error from backend if available
-          const errorData = await registerResponse.json();
-          errorText = errorData.detail || errorText;
-        } catch (jsonError) {
-          // If parsing JSON fails, try to get text (e.g., for unhandled server errors)
-          try {
-            errorText = await registerResponse.text();
-          } catch (textError) {
-            // Fallback if reading text also fails
-            errorText = `Registration failed with status: ${registerResponse.status}`;
-          }
-        }
-        throw new Error(errorText);
-      }
-
-      // If response is OK, expect JSON
-      const registerData = await registerResponse.json(); 
-
-      // Registration successful
+      // If apiRegister is successful, registerData will be the parsed JSON response.
+      // If it fails, handleResponse in api.js will throw an error.
       setRegistrationSuccess(true);
       
       // Clear the form
@@ -78,8 +50,24 @@ const RegisterForm = () => {
       setPassword('');
       
     } catch (err) {
-      // Display backend error message
-      setError(err.message || 'Registration failed. Please try again.');
+      // err is the error object thrown by handleResponse (via apiRegister)
+      // It should have a .message property, and .data for JSON error details
+      let displayError = 'Registration failed. Please try again.';
+      if (err.message) {
+        displayError = err.message;
+      }
+
+      if (err.data && err.data.detail) {
+        if (Array.isArray(err.data.detail)) { // For RequestValidationError (FastAPI Pydantic errors)
+          displayError = err.data.detail.map(d => {
+            const field = d.loc && d.loc.length > 1 ? d.loc[d.loc.length - 1] : (d.loc && d.loc.length === 1 ? d.loc[0] : 'Error');
+            return `${field}: ${d.msg}`;
+          }).join('; ');
+        } else if (typeof err.data.detail === 'string') { // For HTTPException (FastAPI general errors)
+          displayError = err.data.detail;
+        }
+      }
+      setError(displayError);
       console.error('Registration error:', err);
     } finally {
       setLoading(false);

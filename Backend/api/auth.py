@@ -33,7 +33,7 @@ router = APIRouter(
 
 # Set up password hashing and JWT authentication
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token", auto_error=False)
 
 # Initialize URLSafeTimedSerializer
 serializer = URLSafeTimedSerializer(settings.SECRET_KEY)
@@ -120,7 +120,7 @@ async def authenticate_user(email: str, password: str, session: AsyncSession):
     return user
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    token: Optional[str] = Depends(oauth2_scheme),
     session: AsyncSession = Depends(get_session)
 ):
     credentials_exception = HTTPException(
@@ -128,6 +128,9 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    if not token:
+        raise credentials_exception
 
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
