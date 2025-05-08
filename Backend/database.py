@@ -1,7 +1,9 @@
 import logging
 import os
+import ssl # Import the ssl module
 import Backend.models
 from typing import Optional, AsyncGenerator
+from urllib.parse import urlparse, urlunparse, parse_qs, urlencode # For URL manipulation
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel, select
@@ -21,14 +23,54 @@ if not settings.DATABASE_URL or not settings.DATABASE_URL.startswith("postgresql
     logger.error(f"DATABASE_URL environment variable invalid: {settings.DATABASE_URL}") 
     raise RuntimeError("DATABASE_URL environment variable not set/loaded correctly or missing asyncpg scheme.")
 
-# Log masked URL
-masked_db_url = settings.DATABASE_URL.split('@')[-1] if '@' in settings.DATABASE_URL else settings.DATABASE_URL
-logger.info(f"Creating async engine with URL: ...@{masked_db_url}")
+# Prepare database URL and SSL connect_args
+db_url_to_use = settings.DATABASE_URL
+ssl_connect_args = {}
+
+# Parse the URL to handle sslmode
+parsed_url = urlparse(settings.DATABASE_URL)
+query_params = parse_qs(parsed_url.query)
+
+if 'sslmode' in query_params:
+    logger.info(f"Found 'sslmode' in DATABASE_URL: {query_params['sslmode']}. Removing it from URL string and using connect_args for SSL.")
+    # For Azure PostgreSQL, 'sslmode=require' is common.
+    # We will enforce SSL via connect_args instead of the URL query parameter.
+    del query_params['sslmode']
+    # Reconstruct the query string without sslmode
+    new_query_string = urlencode(query_params, doseq=True)
+    # Reconstruct the URL without sslmode in the query part
+    db_url_to_use = urlunparse(parsed_url._replace(query=new_query_string))
+    
+    # Regardless of original sslmode, if it was present, we ensure SSL is used via connect_args.
+    # For 'require', 'prefer', or 'allow' that results in an SSL connection:
+    ssl_context = ssl.create_default_context()
+    # For Azure, it might be necessary to specify CA certs if default ones don't work.
+    # Example: ssl_context.load_verify_locations(cafile='/path/to/azure/ca.pem')
+    # For now, using create_default_context() is standard for 'sslmode=require'.
+    ssl_connect_args = {"ssl": ssl_context}
+    logger.info("Configuring SSL for asyncpg using connect_args.")
+else:
+    # If connecting to Azure and SSL is implicitly required even without sslmode in URL,
+    # you might still need to set ssl_connect_args here.
+    # For Azure PostgreSQL Flexible Server, SSL is typically enforced by the server.
+    # If DATABASE_URL is for Azure and doesn't have sslmode, assume SSL is needed.
+    # This is a common scenario for managed cloud PostgreSQL services.
+    if "azure.com" in parsed_url.netloc: # Heuristic for Azure DBs
+        logger.info("DATABASE_URL appears to be for Azure, ensuring SSL is enabled via connect_args.")
+        ssl_context = ssl.create_default_context()
+        ssl_connect_args = {"ssl": ssl_context}
+    else:
+        logger.info("No 'sslmode' in DATABASE_URL and not identified as Azure, SSL not explicitly configured via connect_args.")
+
+# Log masked URL that will be used
+masked_db_url_to_use = db_url_to_use.split('@')[-1] if '@' in db_url_to_use else db_url_to_use
+logger.info(f"Creating async engine with URL: ...@{masked_db_url_to_use} and connect_args: {ssl_connect_args}")
 
 engine = create_async_engine(
-    settings.DATABASE_URL,  # Use DATABASE_URL directly from settings
-    echo=settings.DEBUG,    # Only echo SQL in debug mode
-    future=True
+    db_url_to_use, 
+    echo=settings.DEBUG,    
+    future=True,
+    connect_args=ssl_connect_args # Pass SSL context here
 )
 
 # Create async session
