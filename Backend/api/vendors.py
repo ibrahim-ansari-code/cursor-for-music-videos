@@ -52,7 +52,7 @@ class VendorResponse(VendorBase):
     updated_at: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class VendorDocumentResponse(BaseModel):
     id: int
@@ -63,7 +63,7 @@ class VendorDocumentResponse(BaseModel):
     upload_date: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class PropertyAssignmentRequest(BaseModel):
     property_id: int

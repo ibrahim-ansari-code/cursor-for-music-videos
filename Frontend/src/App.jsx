@@ -19,12 +19,53 @@ import Maintenance from './pages/Maintenance';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 
+// Import the login API function
+import { login as apiLogin, getCurrentUser } from './utils/api'; // Assuming getCurrentUser is also needed
+
 // Auth Context
 export const AuthContext = createContext(null);
 
 function App() {
+  console.log(`[App] Effective VITE_API_URL: ${import.meta.env.VITE_API_URL}`);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Login function to be provided by context
+  const login = async (email, password) => {
+    try {
+      const loginData = await apiLogin(email, password); // Call the API login
+      if (loginData && loginData.access_token) {
+        localStorage.setItem('token', loginData.access_token);
+        localStorage.setItem('user_type', loginData.user_type?.toUpperCase()); // Ensure user_type is stored
+
+        // Fetch full user details after login
+        const userInfo = await getCurrentUser(); // Use existing /me or create specific function
+        if (userInfo) {
+          const userType = userInfo.user_type?.toUpperCase();
+          userInfo.user_type = userType;
+          localStorage.setItem('user_type', userType); // Update with potentially more detailed user_type
+          localStorage.setItem('user', JSON.stringify(userInfo));
+          setUser(userInfo);
+          return true;
+        }
+      }
+      // If login or fetching user info fails, clear relevant items
+      localStorage.removeItem('token');
+      localStorage.removeItem('user_type');
+      localStorage.removeItem('user');
+      setUser(null);
+      return false;
+    } catch (error) {
+      console.error('Login process failed:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user_type');
+      localStorage.removeItem('user');
+      setUser(null);
+      // Propagate the error so LoginForm can display it
+      // The error object from handleResponse in api.js should have details
+      throw error; 
+    }
+  };
 
   // Check authentication status on mount
   useEffect(() => {
@@ -75,65 +116,6 @@ function App() {
     checkAuth();
   }, []);
 
-  const login = async (email, password) => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          'username': email,
-          'password': password,
-        })
-      });
-
-      if (!response.ok) {
-        console.error('Login failed:', await response.text());
-        return false;
-      }
-
-      const data = await response.json();
-      
-      // Ensure the user_type is in uppercase to match the enum values
-      const userType = data.user_type?.toUpperCase();
-      console.log('Auth token response:', { 
-        originalType: data.user_type,
-        normalizedType: userType
-      });
-      
-      // Store the uppercase user_type value
-      localStorage.setItem('token', data.access_token);
-      localStorage.setItem('user_type', userType);
-      console.log('Stored user type:', userType);
-
-      const userResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${data.access_token}`
-        }
-      });
-
-      if (!userResponse.ok) {
-        console.error('Failed to get user info:', await userResponse.text());
-        return false;
-      }
-
-      const userInfo = await userResponse.json();
-      
-      // Make sure userInfo.user_type is also uppercase
-      userInfo.user_type = userType;
-      console.log('User info from /me endpoint:', userInfo);
-      
-      localStorage.setItem('user', JSON.stringify(userInfo));
-      setUser(userInfo);
-
-      return true;
-    } catch (error) {
-      console.error('Login error:', error);
-      return false;
-    }
-  };
-
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user_type');
@@ -144,7 +126,7 @@ function App() {
   const authValue = {
     user,
     setUser,
-    login,
+    login, // Provide the new login function
     logout,
     isAuthenticated: !!user,
   };

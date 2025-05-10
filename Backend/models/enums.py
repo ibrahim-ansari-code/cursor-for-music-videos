@@ -1,10 +1,19 @@
 from enum import Enum
 
 class UserType(str, Enum):
-    ADMIN = "ADMIN"
-    LANDLORD = "LANDLORD"
     TENANT = "TENANT"
+    LANDLORD = "LANDLORD"
+    ADMIN = "ADMIN"
     VENDOR = "VENDOR"
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            try:
+                return cls(value.upper())
+            except ValueError:
+                pass
+        return super()._missing_(value)
 
 class PropertyStatus(str, Enum):
     ACTIVE = "ACTIVE"

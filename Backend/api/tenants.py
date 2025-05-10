@@ -14,7 +14,7 @@ from Backend.database import get_session
 from Backend.models.tenant import Tenant, TenantStatus, TenantUnitLink
 from Backend.models.user import User, UserType
 from Backend.models.property import Property, PropertyUnit
-from Backend.models.lease import Lease
+from Backend.models.lease import Lease, LeaseStatus
 from Backend.api.auth import get_current_user
 
 # Configure logging

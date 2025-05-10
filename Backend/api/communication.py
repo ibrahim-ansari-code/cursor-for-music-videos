@@ -43,7 +43,7 @@ class MessageResponse(BaseModel):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ConversationBase(BaseModel):
     title: Optional[str] = None
@@ -60,7 +60,7 @@ class ConversationResponse(BaseModel):
     participants: List[int]  # List of participant user IDs
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # API endpoints
 @router.post("/conversations", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED)

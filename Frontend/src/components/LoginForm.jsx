@@ -20,12 +20,19 @@ const LoginForm = () => {
       if (success) {
         navigate('/dashboard', { replace: true });
       } else {
-        // Generic error for now, will be overridden if we detect a verification issue
-        setError('Invalid email or password');
+        setError('Login failed. Please check your credentials.');
       }
     } catch (err) {
-      setError(err.message || 'Login failed. Please try again.');
-      console.error('Login error:', err);
+      console.error('Login error in LoginForm:', err);
+      if (err.status === 401) {
+        setError(err.data?.detail || 'Invalid email or password.');
+      } else if (err.status === 400) {
+        setError(err.data?.detail || 'Missing fields or invalid request.');
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError('Login failed. An unexpected error occurred.');
+      }
     } finally {
       setLoading(false);
     }

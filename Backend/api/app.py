@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import logging
 from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -10,13 +12,18 @@ logger = logging.getLogger(__name__)
 logger.info("🚀 Booting FastAPI app...")
 
 app = FastAPI()
+api_main_router = APIRouter()
 
 # CORS Configuration
 origins = [
     "http://localhost:5173",
     "https://app.brikli.com",
     "https://brikli.azurewebsites.net",
-    "https://lemon-island-038ac790f.6.azurestaticapps.net"
+    "https://lemon-island-038ac790f.6.azurestaticapps.net",
+    "https://icy-glacier-00294140f.6.azurestaticapps.net", # Corrected Staging frontend
+    "https://brikli-staging.azurewebsites.net",
+    "http://brikli-staging.azurewebsites.net",
+    "https://thankful-pond-068620f0f.6.azurestaticapps.net"
 ]
 
 app.add_middleware(
@@ -47,6 +54,15 @@ app.add_middleware(ProxyHeadersMiddleware)
 # Optional: Validate Host headers for security
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
+# Add the RequestValidationError handler here
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.error(f"Validation error: {exc.errors()} for request: {request.url} with body: {exc.body}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": exc.body},
+    )
+
 # Router import + error trapping
 try:
     # Router Imports
@@ -64,39 +80,44 @@ try:
     from Backend.api.reports import router as reports_router
     from Backend.api.health import router as health_router
 
+    # Include routers into the central api_main_router
+    # Their internal prefixes (e.g., /auth, /properties) will apply
+    api_main_router.include_router(auth_router)
+    api_main_router.include_router(properties_router)
+    api_main_router.include_router(dashboard_router)
+    api_main_router.include_router(vendors_router)
+    api_main_router.include_router(leases_router)
+    api_main_router.include_router(accounting_router)
+    api_main_router.include_router(communication_router)
+    api_main_router.include_router(ai_router)
+    api_main_router.include_router(tenants_router)
+    api_main_router.include_router(rent_tracker_router)
+    api_main_router.include_router(units_router)
+    api_main_router.include_router(reports_router)
+    api_main_router.include_router(health_router)
 
-    app.include_router(auth_router, prefix="/api") 
-    app.include_router(properties_router, prefix="/api")
-    app.include_router(dashboard_router, prefix="/api")
-    app.include_router(vendors_router, prefix="/api")
-    app.include_router(leases_router, prefix="/api")
-    app.include_router(accounting_router, prefix="/api")
-    app.include_router(communication_router, prefix="/api")
-    app.include_router(ai_router, prefix="/api")
-    app.include_router(tenants_router, prefix="/api")
-    app.include_router(rent_tracker_router, prefix="/api")
-    app.include_router(units_router, prefix="/api")
-    app.include_router(reports_router, prefix="/api")
-    app.include_router(health_router, prefix="")  # No prefix so it's available at /ping directly
+    # Define the /api/health endpoint on the api_main_router
+    @api_main_router.get("/health")
+    async def api_health_check():
+        """Health check endpoint for the API, available at /api/health"""
+        logger.info("HEALTH CHECK ENDPOINT HIT - /api/health")
+        return {
+            "status": "ok",
+            "message": "API is healthy"
+        }
 
+    # Mount the central API router to the app with /api prefix
+    app.include_router(api_main_router, prefix="/api")
 
-    logger.info("✅ Routers mounted successfully.")
+    logger.info("✅ Routers mounted successfully under /api prefix.")
 except Exception as e:
     logger.exception("❌ Failed to mount routers:")
     raise
 
-# Add back root and health check endpoints if desired
+# Root endpoint (remains on app, not under /api)
 @app.get("/")
 def root():
     return {"message": "Brikli backend is running"}
-
-@app.get("/api/health")
-async def health():
-    """Health check endpoint for the API"""
-    return {
-        "status": "ok",
-        "message": "API is healthy"
-    }
 
 # --- Ensure initialization logic is still present ---
 # Load environment variables at startup (assuming this logic was previously working)

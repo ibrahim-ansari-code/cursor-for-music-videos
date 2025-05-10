@@ -1,65 +1,31 @@
-name: Deploy Brikli Frontend (Production) # Updated name
+name: Deploy Brikli Frontend (Production)
 
 on:
   push:
     branches:
-      - main # Trigger on push to main
-#  pull_request:
-#    types: [opened, synchronize, reopened, closed]
-#    branches:
-#      - main
+      - main
 
 jobs:
-  build_and_deploy_job:
-    if: github.event_name == 'push' # Simplified trigger
+  build_and_deploy:
     runs-on: ubuntu-latest
-    name: Build and Deploy Production Job # Updated job name
-    # Removed explicit OIDC permissions
-    # permissions:
-    #    id-token: write
-    #    contents: read
     steps:
       - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          submodules: true
-          lfs: false
+          node-version: '20'
 
-      # Removed explicit Azure/login@v1 step
-      # - name: Log in to Azure
-      #   id: login
-      #   uses: Azure/login@v1
-      #   with:
-      #     client-id: ${{ secrets.AZURE_CLIENT_ID }}
-      #     tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-      #     subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: Frontend
 
-      # Deploy Step - Uses default GitHub token auth for SWA
-      - name: Build And Deploy Production
-        id: builddeploy
+      - name: Build and Deploy
         uses: Azure/static-web-apps-deploy@v1
         with:
-          # Explicitly set the deployment token secret for production
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PRODUCTION }}
           action: "upload"
-          ###### Repository/Build Configurations - Use correct paths ######
-          app_location: "./Frontend" # App source code path
-          api_location: "" # No API
-          output_location: "build" # Built app content directory
-          # Add explicit build command
-          app_build_command: "npx vite build"
-          # Let Oryx handle the build
-          # skip_app_build: true # Remove this to allow Oryx build
-          skip_api_build: true # No API to build
-          ###### End of Repository/Build Configurations ######
-
-# Removed PR closure job as trigger is commented out
-#  close_pull_request_job:
-#    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-#    runs-on: ubuntu-latest
-#    name: Close Pull Request Job
-#    steps:
-#      - name: Close Pull Request
-#        id: closepullrequest
-#        uses: Azure/static-web-apps-deploy@v1
-#        with:
-#          action: "close"
+          app_location: "Frontend"
+          api_location: ""
+          output_location: "dist"
+          app_build_command: VITE_API_URL=https://brikli.azurewebsites.net npm run build

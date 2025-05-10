@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 
 # Load from the desired .env file (defaults to ".env")
 env_path = os.getenv("DOTENV_KEY", ".env")
-load_dotenv(dotenv_path=env_path)
+#load_dotenv(dotenv_path=env_path)
 
 class Settings(BaseSettings):
     """Application settings"""
@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     )
 
     # JWT Settings
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 day
     DEBUG: bool = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
