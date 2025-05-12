@@ -83,7 +83,12 @@ class PropertyUnit(SQLModel, table=True):
     __tablename__ = "property_units"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    property_id: Optional[int] = Field(default=None, foreign_key="properties.id")
+    property_id: Optional[int] = Field(
+        default=None, 
+        foreign_key="properties.id", 
+        index=True, 
+        sa_column_kwargs={"ondelete": "CASCADE"}
+    )
     tenant_id: Optional[int] = Field(default=None, foreign_key="tenants.id") # Foreign key to the assigned tenant
     name: str = Field(index=True)
     description: Optional[str] = None

@@ -8,7 +8,6 @@ if TYPE_CHECKING:
     from Backend.models.property import Property
     from Backend.models.lease import Lease
     from Backend.models.vendor import Vendor
-    from Backend.models.message import Message, Conversation, ConversationParticipant
     from Backend.models.tenant import Tenant
 
 from Backend.models.enums import UserType
@@ -37,15 +36,6 @@ class User(SQLModel, table=True):
     properties: List["Property"] = Relationship(back_populates="owner")
     vendor_details: Optional["Vendor"] = Relationship(back_populates="user")
     
-    sent_messages: List["Message"] = Relationship(
-        back_populates="sender",
-        sa_relationship_kwargs={"foreign_keys": "Message.sender_id"}
-    )
-    received_messages: List["Message"] = Relationship(
-        back_populates="recipient",
-        sa_relationship_kwargs={"foreign_keys": "Message.recipient_id"}
-    )
-    
     # Define tenant_details relationship directly
     tenant_details: Optional["Tenant"] = Relationship(
         back_populates="user",
@@ -55,5 +45,3 @@ class User(SQLModel, table=True):
             "uselist": False # Indicate one-to-one or one-to-zero/one
         }
     )
-    
-    conversations: List["ConversationParticipant"] = Relationship(back_populates="user")

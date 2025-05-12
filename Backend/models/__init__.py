@@ -23,7 +23,6 @@ from Backend.models.vendor import Vendor, VendorDocument, VendorStatus
 
 # Import models that reference the above
 from Backend.models.accounting import Payment, Invoice, Expense
-from Backend.models.message import Message, Conversation, ConversationParticipant, MessageType
 
 # Initialize models to resolve circular dependencies if needed
 def initialize_models():

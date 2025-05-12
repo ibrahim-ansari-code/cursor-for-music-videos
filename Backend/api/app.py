@@ -52,7 +52,17 @@ logger.info("🔒 Adding security middleware for HTTPS enforcement...")
 app.add_middleware(ProxyHeadersMiddleware)
 
 # Optional: Validate Host headers for security
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=[
+        "app.brikli.com",
+        "brikli.azurewebsites.net",
+        "localhost",
+        "brikli-staging.azurewebsites.net",
+        "icy-glacier-00294140f.6.azurestaticapps.net", # Staging frontend
+        "thankful-pond-068620f0f.6.azurestaticapps.net"  # Production frontend, if different from app.brikli.com
+    ]
+)
 
 # Add the RequestValidationError handler here
 @app.exception_handler(RequestValidationError)

@@ -34,10 +34,15 @@ class Tenant(SQLModel, table=True):
     last_name: str = Field(max_length=100)
     phone: Optional[str] = None
     email: Optional[str] = None
-    status: TenantStatus = Field(default=TenantStatus.ACTIVE)
+    status: TenantStatus = Field(default=TenantStatus.ACTIVE, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    current_property_id: Optional[int] = Field(default=None, foreign_key="properties.id")
+    current_property_id: Optional[int] = Field(
+        default=None, 
+        foreign_key="properties.id", 
+        index=True, 
+        sa_column_kwargs={"ondelete": "SET NULL"}
+    )
     
     # --- Relationships Defined Directly --- 
     

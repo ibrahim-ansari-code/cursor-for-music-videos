@@ -28,7 +28,7 @@ class Lease(SQLModel, table=True):
     end_date: date
     monthly_rent: float
     security_deposit: float
-    status: LeaseStatus = Field(default=LeaseStatus.DRAFT)
+    status: LeaseStatus = Field(default=LeaseStatus.DRAFT, index=True)
     
     # Additional lease terms
     is_renewable: bool = Field(default=True)
@@ -39,9 +39,9 @@ class Lease(SQLModel, table=True):
     special_terms: Optional[str] = None
     
     # Foreign keys
-    property_id: int = Field(foreign_key="properties.id")
+    property_id: int = Field(foreign_key="properties.id", index=True)
     unit_id: Optional[int] = Field(default=None, foreign_key="property_units.id")
-    tenant_id: int = Field(foreign_key="tenants.id")
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
     
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -69,7 +69,7 @@ class LeaseDocument(SQLModel, table=True):
     upload_date: datetime = Field(default_factory=datetime.utcnow)
     
     # Foreign keys
-    lease_id: int = Field(foreign_key="leases.id")
+    lease_id: int = Field(foreign_key="leases.id", sa_column_kwargs={"ondelete": "CASCADE"})
     uploaded_by_id: int = Field(foreign_key="users.id")
     
     # Relationships

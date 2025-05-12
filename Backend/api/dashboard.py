@@ -76,6 +76,13 @@ async def get_dashboard_data(
             detail="Not authorized to access dashboard data"
         )
     
+    # Define a filter for landlord's properties
+    landlord_property_filter_sql = ""
+    landlord_params = {}
+    if user_type == UserType.LANDLORD.value:
+        landlord_property_filter_sql = "AND p.user_id = :current_user_id"
+        landlord_params["current_user_id"] = current_user.id
+
     # Calculate date ranges based on selected time period
     today = date.today()
     if time_period == "week":
@@ -115,7 +122,7 @@ async def get_dashboard_data(
             property_units u ON p.id = u.property_id
         WHERE 
             1=1
-            {property_filter}
+            {property_filter} {landlord_property_filter_sql}
     ),
     financial_summary AS (
         SELECT 
@@ -136,7 +143,7 @@ async def get_dashboard_data(
                          AND inv.status IN ('PENDING', 'LATE', 'OVERDUE')
         WHERE 
             1=1
-            {property_filter}
+            {property_filter} {landlord_property_filter_sql}
     )
     SELECT 
         pc.total_properties,
@@ -157,7 +164,8 @@ async def get_dashboard_data(
     property_filter = ""
     params = {
         "start_date": start_date,
-        "end_date": end_date
+        "end_date": end_date,
+        **landlord_params  # Add landlord params here
     }
     
     if property_id:
@@ -165,7 +173,10 @@ async def get_dashboard_data(
         params["property_id"] = property_id
     
     # Replace the placeholder
-    summary_query = summary_query.format(property_filter=property_filter)
+    summary_query = summary_query.format(
+        property_filter=property_filter,
+        landlord_property_filter_sql=landlord_property_filter_sql
+    )
     
     summary_result = await session.execute(text(summary_query), params)
     summary_row = summary_result.mappings().one_or_none()
@@ -219,7 +230,7 @@ async def get_dashboard_data(
         FROM 
             months m
         LEFT JOIN 
-            properties p ON 1=1 {property_filter}
+            properties p ON 1=1 {property_filter} {landlord_property_filter_sql}
         LEFT JOIN 
             leases l ON p.id = l.property_id
         LEFT JOIN 
@@ -243,7 +254,10 @@ async def get_dashboard_data(
     """
     
     # Replace the placeholder
-    revenue_query = revenue_query.format(property_filter=property_filter)
+    revenue_query = revenue_query.format(
+        property_filter=property_filter,
+        landlord_property_filter_sql=landlord_property_filter_sql
+    )
     
     revenue_result = await session.execute(text(revenue_query), params)
     revenue_rows = revenue_result.mappings().all()
@@ -286,14 +300,17 @@ async def get_dashboard_data(
         properties p ON i.property_id = p.id
     WHERE 
         i.status IN ('PENDING', 'LATE', 'OVERDUE')
-        {property_filter}
+        {property_filter} {landlord_property_filter_sql}
     ORDER BY 
         i.due_date ASC
     LIMIT 5
     """
     
     # Replace the placeholder
-    payments_query = payments_query.format(property_filter=property_filter)
+    payments_query = payments_query.format(
+        property_filter=property_filter,
+        landlord_property_filter_sql=landlord_property_filter_sql
+    )
     
     payments_result = await session.execute(text(payments_query), params)
     payments_rows = payments_result.mappings().all()
