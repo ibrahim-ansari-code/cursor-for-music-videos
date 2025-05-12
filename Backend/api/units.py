@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, selectinload
-
 from pydantic import BaseModel, constr, ValidationError, Field
 from sqlalchemy import and_
 
@@ -15,6 +14,8 @@ from Backend.models.user import User
 from Backend.models.tenant import Tenant
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.api.auth import get_current_user
+from Backend.models.lease import Lease, LeaseStatus
+
 
 logger = logging.getLogger(__name__)
 
