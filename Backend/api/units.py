@@ -9,12 +9,11 @@ from pydantic import BaseModel, constr, ValidationError, Field
 from sqlalchemy import and_
 
 from Backend.database import get_session
-from Backend.models.property import Property, PropertyUnit
+from Backend.models.property import Property, PropertyUnit, PropertyType
 from Backend.models.user import User
 from Backend.models.tenant import Tenant
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.api.auth import get_current_user
-from Backend.models.lease import Lease, LeaseStatus
 
 
 logger = logging.getLogger(__name__)
