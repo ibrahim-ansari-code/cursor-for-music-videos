@@ -15,6 +15,7 @@ from Backend.models.tenant import Tenant
 from Backend.api.auth import get_current_user
 from Backend.models.lease import Lease, LeaseStatus
 
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
