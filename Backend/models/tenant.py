@@ -1,5 +1,6 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import date, datetime
+from uuid import UUID
 from sqlmodel import SQLModel, Field, Relationship
 from enum import Enum
 from sqlalchemy import Column, String, Integer, ForeignKey, Table
@@ -29,7 +30,10 @@ class Tenant(SQLModel, table=True):
     __tablename__ = "tenants"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: Optional[int] = Field(foreign_key="users.id", index=True, default=None)
+    user_id: Optional[UUID] = Field(
+        default=None,
+        sa_column=Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    )
     first_name: str = Field(max_length=100)
     last_name: str = Field(max_length=100)
     phone: Optional[str] = None
@@ -45,30 +49,24 @@ class Tenant(SQLModel, table=True):
     # --- Relationships Defined Directly --- 
     
     # Relationship to User (Optional one-to-one or one-to-many backref)
-    user: Optional["User"] = Relationship(back_populates="tenant_details") 
-                                        # Primary join inferred from user_id FK
+    user: Optional["User"] = Relationship(back_populates="tenant_details")
 
     # Relationship to Property (Current Property - Optional one-to-many backref)
     current_property: Optional["Property"] = Relationship(back_populates="current_tenants")
-                                              # Uses current_property_id FK
-                                              # Foreign keys inferred automatically here
     
     # Relationship to Leases (One-to-many)
     leases: List["Lease"] = Relationship(back_populates="tenant")
     
     # Relationship to PropertyUnits (Assigned Units - One-to-many)
-    # This is the crucial one causing issues
     assigned_units: List["PropertyUnit"] = Relationship(
         back_populates="tenant",
         sa_relationship_kwargs={
-            # Explicitly defining foreign keys using strings for robustness
-            "foreign_keys": "[PropertyUnit.tenant_id]", 
+            "foreign_keys": "[PropertyUnit.tenant_id]",
             "lazy": "selectin"
         }
     )
 
     # Relationship to PropertyUnits (Units via link table - Many-to-many)
-    # Less likely to be used directly if assigned_units exists, but kept for completeness
     units: List["PropertyUnit"] = Relationship(
         back_populates="tenants", 
         link_model=TenantUnitLink, 

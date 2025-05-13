@@ -1,14 +1,15 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import date, datetime
+from uuid import UUID
 from enum import Enum
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, Column
+from sqlalchemy import String, ForeignKey
 
 # Use TYPE_CHECKING to prevent circular imports at runtime
 if TYPE_CHECKING:
     from Backend.models.lease import Lease
     from Backend.models.property import Property
     from Backend.models.user import User
-    from Backend.models.vendor import Vendor
 
 class PaymentStatus(str, Enum):
     PENDING = "PENDING"
@@ -41,7 +42,9 @@ class Payment(SQLModel, table=True):
     
     # Foreign keys
     lease_id: int = Field(foreign_key="leases.id")
-    tenant_id: int = Field(foreign_key="users.id")
+    tenant_id: UUID = Field(
+        sa_column=Column(String(36), ForeignKey("users.id", ondelete="SET NULL"))
+    )
     
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -66,7 +69,9 @@ class Invoice(SQLModel, table=True):
     
     # Foreign keys
     property_id: Optional[int] = Field(default=None, foreign_key="properties.id")
-    tenant_id: int = Field(foreign_key="users.id")
+    tenant_id: UUID = Field(
+        sa_column=Column(String(36), ForeignKey("users.id", ondelete="SET NULL"))
+    )
     
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -90,7 +95,6 @@ class Expense(SQLModel, table=True):
     
     # Foreign keys
     property_id: int = Field(foreign_key="properties.id")
-    vendor_id: Optional[int] = Field(default=None, foreign_key="vendors.id")
     
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -98,4 +102,3 @@ class Expense(SQLModel, table=True):
     
     # Relationships
     property: "Property" = Relationship(back_populates="expenses")
-    vendor: Optional["Vendor"] = Relationship()

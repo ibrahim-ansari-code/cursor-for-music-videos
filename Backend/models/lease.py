@@ -3,6 +3,8 @@ from typing import Optional, List, TYPE_CHECKING
 from datetime import date, datetime
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship, Column, Integer, ForeignKey
+from uuid import UUID
+from sqlalchemy import String
 
 if TYPE_CHECKING:
     from Backend.models.property import Property, PropertyUnit
@@ -70,7 +72,9 @@ class LeaseDocument(SQLModel, table=True):
     
     # Foreign keys
     lease_id: int = Field(sa_column=Column(Integer, ForeignKey("leases.id", ondelete="CASCADE")))
-    uploaded_by_id: int = Field(foreign_key="users.id")
+    uploaded_by_id: UUID = Field(
+        sa_column=Column(String(36), ForeignKey("users.id", ondelete="SET NULL"))
+    )
     
     # Relationships
     lease: Lease = Relationship(back_populates="documents")

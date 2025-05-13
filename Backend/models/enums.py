@@ -4,7 +4,6 @@ class UserType(str, Enum):
     TENANT = "TENANT"
     LANDLORD = "LANDLORD"
     ADMIN = "ADMIN"
-    VENDOR = "VENDOR"
 
     @classmethod
     def _missing_(cls, value):

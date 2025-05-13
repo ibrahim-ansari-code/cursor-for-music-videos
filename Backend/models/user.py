@@ -1,5 +1,6 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
+from uuid import UUID
 from sqlmodel import SQLModel, Field, Relationship, Column
 from sqlalchemy import String, ForeignKey
 from sqlalchemy.sql import join
@@ -7,7 +8,6 @@ from sqlalchemy.sql import join
 if TYPE_CHECKING:
     from Backend.models.property import Property
     from Backend.models.lease import Lease
-    from Backend.models.vendor import Vendor
     from Backend.models.tenant import Tenant
 
 from Backend.models.enums import UserType
@@ -15,9 +15,9 @@ from Backend.models.enums import UserType
 class User(SQLModel, table=True):
     __tablename__ = "users"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    # Use UUID from Supabase Auth as primary key
+    id: UUID = Field(sa_column=Column(String(36), primary_key=True))  # UUID stored as string in PostgreSQL
     email: str = Field(unique=True, index=True)
-    hashed_password: str
     first_name: str
     last_name: str
     user_type: str = Field(sa_column=Column(String))  # <-- force String instead of Enum
@@ -34,7 +34,6 @@ class User(SQLModel, table=True):
     is_email_verified: bool = Field(default=False)
 
     properties: List["Property"] = Relationship(back_populates="owner")
-    vendor_details: Optional["Vendor"] = Relationship(back_populates="user")
     
     # Define tenant_details relationship directly
     tenant_details: Optional["Tenant"] = Relationship(

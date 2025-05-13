@@ -7,14 +7,12 @@ from urllib.parse import urlparse, urlunparse, parse_qs, urlencode # For URL man
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel, select
-from passlib.context import CryptContext
-
 from Backend.config import settings
 from Backend.models.user import User
+from Backend.utils.supabase import get_supabase_client
 
 # Configure logging
 logger = logging.getLogger(__name__)
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Create async database engine
 # Ensure settings.DATABASE_URL is loaded correctly by config.py
@@ -113,13 +111,28 @@ async def init_db():
         async with async_session() as session:
             result = await session.execute(select(User))
             if not result.scalar_one_or_none():
+                # Get Supabase client
+                supabase = get_supabase_client()
+                
+                # Create admin user in Supabase Auth
+                auth_response = supabase.auth.admin.create_user({
+                    "email": "admin@brikli.com",
+                    "password": "admin123",  # This should be changed immediately
+                    "email_confirm": True
+                })
+                
+                if not auth_response.user:
+                    raise Exception("Failed to create admin user in Supabase Auth")
+                
+                # Create admin user in our database
                 admin_user = User(
+                    id=auth_response.user.id,  # Use Supabase Auth UUID
                     email="admin@brikli.com",
-                    hashed_password=pwd_context.hash("admin123"),
                     first_name="Admin",
                     last_name="User",
                     user_type="ADMIN",
-                    is_admin=True
+                    is_admin=True,
+                    is_email_verified=True
                 )
 
                 session.add(admin_user)

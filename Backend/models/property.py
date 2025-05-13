@@ -1,5 +1,6 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
+from uuid import UUID
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship, Column
 from sqlalchemy import String, Enum as PgEnum, Integer, ForeignKey
@@ -10,21 +11,8 @@ from Backend.models.enums import PropertyStatus
 
 if TYPE_CHECKING:
     from Backend.models.lease import Lease
-    from Backend.models.vendor import Vendor
     from Backend.models.tenant import Tenant
     from Backend.models.accounting import Expense
-
-class PropertyVendorLink(SQLModel, table=True):
-    """Link table for properties and vendors (many-to-many)"""
-    
-    __tablename__ = "property_vendor_links"
-    
-    property_id: int = Field(foreign_key="properties.id", primary_key=True)
-    vendor_id: int = Field(foreign_key="vendors.id", primary_key=True)
-    
-    # Additional metadata about the relationship can be added here
-    start_date: Optional[datetime] = Field(default_factory=datetime.utcnow)
-    is_active: bool = Field(default=True)
 
 class Property(SQLModel, table=True):
     """Property model representing a real estate property"""
@@ -46,7 +34,11 @@ class Property(SQLModel, table=True):
     )
     
     # Foreign keys
-    user_id: int = Field(foreign_key="users.id", nullable=False, description="Landlord/owner user ID")
+    user_id: UUID = Field(
+        nullable=False,
+        description="Landlord/owner user ID",
+        sa_column=Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
+    )
     
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(default=datetime.utcnow), description="Creation timestamp")
@@ -62,10 +54,6 @@ class Property(SQLModel, table=True):
     )
     
     leases: List["Lease"] = Relationship(back_populates="property")
-    vendors: List["Vendor"] = Relationship(
-        back_populates="properties",
-        link_model=PropertyVendorLink
-    )
     expenses: List["Expense"] = Relationship(back_populates="property")
     
     # Relationship to current tenants (One-to-many)

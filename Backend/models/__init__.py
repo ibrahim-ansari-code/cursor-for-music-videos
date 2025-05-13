@@ -13,13 +13,11 @@ from Backend.models.user import User
 
 # Import link tables next
 from Backend.models.tenant import TenantUnitLink
-from Backend.models.property import PropertyVendorLink
 
 # Import main entity models
 from Backend.models.tenant import Tenant
 from Backend.models.property import Property, PropertyUnit
 from Backend.models.lease import Lease, LeaseDocument, LeaseCreate
-from Backend.models.vendor import Vendor, VendorDocument, VendorStatus
 
 # Import models that reference the above
 from Backend.models.accounting import Payment, Invoice, Expense
