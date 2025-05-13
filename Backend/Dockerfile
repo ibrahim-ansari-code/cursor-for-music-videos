@@ -37,8 +37,9 @@ WORKDIR /app
 
 # 6. Install Application Dependencies
 COPY pyproject.toml poetry.lock* ./
-RUN if [ -f "poetry.lock" ] || [ -f "pyproject.toml" ]; then \
-      /opt/poetry/bin/poetry install --no-dev --no-root --sync; \
+# Option 1: Install directly from pyproject.toml, ignoring the lock file
+RUN if [ -f "pyproject.toml" ]; then \
+      /opt/poetry/bin/poetry install --only main --no-root --no-interaction --no-cache; \
     else \
       echo 'No poetry files found, falling back to pip.'; \
       pip install --upgrade pip && pip install -r requirements.txt; \

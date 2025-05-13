@@ -3,7 +3,7 @@ name: Deploy Brikli Backend (Production)
 on:
   push:
     branches:
-      - main
+      - staging
 
 jobs:
   deploy:
