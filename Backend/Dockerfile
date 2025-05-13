@@ -37,9 +37,9 @@ WORKDIR /app
 
 # 6. Install Application Dependencies
 COPY pyproject.toml poetry.lock* ./
-# Install from pyproject.toml directly, avoiding lock file compatibility issues
+# Install all defined dependencies from pyproject.toml
 RUN if [ -f "pyproject.toml" ]; then \
-      /opt/poetry/bin/poetry install --without dev --no-root --no-interaction; \
+      /opt/poetry/bin/poetry install --no-root --no-interaction; \
     else \
       echo 'No poetry files found, falling back to pip.'; \
       pip install --upgrade pip && pip install -r requirements.txt; \
