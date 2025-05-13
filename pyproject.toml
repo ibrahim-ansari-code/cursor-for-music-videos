@@ -3,7 +3,7 @@ package-mode = false
 name = "brikli-backend"
 version = "0.1.0"
 description = "Add your description here"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<4.0"
 dependencies = [
     "asyncpg>=0.30.0",
     "email-validator>=2.2.0",
@@ -33,7 +33,8 @@ dependencies = [
     "aiohttp (>=3.11.16,<4.0.0)",
     "python-dateutil (>=2.9.0.post0,<3.0.0)",
     "uvicorn[standard]>=0.23.0",
-    "starlette (>=0.46.2,<0.47.0)"
+    "starlette (>=0.46.2,<0.47.0)",
+    "supabase>=2.15.1"
 ]
 [tool.poetry]
 name = "brikli-backend"

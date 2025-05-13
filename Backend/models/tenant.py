@@ -42,14 +42,14 @@ class Tenant(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     current_property_id: Optional[int] = Field(
-        default=None,
+        default=None, 
         sa_column=Column(Integer, ForeignKey("properties.id", ondelete="SET NULL"))
     )
     
     # --- Relationships Defined Directly --- 
     
     # Relationship to User (Optional one-to-one or one-to-many backref)
-    user: Optional["User"] = Relationship(back_populates="tenant_details")
+    user: Optional["User"] = Relationship(back_populates="tenant_details") 
 
     # Relationship to Property (Current Property - Optional one-to-many backref)
     current_property: Optional["Property"] = Relationship(back_populates="current_tenants")
@@ -61,7 +61,7 @@ class Tenant(SQLModel, table=True):
     assigned_units: List["PropertyUnit"] = Relationship(
         back_populates="tenant",
         sa_relationship_kwargs={
-            "foreign_keys": "[PropertyUnit.tenant_id]",
+            "foreign_keys": "[PropertyUnit.tenant_id]", 
             "lazy": "selectin"
         }
     )

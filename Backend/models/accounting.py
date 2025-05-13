@@ -3,7 +3,7 @@ from datetime import date, datetime
 from uuid import UUID
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship, Column
-from sqlalchemy import String, ForeignKey
+from sqlalchemy import String, ForeignKey, Float, Date, Enum as PgEnum
 
 # Use TYPE_CHECKING to prevent circular imports at runtime
 if TYPE_CHECKING:
@@ -12,12 +12,11 @@ if TYPE_CHECKING:
     from Backend.models.user import User
 
 class PaymentStatus(str, Enum):
-    PENDING = "PENDING"
-    PAID = "PAID"
-    LATE = "LATE"
-    PARTIAL = "PARTIAL"
-    OVERDUE = "OVERDUE"
-    REFUNDED = "REFUNDED"
+    PENDING = "Pending"
+    PAID = "Paid"
+    OVERDUE = "Overdue"
+    CANCELLED = "Cancelled"
+    REFUNDED = "Refunded"
 
 class PaymentMethod(str, Enum):
     CREDIT_CARD = "Credit Card"
@@ -32,17 +31,18 @@ class Payment(SQLModel, table=True):
     __tablename__ = "payments"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    amount: float
-    payment_date: datetime
-    payment_method: str  # credit_card, bank_transfer, cash, etc.
-    status: PaymentStatus
-    transaction_reference: Optional[str] = None
-    notes: Optional[str] = None
-    tenant_name: Optional[str] = None  # Added to store actual tenant name
+    amount: float = Field(sa_column=Column(Float, nullable=False))
+    payment_date: date = Field(sa_column=Column(Date, nullable=False))
+    status: PaymentStatus = Field(
+        default=PaymentStatus.PENDING,
+        sa_column=Column(PgEnum(PaymentStatus, name="paymentstatus", create_constraint=True))
+    )
+    description: Optional[str] = None
     
     # Foreign keys
     lease_id: int = Field(foreign_key="leases.id")
-    tenant_id: UUID = Field(
+    tenant_id: Optional[UUID] = Field(
+        default=None,
         sa_column=Column(String(36), ForeignKey("users.id", ondelete="SET NULL"))
     )
     
@@ -69,7 +69,8 @@ class Invoice(SQLModel, table=True):
     
     # Foreign keys
     property_id: Optional[int] = Field(default=None, foreign_key="properties.id")
-    tenant_id: UUID = Field(
+    tenant_id: Optional[UUID] = Field(
+        default=None,
         sa_column=Column(String(36), ForeignKey("users.id", ondelete="SET NULL"))
     )
     

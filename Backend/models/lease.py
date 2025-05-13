@@ -72,7 +72,8 @@ class LeaseDocument(SQLModel, table=True):
     
     # Foreign keys
     lease_id: int = Field(sa_column=Column(Integer, ForeignKey("leases.id", ondelete="CASCADE")))
-    uploaded_by_id: UUID = Field(
+    uploaded_by_id: Optional[UUID] = Field(
+        default=None,
         sa_column=Column(String(36), ForeignKey("users.id", ondelete="SET NULL"))
     )
     

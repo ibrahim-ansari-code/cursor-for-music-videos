@@ -35,9 +35,7 @@ class Property(SQLModel, table=True):
     
     # Foreign keys
     user_id: UUID = Field(
-        nullable=False,
-        description="Landlord/owner user ID",
-        sa_column=Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
+        sa_column=Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     )
     
     # Timestamps

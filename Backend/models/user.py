@@ -1,13 +1,11 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from uuid import UUID
-from sqlmodel import SQLModel, Field, Relationship, Column
-from sqlalchemy import String, ForeignKey
-from sqlalchemy.sql import join
+from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Column, String, Boolean
 
 if TYPE_CHECKING:
     from Backend.models.property import Property
-    from Backend.models.lease import Lease
     from Backend.models.tenant import Tenant
 
 from Backend.models.enums import UserType
@@ -15,11 +13,12 @@ from Backend.models.enums import UserType
 class User(SQLModel, table=True):
     __tablename__ = "users"
 
-    # Use UUID from Supabase Auth as primary key
-    id: UUID = Field(sa_column=Column(String(36), primary_key=True))  # UUID stored as string in PostgreSQL
+    id: UUID = Field(
+        sa_column=Column(String(36), primary_key=True)
+    )
     email: str = Field(unique=True, index=True)
-    first_name: str
-    last_name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     user_type: str = Field(sa_column=Column(String))  # <-- force String instead of Enum
     phone: Optional[str] = None
     address: Optional[str] = None
@@ -36,11 +35,4 @@ class User(SQLModel, table=True):
     properties: List["Property"] = Relationship(back_populates="owner")
     
     # Define tenant_details relationship directly
-    tenant_details: Optional["Tenant"] = Relationship(
-        back_populates="user",
-        sa_relationship_kwargs={
-            "primaryjoin": "User.id==Tenant.user_id", # Specify join condition
-            "lazy": "selectin",
-            "uselist": False # Indicate one-to-one or one-to-zero/one
-        }
-    )
+    tenant_details: Optional["Tenant"] = Relationship(back_populates="user")
