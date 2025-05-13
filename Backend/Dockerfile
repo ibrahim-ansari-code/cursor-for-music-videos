@@ -36,7 +36,8 @@ RUN curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_V
 WORKDIR /app
 
 # 6. Install Application Dependencies
-COPY pyproject.toml poetry.lock* ./
+# Modified to access files from parent directory using relative path
+COPY ../pyproject.toml ../poetry.lock* ./
 RUN if [ -f "poetry.lock" ] || [ -f "pyproject.toml" ]; then \
       poetry install --no-dev --no-root --sync; \
     else \
@@ -45,7 +46,7 @@ RUN if [ -f "poetry.lock" ] || [ -f "pyproject.toml" ]; then \
     fi
 
 # 7. Copy Application Code
-COPY ./Backend /app/Backend
+COPY . /app/Backend
 
 # 8. Expose Port
 EXPOSE 8000
