@@ -66,6 +66,40 @@ FastAPI docs available at `http://localhost:8000/docs`
 
 ---
 
+## 🚀 Deployment
+
+### Porter Deployment (Backend)
+
+The backend is deployed to Porter using a Docker container. 
+
+**Automated Deployment**
+- Push to `main` branch triggers the GitHub Actions workflow
+- The workflow automatically copies the Poetry files to the Backend directory
+- Porter builds and deploys the Docker container
+
+**Manual Deployment**
+If deploying manually through Porter UI, run the sync script first:
+
+```bash
+# On Windows
+./sync-poetry-files.ps1
+
+# On macOS/Linux
+./sync-poetry-files.sh
+```
+
+**Important Notes:**
+- The canonical Poetry files are maintained in the root directory
+- Copies in the Backend directory are for Docker builds only and ignored by git
+- For CI/CD deployments, the copying is handled automatically
+
+Deployment configurations:
+- Application root path: `/Backend`
+- Dockerfile path: `/Backend/Dockerfile`
+- Start command: `gunicorn -w 2 -k uvicorn.workers.UvicornWorker Backend.api.app:app --timeout 300`
+
+---
+
 ## 📝 Usage
 
 The `get_session()` function can be used as a FastAPI dependency in your route handlers like this:

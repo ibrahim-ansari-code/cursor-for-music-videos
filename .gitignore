@@ -178,3 +178,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Docker build copies - keep out of version control
+Backend/pyproject.toml
+Backend/poetry.lock

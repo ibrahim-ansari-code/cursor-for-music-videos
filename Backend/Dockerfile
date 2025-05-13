@@ -36,8 +36,7 @@ RUN curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_V
 WORKDIR /app
 
 # 6. Install Application Dependencies
-# Modified to access files from parent directory using relative path
-COPY ../pyproject.toml ../poetry.lock* ./
+COPY pyproject.toml poetry.lock* ./
 RUN if [ -f "poetry.lock" ] || [ -f "pyproject.toml" ]; then \
       poetry install --no-dev --no-root --sync; \
     else \
