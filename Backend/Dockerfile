@@ -7,7 +7,7 @@ FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     # Poetry settings
-    POETRY_VERSION=1.8.3 \
+    POETRY_VERSION=2.1.2 \
     POETRY_HOME="/opt/poetry" \
     POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_CREATE=false \
@@ -37,9 +37,9 @@ WORKDIR /app
 
 # 6. Install Application Dependencies
 COPY pyproject.toml poetry.lock* ./
-# Install all defined dependencies from pyproject.toml, ignoring the lock file
+# Install all defined dependencies from pyproject.toml using the lock file
 RUN if [ -f "pyproject.toml" ]; then \
-      /opt/poetry/bin/poetry install --no-lock --no-root --no-interaction; \
+      /opt/poetry/bin/poetry install --no-root --no-interaction; \
     else \
       echo 'No poetry files found, falling back to pip.'; \
       pip install --upgrade pip && pip install -r requirements.txt; \
