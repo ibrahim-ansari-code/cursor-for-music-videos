@@ -70,7 +70,7 @@ class PropertyUnit(SQLModel, table=True):
     
     id: Optional[int] = Field(default=None, primary_key=True)
     property_id: Optional[int] = Field(
-        default=None,
+        default=None, 
         sa_column=Column(Integer, ForeignKey("properties.id", ondelete="CASCADE"))
     )
     tenant_id: Optional[int] = Field(default=None, foreign_key="tenants.id") # Foreign key to the assigned tenant
