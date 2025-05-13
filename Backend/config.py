@@ -2,25 +2,15 @@ import os
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
-# Load from the desired .env file (defaults to ".env")
-env_path = os.getenv("DOTENV_KEY", ".env")
-#load_dotenv(dotenv_path=env_path)
+# Load from .env.production by default
+env_path = os.getenv("DOTENV_KEY", ".env.production")
+load_dotenv(dotenv_path=env_path)
 
 class Settings(BaseSettings):
     """Application settings"""
 
     # PostgreSQL Database Settings
-    POSTGRES_USER: str = os.getenv("PGUSER", "postgres")
-    POSTGRES_PASSWORD: str = os.getenv("PGPASSWORD", "postgres")
-    POSTGRES_DB: str = os.getenv("PGDATABASE", "propertymanagement")
-    POSTGRES_HOST: str = os.getenv("PGHOST", "localhost")
-    POSTGRES_PORT: str = os.getenv("PGPORT", "5432")
-
-    # SQLAlchemy Database URL
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-    )
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
     # JWT Settings
     SECRET_KEY: str

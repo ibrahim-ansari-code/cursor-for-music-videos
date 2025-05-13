@@ -2,7 +2,7 @@ from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship, Column
-from sqlalchemy import String, Enum as PgEnum
+from sqlalchemy import String, Enum as PgEnum, Integer, ForeignKey
 
 from Backend.models.user import User
 from Backend.models.tenant import TenantUnitLink
@@ -84,10 +84,8 @@ class PropertyUnit(SQLModel, table=True):
     
     id: Optional[int] = Field(default=None, primary_key=True)
     property_id: Optional[int] = Field(
-        default=None, 
-        foreign_key="properties.id", 
-        index=True, 
-        sa_column_kwargs={"ondelete": "CASCADE"}
+        default=None,
+        sa_column=Column(Integer, ForeignKey("properties.id", ondelete="CASCADE"))
     )
     tenant_id: Optional[int] = Field(default=None, foreign_key="tenants.id") # Foreign key to the assigned tenant
     name: str = Field(index=True)

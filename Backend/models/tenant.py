@@ -38,10 +38,8 @@ class Tenant(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     current_property_id: Optional[int] = Field(
-        default=None, 
-        foreign_key="properties.id", 
-        index=True, 
-        sa_column_kwargs={"ondelete": "SET NULL"}
+        default=None,
+        sa_column=Column(Integer, ForeignKey("properties.id", ondelete="SET NULL"))
     )
     
     # --- Relationships Defined Directly --- 

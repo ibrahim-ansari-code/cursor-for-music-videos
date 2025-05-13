@@ -2,7 +2,7 @@ from Backend.models.user import User
 from typing import Optional, List, TYPE_CHECKING
 from datetime import date, datetime
 from enum import Enum
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, Column, Integer, ForeignKey
 
 if TYPE_CHECKING:
     from Backend.models.property import Property, PropertyUnit
@@ -69,7 +69,7 @@ class LeaseDocument(SQLModel, table=True):
     upload_date: datetime = Field(default_factory=datetime.utcnow)
     
     # Foreign keys
-    lease_id: int = Field(foreign_key="leases.id", sa_column_kwargs={"ondelete": "CASCADE"})
+    lease_id: int = Field(sa_column=Column(Integer, ForeignKey("leases.id", ondelete="CASCADE")))
     uploaded_by_id: int = Field(foreign_key="users.id")
     
     # Relationships

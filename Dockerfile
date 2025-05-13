@@ -1,4 +1,4 @@
-# Dockerfile for Brikli FastAPI Backend
+# Dockerfile for Brikli FastAPI Backend (Production-Ready for Supabase/Porter)
 
 # 1. Base Image
 FROM python:3.11-slim
@@ -29,34 +29,30 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 4. Install Poetry
+# 4. Install Poetry (optional, fallback to pip if poetry files not present)
 RUN curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_VERSION}
 
 # 5. Set Working Directory
 WORKDIR /app
 
 # 6. Install Application Dependencies
-# Copy only files necessary for dependency installation to leverage Docker cache
 COPY pyproject.toml poetry.lock* ./
-# Install dependencies, --no-dev for production, --no-root as we are installing an app
-RUN poetry install --no-dev --no-root --sync
+RUN if [ -f "poetry.lock" ] || [ -f "pyproject.toml" ]; then \
+      poetry install --no-dev --no-root --sync; \
+    else \
+      echo 'No poetry files found, falling back to pip.'; \
+      pip install --upgrade pip && pip install -r requirements.txt; \
+    fi
 
 # 7. Copy Application Code
 COPY ./Backend /app/Backend
 
 # 8. Expose Port
-EXPOSE ${PORT}
+EXPOSE 8000
 
-# 9. Healthcheck (Optional but recommended for orchestrators like Kubernetes)
-# The health endpoint is /api/health as seen in Backend/api/app.py
-# Adjust the interval, timeout, retries as necessary
+# 9. Healthcheck (Optional, commented out for curl-less images)
 # HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-#   CMD curl -f http://localhost:${PORT}/api/health || exit 1
-# Commenting out healthcheck as curl might not be available in the slim image without explicit install for runtime.
-# If you need healthcheck via curl, add `apt-get install -y curl` to system deps and uncomment.
-# Alternatively, use a Python script for healthcheck.
+#   CMD curl -f http://localhost:8000/api/health || exit 1
 
-# 10. Run the Application
-# Uses Gunicorn with Uvicorn workers, as specified.
-# Number of workers (-w 2) is a starting point, adjust based on your instance size.
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-w", "2", "-b", "0.0.0.0:${PORT}", "${APP_MODULE}"] 
+# 10. Run the Application (use uvicorn directly for minimal image and fast startup)
+CMD ["uvicorn", "Backend.api.app:app", "--host", "0.0.0.0", "--port", "8000"] 
