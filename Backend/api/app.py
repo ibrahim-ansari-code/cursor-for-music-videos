@@ -15,20 +15,20 @@ app = FastAPI()
 api_main_router = APIRouter()
 
 # CORS Configuration
-origins = [
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
     "http://localhost:5173",
+    "https://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://127.0.0.1:5173",
     "https://app.brikli.com",
     "https://brikli.azurewebsites.net",
     "https://lemon-island-038ac790f.6.azurestaticapps.net",
     "https://icy-glacier-00294140f.6.azurestaticapps.net", # Corrected Staging frontend
     "https://brikli-staging.azurewebsites.net",
-    "http://brikli-staging.azurewebsites.net",
     "https://thankful-pond-068620f0f.6.azurestaticapps.net"
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,8 +59,10 @@ app.add_middleware(
         "brikli.azurewebsites.net",
         "localhost",
         "brikli-staging.azurewebsites.net",
-        "icy-glacier-00294140f.6.azurestaticapps.net", # Staging frontend
-        "thankful-pond-068620f0f.6.azurestaticapps.net"  # Production frontend, if different from app.brikli.com
+        "icy-glacier-00294140f.6.azurestaticapps.net", 
+        "thankful-pond-068620f0f.6.azurestaticapps.net",
+        "brikli-api-8919-7953fd68-fofj7ysk.onporter.run",
+        "*.onporter.run" # Porter Wildcard
     ]
 )
 
