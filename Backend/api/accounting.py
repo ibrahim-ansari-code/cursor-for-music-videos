@@ -15,7 +15,6 @@ from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.property import Property, PropertyUnit
 from Backend.models.user import User, UserType
 from Backend.models.tenant import Tenant
-from Backend.models.vendor import Vendor
 from Backend.api.auth import get_current_user
 
 # Configure logging
@@ -155,7 +154,6 @@ class ExpenseBase(BaseModel):
     expense_date: date
     receipt_url: Optional[str] = None
     property_id: int
-    vendor_id: Optional[int] = None
 
 class ExpenseCreate(ExpenseBase):
     pass
@@ -166,7 +164,6 @@ class ExpenseUpdate(BaseModel):
     description: Optional[str] = None
     expense_date: Optional[date] = None
     receipt_url: Optional[str] = None
-    vendor_id: Optional[int] = None
 
 class ExpenseResponse(ExpenseBase):
     id: int
@@ -671,13 +668,7 @@ async def create_expense(
 
     # Check property ownership
     await check_property_ownership(expense_data.property_id, session, current_user)
-
-    # Optional: Check vendor existence if vendor_id is provided
-    if expense_data.vendor_id:
-         vendor_exists = await session.scalar(select(Vendor.id).where(Vendor.id == expense_data.vendor_id))
-         if not vendor_exists:
-              raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Vendor {expense_data.vendor_id} not found")
-
+    
     try:
         new_expense = Expense(**expense_data.model_dump())
         session.add(new_expense)
@@ -697,7 +688,6 @@ async def create_expense(
 @router.get("/expenses", response_model=List[ExpenseResponse])
 async def get_expenses(
     property_id: Optional[int] = None,
-    vendor_id: Optional[int] = None,
     category: Optional[str] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
@@ -712,7 +702,6 @@ async def get_expenses(
     filters = []
 
     # Basic filters
-    if vendor_id: filters.append(Expense.vendor_id == vendor_id)
     if category: filters.append(Expense.category.ilike(f"%{category}%")) # Case-insensitive search
     if start_date: filters.append(Expense.expense_date >= start_date)
     if end_date: filters.append(Expense.expense_date <= end_date)

@@ -14,6 +14,15 @@ if TYPE_CHECKING:
     from Backend.models.tenant import Tenant
     from Backend.models.accounting import Expense
 
+class PropertyType(str, Enum):
+    RESIDENTIAL = "Residential"
+    COMMERCIAL = "Commercial"
+    INDUSTRIAL = "Industrial"
+    LAND = "Land"
+    SPECIAL_PURPOSE = "Special Purpose"
+    MIXED_USE = "Mixed-Use"
+    OTHER = "Other" # Added an "Other" category
+
 class Property(SQLModel, table=True):
     """Property model representing a real estate property"""
     

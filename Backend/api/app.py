@@ -115,10 +115,8 @@ try:
     from Backend.api.auth import router as auth_router
     from Backend.api.properties import router as properties_router
     from Backend.api.dashboard import router as dashboard_router
-    from Backend.api.vendors import router as vendors_router
     from Backend.api.leases import router as leases_router
     from Backend.api.accounting import router as accounting_router
-    from Backend.api.communication import router as communication_router
     from Backend.api.ai import router as ai_router
     from Backend.api.tenants import router as tenants_router
     from Backend.api.rent_tracker import router as rent_tracker_router
@@ -131,10 +129,8 @@ try:
     api_main_router.include_router(auth_router)
     api_main_router.include_router(properties_router)
     api_main_router.include_router(dashboard_router)
-    api_main_router.include_router(vendors_router)
     api_main_router.include_router(leases_router)
     api_main_router.include_router(accounting_router)
-    api_main_router.include_router(communication_router)
     api_main_router.include_router(ai_router)
     api_main_router.include_router(tenants_router)
     api_main_router.include_router(rent_tracker_router)
