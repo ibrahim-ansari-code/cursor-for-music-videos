@@ -64,6 +64,18 @@ class ProfileUpdateRequest(BaseModel):
 class AvatarUploadResponse(BaseModel):
     profile_image_url: str
 
+# === Pydantic Models for sync-user ===
+class UserSyncRequest(BaseModel):
+    supabase_user_id: str # This will be the UUID from Supabase
+    email: EmailStr
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    user_type: Optional[str] = None # Assuming UserType enum strings like "LANDLORD"
+
+class UserSyncResponse(UserResponse): # Reuse existing UserResponse
+    pass
+
 # === Authentication ===
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -165,3 +177,71 @@ async def upload_user_avatar(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to upload avatar"
         )
+
+@router.post("/sync-user", response_model=UserSyncResponse, status_code=status.HTTP_200_OK)
+async def sync_supabase_user(
+    sync_request: UserSyncRequest,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Synchronize a Supabase user to the local database.
+    If the user exists, it returns the existing user.
+    If not, it creates a new user record.
+    """
+    # Check if user already exists by Supabase ID (which is our User.id)
+    existing_user = await session.get(User, sync_request.supabase_user_id)
+    
+    if existing_user:
+        # If user exists, update fields if necessary or just return
+        # For now, just return the existing user as per requirements.
+        # Future enhancement: update fields if they differ from sync_request.
+        logger.info(f"User with Supabase ID {sync_request.supabase_user_id} already exists. Returning existing user.")
+        return existing_user
+
+    # User does not exist, create a new one
+    logger.info(f"User with Supabase ID {sync_request.supabase_user_id} not found. Creating new user.")
+    
+    new_user_data = {
+        "id": sync_request.supabase_user_id, # Explicitly set our ID to Supabase's User ID
+        "email": sync_request.email,
+        "first_name": sync_request.first_name,
+        "last_name": sync_request.last_name,
+        "phone": sync_request.phone,
+        "user_type": sync_request.user_type.upper() if sync_request.user_type else "UNKNOWN", # Ensure uppercase or a default
+        # Default values based on observed schema and common practice:
+        "is_active": True,
+        "is_admin": False, # New users from Supabase signup are not admins by default
+        "is_email_verified": False, # Email verification is handled by Supabase, this reflects initial state
+        "created_at": datetime.utcnow(), # Handled by SQLModel default_factory if not set
+        "updated_at": datetime.utcnow(), # Handled by SQLModel default_factory if not set
+    }
+
+    # Ensure all fields in User model are accounted for, even if Optional
+    # and not in sync_request, to avoid issues if they are not nullable in DB
+    # or if SQLModel doesn't set a default for them when None.
+    # Address fields:
+    new_user_data["address"] = None
+    new_user_data["city"] = None
+    new_user_data["province"] = None
+    new_user_data["postal_code"] = None
+    new_user_data["profile_image_url"] = None
+    
+    try:
+        db_user = User.model_validate(new_user_data)
+        session.add(db_user)
+        await session.commit()
+        await session.refresh(db_user)
+        logger.info(f"Successfully created and synced user {db_user.id} from Supabase.")
+        return db_user
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Error creating user during sync: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create user in local database: {str(e)}"
+        )
+
+# Ensure UserType enum/string consistency.
+# The User model has `user_type: str`. The validator in UserResponse converts to upper.
+# It's good practice for `sync_request.user_type` to also be handled consistently.
+# The `user_type` in `new_user_data` is set to `sync_request.user_type.upper()`.

@@ -20,7 +20,8 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 
 // Import the login API function
-import { login as apiLogin, getCurrentUser } from './utils/api'; // Assuming getCurrentUser is also needed
+import { getCurrentUser } from './utils/api'; 
+import { supabase } from './supabaseClient'; // Import Supabase client
 
 // Auth Context
 export const AuthContext = createContext(null);
@@ -33,90 +34,146 @@ function App() {
   // Login function to be provided by context
   const login = async (email, password) => {
     try {
-      const loginData = await apiLogin(email, password); // Call the API login
-      if (loginData && loginData.access_token) {
-        localStorage.setItem('token', loginData.access_token);
-        localStorage.setItem('user_type', loginData.user_type?.toUpperCase()); // Ensure user_type is stored
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        // Fetch full user details after login
-        const userInfo = await getCurrentUser(); // Use existing /me or create specific function
-        if (userInfo) {
-          const userType = userInfo.user_type?.toUpperCase();
-          userInfo.user_type = userType;
-          localStorage.setItem('user_type', userType); // Update with potentially more detailed user_type
-          localStorage.setItem('user', JSON.stringify(userInfo));
-          setUser(userInfo);
-          return true;
-        }
+      if (error) {
+        // Supabase error object structure might be { name, message, status }
+        // Adapt error handling as needed based on Supabase error structure
+        throw error; 
       }
-      // If login or fetching user info fails, clear relevant items
-      localStorage.removeItem('token');
-      localStorage.removeItem('user_type');
-      localStorage.removeItem('user');
-      setUser(null);
+
+      if (data && data.user && data.session) {
+        // Supabase login successful, token is managed by supabase.auth.onAuthStateChange
+        // Now fetch our backend's user profile
+        // The onAuthStateChange listener will handle setting the user from localStorage/API
+        // For an immediate update after login, we can fetch user profile here too
+        // However, onAuthStateChange should be the primary driver for consistency.
+        // The token will be available in onAuthStateChange, or supabase.auth.getSession()
+        
+        // For now, we assume onAuthStateChange will pick up the new session and trigger profile fetch.
+        // If immediate navigation based on this login is needed before onAuthStateChange fully processes,
+        // you might need to manually trigger a profile fetch and setUser here.
+        return true; 
+      }
       return false;
     } catch (error) {
       console.error('Login process failed:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user_type');
-      localStorage.removeItem('user');
-      setUser(null);
       // Propagate the error so LoginForm can display it
-      // The error object from handleResponse in api.js should have details
-      throw error; 
+      // Ensure error has a message property for consistent display
+      const errToThrow = error.message ? error : new Error(error.detail || 'Login failed. Please check your credentials.');
+      if (error.status) errToThrow.status = error.status; // Preserve status if available
+      throw errToThrow;
     }
   };
 
-  // Check authentication status on mount
+  // Check authentication status on mount and listen for changes
   useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
+    setLoading(true);
+    // Get initial session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        // If session exists, fetch our backend's user profile
+        try {
+          // getCurrentUser uses the token from localStorage, which should be set by Supabase client
+          const userInfo = await getCurrentUser(); // Fetches from /api/auth/me
+          if (userInfo) {
+            const userType = userInfo.user_type?.toUpperCase();
+            userInfo.user_type = userType;
+            localStorage.setItem('user_type', userType); // Ensure consistent casing
+            localStorage.setItem('user', JSON.stringify(userInfo));
+            setUser(userInfo);
+          } else {
+            // No user profile from backend, clear local auth data
+            // This could happen if Supabase session is valid but user not in our DB
+            // or /me failed.
+            await supabase.auth.signOut(); // Sign out from Supabase too for consistency
+            localStorage.removeItem('token'); // Redundant if Supabase handles it, but good practice
+            localStorage.removeItem('user_type');
+            localStorage.removeItem('user');
+            setUser(null);
           }
-        });
-
-        if (response.ok) {
-          const userInfo = await response.json();
-          
-          // Ensure the user_type is in uppercase
-          const userType = userInfo.user_type?.toUpperCase();
-          userInfo.user_type = userType;
-          
-          // Update localStorage with the normalized user type
-          localStorage.setItem('user_type', userType);
-          localStorage.setItem('user', JSON.stringify(userInfo));
-          
-          console.log('Auth check: Updated user type to:', userType);
-          
-          setUser(userInfo);
-        } else {
-          // Clear invalid token
-          console.error('Auth check failed, clearing credentials');
-          localStorage.removeItem('token');
-          localStorage.removeItem('user_type');
-          localStorage.removeItem('user');
+        } catch (e) {
+          console.error('Error fetching user profile with existing session:', e);
+          // Potentially sign out if /me fails critically
+           await supabase.auth.signOut();
+           localStorage.removeItem('token');
+           localStorage.removeItem('user_type');
+           localStorage.removeItem('user');
+           setUser(null);
         }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user_type');
-        localStorage.removeItem('user');
       }
       setLoading(false);
-    };
+    });
 
-    checkAuth();
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        const currentToken = session?.access_token || null;
+        
+        // Store/remove Supabase token for api.js to pick up
+        if (currentToken) {
+          localStorage.setItem('token', currentToken);
+        } else {
+          localStorage.removeItem('token');
+        }
+
+        if (event === 'SIGNED_IN') {
+          setLoading(true);
+          if (session && session.user) {
+            try {
+              const userInfo = await getCurrentUser(); // Fetches from /api/auth/me
+              if (userInfo) {
+                const userType = userInfo.user_type?.toUpperCase();
+                userInfo.user_type = userType;
+                localStorage.setItem('user_type', userType);
+                localStorage.setItem('user', JSON.stringify(userInfo));
+                setUser(userInfo);
+              } else {
+                // Handle case: Supabase signed in, but no profile in our DB
+                 await supabase.auth.signOut(); // Sign out from Supabase
+                 localStorage.removeItem('user_type');
+                 localStorage.removeItem('user');
+                 setUser(null);
+              }
+            } catch (e) {
+              console.error('Error fetching user profile after SIGNED_IN:', e);
+              // Sign out if /me fails
+              await supabase.auth.signOut();
+              localStorage.removeItem('user_type');
+              localStorage.removeItem('user');
+              setUser(null);
+            }
+          }
+          setLoading(false);
+        } else if (event === 'SIGNED_OUT') {
+          localStorage.removeItem('user_type');
+          localStorage.removeItem('user');
+          setUser(null);
+          // Navigate to login? Handled by ProtectedRoute logic.
+        } else if (event === 'TOKEN_REFRESHED') {
+            // Supabase client handles token refresh automatically.
+            // If you store the token manually elsewhere, update it here.
+            // localStorage 'token' is updated above.
+            console.log('Token refreshed');
+        }
+      }
+    );
+
+    return () => {
+      authListener?.unsubscribe();
+    };
   }, []);
 
-  const logout = () => {
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Error logging out:', error);
+      // Handle logout error if necessary
+    }
+    // The onAuthStateChange listener (SIGNED_OUT event) will handle clearing localStorage and user state.
+    // Explicitly clearing here can be redundant but ensures immediate UI update if needed.
     localStorage.removeItem('token');
     localStorage.removeItem('user_type');
     localStorage.removeItem('user');

@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../App';
-import { register as apiRegister } from '../utils/api'; // Import the register function
+import { supabase } from '../supabaseClient'; // Import Supabase client
 
 const RegisterForm = () => {
   const [firstName, setFirstName] = useState('');
@@ -15,7 +15,6 @@ const RegisterForm = () => {
   const [resendingEmail, setResendingEmail] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
   const navigate = useNavigate();
-  const { login } = useContext(AuthContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,31 +24,89 @@ const RegisterForm = () => {
     setResendSuccess(false);
 
     const userData = {
-      first_name: firstName,
-      last_name: lastName,
-      phone: phone || null, // Send null if phone is empty, or just phone if backend handles empty string
       email,
       password,
-      user_type: "LANDLORD" // As per requirements
+      options: {
+        data: { // Custom data to be stored in Supabase user_metadata
+          first_name: firstName,
+          last_name: lastName,
+          phone: phone || null,
+          user_type: "LANDLORD" 
+        }
+      }
     };
 
     try {
-      // Call the register function from utils/api.js
-      // apiRegister handles JSON.stringify, Content-Type, and uses handleResponse for errors.
-      const registerData = await apiRegister(userData);
+      const { data, error } = await supabase.auth.signUp(userData);
 
-      // If apiRegister is successful, registerData will be the parsed JSON response.
-      // If it fails, handleResponse in api.js will throw an error.
-      setRegistrationSuccess(true);
+      if (error) {
+        setError(error.message || 'Registration failed. Please try again.');
+        console.error('Supabase SignUp error:', error);
+        setLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        // Supabase registration successful
+        // Now, call backend to sync user to local DB
+        // This is a new endpoint you'll need to create on your backend.
+        try {
+          const syncResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/sync-user`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              // If your sync endpoint requires auth (e.g. an admin/service key for this action),
+              // you'd add it here. However, this specific sync is for a new user.
+              // Alternatively, this could be a Supabase function triggered by new auth.users row.
+            },
+            body: JSON.stringify({
+              supabase_user_id: data.user.id,
+              email: data.user.email,
+              first_name: firstName,
+              last_name: lastName,
+              phone: phone || null,
+              user_type: "LANDLORD",
+              // Include any other fields your backend /sync-user expects or that your local User model needs
+            }),
+          });
+
+          const syncData = await syncResponse.json();
+
+          if (!syncResponse.ok) {
+            // Handle error from your /sync-user endpoint
+            console.error('Error syncing user to local DB:', syncData);
+            // Decide on user experience: inform them verification email sent but profile sync failed?
+            // Or treat as full registration failure for now?
+            setError(syncData.detail || 'Registration partially failed (user created, profile sync failed). Please contact support.');
+            // Potentially, you might want to delete the Supabase user if local sync fails critically.
+            // await supabase.auth.admin.deleteUser(data.user.id) // Requires admin privileges on Supabase client
+            setLoading(false);
+            return;
+          }
+          
+          // User synced to local DB successfully
+          setRegistrationSuccess(true);
+          // Clear the form
+          setFirstName('');
+          setLastName('');
+          setPhone('');
+          setEmail(''); // Keep email for resend verification if needed, or clear too
+          setPassword('');
+
+        } catch (syncError) {
+          console.error('Error calling /sync-user endpoint:', syncError);
+          setError('Registration partially failed (user created, profile sync had network issue). Please contact support.');
+          // Potentially, delete Supabase user.
+          setLoading(false);
+          return;
+        }
+
+      } else {
+        // Should not happen if error is not thrown, but as a fallback
+        setError('Registration failed. No user data returned from Supabase.');
+      }
       
-      // Clear the form
-      setFirstName('');
-      setLastName('');
-      setPhone('');
-      setEmail('');
-      setPassword('');
-      
-    } catch (err) {
+    } catch (err) { // This catch is for errors not caught by supabase.auth.signUp's own error object
       // err is the error object thrown by handleResponse (via apiRegister)
       // It should have a .message property, and .data for JSON error details
       let displayError = 'Registration failed. Please try again.';
@@ -77,21 +134,40 @@ const RegisterForm = () => {
   const handleResendVerification = async () => {
     setResendingEmail(true);
     setResendSuccess(false);
+    setError(''); // Clear previous errors
     
+    // To resend verification, Supabase needs the email of the user.
+    // If the form was cleared, we need to ensure `email` state is still available or re-fetch it.
+    // For now, assuming `email` state used in the form is the one we need to resend for.
+    if (!email) {
+        setError('Please enter the email address to resend verification.');
+        setResendingEmail(false);
+        return;
+    }
+
     try {
+      // Supabase client-side resend confirmation is for the *currently signed-in user* typically.
+      // For a newly registered user who isn't signed in, or if admin wants to resend for *any* user,
+      // this usually needs to be a backend operation using Supabase Admin SDK.
+      // The old /api/auth/resend-verification can be adapted for this.
+      // For a quick client-side attempt (might have limitations for unconfirmed users):
+      // const { error } = await supabase.auth.resend({ type: 'signup', email: email });
+      // if (error) throw error;
+
+      // Sticking to the existing pattern of calling a backend endpoint for this:
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/resend-verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email }), // Backend needs to handle this email
       });
       
+      const responseData = await response.json();
       if (response.ok) {
         setResendSuccess(true);
       } else {
-        const data = await response.json();
-        setError(data.detail || 'Failed to resend verification email');
+        setError(responseData.detail || 'Failed to resend verification email');
       }
     } catch (err) {
       setError('Failed to resend verification email. Please try again.');

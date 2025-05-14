@@ -8,6 +8,7 @@
         "preview": "vite preview"
     },
     "dependencies": {
+        "@supabase/supabase-js": "^2.49.4",
         "chart.js": "^4.4.9",
         "date-fns": "^4.1.0",
         "framer-motion": "^12.7.4",
