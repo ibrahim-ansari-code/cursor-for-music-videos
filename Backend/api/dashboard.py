@@ -80,7 +80,7 @@ async def get_dashboard_data(
     landlord_property_filter_sql = ""
     landlord_params = {}
     if user_type == UserType.LANDLORD.value:
-        landlord_property_filter_sql = "AND CAST(p.user_id AS TEXT) = :current_user_id"
+        landlord_property_filter_sql = "AND CAST(p.user_id AS TEXT) = CAST(:current_user_id AS TEXT)"
         landlord_params["current_user_id"] = current_user.id
 
     # Calculate date ranges based on selected time period
@@ -129,7 +129,7 @@ async def get_dashboard_data(
             COALESCE(SUM(CASE WHEN pay.status IN ('PAID', 'PARTIAL') THEN pay.amount ELSE 0 END), 0) as monthly_revenue,
             COALESCE(SUM(CASE WHEN exp.category = 'maintenance' THEN exp.amount ELSE 0 END), 0) as maintenance_expenses,
             COALESCE(SUM(exp.amount), 0) as monthly_expenses,
-            COALESCE(SUM(CASE WHEN inv.status IN ('PENDING', 'LATE', 'OVERDUE') THEN inv.amount ELSE 0 END), 0) as outstanding_rent
+            COALESCE(SUM(CASE WHEN inv.status IN ('PENDING', 'OVERDUE') THEN inv.amount ELSE 0 END), 0) as outstanding_rent
         FROM 
             properties p
         LEFT JOIN 
@@ -140,7 +140,7 @@ async def get_dashboard_data(
             expenses exp ON p.id = exp.property_id AND exp.expense_date BETWEEN :start_date AND :end_date
         LEFT JOIN 
             invoices inv ON (p.id = inv.property_id OR l.tenant_id = inv.tenant_id) 
-                         AND inv.status IN ('PENDING', 'LATE', 'OVERDUE')
+                         AND inv.status IN ('PENDING', 'OVERDUE')
         WHERE 
             1=1
             {property_filter} {landlord_property_filter_sql}

@@ -918,7 +918,7 @@ async def get_accounting_overview(
 
     # -- Calculations --
     paid_status_filter = "AND p.status IN ('PAID', 'PARTIAL')"
-    outstanding_status_filter = "AND p.status IN ('PENDING', 'LATE', 'OVERDUE')"
+    outstanding_status_filter = "AND p.status IN ('PENDING', 'OVERDUE')"
 
     monthly_revenue_q = build_filtered_query("SELECT COALESCE(SUM(p.amount), 0.0) FROM payments p", "p.payment_date", ":month_start", status_filter_sql=paid_status_filter)
     ytd_revenue_q = build_filtered_query("SELECT COALESCE(SUM(p.amount), 0.0) FROM payments p", "p.payment_date", ":year_start", status_filter_sql=paid_status_filter)
@@ -1102,7 +1102,7 @@ async def get_outstanding_payments(
         ).where(
             and_(
                 Payment.payment_date >= month_start, # Check payments generated *this* month
-                Payment.status.in_([PaymentStatus.PENDING, PaymentStatus.LATE, PaymentStatus.OVERDUE])
+                Payment.status.in_([PaymentStatus.PENDING, PaymentStatus.OVERDUE]) # Changed LATE to OVERDUE
             )
         )
 
