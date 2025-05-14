@@ -108,7 +108,7 @@ function App() {
       setLoading(false);
     });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
+    const { data: authSubscriptionData } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         const currentToken = session?.access_token || null;
         
@@ -162,7 +162,7 @@ function App() {
     );
 
     return () => {
-      authListener?.unsubscribe();
+      authSubscriptionData?.subscription?.unsubscribe();
     };
   }, []);
 

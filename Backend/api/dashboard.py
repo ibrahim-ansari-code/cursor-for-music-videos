@@ -3,7 +3,7 @@ from typing import List, Optional
 from datetime import datetime, date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, func, and_, or_, desc
+from sqlalchemy import text
 from pydantic import BaseModel
 
 from Backend.database import get_session
@@ -80,7 +80,7 @@ async def get_dashboard_data(
     landlord_property_filter_sql = ""
     landlord_params = {}
     if user_type == UserType.LANDLORD.value:
-        landlord_property_filter_sql = "AND p.user_id = :current_user_id"
+        landlord_property_filter_sql = "AND CAST(p.user_id AS TEXT) = :current_user_id"
         landlord_params["current_user_id"] = current_user.id
 
     # Calculate date ranges based on selected time period

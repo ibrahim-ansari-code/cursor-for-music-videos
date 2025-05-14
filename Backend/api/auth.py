@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 from enum import Enum
+import traceback
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -82,36 +83,54 @@ async def get_current_user(
     session: AsyncSession = Depends(get_session)
 ):
     """Get current user from Supabase JWT token"""
+    user_response_from_supabase = None
     try:
-        # Get Supabase client
         supabase = get_supabase_client()
-        
-        # Verify the JWT token with Supabase
-        user = supabase.auth.get_user(credentials.credentials)
-        if not user:
+        user_response_from_supabase = supabase.auth.get_user(credentials.credentials)
+
+        if not user_response_from_supabase or not hasattr(user_response_from_supabase, 'user') or not user_response_from_supabase.user:
+            logger.warning("Supabase auth.get_user did not return a user or in expected format.")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials",
+                detail="Invalid authentication credentials (user data not returned by Supabase in expected format)",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        # Get user from our database
-        result = await session.execute(select(User).where(User.id == user.id))
+        actual_user_from_supabase = user_response_from_supabase.user
+
+        if not hasattr(actual_user_from_supabase, 'id') or actual_user_from_supabase.id is None:
+            logger.error(f"Supabase user object (nested) is missing ID. Repr: {repr(actual_user_from_supabase)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Supabase user object (nested) is missing ID.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        local_user_id_str = str(actual_user_from_supabase.id)
+        result = await session.execute(select(User).where(User.id == local_user_id_str))
         db_user = result.scalar_one_or_none()
         
         if not db_user:
+            logger.warning(f"User with Supabase ID {local_user_id_str} not found in local database.")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found in database",
+                detail="User authenticated with Supabase but not found in local application database.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-
         return db_user
+    except HTTPException as http_exc: # Re-raise HTTPException to preserve status code and details
+        raise http_exc
     except Exception as e:
-        logger.error(f"Authentication error: {str(e)}")
+        logger.error(f"Authentication error in get_current_user. Exception type: {type(e)}, Exception: {repr(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        # Log the state of user_response_from_supabase if it was assigned
+        if 'user_response_from_supabase' in locals() and user_response_from_supabase is not None:
+            logger.error(f"State of user_response_from_supabase when error occurred: type={type(user_response_from_supabase)}, repr={repr(user_response_from_supabase)}, attributes: {dir(user_response_from_supabase)}")
+        else:
+            logger.error("user_response_from_supabase was not successfully assigned or was None prior to the error.")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, # Changed from 401 to 500 for unexpected errors
+            detail=f"Could not validate credentials due to an unexpected server error: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

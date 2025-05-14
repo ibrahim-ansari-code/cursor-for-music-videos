@@ -73,42 +73,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"detail": exc.errors(), "body": exc.body},
     )
 
-# Add the RequestValidationError handler here
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.error(f"Validation error: {exc.errors()} for request: {request.url} with body: {exc.body}")
-    return JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors(), "body": exc.body},
-    )
-
-# Add the RequestValidationError handler here
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.error(f"Validation error: {exc.errors()} for request: {request.url} with body: {exc.body}")
-    return JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors(), "body": exc.body},
-    )
-
-# Add the RequestValidationError handler here
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.error(f"Validation error: {exc.errors()} for request: {request.url} with body: {exc.body}")
-    return JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors(), "body": exc.body},
-    )
-
-# Add the RequestValidationError handler here
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.error(f"Validation error: {exc.errors()} for request: {request.url} with body: {exc.body}")
-    return JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors(), "body": exc.body},
-    )
-
 # Router import + error trapping
 try:
     # Router Imports
@@ -161,13 +125,7 @@ except Exception as e:
 def root():
     return {"message": "Brikli backend is running"}
 
-# --- Ensure initialization logic is still present ---
-# Load environment variables at startup (assuming this logic was previously working)
-# If you had find_dotenv() and load_dotenv() logic here before, re-add it.
 # Initialize all models before creating the FastAPI app
-# (Assuming this import handles SQLAlchemy/SQLModel setup)
 import Backend.models
-
-# --- End of Ensure initialization logic ---
 
 logger.info("🚀 FastAPI app initialization complete.")

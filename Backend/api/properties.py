@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from sqlalchemy.orm import joinedload, selectinload
-from pydantic import BaseModel, constr
+from pydantic import BaseModel
 
 from Backend.database import get_session
 from Backend.models.property import Property, PropertyUnit
@@ -13,7 +13,7 @@ from Backend.models.enums import PropertyStatus
 from Backend.models.user import User
 from Backend.api.auth import get_current_user
 from Backend.models.lease import Lease, LeaseStatus
-from Backend.api.units import TenantInfo, UnitResponse, UnitBase
+from Backend.api.units import TenantInfo, UnitResponse
 
 # Configure logging
 logger = logging.getLogger(__name__)

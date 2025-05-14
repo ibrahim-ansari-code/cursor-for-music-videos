@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, date
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, text
+from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import joinedload, selectinload
 from pydantic import BaseModel, constr, EmailStr, validator, computed_field
 from sqlmodel import col
@@ -11,7 +11,7 @@ from sqlmodel import col
 # from builtins import property # No longer needed
 
 from Backend.database import get_session
-from Backend.models.tenant import Tenant, TenantStatus, TenantUnitLink
+from Backend.models.tenant import Tenant, TenantStatus
 from Backend.models.user import User, UserType
 from Backend.models.property import Property, PropertyUnit
 from Backend.models.lease import Lease, LeaseStatus

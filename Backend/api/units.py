@@ -5,11 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, selectinload
-from pydantic import BaseModel, constr, ValidationError, Field
+from pydantic import BaseModel, ValidationError, Field
 from sqlalchemy import and_
 
 from Backend.database import get_session
-from Backend.models.property import Property, PropertyUnit, PropertyType
+from Backend.models.property import Property, PropertyUnit
 from Backend.models.user import User
 from Backend.models.tenant import Tenant
 from Backend.models.lease import Lease, LeaseStatus

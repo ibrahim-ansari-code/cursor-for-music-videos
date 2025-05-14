@@ -1,6 +1,5 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
-from uuid import UUID
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship, Column
 from sqlalchemy import String, Enum as PgEnum, Integer, ForeignKey
@@ -43,7 +42,7 @@ class Property(SQLModel, table=True):
     )
     
     # Foreign keys
-    user_id: UUID = Field(
+    user_id: str = Field(
         sa_column=Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     )
     

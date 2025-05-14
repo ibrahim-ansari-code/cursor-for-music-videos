@@ -1,6 +1,5 @@
 from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
-from uuid import UUID
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, String, Boolean
 
@@ -13,7 +12,7 @@ from Backend.models.enums import UserType
 class User(SQLModel, table=True):
     __tablename__ = "users"
 
-    id: UUID = Field(
+    id: str = Field(
         sa_column=Column(String(36), primary_key=True)
     )
     email: str = Field(unique=True, index=True)

@@ -1,8 +1,7 @@
 import logging
-import os
 import ssl # Import the ssl module
 import Backend.models
-from typing import Optional, AsyncGenerator
+from typing import AsyncGenerator
 from urllib.parse import urlparse, urlunparse, parse_qs, urlencode # For URL manipulation
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker

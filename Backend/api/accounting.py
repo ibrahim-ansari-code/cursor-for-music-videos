@@ -4,10 +4,9 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import and_, or_, func, text, exists
+from sqlalchemy import and_, or_, func, text
 from pydantic import BaseModel, validator
 from sqlalchemy.orm import selectinload, joinedload
-from decimal import Decimal
 
 from Backend.database import get_session
 from Backend.models.accounting import Payment, Invoice, Expense, PaymentStatus, PaymentMethod

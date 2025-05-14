@@ -3,7 +3,7 @@ from datetime import date, datetime
 from uuid import UUID
 from sqlmodel import SQLModel, Field, Relationship
 from enum import Enum
-from sqlalchemy import Column, String, Integer, ForeignKey, Table
+from sqlalchemy import Column, String, Integer, ForeignKey
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -73,4 +73,3 @@ class Tenant(SQLModel, table=True):
         sa_relationship_kwargs={"lazy": "selectin"}
     )
     
-# Removed setup_relationships function 

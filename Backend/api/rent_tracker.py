@@ -4,10 +4,9 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import and_, or_, func, text
+from sqlalchemy import and_, or_, func
 from pydantic import BaseModel
 from sqlalchemy.orm import selectinload
-from decimal import Decimal
 from enum import Enum
 
 from Backend.database import get_session

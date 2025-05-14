@@ -2,10 +2,9 @@ import logging
 from typing import List, Optional, Dict, Tuple
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
-from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func, and_, or_, text
+from sqlalchemy import select, func, and_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
