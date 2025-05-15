@@ -134,12 +134,14 @@ async def get_dashboard_data(
             properties p
         LEFT JOIN 
             leases l ON p.id = l.property_id
+        LEFT JOIN       
+            tenants t ON l.tenant_id = t.id
         LEFT JOIN 
             payments pay ON l.id = pay.lease_id AND pay.payment_date BETWEEN :start_date AND :end_date
         LEFT JOIN 
             expenses exp ON p.id = exp.property_id AND exp.expense_date BETWEEN :start_date AND :end_date
         LEFT JOIN 
-            invoices inv ON (p.id = inv.property_id OR l.tenant_id = inv.tenant_id) 
+            invoices inv ON (p.id = inv.property_id OR t.user_id = inv.tenant_id)
                          AND inv.status IN ('PENDING', 'OVERDUE')
         WHERE 
             1=1

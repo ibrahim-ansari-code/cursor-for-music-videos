@@ -902,53 +902,82 @@ async def get_accounting_overview(
 
     if current_user.user_type == UserType.LANDLORD:
         ownership_filter = "AND prop.user_id = :user_id"
-        params["user_id"] = current_user.id
-        prop_join_needed = True # Need to join Property table
+        prop_join_needed = True
 
     # -- Helper to construct queries with optional ownership filter --
-    def build_filtered_query(base_select, date_field, date_start, extra_joins="", status_filter_sql=""):
-        sql = f"{base_select} WHERE {date_field} >= :date_start {status_filter_sql} {ownership_filter if prop_join_needed else ''}"
-        # Add JOIN only if filtering by ownership
+    def build_filtered_query(base_select, date_field, date_param_name_in_sql, status_filter_sql=""):
+        # date_param_name_in_sql is the placeholder used in SQL, e.g., "filter_date"
+        # The actual params dict will map this name to a value.
+        sql = f"{base_select} WHERE {date_field} >= :{date_param_name_in_sql} {status_filter_sql} {ownership_filter if prop_join_needed else ''}"
         if prop_join_needed:
-            sql = sql.replace("FROM payments p", "FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id")
-            sql = sql.replace("FROM expenses e", "FROM expenses e JOIN properties prop ON e.property_id = prop.id")
-            sql = sql.replace("FROM leases l", "FROM leases l JOIN properties prop ON l.property_id = prop.id")
-            sql = sql.replace("FROM property_units u", "FROM property_units u JOIN properties prop ON u.property_id = prop.id")
+            if "FROM payments p" in base_select and "JOIN leases l" not in sql:
+                sql = sql.replace("FROM payments p", "FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id")
+            elif "FROM expenses e" in base_select and "JOIN properties prop" not in sql:
+                sql = sql.replace("FROM expenses e", "FROM expenses e JOIN properties prop ON e.property_id = prop.id")
+            elif "FROM leases l" in base_select and "JOIN properties prop" not in sql:
+                sql = sql.replace("FROM leases l", "FROM leases l JOIN properties prop ON l.property_id = prop.id")
+            elif "FROM property_units u" in base_select and "JOIN properties prop" not in sql:
+                sql = sql.replace("FROM property_units u", "FROM property_units u JOIN properties prop ON u.property_id = prop.id")
         return text(sql)
 
     # -- Calculations --
     paid_status_filter = "AND p.status IN ('PAID', 'PARTIAL')"
     outstanding_status_filter = "AND p.status IN ('PENDING', 'OVERDUE')"
 
-    monthly_revenue_q = build_filtered_query("SELECT COALESCE(SUM(p.amount), 0.0) FROM payments p", "p.payment_date", ":month_start", status_filter_sql=paid_status_filter)
-    ytd_revenue_q = build_filtered_query("SELECT COALESCE(SUM(p.amount), 0.0) FROM payments p", "p.payment_date", ":year_start", status_filter_sql=paid_status_filter)
-    monthly_expenses_q = build_filtered_query("SELECT COALESCE(SUM(e.amount), 0.0) FROM expenses e", "e.expense_date", ":month_start")
-    ytd_expenses_q = build_filtered_query("SELECT COALESCE(SUM(e.amount), 0.0) FROM expenses e", "e.expense_date", ":year_start")
-    outstanding_payments_q = build_filtered_query("SELECT COUNT(p.id) FROM payments p", "p.payment_date", ":month_start", status_filter_sql=outstanding_status_filter)
-    average_rent_q = build_filtered_query("SELECT COALESCE(AVG(l.monthly_rent), 0.0) FROM leases l", "l.start_date", "'1900-01-01'", status_filter_sql="AND l.status = 'ACTIVE'") # Filter by active status
+    # Prepare base params (user_id if landlord)
+    base_query_params = {}
+    if current_user.user_type == UserType.LANDLORD:
+        base_query_params["user_id"] = current_user.id
 
-    occupancy_rate_q = text(f"""
+    # Monthly Revenue
+    monthly_revenue_params = {**base_query_params, "filter_date": month_start}
+    monthly_revenue_q = build_filtered_query("SELECT COALESCE(SUM(p.amount), 0.0) FROM payments p", "p.payment_date", "filter_date", status_filter_sql=paid_status_filter)
+    monthly_revenue = await session.scalar(monthly_revenue_q, monthly_revenue_params)
+
+    # YTD Revenue
+    ytd_revenue_params = {**base_query_params, "filter_date": year_start}
+    ytd_revenue_q = build_filtered_query("SELECT COALESCE(SUM(p.amount), 0.0) FROM payments p", "p.payment_date", "filter_date", status_filter_sql=paid_status_filter)
+    ytd_revenue = await session.scalar(ytd_revenue_q, ytd_revenue_params)
+
+    # Monthly Expenses
+    monthly_expenses_params = {**base_query_params, "filter_date": month_start}
+    monthly_expenses_q = build_filtered_query("SELECT COALESCE(SUM(e.amount), 0.0) FROM expenses e", "e.expense_date", "filter_date")
+    monthly_expenses = await session.scalar(monthly_expenses_q, monthly_expenses_params)
+
+    # YTD Expenses
+    ytd_expenses_params = {**base_query_params, "filter_date": year_start}
+    ytd_expenses_q = build_filtered_query("SELECT COALESCE(SUM(e.amount), 0.0) FROM expenses e", "e.expense_date", "filter_date")
+    ytd_expenses = await session.scalar(ytd_expenses_q, ytd_expenses_params)
+    
+    # Outstanding Payments
+    outstanding_params = {**base_query_params, "filter_date": month_start}
+    outstanding_payments_q = build_filtered_query("SELECT COUNT(p.id) FROM payments p", "p.payment_date", "filter_date", status_filter_sql=outstanding_status_filter)
+    outstanding_payments = await session.scalar(outstanding_payments_q, outstanding_params)
+
+    # Average Rent
+    avg_rent_sql_str = f"SELECT COALESCE(AVG(l.monthly_rent), 0.0) FROM leases l WHERE l.status = 'ACTIVE' {ownership_filter if prop_join_needed else ''}"
+    if prop_join_needed and "JOIN properties prop" not in avg_rent_sql_str: # Ensure join is added if ownership_filter is active
+        avg_rent_sql_str = avg_rent_sql_str.replace("FROM leases l", "FROM leases l JOIN properties prop ON l.property_id = prop.id")
+    average_rent_q = text(avg_rent_sql_str)
+    average_rent = await session.scalar(average_rent_q, base_query_params) # Only user_id needed if landlord
+
+    # Occupancy Rate
+    occupancy_rate_sql_str = f"""
         SELECT CASE WHEN COUNT(u.id) > 0 THEN CAST(SUM(CASE WHEN u.is_rented THEN 1 ELSE 0 END) AS FLOAT) / COUNT(u.id) * 100 ELSE 0 END
         FROM property_units u JOIN properties prop ON u.property_id = prop.id
         WHERE 1=1 {ownership_filter if prop_join_needed else ''}
-    """)
+    """
+    occupancy_rate_q = text(occupancy_rate_sql_str)
+    occupancy_rate = await session.scalar(occupancy_rate_q, base_query_params) # Only user_id needed if landlord
 
-    # Execute queries
-    monthly_revenue = await session.scalar(monthly_revenue_q, params)
-    ytd_revenue = await session.scalar(ytd_revenue_q, params)
-    monthly_expenses = await session.scalar(monthly_expenses_q, params)
-    ytd_expenses = await session.scalar(ytd_expenses_q, params)
-    outstanding_payments = await session.scalar(outstanding_payments_q, params)
-    average_rent = await session.scalar(average_rent_q, params)
-    occupancy_rate = await session.scalar(occupancy_rate_q, params)
-
-    # Revenue Trends (re-using logic from get_revenue_trends with ownership)
-    # Simpler approach: Call the trends function internally (ensure it handles params correctly)
-    # This requires passing the ownership params down. For simplicity, we duplicate the trend query logic here.
-    trend_params = {"user_id": current_user.id} if current_user.user_type == UserType.LANDLORD else {}
-    ownership_filter_payments = "AND prop.user_id = :user_id" if current_user.user_type == UserType.LANDLORD else ""
-    ownership_filter_expenses = "AND exp_prop.user_id = :user_id" if current_user.user_type == UserType.LANDLORD else ""
-
+    # Revenue Trends
+    trend_params = {}
+    if current_user.user_type == UserType.LANDLORD:
+        trend_params["user_id"] = current_user.id
+    
+    trend_ownership_filter_payments = "AND prop.user_id = :user_id" if current_user.user_type == UserType.LANDLORD else ""
+    trend_ownership_filter_expenses = "AND exp_prop.user_id = :user_id" if current_user.user_type == UserType.LANDLORD else ""
+    
     trends_query_text = f"""
         WITH months AS (
             SELECT generate_series(date_trunc('month', current_date - interval '11 months'), date_trunc('month', current_date), interval '1 month')::date as month_start
@@ -956,13 +985,13 @@ async def get_accounting_overview(
         payment_data AS (
             SELECT date_trunc('month', p.payment_date)::date as month, SUM(p.amount) AS revenue
             FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id
-            WHERE p.status IN ('PAID', 'PARTIAL') {ownership_filter_payments} AND p.payment_date >= date_trunc('month', current_date - interval '11 months')
+            WHERE p.status IN ('PAID', 'PARTIAL') {trend_ownership_filter_payments} AND p.payment_date >= date_trunc('month', current_date - interval '11 months')
             GROUP BY 1
         ),
         expense_data AS (
             SELECT date_trunc('month', e.expense_date)::date as month, SUM(e.amount) AS expenses
             FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id
-            WHERE 1=1 {ownership_filter_expenses} AND e.expense_date >= date_trunc('month', current_date - interval '11 months')
+            WHERE 1=1 {trend_ownership_filter_expenses} AND e.expense_date >= date_trunc('month', current_date - interval '11 months')
             GROUP BY 1
         )
         SELECT to_char(m.month_start, 'Mon YYYY') as period, COALESCE(p.revenue, 0) AS revenue, COALESCE(e.expenses, 0) AS expenses

@@ -14,7 +14,7 @@ from Backend.models.user import User, UserType
 from Backend.models.property import Property, PropertyUnit
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.accounting import Payment, PaymentStatus, Expense
-from Backend.schemas.reports import (
+from Backend.models.reports import (
     MonthlyChartData,
     ReportSummary,
     FinancialTableRow,
@@ -66,7 +66,7 @@ async def get_user_properties(session: AsyncSession, user: User, property_ids: O
     base_query = select(Property.id)
     
     if user.user_type != UserType.ADMIN: # Assuming ADMIN can see all, otherwise filter by owner
-        base_query = base_query.where(Property.owner_id == user.id)
+        base_query = base_query.where(Property.user_id == user.id)
         
     if property_ids:
         # Ensure requested IDs are valid and owned by the user (if not admin)
