@@ -1,7 +1,7 @@
 # Dockerfile for Brikli FastAPI Backend (Production-Ready for Supabase/Porter)
 
 # 1. Base Image
-FROM --platform=linux/amd64 python:3.11-slim
+FROM --platform=linux/arm64 python:3.11-slim
 
 # 2. Environment Variables
 ENV PYTHONUNBUFFERED=1 \
@@ -55,5 +55,5 @@ EXPOSE 8000
 # HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 #   CMD curl -f http://localhost:8000/api/health || exit 1
 
-# 10. Run the Application (use uvicorn directly for minimal image and fast startup)
-CMD ["uvicorn", "Backend.api.app:app", "--host", "0.0.0.0", "--port", "8000"] 
+# 10. Run the Application
+CMD ["gunicorn", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "--timeout", "300", "--bind", "0.0.0.0:8000", "Backend.api.app:app"] 
