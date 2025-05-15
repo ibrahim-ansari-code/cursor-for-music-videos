@@ -6,6 +6,8 @@ name: Deploy to brikli-backend-prod
 jobs:
     porter-deploy:
         runs-on: ubuntu-latest
+        env:
+          DOCKER_BUILDKIT: "1"
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
@@ -15,22 +17,28 @@ jobs:
 
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v3
+              with:
+                install: true
 
             - name: Set Github tag
               id: vars
               run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
             - name: Copy Poetry files to Backend for Docker build
               run: |
                 echo "Copying poetry files to Backend directory..."
                 cp pyproject.toml Backend/
                 cp poetry.lock Backend/
                 echo "Poetry files copied successfully."
+
             - name: Setup porter
               uses: porter-dev/setup-porter@v0.1.0
+
             - name: Deploy stack
               timeout-minutes: 30
               run: exec porter apply
               env:
+                DOCKER_DEFAULT_PLATFORM: linux/arm64
                 PORTER_APP_NAME: brikli-backend-prod
                 PORTER_CLUSTER: "4829"
                 PORTER_DEPLOYMENT_TARGET_ID: 7953fd68-9c8b-4a17-ad6d-3a0d81a746a3
