@@ -38,7 +38,7 @@ jobs:
               timeout-minutes: 30
               run: exec porter apply
               env:
-                DOCKER_DEFAULT_PLATFORM: linux/amd64
+                DOCKER_DEFAULT_PLATFORM: linux/arm64
                 PORTER_APP_NAME: brikli-backend-prod
                 PORTER_CLUSTER: "4829"
                 PORTER_DEPLOYMENT_TARGET_ID: 7953fd68-9c8b-4a17-ad6d-3a0d81a746a3
