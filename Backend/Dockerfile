@@ -1,7 +1,7 @@
 # Dockerfile for Brikli FastAPI Backend (Production-Ready for Supabase/Porter)
 
 # 1. Base Image
-FROM --platform=linux/arm64 python:3.11-slim
+FROM python:3.11-slim
 
 # 2. Environment Variables
 ENV PYTHONUNBUFFERED=1 \
