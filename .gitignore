@@ -189,6 +189,5 @@ cython_debug/
 Backend/pyproject.toml
 Backend/poetry.lock
 
-# node packages
+# Node modules - keep out of version control
 Frontend/node_modules/
-Frontend/package-lock.json
