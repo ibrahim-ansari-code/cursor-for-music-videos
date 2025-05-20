@@ -45,6 +45,20 @@ RUN if [ -f "pyproject.toml" ]; then \
       pip install --upgrade pip && pip install -r requirements.txt; \
     fi
 
+# Debugging gunicorn and python installations
+RUN echo "---- Debugging gunicorn and python ----" && \
+    ls -l /usr/local/bin/gunicorn && \
+    which gunicorn && \
+    gunicorn --version && \
+    head -n 1 $(which gunicorn) && \
+    file $(which gunicorn) && \
+    echo "---- Debugging python ----" && \
+    ls -l /usr/local/bin/python /usr/local/bin/python3 && \
+    python --version && \
+    python3 --version && \
+    file /usr/local/bin/python3 && \
+    echo "---- End Debugging ----"
+
 # 7. Copy Application Code
 COPY . /app/Backend
 
