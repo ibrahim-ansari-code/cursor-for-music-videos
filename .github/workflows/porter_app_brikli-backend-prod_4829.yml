@@ -6,26 +6,14 @@ name: Deploy to brikli-backend-prod
 jobs:
     porter-deploy:
         runs-on: ubuntu-latest
-        env:
-          DOCKER_BUILDKIT: "1"
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
-
             - name: Set Github tag
               id: vars
-              run: echo "git_sha_full=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-
-            - name: Copy Poetry files to Backend for Docker build
-              run: |
-                echo "Copying poetry files to Backend directory..."
-                cp pyproject.toml Backend/
-                cp poetry.lock Backend/
-                echo "Poetry files copied successfully."
-
+              run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
             - name: Setup porter
               uses: porter-dev/setup-porter@v0.1.0
-
             - name: Deploy stack
               timeout-minutes: 30
               run: exec porter apply
@@ -37,5 +25,5 @@ jobs:
                 PORTER_PR_NUMBER: ${{ github.event.number }}
                 PORTER_PROJECT: "15766"
                 PORTER_REPO_NAME: ${{ github.event.repository.name }}
-                PORTER_TAG: ${{ steps.vars.outputs.git_sha_full }}
+                PORTER_TAG: ${{ steps.vars.outputs.sha_short }}
                 PORTER_TOKEN: ${{ secrets.PORTER_APP_15766_4829 }}
