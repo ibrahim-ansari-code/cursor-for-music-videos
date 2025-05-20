@@ -36,7 +36,7 @@ RUN curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_V
 WORKDIR /app
 
 # pre 6. Check if poetry files are present
-RUN ls -l /context/
+RUN ls -l
 
 # 6. Install Application Dependencies
 COPY pyproject.toml poetry.lock* ./
