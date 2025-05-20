@@ -188,3 +188,7 @@ cython_debug/
 # Docker build copies - keep out of version control
 Backend/pyproject.toml
 Backend/poetry.lock
+
+# node packages
+Frontend/node_modules/
+Frontend/package-lock.json
