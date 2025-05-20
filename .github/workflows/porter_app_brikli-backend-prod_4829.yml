@@ -24,6 +24,11 @@ jobs:
                 echo "Poetry files copied successfully."
             - name: Setup porter
               uses: porter-dev/setup-porter@v0.1.0
+            - name: List files in workspace
+                run: |
+                  echo "Current directory: $(pwd)"
+                  ls -la
+                  find . -type f 
             - name: Deploy stack
               timeout-minutes: 30
               run: exec porter apply
