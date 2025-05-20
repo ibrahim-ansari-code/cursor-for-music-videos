@@ -24,7 +24,7 @@ jobs:
                 echo "Poetry files copied successfully."
             - name: Setup porter
               uses: porter-dev/setup-porter@v0.1.0
-            - name: List files in workspace
+            - name: List files in workspace # Debug
               run: |
                 echo "Current directory: $(pwd)"
                 ls -la
