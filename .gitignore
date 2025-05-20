@@ -186,8 +186,8 @@ cython_debug/
 .pypirc
 
 # Docker build copies - keep out of version control
-Backend/pyproject.toml
-Backend/poetry.lock
+# Backend/pyproject.toml
+# Backend/poetry.lock
 
 # Node modules - keep out of version control
 Frontend/node_modules/
