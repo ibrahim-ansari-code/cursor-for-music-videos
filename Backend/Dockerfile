@@ -36,7 +36,7 @@ RUN curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_V
 WORKDIR /app
 
 # 6. Install Application Dependencies
-COPY pyproject.toml poetry.lock* ./
+COPY pyproject.toml poetry.lock ./
 
 # Install all defined dependencies from pyproject.toml using the lock file
 RUN if [ -f "pyproject.toml" ]; then \
