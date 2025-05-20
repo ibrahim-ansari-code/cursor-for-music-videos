@@ -37,13 +37,16 @@ WORKDIR /app
 
 # 6. Install Application Dependencies
 COPY pyproject.toml poetry.lock* ./
+
 # Install all defined dependencies from pyproject.toml using the lock file
-RUN if [ -f "pyproject.toml" ]; then \
-      /opt/poetry/bin/poetry install --no-root --no-interaction; \
-    else \
-      echo 'No poetry files found, falling back to pip.'; \
-      pip install --upgrade pip && pip install -r requirements.txt; \
-    fi
+RUN pip install poetry && poetry config virtualenvs.create false && poetry install --no-root 
+# RUN if [ -f "pyproject.toml" ]; then \
+#       echo 'Poetry files found, installing dependencies...'; \
+#       /opt/poetry/bin/poetry install --no-root --no-interaction; \
+#     else \
+#       echo 'No poetry files found, falling back to pip.'; \
+#       pip install --upgrade pip && pip install -r requirements.txt; \
+#     fi
 
 # 7. Copy Application Code
 COPY . /app/Backend
