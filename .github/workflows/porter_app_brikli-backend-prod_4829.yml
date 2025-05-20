@@ -12,17 +12,9 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
-            - name: Set up QEMU
-              uses: docker/setup-qemu-action@v3
-
-            - name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@v3
-              with:
-                install: true
-
             - name: Set Github tag
               id: vars
-              run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+              run: echo "git_sha_full=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
             - name: Copy Poetry files to Backend for Docker build
               run: |
@@ -45,5 +37,5 @@ jobs:
                 PORTER_PR_NUMBER: ${{ github.event.number }}
                 PORTER_PROJECT: "15766"
                 PORTER_REPO_NAME: ${{ github.event.repository.name }}
-                PORTER_TAG: ${{ steps.vars.outputs.sha_short }}
+                PORTER_TAG: ${{ steps.vars.outputs.git_sha_full }}
                 PORTER_TOKEN: ${{ secrets.PORTER_APP_15766_4829 }}
