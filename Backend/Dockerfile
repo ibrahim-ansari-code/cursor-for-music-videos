@@ -1,7 +1,7 @@
 # Dockerfile for Brikli FastAPI Backend (Production-Ready for Supabase/Porter)
 
 # 1. Base Image
-FROM --platform=linux/amd64 python:3.11-slim
+FROM --platform=linux/arm64 python:3.11-slim
 
 # 2. Environment Variables
 ENV PYTHONUNBUFFERED=1 \
@@ -29,7 +29,7 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 4. Install Poetry (optional, fallback to pip if poetry files not present)
+# 4. Install Poetry
 RUN curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_VERSION}
 
 # 5. Set Working Directory
@@ -45,29 +45,15 @@ RUN if [ -f "pyproject.toml" ]; then \
       pip install --upgrade pip && pip install -r requirements.txt; \
     fi
 
-# Debugging gunicorn and python installations
-RUN echo "---- Debugging gunicorn and python ----" && \
-    ls -l /usr/local/bin/gunicorn && \
-    which gunicorn && \
-    gunicorn --version && \
-    head -n 1 $(which gunicorn) && \
-    echo "---- Debugging python ----" && \
-    ls -l /usr/local/bin/python /usr/local/bin/python3 /usr/local/bin/python3.11 && \
-    python --version && \
-    python3 --version && \
-    /usr/local/bin/python3.11 --version && \
-    echo "---- End Debugging ----"
-
 # 7. Copy Application Code
 COPY . /app/Backend
 
 # 8. Expose Port
 EXPOSE 8000
 
-# 9. Healthcheck (Optional, commented out for curl-less images)
+# 9. Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8000/api/health || exit 1
 
 # 10. Run the Application
-# CMD ["/usr/local/bin/python3.11", "--version"]
-# No CMD instruction, start command will be set in Porter UI
+CMD ["/usr/local/bin/python3.11", "-m", "gunicorn", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "--timeout", "300", "--bind", "0.0.0.0:8000", "Backend.api.app:app"]
