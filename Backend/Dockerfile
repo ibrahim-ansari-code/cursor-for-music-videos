@@ -29,7 +29,7 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 4. Install Poetry (optional, fallback to pip if poetry files not present)
+# 4. Install Poetry
 RUN curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_VERSION}
 
 # 5. Set Working Directory
@@ -51,9 +51,9 @@ COPY . /app/Backend
 # 8. Expose Port
 EXPOSE 8000
 
-# 9. Healthcheck (Optional, commented out for curl-less images)
-# HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-#   CMD curl -f http://localhost:8000/api/health || exit 1
+# 9. Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8000/api/health || exit 1
 
 # 10. Run the Application
-CMD ["gunicorn", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "--timeout", "300", "--bind", "0.0.0.0:8000", "Backend.api.app:app"] 
+CMD ["/usr/local/bin/python3.11", "-m", "gunicorn", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "--timeout", "300", "--bind", "0.0.0.0:8000", "Backend.api.app:app"]

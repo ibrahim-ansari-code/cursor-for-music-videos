@@ -112,4 +112,3 @@ class PropertyUnit(SQLModel, table=True):
         link_model=TenantUnitLink,
         sa_relationship_kwargs={"lazy": "selectin"}
     )
-
