@@ -1,7 +1,8 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../App';
 import { supabase } from '../supabaseClient'; // Import Supabase client
+import GoogleSignInButton from './GoogleSignInButton'; // Import the new component
 
 const RegisterForm = () => {
   const [firstName, setFirstName] = useState('');
@@ -15,6 +16,18 @@ const RegisterForm = () => {
   const [resendingEmail, setResendingEmail] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // If user is already logged in, redirect to dashboard
+    const checkSession = async () => {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (currentSession) {
+            console.log('User already logged in, redirecting to dashboard from RegisterForm');
+            navigate('/dashboard', { replace: true });
+        }
+    };
+    checkSession();
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -238,6 +251,23 @@ const RegisterForm = () => {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full">
+        <GoogleSignInButton setLoading={setLoading} setError={setError} />
+
+        {error && (
+          <div className="text-sm text-red-600 mt-2 mb-4 text-center">
+            {error}
+          </div>
+        )}
+
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+            <div className="w-full border-t border-gray-300" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Or create an account with email</span>
+          </div>
+        </div>
+
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>

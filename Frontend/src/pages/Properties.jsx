@@ -39,15 +39,15 @@ const StatusCard = ({ title, count, bgColor = 'bg-white', textColor = 'text-gray
 
 const StatusBadge = ({ status }) => {
   const statusStyles = {
-    active: 'bg-green-50 text-green-700',
-    maintenance: 'bg-orange-50 text-orange-700',
-    vacant: 'bg-yellow-50 text-yellow-700',
+    ACTIVE: 'bg-green-50 text-green-700',
+    MAINTENANCE: 'bg-orange-50 text-orange-700',
+    VACANT: 'bg-yellow-50 text-yellow-700',
   };
 
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[status.toLowerCase()] || 'bg-gray-100 text-gray-800'}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[status.toUpperCase()] || 'bg-gray-100 text-gray-800'}`}>
       <span className="w-1.5 h-1.5 mr-1.5 rounded-full bg-current"></span>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}
     </span>
   );
 };
@@ -154,7 +154,7 @@ const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-center">
                 <div className="flex justify-center">
-                  <StatusBadge status={property.status || 'active'} />
+                  <StatusBadge status={property.status || 'ACTIVE'} />
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
@@ -207,9 +207,9 @@ const Properties = () => {
   const [statusFilter, setStatusFilter] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusCounts, setStatusCounts] = useState({
-    active: 0,
-    maintenance: 0,
-    vacant: 0,
+    ACTIVE: 0,
+    MAINTENANCE: 0,
+    VACANT: 0,
     total: 0
   });
   const [isDeleting, setIsDeleting] = useState(false);
@@ -233,13 +233,13 @@ const Properties = () => {
   const calculateStatusCounts = (propertiesList) => {
     return propertiesList.reduce((acc, property) => {
       acc.total++;
-      const status = property.status || 'active'; // Default to active if status is null/undefined
+      const status = (property.status || 'ACTIVE').toUpperCase(); // Default to active and ensure uppercase
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {
-      active: 0,
-      maintenance: 0,
-      vacant: 0,
+      ACTIVE: 0,
+      MAINTENANCE: 0,
+      VACANT: 0,
       total: 0
     });
   };
@@ -273,7 +273,7 @@ const Properties = () => {
 
     // Apply status filter from cards or dropdown
     if (statusFilter) {
-      result = result.filter(p => p.status === statusFilter);
+      result = result.filter(p => (p.status || 'ACTIVE').toUpperCase() === statusFilter.toUpperCase());
     }
     
     // Apply search term filter
@@ -294,7 +294,7 @@ const Properties = () => {
 
     // Apply status filter from dropdown (overrides card selection)
     if (filterOptions.status) {
-      result = result.filter(p => p.status === filterOptions.status);
+      result = result.filter(p => (p.status || 'ACTIVE').toUpperCase() === filterOptions.status.toUpperCase());
     }
     
     // Apply date filter
@@ -332,9 +332,9 @@ const Properties = () => {
           case 'type-desc':
             return b.property_type.localeCompare(a.property_type);
           case 'status-asc':
-            return a.status.localeCompare(b.status);
+            return (a.status || 'ACTIVE').toUpperCase().localeCompare((b.status || 'ACTIVE').toUpperCase());
           case 'status-desc':
-            return b.status.localeCompare(a.status);
+            return (b.status || 'ACTIVE').toUpperCase().localeCompare((a.status || 'ACTIVE').toUpperCase());
           case 'date-asc':
             return new Date(a.created_at) - new Date(b.created_at);
           case 'date-desc':
@@ -418,7 +418,7 @@ const Properties = () => {
         let finalFilteredProperties = [...updatedProperties];
         // Re-apply filters (this logic is duplicated from the useEffect hook, consider extracting)
         if (statusFilter) {
-            finalFilteredProperties = finalFilteredProperties.filter(p => p.status === statusFilter);
+            finalFilteredProperties = finalFilteredProperties.filter(p => (p.status || 'ACTIVE').toUpperCase() === statusFilter.toUpperCase());
         }
         if (searchTerm.trim()) {
             const term = searchTerm.toLowerCase();
@@ -433,7 +433,7 @@ const Properties = () => {
              finalFilteredProperties = finalFilteredProperties.filter(p => p.property_type === filterOptions.propertyType);
          }
          if (filterOptions.status) {
-             finalFilteredProperties = finalFilteredProperties.filter(p => p.status === filterOptions.status);
+             finalFilteredProperties = finalFilteredProperties.filter(p => (p.status || 'ACTIVE').toUpperCase() === filterOptions.status.toUpperCase());
          }
         if (filterOptions.dateAdded) {
              const now = new Date();
@@ -453,8 +453,8 @@ const Properties = () => {
                      case 'name-desc': return b.name.localeCompare(a.name);
                      case 'type-asc': return a.property_type.localeCompare(b.property_type);
                      case 'type-desc': return b.property_type.localeCompare(a.property_type);
-                     case 'status-asc': return a.status.localeCompare(b.status);
-                     case 'status-desc': return b.status.localeCompare(a.status);
+                     case 'status-asc': return (a.status || 'ACTIVE').toUpperCase().localeCompare((b.status || 'ACTIVE').toUpperCase());
+                     case 'status-desc': return (b.status || 'ACTIVE').toUpperCase().localeCompare((a.status || 'ACTIVE').toUpperCase());
                      case 'date-asc': return new Date(a.created_at) - new Date(b.created_at);
                      case 'date-desc': return new Date(b.created_at) - new Date(a.created_at);
                      default: return 0;
@@ -517,7 +517,7 @@ const Properties = () => {
   };
 
   const handleStatusCardClick = (status) => {
-    setStatusFilter(status === statusFilter ? null : status);
+    setStatusFilter(status.toUpperCase() === statusFilter ? null : status.toUpperCase());
   };
 
   const handleSearch = (e) => {
@@ -613,26 +613,26 @@ const Properties = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatusCard 
           title="Active" 
-          count={statusCounts.active} 
-          bgColor={statusFilter === 'active' ? 'bg-green-100' : 'bg-green-50'} 
+          count={statusCounts.ACTIVE} 
+          bgColor={statusFilter === 'ACTIVE' ? 'bg-green-100' : 'bg-green-50'} 
           textColor="text-green-600"
-          onClick={() => handleStatusCardClick('active')}
+          onClick={() => handleStatusCardClick('ACTIVE')}
           icon={<svg className="h-6 w-6 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
         />
         <StatusCard 
           title="In-maintenance" 
-          count={statusCounts.maintenance} 
-          bgColor={statusFilter === 'maintenance' ? 'bg-orange-100' : 'bg-orange-50'} 
+          count={statusCounts.MAINTENANCE} 
+          bgColor={statusFilter === 'MAINTENANCE' ? 'bg-orange-100' : 'bg-orange-50'} 
           textColor="text-orange-600"
-          onClick={() => handleStatusCardClick('maintenance')}
+          onClick={() => handleStatusCardClick('MAINTENANCE')}
           icon={<svg className="h-6 w-6 text-orange-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
         />
         <StatusCard 
           title="Vacant" 
-          count={statusCounts.vacant} 
-          bgColor={statusFilter === 'vacant' ? 'bg-yellow-100' : 'bg-yellow-50'} 
+          count={statusCounts.VACANT} 
+          bgColor={statusFilter === 'VACANT' ? 'bg-yellow-100' : 'bg-yellow-50'} 
           textColor="text-yellow-600"
-          onClick={() => handleStatusCardClick('vacant')}
+          onClick={() => handleStatusCardClick('VACANT')}
           icon={<svg className="h-6 w-6 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
         />
         <StatusCard 
@@ -693,7 +693,7 @@ const Properties = () => {
                   )}
                   {filterOptions.status && (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                      Status: {capitalize(filterOptions.status)}
+                      Status: {capitalize(filterOptions.status.toLowerCase())}
                     </span>
                   )}
                   {filterOptions.dateAdded && (
@@ -760,20 +760,18 @@ const Properties = () => {
                     <div className="p-2">
                       <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3 pt-1">Status</h3>
                       <div className="space-y-1">
-                        {['active', 'maintenance', 'vacant'].map(status => (
+                        {['ACTIVE', 'MAINTENANCE', 'VACANT'].map(status => (
                           <button
                             key={status}
                             onClick={() => handleFilterSelect('status', status)}
-                            className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
-                              filterOptions.status === status ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-100'
-                            }`}
+                            className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${filterOptions.status === status ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-100'}`}
                           >
                             {filterOptions.status === status && (
                               <svg className="mr-2 h-4 w-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                               </svg>
                             )}
-                            {capitalize(status)}
+                            {capitalize(status.toLowerCase())}
                           </button>
                         ))}
                       </div>

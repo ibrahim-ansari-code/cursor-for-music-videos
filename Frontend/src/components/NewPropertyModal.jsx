@@ -228,7 +228,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading, propertyData, 
     property_type: '',
     description: '',
     year_built: '',
-    status: 'active',
+    status: 'ACTIVE',
     // Apartment specific fields
     num_floors: '',
     units_per_floor: '',
@@ -260,7 +260,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading, propertyData, 
         property_type: propertyData.property_type || '',
         description: propertyData.description || '',
         year_built: propertyData.year_built || '',
-        status: propertyData.status || 'active',
+        status: propertyData.status || 'ACTIVE',
         // For apartment properties, we'd need to fetch unit details separately
         // or pass them with the propertyData
         num_floors: '',
@@ -286,7 +286,7 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading, propertyData, 
       property_type: propertyData.property_type || '',
       description: propertyData.description || '',
       year_built: propertyData.year_built || '',
-      status: propertyData.status || 'active',
+      status: propertyData.status || 'ACTIVE',
     } : initialFormData;
     
     // Compare each field in formData with compareData
@@ -443,6 +443,11 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading, propertyData, 
       // Prepare property payload
       const propertyPayload = { ...formData };
       
+      // Ensure status is uppercase
+      if (propertyPayload.status) {
+        propertyPayload.status = propertyPayload.status.toUpperCase();
+      }
+
       // Convert empty optional fields to null for backend validation
       if (propertyPayload.year_built === '') {
         propertyPayload.year_built = null;
@@ -715,9 +720,9 @@ const NewPropertyModal = ({ isOpen, onClose, onSubmit, isLoading, propertyData, 
                     value={formData.status}
                     onChange={handleChange}
                   >
-                    <option value="active">Active</option>
-                    <option value="maintenance">Maintenance</option>
-                    <option value="vacant">Vacant</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="MAINTENANCE">Maintenance</option>
+                    <option value="VACANT">Vacant</option>
                   </Select>
                 </div>
               </div>

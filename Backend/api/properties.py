@@ -62,7 +62,7 @@ class PropertyResponse(BaseModel):
     description: Optional[str] = None
     year_built: Optional[int] = None
     status: PropertyStatus = PropertyStatus.ACTIVE
-    user_id: int
+    user_id: str  # Changed from int to str
     created_at: datetime
     updated_at: datetime
 
@@ -70,7 +70,7 @@ class PropertyResponse(BaseModel):
         from_attributes = True
 
 class OwnerResponse(BaseModel):
-    id: int
+    id: str  # Changed from int to str
     first_name: str
     last_name: str
     email: str
@@ -109,7 +109,7 @@ class PropertyDetailResponse_Standalone(BaseModel):
     description: Optional[str] = None
     year_built: Optional[int] = None
     status: PropertyStatus
-    user_id: int
+    user_id: str # Will inherit str from PropertyResponse if it was based on it, explicitly set for clarity
     created_at: datetime
     updated_at: datetime
     # Additional fields for detail view
@@ -223,7 +223,7 @@ async def get_property(
             description=property_orm.description,
             year_built=property_orm.year_built,
             status=response_status,  # Use calculated status
-            user_id=property_orm.user_id,
+            user_id=str(property_orm.user_id), # Ensure user_id is explicitly cast to string
             created_at=property_orm.created_at,
             updated_at=property_orm.updated_at,
             owner=OwnerResponse.from_orm(property_orm.owner) if property_orm.owner else None,
@@ -305,7 +305,7 @@ async def create_property(
             description=property_data.description,
             year_built=property_data.year_built,
             status=property_data.status or PropertyStatus.ACTIVE,
-            user_id=current_user.id,
+            user_id=str(current_user.id), # Ensure user_id is explicitly cast to string
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
@@ -480,7 +480,7 @@ async def update_property(
             description=updated_property_orm.description,
             year_built=updated_property_orm.year_built,
             status=response_status,
-            user_id=updated_property_orm.user_id,
+            user_id=str(updated_property_orm.user_id), # Ensure user_id is explicitly cast to string
             created_at=updated_property_orm.created_at,
             updated_at=updated_property_orm.updated_at,
             owner=OwnerResponse.from_orm(updated_property_orm.owner) if updated_property_orm.owner else None,

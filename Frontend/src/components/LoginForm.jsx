@@ -1,6 +1,8 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../App';
+import GoogleSignInButton from './GoogleSignInButton';
+import { supabase } from '../supabaseClient';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -8,7 +10,18 @@ const LoginForm = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useContext(AuthContext);
+  const { login, session } = useContext(AuthContext);
+
+  useEffect(() => {
+    const checkSession = async () => {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (currentSession) {
+            console.log('User already logged in, redirecting to dashboard from LoginForm');
+            navigate('/dashboard', { replace: true });
+        }
+    };
+    checkSession();
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,6 +60,23 @@ const LoginForm = () => {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full">
+        <GoogleSignInButton setLoading={setLoading} setError={setError} />
+
+        {error && (
+          <div className="text-sm text-red-600 mt-2 mb-4 text-center">
+            {error}
+          </div>
+        )}
+
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+            <div className="w-full border-t border-gray-300" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+          </div>
+        </div>
+
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="email-address" className="block text-sm font-medium text-gray-700">
