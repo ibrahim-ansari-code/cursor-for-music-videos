@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 class PaymentStatus(str, Enum):
     PENDING = "Pending"
     PAID = "Paid"
+    PARTIAL = "Partial"
     OVERDUE = "Overdue"
     CANCELLED = "Cancelled"
     REFUNDED = "Refunded"

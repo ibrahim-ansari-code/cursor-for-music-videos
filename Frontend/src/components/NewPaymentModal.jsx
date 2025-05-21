@@ -16,10 +16,12 @@ const PAYMENT_METHODS = [
 ];
 
 const PAYMENT_STATUSES = [
-  'PAID',
-  'PARTIAL',
-  'LATE',
-  'OVERDUE'
+  'Pending',
+  'Paid',
+  'Partial',
+  'Overdue',
+  'Cancelled',
+  'Refunded'
 ];
 
 const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
@@ -30,7 +32,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
     amount: '',
     payment_date: new Date().toISOString().split('T')[0],
     payment_method: '',
-    status: 'PAID',
+    status: 'Paid',
     notes: ''
   });
 
@@ -182,7 +184,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
       amount: '',
       payment_date: new Date().toISOString().split('T')[0],
       payment_method: '',
-      status: 'PAID',
+      status: 'Paid',
       notes: ''
     });
     setError(null);

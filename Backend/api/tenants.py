@@ -227,21 +227,45 @@ async def get_tenants(
 
     # Apply ownership/property filters
     if current_user.user_type == UserType.LANDLORD:
-        # Landlord sees tenants linked to their properties via Leases
-        # OR tenants currently residing in their property (current_property_id)
         landlord_prop_subquery = select(Property.id).where(Property.user_id == current_user.id).scalar_subquery()
-        filters.append(
-            or_(
-                Lease.property_id.in_(landlord_prop_subquery),
-                Tenant.current_property_id.in_(landlord_prop_subquery)
-            )
+
+        # Base conditions: linked to landlord's properties or completely unassigned
+        linked_to_landlord_props = or_(
+            Lease.property_id.in_(landlord_prop_subquery),
+            Tenant.current_property_id.in_(landlord_prop_subquery)
         )
-        # Additionally filter by specific property_id if provided by landlord
+        
+        # Condition for tenants not assigned to any property and having no leases
+        # This makes newly created tenants visible before assignment
+        completely_unassigned = and_(
+            Tenant.current_property_id == None,
+            ~select(Lease.id).where(Lease.tenant_id == Tenant.id).exists() # Check if no leases exist for the tenant
+        )
+        
+        general_visibility_filter = or_(
+            linked_to_landlord_props,
+            completely_unassigned
+        )
+
         if property_id:
-             filters.append(or_(
-                 Lease.property_id == property_id,
-                 Tenant.current_property_id == property_id
-             ))
+            # If a specific property_id is given, focus only on tenants linked to THAT property,
+            # and that property must belong to the landlord.
+            specific_property_filter = and_(
+                or_(
+                    Lease.property_id == property_id,
+                    Tenant.current_property_id == property_id
+                ),
+                # Ensure the specified property_id actually belongs to the current landlord
+                # This requires joining Property table if not already implicitly joined by Lease.property_id
+                # If Tenant.current_property_id is used, we need to ensure that property belongs to landlord.
+                # This is tricky as Property table might not be in the main join path for `completely_unassigned`.
+                # Let's refine: the subquery `landlord_prop_subquery` can be used.
+                property_id.in_(landlord_prop_subquery)
+            )
+            filters.append(specific_property_filter)
+        else:
+            # If no specific property_id, apply the general visibility rule
+            filters.append(general_visibility_filter)
 
     elif current_user.is_admin:
         # Admin can filter by any property_id if provided

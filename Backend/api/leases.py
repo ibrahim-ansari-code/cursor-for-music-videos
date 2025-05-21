@@ -685,7 +685,12 @@ async def parse_lease(
     logger.info(f"User {current_user.id} authorized to parse lease")
 
     try:
+        await file.seek(0) # Reset file pointer to the beginning
         content = await file.read()
+        if not content:
+            logger.error("File content is empty after reading.")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file content is empty or could not be read.")
+            
         pdf_document = fitz.open(stream=content, filetype="pdf")
         text = "".join(page.get_text() for page in pdf_document)
         pdf_document.close()

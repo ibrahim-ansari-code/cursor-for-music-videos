@@ -108,7 +108,7 @@ class PropertyDetailResponse_Standalone(BaseModel):
     property_type: str
     description: Optional[str] = None
     year_built: Optional[int] = None
-    status: PropertyStatus
+    status: str # Changed from PropertyStatus to str
     user_id: str # Will inherit str from PropertyResponse if it was based on it, explicitly set for clarity
     created_at: datetime
     updated_at: datetime

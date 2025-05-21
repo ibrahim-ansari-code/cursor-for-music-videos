@@ -160,15 +160,16 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
         setIsLoadingTenants(true);
         setTenantLoadError(null);
         try {
-          const data = await fetchTenantsByProperty(selectedProperty);
+          // Fetch ALL tenants the user can see, not just by selectedProperty for the dropdown
+          const data = await fetchTenants({}); 
           setTenants(data);
-          setError(null); // Clear any previous errors
+          setError(null); // Clear any previous general errors
           
           // Now fetch units for this property
           await loadUnits(selectedProperty);
         } catch (error) {
           console.error('Failed to fetch tenants:', error);
-          setTenantLoadError('Failed to load tenants for this property. Please try again.');
+          setTenantLoadError('Failed to load tenants. Please try again.');
         } finally {
           setIsLoadingTenants(false);
         }
