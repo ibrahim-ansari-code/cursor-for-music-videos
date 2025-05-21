@@ -921,8 +921,8 @@ async def get_accounting_overview(
         return text(sql)
 
     # -- Calculations --
-    paid_status_filter = "AND p.status IN ('PAID', 'PARTIAL')"
-    outstanding_status_filter = "AND p.status IN ('PENDING', 'OVERDUE')"
+    paid_status_filter = "AND p.status IN ('Paid', 'Partial')"
+    outstanding_status_filter = "AND p.status IN ('Pending', 'Overdue')"
 
     # Prepare base params (user_id if landlord)
     base_query_params = {}
@@ -985,7 +985,7 @@ async def get_accounting_overview(
         payment_data AS (
             SELECT date_trunc('month', p.payment_date)::date as month, SUM(p.amount) AS revenue
             FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id
-            WHERE p.status IN ('PAID', 'PARTIAL') {trend_ownership_filter_payments} AND p.payment_date >= date_trunc('month', current_date - interval '11 months')
+            WHERE p.status IN ('Paid', 'Partial') {trend_ownership_filter_payments} AND p.payment_date >= date_trunc('month', current_date - interval '11 months')
             GROUP BY 1
         ),
         expense_data AS (

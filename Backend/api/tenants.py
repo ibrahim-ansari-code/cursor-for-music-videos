@@ -239,7 +239,7 @@ async def get_tenants(
         # This makes newly created tenants visible before assignment
         completely_unassigned = and_(
             Tenant.current_property_id == None,
-            ~select(Lease.id).where(Lease.tenant_id == Tenant.id).exists() # Check if no leases exist for the tenant
+            ~select(Lease.id).where(Lease.tenant_id == Tenant.id).correlate_except(Lease).exists()
         )
         
         general_visibility_filter = or_(

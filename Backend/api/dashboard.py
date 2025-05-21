@@ -126,10 +126,10 @@ async def get_dashboard_data(
     ),
     financial_summary AS (
         SELECT 
-            COALESCE(SUM(CASE WHEN pay.status IN ('PAID', 'PARTIAL') THEN pay.amount ELSE 0 END), 0) as monthly_revenue,
+            COALESCE(SUM(CASE WHEN pay.status IN ('Paid', 'Partial') THEN pay.amount ELSE 0 END), 0) as monthly_revenue,
             COALESCE(SUM(CASE WHEN exp.category = 'maintenance' THEN exp.amount ELSE 0 END), 0) as maintenance_expenses,
             COALESCE(SUM(exp.amount), 0) as monthly_expenses,
-            COALESCE(SUM(CASE WHEN inv.status IN ('PENDING', 'OVERDUE') THEN inv.amount ELSE 0 END), 0) as outstanding_rent
+            COALESCE(SUM(CASE WHEN inv.status IN ('Pending', 'Overdue') THEN inv.amount ELSE 0 END), 0) as outstanding_rent
         FROM 
             properties p
         LEFT JOIN 
@@ -142,7 +142,7 @@ async def get_dashboard_data(
             expenses exp ON p.id = exp.property_id AND exp.expense_date BETWEEN :start_date AND :end_date
         LEFT JOIN 
             invoices inv ON (p.id = inv.property_id OR t.user_id = inv.tenant_id)
-                         AND inv.status IN ('PENDING', 'OVERDUE')
+                         AND inv.status IN ('Pending', 'Overdue')
         WHERE 
             1=1
             {property_filter} {landlord_property_filter_sql}
@@ -227,7 +227,7 @@ async def get_dashboard_data(
     monthly_data AS (
         SELECT 
             date_trunc('month', m.month_start)::date as month,
-            COALESCE(SUM(CASE WHEN pay.status IN ('PAID', 'PARTIAL') THEN pay.amount ELSE 0 END), 0) as revenue,
+            COALESCE(SUM(CASE WHEN pay.status IN ('Paid', 'Partial') THEN pay.amount ELSE 0 END), 0) as revenue,
             COALESCE(SUM(exp.amount), 0) as expenses
         FROM 
             months m
@@ -301,7 +301,7 @@ async def get_dashboard_data(
     LEFT JOIN 
         properties p ON i.property_id = p.id
     WHERE 
-        i.status IN ('PENDING', 'LATE', 'OVERDUE')
+        i.status IN ('Pending', 'Overdue')
         {property_filter} {landlord_property_filter_sql}
     ORDER BY 
         i.due_date ASC

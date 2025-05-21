@@ -159,7 +159,8 @@ const Accounting = () => {
       
       const params = {};
       if (paymentFilters.status !== 'all') {
-        params.status = paymentFilters.status;
+        // Ensure status is sent with initial cap to match backend enum
+        params.status = paymentFilters.status.charAt(0).toUpperCase() + paymentFilters.status.slice(1);
       }
       
       // Convert date range to actual date params
@@ -194,7 +195,8 @@ const Accounting = () => {
       
       const params = {};
       if (invoiceFilters.status !== 'all') {
-        params.status = invoiceFilters.status;
+        // Ensure status is sent with initial cap to match backend enum
+        params.status = invoiceFilters.status.charAt(0).toUpperCase() + invoiceFilters.status.slice(1);
       }
       
       // Convert date range to actual date params
@@ -549,8 +551,10 @@ const Accounting = () => {
                   <option value="all">All Statuses</option>
                   <option value="pending">Pending</option>
                   <option value="paid">Paid</option>
-                  <option value="late">Late</option>
                   <option value="partial">Partial</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="refunded">Refunded</option>
                 </select>
               </div>
               
@@ -645,8 +649,8 @@ const Accounting = () => {
                           {payment.payment_method}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`badge ${getStatusBadgeClass(payment.status)}`}>
-                            {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                          <span className={`badge ${getStatusBadgeClass(payment.status.toLowerCase())}`}>
+                            {payment.status.charAt(0).toUpperCase() + payment.status.slice(1).toLowerCase()}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
