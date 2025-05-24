@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import './styles/ui-feedback.css';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import LoginPage from './pages/LoginPage';
@@ -189,7 +190,12 @@ function App() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return <div className="flex items-center justify-center h-screen">
+      <div class="text-center">
+          <div class="spinner block mx-auto mb-2 w-7 h-7"></div>
+          <p>Loading...</p>
+        </div>
+      </div>;
   }
 
   return (

@@ -369,8 +369,8 @@ const Dashboard = () => {
                   rentLoading ? (
                     <tr>
                       <td colSpan="4" className="px-4 py-4 text-center text-sm text-gray-500">
-                        <div className="animate-spin inline-block rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500 mr-2"></div>
-                        Loading...
+                        <div class="spinner block mx-auto mb-2 w-5 h-5"></div>
+                        <p>Loading...</p>
                       </td>
                     </tr>
                   ) : rentData.length > 0 ? (
