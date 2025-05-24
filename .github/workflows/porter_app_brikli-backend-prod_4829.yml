@@ -9,10 +9,6 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
-
-            - name: Set up QEMU # Ensure QEMU is set up for cross-platform builds
-              uses: docker/setup-qemu-action@v3
-
             - name: Set Github tag
               id: vars
               run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
