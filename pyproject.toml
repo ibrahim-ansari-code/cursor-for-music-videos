@@ -40,7 +40,7 @@ dependencies = [
 name = "brikli-backend"
 version = "0.1.0"
 description = ""
-authors = ["Zubin <zubin@brikli.com>"]
+authors = ["Zubin <zubin.singh@brikli.com>"]
 
 # Include the Backend folder as your top‐level package:
 packages = [

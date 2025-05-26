@@ -73,8 +73,32 @@ function App() {
   // Check authentication status on mount and listen for changes
   useEffect(() => {
     setLoading(true);
+    
+    // Add a timeout to prevent infinite loading
+    const authTimeout = setTimeout(() => {
+      console.warn('Authentication check timed out, clearing loading state');
+      setLoading(false);
+      setUser(null);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user_type');
+      localStorage.removeItem('user');
+    }, 10000); // 10 second timeout
+    
     // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
+      clearTimeout(authTimeout); // Clear timeout since we got a response
+      
+      if (error) {
+        console.error('Error getting session:', error);
+        // Clear any stale auth data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user_type');
+        localStorage.removeItem('user');
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
       if (session) {
         // If session exists, fetch our backend's user profile
         try {
@@ -98,19 +122,37 @@ function App() {
           }
         } catch (e) {
           console.error('Error fetching user profile with existing session:', e);
-          // Potentially sign out if /me fails critically
-           await supabase.auth.signOut();
-           localStorage.removeItem('token');
-           localStorage.removeItem('user_type');
-           localStorage.removeItem('user');
-           setUser(null);
+          // If the error is authentication-related (401, 403), sign out
+          if (e.status === 401 || e.status === 403) {
+            console.log('Authentication error detected, signing out...');
+            await supabase.auth.signOut();
+          }
+          localStorage.removeItem('token');
+          localStorage.removeItem('user_type');
+          localStorage.removeItem('user');
+          setUser(null);
         }
+      } else {
+        // No session, ensure clean state
+        localStorage.removeItem('token');
+        localStorage.removeItem('user_type');
+        localStorage.removeItem('user');
+        setUser(null);
       }
+      setLoading(false);
+    }).catch((error) => {
+      clearTimeout(authTimeout);
+      console.error('Error in getSession:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user_type');
+      localStorage.removeItem('user');
+      setUser(null);
       setLoading(false);
     });
 
     const { data: authSubscriptionData } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.id);
         const currentToken = session?.access_token || null;
         
         // Store/remove Supabase token for api.js to pick up
@@ -140,8 +182,10 @@ function App() {
               }
             } catch (e) {
               console.error('Error fetching user profile after SIGNED_IN:', e);
-              // Sign out if /me fails
-              await supabase.auth.signOut();
+              // If the error is authentication-related, sign out
+              if (e.status === 401 || e.status === 403) {
+                await supabase.auth.signOut();
+              }
               localStorage.removeItem('user_type');
               localStorage.removeItem('user');
               setUser(null);
@@ -163,6 +207,7 @@ function App() {
     );
 
     return () => {
+      clearTimeout(authTimeout);
       authSubscriptionData?.subscription?.unsubscribe();
     };
   }, []);

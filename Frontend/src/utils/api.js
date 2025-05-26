@@ -28,7 +28,16 @@ const handleResponse = async (response) => {
       
       // Handle auth errors
       if (response.status === 401) {
-        // Clear auth data and redirect to login
+        // For /auth/me calls, don't redirect automatically - let the caller handle it
+        if (response.url.includes('/auth/me')) {
+          console.error('Authentication error on /auth/me:', errorData);
+          throw Object.assign(
+            new Error('Authentication failed. Session expired.'),
+            errorObj
+          );
+        }
+        
+        // For other endpoints, clear auth data and redirect to login
         console.error('Authentication error:', errorData);
         localStorage.removeItem('token');
         localStorage.removeItem('user_type');
@@ -53,7 +62,15 @@ const handleResponse = async (response) => {
       }
       
       if (response.status === 401) {
-        // Clear auth data and redirect to login
+        // For /auth/me calls, don't redirect automatically
+        if (response.url.includes('/auth/me')) {
+          throw Object.assign(
+            new Error('Authentication failed. Session expired.'),
+            errorObj
+          );
+        }
+        
+        // For other endpoints, clear auth data and redirect to login
         localStorage.removeItem('token');
         localStorage.removeItem('user_type');
         localStorage.removeItem('user');
@@ -104,6 +121,7 @@ const apiRequest = async (endpoint, options = {}) => {
   }
   
   // Check if token exists before making authenticated requests
+  // Skip this check for /auth/me as it's used to validate the token
   if (!token && !endpoint.includes('/auth/')) {
     console.error('No token found for authenticated request');
     window.location.href = '/login';
@@ -195,7 +213,22 @@ export const register = async (userData) => {
 };
 
 export const getCurrentUser = async () => {
-  return apiRequest('/auth/me');
+  try {
+    return await apiRequest('/auth/me');
+  } catch (error) {
+    // If it's an authentication error, clear local storage and don't redirect
+    // Let the App.jsx handle the redirect logic
+    if (error.status === 401 || error.status === 403) {
+      console.log('Authentication error in getCurrentUser, clearing local storage');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user_type');
+      localStorage.removeItem('user');
+      // Don't redirect here, let App.jsx handle it
+      throw error;
+    }
+    // For other errors, just rethrow
+    throw error;
+  }
 };
 
 // Dashboard API Functions
