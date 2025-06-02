@@ -1,20 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { fetchProperties, parseLease, fetchTenantsByProperty, getCurrentUser, fetchPropertyUnits, uploadLeasePDF } from '../utils/api';
-import TenantModal from './TenantModal';
-import ConfirmLeaseModal from './ConfirmLeaseModal';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect } from "react";
+import {
+  fetchProperties,
+  parseLease,
+  fetchTenants,
+  getCurrentUser,
+  fetchPropertyUnits,
+  uploadLeasePDF,
+} from "../utils/api";
+import TenantModal from "./TenantModal";
+import ConfirmLeaseModal from "./ConfirmLeaseModal";
+import { motion, AnimatePresence } from "framer-motion";
 
 // UI Components
 const Label = ({ htmlFor, required, children }) => (
-  <label 
-    htmlFor={htmlFor} 
-    className={`block text-sm font-medium text-gray-700 mb-1.5 ${required ? 'after:content-["*"] after:ml-0.5 after:text-red-500' : ''}`}
+  <label
+    htmlFor={htmlFor}
+    className={`block text-sm font-medium text-gray-700 mb-1.5 ${
+      required ? 'after:content-["*"] after:ml-0.5 after:text-red-500' : ""
+    }`}
   >
     {children}
   </label>
 );
 
-const Input = ({ id, name, value, onChange, placeholder, required, readOnly, type = "text", className = "", ...props }) => (
+const Input = ({
+  id,
+  name,
+  value,
+  onChange,
+  placeholder,
+  required,
+  readOnly,
+  type = "text",
+  className = "",
+  ...props
+}) => (
   <input
     id={id || name}
     name={name}
@@ -24,34 +44,57 @@ const Input = ({ id, name, value, onChange, placeholder, required, readOnly, typ
     placeholder={placeholder}
     required={required}
     readOnly={readOnly}
-    className={`w-full px-4 py-2.5 text-gray-900 bg-white border ${readOnly ? 'bg-gray-50 border-gray-200' : 'border-gray-300'} rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 ${className}`}
+    className={`w-full px-4 py-2.5 text-gray-900 bg-white border ${
+      readOnly ? "bg-gray-50 border-gray-200" : "border-gray-300"
+    } rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 ${className}`}
     {...props}
   />
 );
 
 const ErrorMessage = ({ message }) => (
-  <motion.div 
+  <motion.div
     initial={{ opacity: 0, y: -10 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0 }}
     className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg flex items-start gap-2"
   >
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-5 w-5 mt-0.5 flex-shrink-0"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+    >
+      <path
+        fillRule="evenodd"
+        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 9a1 1 0 100-2 1 1 0 000 2z"
+        clipRule="evenodd"
+      />
     </svg>
     <span>{message}</span>
   </motion.div>
 );
 
-const Button = ({ type, onClick, variant = "primary", disabled, children, className = "", ...props }) => {
-  const baseClasses = "px-4 py-2.5 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed";
-  
+const Button = ({
+  type,
+  onClick,
+  variant = "primary",
+  disabled,
+  children,
+  className = "",
+  ...props
+}) => {
+  const baseClasses =
+    "px-4 py-2.5 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed";
+
   const variants = {
-    primary: "bg-blue-600 hover:bg-blue-700 text-white border border-transparent focus:ring-blue-500",
-    secondary: "bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 focus:ring-blue-500",
-    danger: "bg-red-600 hover:bg-red-700 text-white border border-transparent focus:ring-red-500"
+    primary:
+      "bg-blue-600 hover:bg-blue-700 text-white border border-transparent focus:ring-blue-500",
+    secondary:
+      "bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 focus:ring-blue-500",
+    danger:
+      "bg-red-600 hover:bg-red-700 text-white border border-transparent focus:ring-red-500",
   };
-  
+
   return (
     <button
       type={type}
@@ -67,27 +110,31 @@ const Button = ({ type, onClick, variant = "primary", disabled, children, classN
 
 const FormSection = ({ title, children, className = "" }) => (
   <div className={`space-y-6 ${className}`}>
-    {title && <h3 className="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200">{title}</h3>}
+    {title && (
+      <h3 className="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200">
+        {title}
+      </h3>
+    )}
     {children}
   </div>
 );
 
 const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
   const [properties, setProperties] = useState([]);
-  const [selectedProperty, setSelectedProperty] = useState('');
+  const [selectedProperty, setSelectedProperty] = useState("");
   const [tenants, setTenants] = useState([]);
   const [selectedTenant, setSelectedTenant] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [leaseData, setLeaseData] = useState({
-    monthly_rent: '',
-    start_date: '',
-    end_date: '',
-    security_deposit: '',
-    tenant_name: '',
-    unit: ''
+    monthly_rent: "",
+    start_date: "",
+    end_date: "",
+    security_deposit: "",
+    tenant_name: "",
+    unit: "",
   });
   const [isCreatingNewTenant, setIsCreatingNewTenant] = useState(false);
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
@@ -95,12 +142,12 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
   const [showTenantModal, setShowTenantModal] = useState(false);
   const [showConfirmLeaseModal, setShowConfirmLeaseModal] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [propertySearchTerm, setPropertySearchTerm] = useState('');
+  const [propertySearchTerm, setPropertySearchTerm] = useState("");
   const [tenantData, setTenantData] = useState({});
   const [createdTenant, setCreatedTenant] = useState(null);
   const [availableUnits, setAvailableUnits] = useState([]);
   const [isLoadingUnits, setIsLoadingUnits] = useState(false);
-  
+
   // Load properties on component mount
   useEffect(() => {
     const loadProperties = async () => {
@@ -108,8 +155,8 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
         const data = await fetchProperties();
         setProperties(data);
       } catch (error) {
-        console.error('Failed to fetch properties:', error);
-        setError('Failed to load properties. Please try again.');
+        console.error("Failed to fetch properties:", error);
+        setError("Failed to load properties. Please try again.");
       }
     };
 
@@ -117,33 +164,37 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
       try {
         // Check current user permissions from server
         const userInfo = await getCurrentUser();
-        
+
         // Get and log the user type we got from the server
         const userType = userInfo.user_type?.toUpperCase();
-        console.log('Current user type from server:', userType);
-        
+        console.log("Current user type from server:", userType);
+
         // Also check what we have in localStorage
-        const localUserType = localStorage.getItem('user_type');
-        const localUser = JSON.parse(localStorage.getItem('user') || '{}');
-        console.log('User type from localStorage:', localUserType);
-        console.log('User object from localStorage:', localUser);
-        
+        const localUserType = localStorage.getItem("user_type");
+        const localUser = JSON.parse(localStorage.getItem("user") || "{}");
+        console.log("User type from localStorage:", localUserType);
+        console.log("User object from localStorage:", localUser);
+
         // Validate against uppercase values to match the enum
-        if (userType !== 'LANDLORD' && userType !== 'ADMIN') {
-          setError('Your account doesn\'t have permission to create leases. Please contact an administrator.');
+        if (userType !== "LANDLORD" && userType !== "ADMIN") {
+          setError(
+            "Your account doesn't have permission to create leases. Please contact an administrator."
+          );
         } else {
           // Ensure we have the correct uppercase value in localStorage
-          localStorage.setItem('user_type', userType);
-          
+          localStorage.setItem("user_type", userType);
+
           // Update the user object too if it exists
           if (localUser && localUser.id) {
             localUser.user_type = userType;
-            localStorage.setItem('user', JSON.stringify(localUser));
+            localStorage.setItem("user", JSON.stringify(localUser));
           }
         }
       } catch (error) {
-        console.error('Failed to validate user permissions:', error);
-        setError('Unable to verify your permissions. Please refresh the page and try again.');
+        console.error("Failed to validate user permissions:", error);
+        setError(
+          "Unable to verify your permissions. Please refresh the page and try again."
+        );
       }
     };
 
@@ -161,15 +212,15 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
         setTenantLoadError(null);
         try {
           // Fetch ALL tenants the user can see, not just by selectedProperty for the dropdown
-          const data = await fetchTenants({}); 
+          const data = await fetchTenants({});
           setTenants(data);
           setError(null); // Clear any previous general errors
-          
+
           // Now fetch units for this property
           await loadUnits(selectedProperty);
         } catch (error) {
-          console.error('Failed to fetch tenants:', error);
-          setTenantLoadError('Failed to load tenants. Please try again.');
+          console.error("Failed to fetch tenants:", error);
+          setTenantLoadError("Failed to load tenants. Please try again.");
         } finally {
           setIsLoadingTenants(false);
         }
@@ -187,14 +238,14 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
   // Fetch available units for a property
   const loadUnits = async (propertyId) => {
     if (!propertyId) return;
-    
+
     setIsLoadingUnits(true);
     try {
       const units = await fetchPropertyUnits(propertyId);
-      console.log('Available units:', units);
+      console.log("Available units:", units);
       setAvailableUnits(units || []);
     } catch (error) {
-      console.error('Failed to fetch units for property:', error);
+      console.error("Failed to fetch units for property:", error);
       // Don't set an error for the user, just log it
     } finally {
       setIsLoadingUnits(false);
@@ -203,23 +254,23 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownOpen && !event.target.closest('.tenant-dropdown')) {
+      if (dropdownOpen && !event.target.closest(".tenant-dropdown")) {
         setDropdownOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [dropdownOpen]);
 
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files[0];
-    if (selectedFile && selectedFile.type === 'application/pdf') {
+    if (selectedFile && selectedFile.type === "application/pdf") {
       setFile(selectedFile);
       setError(null);
     } else {
-      alert('Please select a PDF file');
+      alert("Please select a PDF file");
       setFile(null);
     }
   };
@@ -227,11 +278,11 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
   const handleFileDrop = (e) => {
     e.preventDefault();
     const selectedFile = e.dataTransfer.files[0];
-    if (selectedFile && selectedFile.type === 'application/pdf') {
+    if (selectedFile && selectedFile.type === "application/pdf") {
       setFile(selectedFile);
       setError(null);
     } else {
-      alert('Please drop a PDF file');
+      alert("Please drop a PDF file");
       setFile(null);
     }
   };
@@ -242,18 +293,18 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
       setError(null);
 
       // First, upload the PDF file to Azure Blob Storage
-      console.log('Uploading lease PDF to Azure Blob Storage...');
+      console.log("Uploading lease PDF to Azure Blob Storage...");
       const fileUrl = await uploadLeasePDF(file);
-      console.log('Lease PDF uploaded successfully, URL:', fileUrl);
+      console.log("Lease PDF uploaded successfully, URL:", fileUrl);
 
       // Analyze the lease to get LLM data
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('property_id', selectedProperty);
+      formData.append("file", file);
+      formData.append("property_id", selectedProperty);
 
-      console.log('Calling parseLease API endpoint...');
+      console.log("Calling parseLease API endpoint...");
       const response = await parseLease(formData);
-      console.log('Lease parse successful:', response);
+      console.log("Lease parse successful:", response);
 
       // Store the complete lease data needed for creation
       const extractedLeaseData = {
@@ -268,50 +319,52 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
         late_fee_amount: null,
         late_fee_after_days: null,
         special_terms: null,
-        unit: response.unit || '',
-        file_url: fileUrl // Add the file URL to lease data
+        unit: response.unit || "",
+        file_url: fileUrl, // Add the file URL to lease data
       };
-      console.log('Storing lease data:', extractedLeaseData);
+      console.log("Storing lease data:", extractedLeaseData);
       setLeaseData(extractedLeaseData);
 
       // Set tenant data from LLM extracted information
       const tenantData = {
         full_name: response.tenant_name,
-        first_name: '',
-        last_name: '',
-        phone: '', // This will be filled in by the user in TenantModal
-        email: '', // This will be filled in by the user in TenantModal
+        first_name: "",
+        last_name: "",
+        phone: "", // This will be filled in by the user in TenantModal
+        email: "", // This will be filled in by the user in TenantModal
         current_property_id: parseInt(selectedProperty),
-        unit: response.unit || '',
+        unit: response.unit || "",
         lease_start: response.start_date,
         lease_end: response.end_date,
-        monthly_rent: response.monthly_rent?.toString() || '0',
-        status: 'Active'
+        monthly_rent: response.monthly_rent?.toString() || "0",
+        status: "Active",
       };
 
       // Split the full name into first and last name
       if (response.tenant_name) {
-        const nameParts = response.tenant_name.split(' ');
-        tenantData.first_name = nameParts[0] || '';
-        tenantData.last_name = nameParts.slice(1).join(' ') || '';
+        const nameParts = response.tenant_name.split(" ");
+        tenantData.first_name = nameParts[0] || "";
+        tenantData.last_name = nameParts.slice(1).join(" ") || "";
       }
 
       // Find unitId based on unit name if available
       let unitId = null;
       if (response.unit && availableUnits && availableUnits.length > 0) {
-        const matchedUnit = availableUnits.find(unit => 
-          unit.name.toLowerCase() === response.unit.toLowerCase()
+        const matchedUnit = availableUnits.find(
+          (unit) => unit.name.toLowerCase() === response.unit.toLowerCase()
         );
         if (matchedUnit) {
           unitId = matchedUnit.id;
           tenantData.unit_id = unitId;
-          console.log(`Found matching unit ID ${unitId} for unit name ${response.unit}`);
+          console.log(
+            `Found matching unit ID ${unitId} for unit name ${response.unit}`
+          );
         }
       }
 
-      console.log('Setting tenant data:', tenantData);
+      console.log("Setting tenant data:", tenantData);
       setTenantData(tenantData);
-      
+
       // If creating a new tenant, show the tenant modal first
       if (isCreatingNewTenant) {
         setShowTenantModal(true);
@@ -321,44 +374,47 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
         setShowConfirmLeaseModal(true);
       }
     } catch (error) {
-      console.error('Error analyzing lease:', error);
-      setError(error.message || 'Failed to analyze lease. Please try again.');
+      console.error("Error analyzing lease:", error);
+      setError(error.message || "Failed to analyze lease. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleTenantSave = (tenant) => {
-    console.log('Received created tenant from TenantModal:', tenant);
+    console.log("Received created tenant from TenantModal:", tenant);
     setError(null);
     setCreatedTenant(tenant);
     setShowTenantModal(false);
-    
+
     // Show the confirm lease modal after tenant is created
     setShowConfirmLeaseModal(true);
   };
 
   const handleLeaseSubmit = (lease) => {
-    console.log('Lease created successfully:', lease);
+    console.log("Lease created successfully:", lease);
     onImport();
     onClose();
   };
 
-  const filteredTenants = tenants.filter(tenant => {
+  const filteredTenants = tenants.filter((tenant) => {
     // Check if tenant has any active leases
-    const hasActiveLease = tenant.leases && tenant.leases.some(lease => lease.status === 'ACTIVE');
-    
+    const hasActiveLease =
+      tenant.leases && tenant.leases.some((lease) => lease.status === "ACTIVE");
+
     // If tenant has an active lease, exclude them
     if (hasActiveLease) {
       return false;
     }
 
     // Existing search term filtering
-    const tenantName = tenant.name || tenant.full_name || '';
-    const tenantEmail = tenant.email || '';
-    
-    return tenantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tenantEmail.toLowerCase().includes(searchTerm.toLowerCase());
+    const tenantName = tenant.name || tenant.full_name || "";
+    const tenantEmail = tenant.email || "";
+
+    return (
+      tenantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tenantEmail.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   });
 
   // Handle closing the modal with cleanup
@@ -370,7 +426,7 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
     setCreatedTenant(null);
     setShowTenantModal(false);
     setShowConfirmLeaseModal(false);
-    
+
     // Call the parent's onClose
     onClose();
   };
@@ -380,26 +436,26 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
   // Define animation variants for modal transitions
   const modalVariants = {
     hidden: { opacity: 0, scale: 0.95 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       scale: 1,
-      transition: { 
-        type: "spring", 
-        stiffness: 300, 
-        damping: 30 
-      }
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 30,
+      },
     },
-    exit: { 
-      opacity: 0, 
+    exit: {
+      opacity: 0,
       scale: 0.95,
-      transition: { 
-        duration: 0.15 
-      }
-    }
+      transition: {
+        duration: 0.15,
+      },
+    },
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -407,7 +463,7 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
     >
       <AnimatePresence mode="wait">
         {!showTenantModal && !showConfirmLeaseModal && (
-          <motion.div 
+          <motion.div
             key="importModal"
             variants={modalVariants}
             initial="hidden"
@@ -416,14 +472,26 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
             className="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden"
           >
             <div className="sticky top-0 z-10 px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">Import Lease</h2>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Import Lease
+              </h2>
               <button
                 onClick={handleClose}
                 className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full p-1 transition-colors duration-200"
                 aria-label="Close modal"
               >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -437,7 +505,9 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
                 <FormSection title="Property & Tenant Selection">
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="property" required>Select Property</Label>
+                      <Label htmlFor="property" required>
+                        Select Property
+                      </Label>
                       <div className="relative tenant-dropdown">
                         <Input
                           type="text"
@@ -445,27 +515,33 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
                           value={propertySearchTerm}
                           onChange={(e) => {
                             setPropertySearchTerm(e.target.value);
-                            setDropdownOpen('property');
+                            setDropdownOpen("property");
                           }}
                         />
-                        {dropdownOpen === 'property' && (
+                        {dropdownOpen === "property" && (
                           <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg border border-gray-200">
                             <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                              {properties.filter(property => property.name.toLowerCase().includes(propertySearchTerm.toLowerCase())).map((property) => (
-                                <li
-                                  key={property.id}
-                                  className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-50 transition-colors"
-                                  onClick={() => {
-                                    setSelectedProperty(property.id);
-                                    setPropertySearchTerm(property.name);
-                                    setDropdownOpen(false);
-                                  }}
-                                >
-                                  <span className="font-normal block truncate">
-                                    {property.name}
-                                  </span>
-                                </li>
-                              ))}
+                              {properties
+                                .filter((property) =>
+                                  property.name
+                                    .toLowerCase()
+                                    .includes(propertySearchTerm.toLowerCase())
+                                )
+                                .map((property) => (
+                                  <li
+                                    key={property.id}
+                                    className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-50 transition-colors"
+                                    onClick={() => {
+                                      setSelectedProperty(property.id);
+                                      setPropertySearchTerm(property.name);
+                                      setDropdownOpen(false);
+                                    }}
+                                  >
+                                    <span className="font-normal block truncate">
+                                      {property.name}
+                                    </span>
+                                  </li>
+                                ))}
                             </ul>
                           </div>
                         )}
@@ -474,7 +550,9 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
 
                     {selectedProperty && (
                       <div>
-                        <Label htmlFor="tenant" required>Select or Create Tenant</Label>
+                        <Label htmlFor="tenant" required>
+                          Select or Create Tenant
+                        </Label>
                         <div className="relative tenant-dropdown">
                           <Input
                             type="text"
@@ -482,17 +560,33 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
                             value={searchTerm}
                             onChange={(e) => {
                               setSearchTerm(e.target.value);
-                              setDropdownOpen('tenant');
+                              setDropdownOpen("tenant");
                             }}
                           />
-                          {dropdownOpen === 'tenant' && (
+                          {dropdownOpen === "tenant" && (
                             <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg border border-gray-200">
                               <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
                                 {isLoadingTenants ? (
                                   <li className="text-gray-500 py-2 px-3 flex items-center">
-                                    <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    <svg
+                                      className="animate-spin h-4 w-4 mr-2"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                      ></circle>
+                                      <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                      ></path>
                                     </svg>
                                     Loading tenants...
                                   </li>
@@ -503,25 +597,32 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
                                       className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-50 transition-colors"
                                       onClick={() => {
                                         setSelectedTenant(tenant);
-                                        setSearchTerm(tenant.name || tenant.full_name);
+                                        setSearchTerm(
+                                          tenant.name || tenant.full_name
+                                        );
                                         setIsCreatingNewTenant(false);
                                         setDropdownOpen(false);
                                       }}
                                     >
                                       <span className="font-normal block truncate">
-                                        {tenant.name || tenant.full_name} {tenant.email ? `(${tenant.email})` : ''}
+                                        {tenant.name || tenant.full_name}{" "}
+                                        {tenant.email
+                                          ? `(${tenant.email})`
+                                          : ""}
                                       </span>
                                     </li>
                                   ))
                                 ) : (
-                                  <li className="text-gray-500 py-2 px-3">No tenants found</li>
+                                  <li className="text-gray-500 py-2 px-3">
+                                    No tenants found
+                                  </li>
                                 )}
                                 <li
                                   className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-50 transition-colors border-t border-gray-100"
                                   onClick={() => {
                                     setIsCreatingNewTenant(true);
                                     setSelectedTenant(null);
-                                    setSearchTerm('Create New Tenant');
+                                    setSearchTerm("Create New Tenant");
                                     setDropdownOpen(false);
                                   }}
                                 >
@@ -543,23 +644,53 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
                     onDrop={handleFileDrop}
                     onDragOver={(e) => e.preventDefault()}
                     className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-                    onClick={() => document.getElementById('fileInput').click()}
+                    onClick={() => document.getElementById("fileInput").click()}
                   >
                     {file ? (
                       <div className="flex flex-col items-center">
-                        <svg className="h-12 w-12 text-green-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <svg
+                          className="h-12 w-12 text-green-500 mb-2"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
                         </svg>
-                        <span className="text-sm font-medium text-gray-900">{file.name}</span>
-                        <span className="text-xs text-gray-500 mt-1">Click to change file</span>
+                        <span className="text-sm font-medium text-gray-900">
+                          {file.name}
+                        </span>
+                        <span className="text-xs text-gray-500 mt-1">
+                          Click to change file
+                        </span>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center">
-                        <svg className="h-12 w-12 text-gray-400 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        <svg
+                          className="h-12 w-12 text-gray-400 mb-2"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                          />
                         </svg>
-                        <span className="text-sm font-medium text-gray-900">Click to select or drop lease PDF here</span>
-                        <span className="text-xs text-gray-500 mt-1">Only PDF files are accepted</span>
+                        <span className="text-sm font-medium text-gray-900">
+                          Click to select or drop lease PDF here
+                        </span>
+                        <span className="text-xs text-gray-500 mt-1">
+                          Only PDF files are accepted
+                        </span>
                       </div>
                     )}
                     <input
@@ -567,7 +698,7 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
                       id="fileInput"
                       accept=".pdf"
                       onChange={handleFileSelect}
-                      style={{ display: 'none' }}
+                      style={{ display: "none" }}
                     />
                   </div>
                 </FormSection>
@@ -575,29 +706,46 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
             </div>
 
             <div className="sticky bottom-0 z-10 px-6 py-4 bg-white border-t border-gray-200 flex justify-end space-x-3">
-              <Button 
-                type="button" 
-                variant="secondary" 
-                onClick={handleClose}
-              >
+              <Button type="button" variant="secondary" onClick={handleClose}>
                 Cancel
               </Button>
               <Button
                 type="button"
                 variant="primary"
                 onClick={handleImportClick}
-                disabled={!file || !selectedProperty || (!selectedTenant && !isCreatingNewTenant) || isLoading}
+                disabled={
+                  !file ||
+                  !selectedProperty ||
+                  (!selectedTenant && !isCreatingNewTenant) ||
+                  isLoading
+                }
               >
                 {isLoading ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                     Importing...
                   </>
                 ) : (
-                  'Import'
+                  "Import"
                 )}
               </Button>
             </div>
@@ -638,7 +786,7 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
       {/* Loading overlay */}
       <AnimatePresence>
         {isLoading && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -646,9 +794,7 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
           >
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-              <p className="mt-3 text-gray-600">
-                Processing lease...
-              </p>
+              <p className="mt-3 text-gray-600">Processing lease...</p>
             </div>
           </motion.div>
         )}
@@ -657,4 +803,4 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
   );
 };
 
-export default ImportLeaseModal; 
+export default ImportLeaseModal;

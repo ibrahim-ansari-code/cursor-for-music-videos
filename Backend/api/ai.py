@@ -1,12 +1,13 @@
 import logging
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
 
-from Backend.database import get_session
-from Backend.models.user import User, UserType
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from Backend.api.auth import get_current_user
+from Backend.database import get_session
+from Backend.models.enums import UserType
+from Backend.models.user import User
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -18,42 +19,49 @@ router = APIRouter(
 )
 
 # API models
+
+
 class ChatMessage(BaseModel):
     role: str  # 'user' or 'assistant'
     content: str
 
+
 class ChatRequest(BaseModel):
-    messages: List[ChatMessage]
-    context: Optional[str] = None  # Additional context for the AI
-    document_ids: Optional[List[str]] = None  # IDs of documents to reference
+    messages: list[ChatMessage]
+    context: str | None = None  # Additional context for the AI
+    document_ids: list[str] | None = None  # IDs of documents to reference
+
 
 class ChatResponse(BaseModel):
+    """Response model for AI chat interactions, containing the latest AI response and the full conversation history."""
     response: str
-    messages: List[ChatMessage]
+    messages: list[ChatMessage]
 
 # AI endpoints
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def ai_chat(
     chat_request: ChatRequest,
-    session: AsyncSession = Depends(get_session),
+    _: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """AI chat endpoint for general property management assistance"""
     # This is a placeholder/stub for connecting to an AI service later
     # In a real implementation, this would connect to an AI model or service
-    
+
     if not chat_request.messages:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No messages provided"
         )
-    
+
     # Get the last user message
     last_message = chat_request.messages[-1]
-    
+
     # Simple response based on keywords in the last message
     query = last_message.content.lower()
-    
+
     # Mock responses based on keywords
     responses = {
         "rent": "Rent payments are due on the 1st of each month. Late fees apply after the 5th. You can pay through the tenant portal or send a check to the management office.",
@@ -65,66 +73,70 @@ async def ai_chat(
         "how do i": "You can find step-by-step guides for most common tasks in our Help Center. Is there a specific task you need help with?",
         "default": "Thank you for your question. Our AI assistant is currently being integrated. Please contact your property manager for specific help with your question."
     }
-    
+
     # Find a response based on keywords
     response_text = responses["default"]
     for keyword, response in responses.items():
         if keyword in query:
             response_text = response
             break
-    
+
     # Add response to chat history
     updated_messages = chat_request.messages.copy()
-    updated_messages.append(ChatMessage(role="assistant", content=response_text))
-    
+    updated_messages.append(ChatMessage(
+        role="assistant", content=response_text))
+
     logger.info(f"AI chat response generated for user {current_user.id}")
     return ChatResponse(
         response=response_text,
         messages=updated_messages
     )
 
+
 @router.post("/document-qa", response_model=ChatResponse)
 async def document_qa(
     chat_request: ChatRequest,
-    session: AsyncSession = Depends(get_session),
+    _: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """AI endpoint for answering questions about specific documents"""
     # This is a placeholder/stub for connecting to an AI service later
     # In a real implementation, this would connect to a document Q&A model
-    
+
     if not chat_request.messages:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No messages provided"
         )
-    
+
     if not chat_request.document_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No document IDs provided for Q&A"
         )
-    
+
     # Get the last user message
     last_message = chat_request.messages[-1]
-    
+
     # Placeholder response
     response_text = f"I've analyzed the documents you referenced (IDs: {', '.join(chat_request.document_ids)}). In the future, I'll provide specific answers based on their content. For now, please contact your property manager for assistance with document-specific questions."
-    
+
     # Add response to chat history
     updated_messages = chat_request.messages.copy()
-    updated_messages.append(ChatMessage(role="assistant", content=response_text))
-    
+    updated_messages.append(ChatMessage(
+        role="assistant", content=response_text))
+
     logger.info(f"Document Q&A response generated for user {current_user.id}")
     return ChatResponse(
         response=response_text,
         messages=updated_messages
     )
 
+
 @router.post("/tenant-support", response_model=ChatResponse)
 async def tenant_support(
     chat_request: ChatRequest,
-    session: AsyncSession = Depends(get_session),
+    _: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """AI endpoint specifically for tenant support"""
@@ -134,17 +146,17 @@ async def tenant_support(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This endpoint is only for tenant users"
         )
-    
+
     if not chat_request.messages:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No messages provided"
         )
-    
+
     # Get the last user message
     last_message = chat_request.messages[-1]
     query = last_message.content.lower()
-    
+
     # Tenant-specific responses
     tenant_responses = {
         "repair": "For repair requests, please go to the Maintenance section and submit a new request. For emergency repairs, please call our 24/7 hotline at 555-123-4567.",
@@ -156,19 +168,21 @@ async def tenant_support(
         "pet": "Our pet policy is detailed in your lease agreement. Generally, pets require approval and may incur additional fees or deposits.",
         "default": "As your tenant support assistant, I'm here to help with any questions about your tenancy. For specific account issues, please contact your property manager directly."
     }
-    
+
     # Find a response based on keywords
     response_text = tenant_responses["default"]
     for keyword, response in tenant_responses.items():
         if keyword in query:
             response_text = response
             break
-    
+
     # Add response to chat history
     updated_messages = chat_request.messages.copy()
-    updated_messages.append(ChatMessage(role="assistant", content=response_text))
-    
-    logger.info(f"Tenant support response generated for user {current_user.id}")
+    updated_messages.append(ChatMessage(
+        role="assistant", content=response_text))
+
+    logger.info(
+        f"Tenant support response generated for user {current_user.id}")
     return ChatResponse(
         response=response_text,
         messages=updated_messages

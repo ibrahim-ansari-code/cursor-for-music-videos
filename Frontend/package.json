@@ -1,36 +1,36 @@
 {
-    "name": "brikli-frontend",
-    "version": "1.0.0",
-    "private": true,
-    "scripts": {
-        "dev": "vite",
-        "build": "npx vite build",
-        "preview": "vite preview"
-    },
-    "dependencies": {
-        "@supabase/supabase-js": "^2.49.4",
-        "chart.js": "^4.4.9",
-        "date-fns": "^4.1.0",
-        "framer-motion": "^12.7.4",
-        "lodash": "^4.17.21",
-        "lodash.debounce": "^4.0.8",
-        "lucide-react": "^0.503.0",
-        "react": "^18.2.0",
-        "react-chartjs-2": "^5.3.0",
-        "react-countup": "^6.5.3",
-        "react-dom": "^18.2.0",
-        "react-router-dom": "^7.4.1",
-        "react-toastify": "^11.0.5"
-    },
-    "devDependencies": {
-        "@vitejs/plugin-react": "^4.0.0",
-        "autoprefixer": "^10.4.13",
-        "postcss": "^8.4.21",
-        "tailwindcss": "^3.3.2",
-        "vite": "^5.4.19"
-    },
-    "engines": {
-        "node": ">=20.0.0"
-    },
-    "packageManager": "npm@10.8.2"
+  "name": "brikli-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "npx vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "chart.js": "^4.4.9",
+    "date-fns": "^4.1.0",
+    "framer-motion": "^12.7.4",
+    "lodash": "^4.17.21",
+    "lodash.debounce": "^4.0.8",
+    "lucide-react": "^0.503.0",
+    "react": "^18.2.0",
+    "react-chartjs-2": "^5.3.0",
+    "react-countup": "^6.5.3",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^7.4.1",
+    "react-toastify": "^11.0.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "autoprefixer": "^10.4.13",
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.3.2",
+    "vite": "^5.4.19"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@10.8.2"
 }

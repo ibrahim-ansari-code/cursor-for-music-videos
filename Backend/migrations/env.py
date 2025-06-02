@@ -1,3 +1,4 @@
+from Backend.config import settings
 from logging.config import fileConfig
 import os
 import sys
@@ -9,8 +10,15 @@ from sqlalchemy import pool
 from alembic import context
 
 # Import your models' metadata
-from Backend.database import SQLModel
-from Backend import *  # ensures all models are imported
+from sqlmodel import SQLModel
+
+# Explicitly import all model modules to ensure they're registered with SQLModel
+from Backend.models.user import User
+from Backend.models.property import Property, PropertyUnit
+from Backend.models.tenant import Tenant, TenantUnitLink
+from Backend.models.lease import Lease, LeaseDocument
+from Backend.models.accounting import Payment, Invoice, Expense
+
 target_metadata = SQLModel.metadata
 
 # ───────────────────────────────────────────────
@@ -18,7 +26,6 @@ target_metadata = SQLModel.metadata
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 # Import settings and swap driver to psycopg2 for Alembic
-from Backend.config import settings
 
 # This is the Alembic Config object
 config = context.config
@@ -28,7 +35,7 @@ config = context.config
 database_url = settings.DATABASE_URL
 if not database_url:
     raise ValueError("DATABASE_URL environment variable is not set")
-    
+
 config.set_main_option(
     "sqlalchemy.url",
     database_url.replace("asyncpg", "psycopg2")
@@ -39,6 +46,8 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # ───────────────────────────────────────────────
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     url = config.get_main_option("sqlalchemy.url")
@@ -69,6 +78,7 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 # ───────────────────────────────────────────────
 if context.is_offline_mode():

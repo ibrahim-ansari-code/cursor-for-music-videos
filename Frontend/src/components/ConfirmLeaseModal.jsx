@@ -1,24 +1,48 @@
-import React, { useState, useEffect } from 'react';
-import { submitLease, fetchProperties, fetchPropertyUnits, fetchLeases, createLease, updateLeaseStatus } from '../utils/api';
-import { motion, AnimatePresence } from 'framer-motion'; // Add framer-motion for animations
-import { format } from 'date-fns';
+import React, { useState, useEffect } from "react";
+import {
+  submitLease,
+  fetchProperties,
+  fetchPropertyUnits,
+  fetchLeases,
+  createLease,
+  updateLeaseStatus,
+} from "../utils/api";
+import { motion, AnimatePresence } from "framer-motion"; // Add framer-motion for animations
+import { format } from "date-fns";
 
 // UI Components
 const Label = ({ htmlFor, required, children }) => (
-  <label 
-    htmlFor={htmlFor} 
-    className={`block text-sm font-medium text-gray-700 mb-1.5 ${required ? 'after:content-["*"] after:ml-0.5 after:text-red-500' : ''}`}
+  <label
+    htmlFor={htmlFor}
+    className={`block text-sm font-medium text-gray-700 mb-1.5 ${
+      required ? 'after:content-["*"] after:ml-0.5 after:text-red-500' : ""
+    }`}
   >
     {children}
     {required && (
-      <span className="ml-1 text-xs text-gray-400" title="This field is required">
+      <span
+        className="ml-1 text-xs text-gray-400"
+        title="This field is required"
+      >
         (required)
       </span>
     )}
   </label>
 );
 
-const Input = ({ id, name, value, onChange, placeholder, required, readOnly, type = "text", min, className = "", ...props }) => (
+const Input = ({
+  id,
+  name,
+  value,
+  onChange,
+  placeholder,
+  required,
+  readOnly,
+  type = "text",
+  min,
+  className = "",
+  ...props
+}) => (
   <input
     id={id || name}
     name={name}
@@ -29,12 +53,27 @@ const Input = ({ id, name, value, onChange, placeholder, required, readOnly, typ
     placeholder={placeholder}
     required={required}
     readOnly={readOnly}
-    className={`w-full px-4 py-2.5 text-gray-900 bg-white border ${readOnly ? 'bg-gray-50 border-gray-200' : 'border-gray-300'} rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 ${className}`}
+    className={`w-full px-4 py-2.5 text-gray-900 bg-white border ${
+      readOnly ? "bg-gray-50 border-gray-200" : "border-gray-300"
+    } rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 ${className}`}
     {...props}
   />
 );
 
-const Select = ({ id, name, value, onChange, placeholder, required, disabled, options, isLoading, emptyMessage, className = "", ...props }) => (
+const Select = ({
+  id,
+  name,
+  value,
+  onChange,
+  placeholder,
+  required,
+  disabled,
+  options,
+  isLoading,
+  emptyMessage,
+  className = "",
+  ...props
+}) => (
   <div className="relative">
     <select
       id={id || name}
@@ -43,51 +82,88 @@ const Select = ({ id, name, value, onChange, placeholder, required, disabled, op
       onChange={onChange}
       required={required}
       disabled={disabled || isLoading}
-      className={`w-full px-4 py-2.5 text-gray-900 bg-white border ${disabled ? 'bg-gray-50 border-gray-200' : 'border-gray-300'} rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 appearance-none ${className}`}
+      className={`w-full px-4 py-2.5 text-gray-900 bg-white border ${
+        disabled ? "bg-gray-50 border-gray-200" : "border-gray-300"
+      } rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 appearance-none ${className}`}
       {...props}
     >
-      <option value="" disabled>{isLoading ? "Loading units..." : emptyMessage || "Select an option"}</option>
-      {options && options.length > 0 ? (
-        options.map((option, index) => (
-          <option key={index} value={option.value || option.id}>
-            {option.label || option.name}
-          </option>
-        ))
-      ) : (!isLoading && (
-        <option value="" disabled>No options available</option>
-      ))}
+      <option value="" disabled>
+        {isLoading ? "Loading units..." : emptyMessage || "Select an option"}
+      </option>
+      {options && options.length > 0
+        ? options.map((option, index) => (
+            <option key={index} value={option.value || option.id}>
+              {option.label || option.name}
+            </option>
+          ))
+        : !isLoading && (
+            <option value="" disabled>
+              No options available
+            </option>
+          )}
     </select>
     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+      <svg
+        className="h-5 w-5"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path
+          fillRule="evenodd"
+          d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+          clipRule="evenodd"
+        />
       </svg>
     </div>
   </div>
 );
 
 const ErrorMessage = ({ message }) => (
-  <motion.div 
+  <motion.div
     initial={{ opacity: 0, y: -10 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0 }}
     className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg flex items-start gap-2"
   >
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-5 w-5 mt-0.5 flex-shrink-0"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+    >
+      <path
+        fillRule="evenodd"
+        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 9a1 1 0 100-2 1 1 0 000 2z"
+        clipRule="evenodd"
+      />
     </svg>
     <span>{message}</span>
   </motion.div>
 );
 
-const Button = ({ type, onClick, variant = "primary", disabled, children, className = "", ...props }) => {
-  const baseClasses = "px-4 py-2.5 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed";
-  
+const Button = ({
+  type,
+  onClick,
+  variant = "primary",
+  disabled,
+  children,
+  className = "",
+  ...props
+}) => {
+  const baseClasses =
+    "px-4 py-2.5 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed";
+
   const variants = {
-    primary: "bg-blue-600 hover:bg-blue-700 text-white border border-transparent focus:ring-blue-500",
-    secondary: "bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 focus:ring-blue-500",
-    danger: "bg-red-600 hover:bg-red-700 text-white border border-transparent focus:ring-red-500"
+    primary:
+      "bg-blue-600 hover:bg-blue-700 text-white border border-transparent focus:ring-blue-500",
+    secondary:
+      "bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 focus:ring-blue-500",
+    danger:
+      "bg-red-600 hover:bg-red-700 text-white border border-transparent focus:ring-red-500",
   };
-  
+
   return (
     <button
       type={type}
@@ -103,25 +179,36 @@ const Button = ({ type, onClick, variant = "primary", disabled, children, classN
 
 const FormSection = ({ title, children, className = "" }) => (
   <div className={`space-y-6 ${className}`}>
-    {title && <h3 className="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200">{title}</h3>}
+    {title && (
+      <h3 className="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200">
+        {title}
+      </h3>
+    )}
     {children}
   </div>
 );
 
-const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, availableUnits: initialAvailableUnits = [] }) => {
+const ConfirmLeaseModal = ({
+  isOpen,
+  onClose,
+  leaseData,
+  tenant,
+  onSubmit,
+  availableUnits: initialAvailableUnits = [],
+}) => {
   const [formData, setFormData] = useState({
-    property_id: '',
-    unit_id: '',
-    unit: '',
-    start_date: '',
-    end_date: '',
-    monthly_rent: '',
-    security_deposit: '',
-    tenant_id: '',
+    property_id: "",
+    unit_id: "",
+    unit: "",
+    start_date: "",
+    end_date: "",
+    monthly_rent: "",
+    security_deposit: "",
+    tenant_id: "",
     rent_due_day: 1,
     late_fee_amount: null,
     late_fee_after_days: null,
-    special_terms: null
+    special_terms: null,
   });
   const [properties, setProperties] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -131,11 +218,13 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [isUnitEditable, setIsUnitEditable] = useState(true);
-  const [allUnitsForProperty, setAllUnitsForProperty] = useState(initialAvailableUnits || []);
+  const [allUnitsForProperty, setAllUnitsForProperty] = useState(
+    initialAvailableUnits || []
+  );
   const [filteredAvailableUnits, setFilteredAvailableUnits] = useState([]);
   const [isLoadingUnits, setIsLoadingUnits] = useState(false);
   const [isLoadingLeases, setIsLoadingLeases] = useState(false);
-  const [selectedUnit, setSelectedUnit] = useState(leaseData.unit || '');
+  const [selectedUnit, setSelectedUnit] = useState(leaseData.unit || "");
   const [selectedUnitId, setSelectedUnitId] = useState(null);
 
   // Initialize allUnitsForProperty from prop
@@ -155,20 +244,17 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
       try {
         const data = await fetchProperties();
         setProperties(data);
-        
+
         if (leaseData?.property_id) {
-          const propertyId = parseInt(leaseData.property_id);
-          const property = data.find(p => p.id === propertyId);
+          const propertyId = Number.parseInt(leaseData.property_id, 10);
+          const property = data.find((p) => p.id === propertyId);
           if (property) {
             setSelectedProperty(property);
-            if (isUnitEditable) {
-              loadUnitsAndFilter(propertyId);
-            }
           }
         }
       } catch (error) {
-        console.error('Failed to fetch properties:', error);
-        setError('Failed to load properties. Please try again.');
+        console.error("Failed to fetch properties:", error);
+        setError("Failed to load properties. Please try again.");
       } finally {
         setIsLoadingProperties(false);
       }
@@ -177,7 +263,7 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
     if (isOpen) {
       loadProperties();
     }
-  }, [isOpen, leaseData?.property_id, isUnitEditable]);
+  }, [isOpen, leaseData?.property_id]); // Removed isUnitEditable dependency
 
   // Helper function to load units and active leases, then filter
   const loadUnitsAndFilter = async (propertyId) => {
@@ -193,14 +279,17 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
       const unitsData = await fetchPropertyUnits(propertyId);
       const allUnits = unitsData || [];
       setAllUnitsForProperty(allUnits);
-      console.log('All units loaded:', allUnits);
+      console.log("All units loaded:", allUnits);
 
       // Fetch active leases for the property to filter units
       await filterUnits(allUnits, propertyId);
-
     } catch (err) {
-      console.error('Failed to load units/leases for property:', propertyId, err);
-      setError('Failed to load unit information for the selected property.');
+      console.error(
+        "Failed to load units/leases for property:",
+        propertyId,
+        err
+      );
+      setError("Failed to load unit information for the selected property.");
       setAllUnitsForProperty([]);
       setFilteredAvailableUnits([]);
     } finally {
@@ -211,101 +300,125 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
 
   // Function to filter units based on active leases
   const filterUnits = async (unitsToFilter, propertyId) => {
-     if (!propertyId) {
-       setFilteredAvailableUnits(unitsToFilter); // No property, show all fetched/provided units
-       return;
-     }
-     setIsLoadingLeases(true);
-     try {
-        const activeLeases = await fetchLeases({ property_id: propertyId, status: 'ACTIVE' });
-        const activeLeaseUnitIds = new Set(activeLeases.map(lease => lease.unit_id).filter(id => id != null));
-        console.log('Active lease unit IDs:', activeLeaseUnitIds);
+    if (!propertyId) {
+      setFilteredAvailableUnits(unitsToFilter); // No property, show all fetched/provided units
+      return;
+    }
+    setIsLoadingLeases(true);
+    try {
+      const activeLeases = await fetchLeases({
+        property_id: propertyId,
+        status: "ACTIVE",
+      });
+      const activeLeaseUnitIds = new Set(
+        activeLeases.map((lease) => lease.unit_id).filter((id) => id != null)
+      );
+      console.log("Active lease unit IDs:", activeLeaseUnitIds);
 
-        const filteredUnits = unitsToFilter.filter(unit => !activeLeaseUnitIds.has(unit.id));
-        setFilteredAvailableUnits(filteredUnits);
-        console.log('Filtered available units:', filteredUnits);
-     } catch (leaseError) {
-        console.error('Failed to fetch active leases for filtering:', leaseError);
-        setError('Failed to determine unit availability. Displaying all units.');
-        setFilteredAvailableUnits(unitsToFilter); // Fallback to showing all units on error
-     } finally {
-        setIsLoadingLeases(false);
-     }
+      const filteredUnits = unitsToFilter.filter(
+        (unit) => !activeLeaseUnitIds.has(unit.id)
+      );
+      setFilteredAvailableUnits(filteredUnits);
+      console.log("Filtered available units:", filteredUnits);
+    } catch (leaseError) {
+      console.error("Failed to fetch active leases for filtering:", leaseError);
+      setError("Failed to determine unit availability. Displaying all units.");
+      setFilteredAvailableUnits(unitsToFilter); // Fallback to showing all units on error
+    } finally {
+      setIsLoadingLeases(false);
+    }
   };
 
-  // Populate form data and check unit editability
+  // Populate form data and check unit editability - consolidated effect
   useEffect(() => {
-    if (leaseData && tenant) {
+    if (leaseData && tenant && properties.length > 0) {
       const wasTenantPreAssigned = tenant.current_property_id && tenant.unit_id;
       const shouldLockFields = wasTenantPreAssigned;
       setIsUnitEditable(!shouldLockFields);
-      
-      const propertyIdToUse = shouldLockFields 
-        ? tenant.current_property_id 
-        : (leaseData.property_id || tenant.current_property_id || '');
-        
-      const unitIdToUse = shouldLockFields ? tenant.unit_id : ''; 
-      const unitNameToUse = shouldLockFields ? (tenant.unit?.name || tenant.unit || '') : (leaseData.unit || '');
 
-      setFormData(prev => ({
+      const propertyIdToUse = shouldLockFields
+        ? tenant.current_property_id
+        : leaseData.property_id || tenant.current_property_id || "";
+
+      const unitIdToUse = shouldLockFields ? tenant.unit_id : "";
+      const unitNameToUse = shouldLockFields
+        ? tenant.unit?.name || tenant.unit || ""
+        : leaseData.unit || "";
+
+      setFormData((prev) => ({
         ...prev,
         tenant_id: tenant.id,
         property_id: propertyIdToUse,
         unit_id: unitIdToUse,
         unit: unitNameToUse,
-        start_date: leaseData.start_date || '',
-        end_date: leaseData.end_date || '',
-        monthly_rent: leaseData.monthly_rent || '',
-        security_deposit: leaseData.security_deposit || '0',
+        start_date: leaseData.start_date || "",
+        end_date: leaseData.end_date || "",
+        monthly_rent: leaseData.monthly_rent || "",
+        security_deposit: leaseData.security_deposit || "0",
         rent_due_day: leaseData.rent_due_day || 1,
         late_fee_amount: leaseData.late_fee_amount || null,
         late_fee_after_days: leaseData.late_fee_after_days || null,
-        special_terms: leaseData.special_terms || null
+        special_terms: leaseData.special_terms || null,
       }));
 
       if (propertyIdToUse) {
-        const property = properties.find(p => p.id === parseInt(propertyIdToUse));
+        const property = properties.find(
+          (p) => p.id === Number.parseInt(propertyIdToUse, 10)
+        );
         setSelectedProperty(property);
+
+        // Only load and filter units if not locked
         if (!shouldLockFields) {
-            // Load units AND filter them
-            loadUnitsAndFilter(propertyIdToUse);
+          loadUnitsAndFilter(propertyIdToUse);
         }
       }
     }
-  }, [isOpen, leaseData, tenant, properties]); // Reworked dependencies
-  
-  // Effect to attempt matching unit name to ID when filtered units load and fields are editable
+  }, [leaseData, tenant, properties]); // Simplified dependencies
+
+  // Separate effect for unit matching when filtered units are available
   useEffect(() => {
-    if (isUnitEditable && formData.unit && !formData.unit_id && filteredAvailableUnits.length > 0) {
-      console.log(`Attempting to match unit name '${formData.unit}' to available units.`);
-      const matchingUnit = filteredAvailableUnits.find(unit => 
-         unit.name && formData.unit && unit.name.toLowerCase() === formData.unit.toLowerCase()
+    if (
+      isUnitEditable &&
+      formData.unit &&
+      !formData.unit_id &&
+      filteredAvailableUnits.length > 0
+    ) {
+      console.log(
+        `Attempting to match unit name '${formData.unit}' to available units.`
+      );
+      const matchingUnit = filteredAvailableUnits.find(
+        (unit) =>
+          unit.name &&
+          formData.unit &&
+          unit.name.toLowerCase() === formData.unit.toLowerCase()
       );
       if (matchingUnit) {
         console.log(`Auto-selected unit ID ${matchingUnit.id} based on name.`);
-        setFormData(prev => ({ ...prev, unit_id: matchingUnit.id }));
+        setFormData((prev) => ({ ...prev, unit_id: matchingUnit.id }));
       }
     }
-  }, [isUnitEditable, formData.unit, filteredAvailableUnits]); 
+  }, [isUnitEditable, formData.unit, formData.unit_id, filteredAvailableUnits]); // Added formData.unit_id to prevent continuous updates
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
-    
-    if (name === 'unit_id' && value) {
-        // Match against allUnitsForProperty to get the name correctly even if filtered out
-        const selectedUnit = allUnitsForProperty.find(u => u.id === parseInt(value));
-        if (selectedUnit) {
-            setFormData(prev => ({ ...prev, unit: selectedUnit.name }));
-        }
+
+    if (name === "unit_id" && value) {
+      // Match against allUnitsForProperty to get the name correctly even if filtered out
+      const selectedUnit = allUnitsForProperty.find(
+        (u) => u.id === Number.parseInt(value, 10)
+      );
+      if (selectedUnit) {
+        setFormData((prev) => ({ ...prev, unit: selectedUnit.name }));
+      }
     }
 
     if (fieldErrors[name]) {
-      setFieldErrors(prev => {
-        const updated = {...prev};
+      setFieldErrors((prev) => {
+        const updated = { ...prev };
         delete updated[name];
         return updated;
       });
@@ -314,126 +427,146 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
 
   const handlePropertyChange = (e) => {
     const propertyId = e.target.value;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       property_id: propertyId,
-      unit_id: '', 
-      unit: '', 
+      unit_id: "",
+      unit: "",
     }));
-    
+
     setAllUnitsForProperty([]); // Clear previous units
     setFilteredAvailableUnits([]); // Clear filtered units
-    
+
     if (fieldErrors.property_id) {
-      setFieldErrors(prev => {
-        const updated = {...prev};
+      setFieldErrors((prev) => {
+        const updated = { ...prev };
         delete updated.property_id;
         return updated;
       });
     }
-    
-    const property = properties.find(p => p.id === parseInt(propertyId));
+
+    const property = properties.find(
+      (p) => p.id === Number.parseInt(propertyId, 10)
+    );
     setSelectedProperty(property);
-    
+
     if (isUnitEditable && propertyId) {
-        loadUnitsAndFilter(propertyId); // Load and filter units for new property
+      loadUnitsAndFilter(propertyId); // Load and filter units for new property
     }
   };
 
   const validateForm = () => {
     const errors = {};
-    
+
     // Required fields
-    if (!formData.property_id) errors.property_id = 'Property is required';
-    if (!formData.start_date) errors.start_date = 'Lease Start Date is required';
-    if (!formData.end_date) errors.end_date = 'Lease End Date is required';
-    if (!formData.monthly_rent) errors.monthly_rent = 'Monthly Rent is required';
-    if (formData.security_deposit === undefined || formData.security_deposit === '') {
-      errors.security_deposit = 'Security Deposit is required';
+    if (!formData.property_id) errors.property_id = "Property is required";
+    if (!formData.start_date)
+      errors.start_date = "Lease Start Date is required";
+    if (!formData.end_date) errors.end_date = "Lease End Date is required";
+    if (!formData.monthly_rent)
+      errors.monthly_rent = "Monthly Rent is required";
+    if (
+      formData.security_deposit === undefined ||
+      formData.security_deposit === ""
+    ) {
+      errors.security_deposit = "Security Deposit is required";
     }
-    if (!formData.tenant_id) errors.tenant_id = 'Tenant is required';
-    
+    if (!formData.tenant_id) errors.tenant_id = "Tenant is required";
+
     // Require unit_id if editable, otherwise unit text must exist
     if (isUnitEditable) {
       // Use filteredAvailableUnits for validation if editable
       if (!formData.unit_id) {
-        errors.unit_id = 'Please select an available unit';
-      } else if (!filteredAvailableUnits.some(u => u.id === parseInt(formData.unit_id))) {
-        errors.unit_id = 'Selected unit is not available (already leased)';
+        errors.unit_id = "Please select an available unit";
+      } else if (
+        !filteredAvailableUnits.some(
+          (u) => u.id === Number.parseInt(formData.unit_id, 10)
+        )
+      ) {
+        errors.unit_id = "Selected unit is not available (already leased)";
       }
     } else {
-        if (!formData.unit) {
-            errors.unit = 'Unit information is required'; // Should not happen if locked correctly
-        }
+      if (!formData.unit) {
+        errors.unit = "Unit information is required"; // Should not happen if locked correctly
+      }
     }
-    
+
     // Dates validation
     if (formData.start_date && formData.end_date) {
       const start = new Date(formData.start_date);
       const end = new Date(formData.end_date);
       if (start > end) {
-        errors.end_date = 'End date must be after start date';
+        errors.end_date = "End date must be after start date";
       }
     }
-    
+
     return errors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormSubmitted(true);
-    
+
     // Validate form
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
       setFieldErrors(validationErrors);
-      setError('Please correct the validation errors below.');
+      setError("Please correct the validation errors below.");
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
     setFieldErrors({});
-    
+
     try {
       // Format data for API, removing renewable fields
       const leaseSubmitData = {
-        property_id: parseInt(formData.property_id),
-        unit_id: formData.unit_id ? parseInt(formData.unit_id) : null,
+        property_id: Number.parseInt(formData.property_id, 10),
+        unit_id: formData.unit_id
+          ? Number.parseInt(formData.unit_id, 10)
+          : null,
         // unit name is not needed if unit_id is provided, backend should handle linking
         start_date: formData.start_date,
         end_date: formData.end_date,
-        monthly_rent: parseFloat(formData.monthly_rent),
-        security_deposit: parseFloat(formData.security_deposit),
-        tenant_id: parseInt(formData.tenant_id),
-        rent_due_day: parseInt(formData.rent_due_day || 1),
-        late_fee_amount: formData.late_fee_amount ? parseFloat(formData.late_fee_amount) : null,
-        late_fee_after_days: formData.late_fee_after_days ? parseInt(formData.late_fee_after_days) : null,
+        monthly_rent: Number.parseFloat(formData.monthly_rent),
+        security_deposit: Number.parseFloat(formData.security_deposit),
+        tenant_id: Number.parseInt(formData.tenant_id, 10),
+        rent_due_day: Number.parseInt(formData.rent_due_day || 1, 10),
+        late_fee_amount: formData.late_fee_amount
+          ? Number.parseFloat(formData.late_fee_amount)
+          : null,
+        late_fee_after_days: formData.late_fee_after_days
+          ? Number.parseInt(formData.late_fee_after_days, 10)
+          : null,
         special_terms: formData.special_terms,
-        status: "ACTIVE" // Default status for new lease
+        status: "ACTIVE", // Default status for new lease
       };
-      
+
       // Remove null values if backend prefers absence over null
-      Object.keys(leaseSubmitData).forEach(key => {
-        if (leaseSubmitData[key] === null || leaseSubmitData[key] === undefined) {
+      Object.keys(leaseSubmitData).forEach((key) => {
+        if (
+          leaseSubmitData[key] === null ||
+          leaseSubmitData[key] === undefined
+        ) {
           // delete leaseSubmitData[key]; // Option 1: delete null keys
         }
       });
 
-      console.log('Submitting lease data:', leaseSubmitData);
-      
+      console.log("Submitting lease data:", leaseSubmitData);
+
       // Submit to backend
       const response = await submitLease(leaseSubmitData);
-      console.log('Lease created successfully:', response);
-      
+      console.log("Lease created successfully:", response);
+
       if (onSubmit) {
         onSubmit(response);
       }
-      
+
       onClose();
     } catch (err) {
-      console.error('Failed to create lease:', err);
-      setError(err.message || 'Failed to create lease. Please try again.');
+      console.error("Failed to create lease:", err);
+      setError(err.message || "Failed to create lease. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -443,39 +576,56 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Prepare lease data with tenant and unit info
+
+      // Validate form first
+      const validationErrors = validateForm();
+      if (Object.keys(validationErrors).length > 0) {
+        setFieldErrors(validationErrors);
+        setError("Please correct the validation errors below.");
+        return;
+      }
+
+      // Prepare lease data using form data instead of original leaseData
       const leaseSubmitData = {
-        ...leaseData,
-        tenant_id: tenant.id,
-        unit_id: selectedUnitId || null,
-        status: "DRAFT", // Default status for a new lease
-        file_url: leaseData.file_url // Explicitly include the file_url from leaseData
+        property_id: Number.parseInt(formData.property_id, 10),
+        unit_id: formData.unit_id
+          ? Number.parseInt(formData.unit_id, 10)
+          : null,
+        tenant_id: Number.parseInt(formData.tenant_id, 10),
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        monthly_rent: Number.parseFloat(formData.monthly_rent),
+        security_deposit: Number.parseFloat(formData.security_deposit),
+        rent_due_day: Number.parseInt(formData.rent_due_day || 1, 10),
+        late_fee_amount: formData.late_fee_amount
+          ? Number.parseFloat(formData.late_fee_amount)
+          : null,
+        late_fee_after_days: formData.late_fee_after_days
+          ? Number.parseInt(formData.late_fee_after_days, 10)
+          : null,
+        special_terms: formData.special_terms || null,
+        status: "ACTIVE", // Create as active lease
+        file_url: leaseData.file_url, // Include the document URL from original leaseData
       };
 
       // Log if we have a document URL to include
       if (leaseData.file_url) {
-        console.log(`Including document URL in lease creation: ${leaseData.file_url}`);
+        console.log(
+          `Including document URL in lease creation: ${leaseData.file_url}`
+        );
       }
-      
-      console.log('Creating lease with data:', leaseSubmitData);
-      
-      // Call API to create the lease
+
+      console.log("Creating lease with data:", leaseSubmitData);
+
+      // Call API to create the lease (this will automatically activate it)
       const createdLease = await createLease(leaseSubmitData);
-      console.log('Lease created successfully:', createdLease);
-      
-      // Optionally activate the lease immediately
-      if (createdLease && createdLease.id) {
-        console.log('Activating lease...');
-        const updatedLease = await updateLeaseStatus(createdLease.id, "ACTIVE");
-        console.log('Lease activated:', updatedLease);
-      }
-      
+      console.log("Lease created successfully:", createdLease);
+
       // Call the onSubmit callback with the created lease
       onSubmit(createdLease);
     } catch (error) {
-      console.error('Error creating lease:', error);
-      setError(error.message || 'Failed to create lease. Please try again.');
+      console.error("Error creating lease:", error);
+      setError(error.message || "Failed to create lease. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -483,28 +633,34 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
 
   // Attempt to find the unit ID based on name if we have a unit name
   useEffect(() => {
-    if (leaseData.unit && initialAvailableUnits && initialAvailableUnits.length > 0) {
-      const matchedUnit = initialAvailableUnits.find(unit => 
-        unit.name.toLowerCase() === leaseData.unit.toLowerCase()
+    if (
+      leaseData.unit &&
+      initialAvailableUnits &&
+      initialAvailableUnits.length > 0
+    ) {
+      const matchedUnit = initialAvailableUnits.find(
+        (unit) => unit.name.toLowerCase() === leaseData.unit.toLowerCase()
       );
       if (matchedUnit) {
         setSelectedUnitId(matchedUnit.id);
-        console.log(`Found matching unit ID ${matchedUnit.id} for unit name ${leaseData.unit}`);
+        console.log(
+          `Found matching unit ID ${matchedUnit.id} for unit name ${leaseData.unit}`
+        );
       }
     }
   }, [leaseData.unit, initialAvailableUnits]);
 
   const handleUnitChange = (e) => {
-    const unitId = parseInt(e.target.value);
+    const unitId = Number.parseInt(e.target.value, 10);
     setSelectedUnitId(unitId);
-    
+
     if (unitId) {
-      const unit = initialAvailableUnits.find(u => u.id === unitId);
+      const unit = initialAvailableUnits.find((u) => u.id === unitId);
       if (unit) {
         setSelectedUnit(unit.name);
       }
     } else {
-      setSelectedUnit('');
+      setSelectedUnit("");
     }
   };
 
@@ -513,41 +669,41 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
   // Modal animations
   const overlayVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.2 } }
+    visible: { opacity: 1, transition: { duration: 0.2 } },
   };
 
   const modalVariants = {
     hidden: { opacity: 0, scale: 0.95, y: -10 },
-    visible: { 
-      opacity: 1, 
-      scale: 1, 
-      y: 0, 
-      transition: { 
-        type: "spring", 
-        stiffness: 300, 
+    visible: {
+      opacity: 1,
+      scale: 1,
+      y: 0,
+      transition: {
+        type: "spring",
+        stiffness: 300,
         damping: 30,
-        duration: 0.3 
-      } 
+        duration: 0.3,
+      },
     },
-    exit: { 
-      opacity: 0, 
-      scale: 0.95, 
-      y: 10, 
-      transition: { duration: 0.2 } 
-    }
+    exit: {
+      opacity: 0,
+      scale: 0.95,
+      y: 10,
+      transition: { duration: 0.2 },
+    },
   };
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div 
+        <motion.div
           initial="hidden"
           animate="visible"
           exit="hidden"
           variants={overlayVariants}
           className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
         >
-          <motion.div 
+          <motion.div
             initial="hidden"
             animate="visible"
             exit="exit"
@@ -556,14 +712,26 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
           >
             {/* Header */}
             <div className="sticky top-0 z-10 px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">Confirm Lease Details</h2>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Confirm Lease Details
+              </h2>
               <button
                 onClick={onClose}
                 className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full p-1 transition-colors duration-200"
                 aria-label="Close modal"
               >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -579,7 +747,9 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <div className="flex flex-col sm:flex-row justify-between">
                       <div>
-                        <h4 className="font-medium text-gray-900">{tenant?.first_name} {tenant?.last_name}</h4>
+                        <h4 className="font-medium text-gray-900">
+                          {tenant?.first_name} {tenant?.last_name}
+                        </h4>
                         <p className="text-sm text-gray-600">{tenant?.email}</p>
                       </div>
                       <div className="mt-2 sm:mt-0">
@@ -593,7 +763,9 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Property Information */}
                     <div>
-                      <Label htmlFor="property_id" required>Property</Label>
+                      <Label htmlFor="property_id" required>
+                        Property
+                      </Label>
                       <Select
                         id="property_id"
                         name="property_id"
@@ -606,30 +778,47 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
                         options={properties}
                       />
                       {!isUnitEditable && (
-                        <p className="mt-1 text-xs text-gray-500">Tenant already assigned to this property.</p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Tenant already assigned to this property.
+                        </p>
                       )}
                       {fieldErrors.property_id && (
-                        <p className="mt-1 text-sm text-red-600">{fieldErrors.property_id}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {fieldErrors.property_id}
+                        </p>
                       )}
                     </div>
 
                     {/* Unit Information - Conditional Rendering */}
                     <div>
-                      <Label htmlFor={isUnitEditable ? "unit_id" : "unit"} required>Unit</Label>
+                      <Label
+                        htmlFor={isUnitEditable ? "unit_id" : "unit"}
+                        required
+                      >
+                        Unit
+                      </Label>
                       {isUnitEditable ? (
                         <Select
                           id="unit_id"
                           name="unit_id"
                           value={formData.unit_id}
                           onChange={handleChange}
-                          disabled={isLoadingUnits || isLoadingLeases || !formData.property_id}
+                          disabled={
+                            isLoadingUnits ||
+                            isLoadingLeases ||
+                            !formData.property_id
+                          }
                           required
                           isLoading={isLoadingUnits || isLoadingLeases}
-                          emptyMessage={!formData.property_id ? 
-                            "Select property first" : 
-                            filteredAvailableUnits.length === 0 ? 
-                            "No available units for this property" : 
-                            "Select an available unit"}
+                          emptyMessage={
+                            !formData.property_id
+                              ? "Select property first"
+                              : isLoadingUnits || isLoadingLeases
+                              ? "Loading available units..."
+                              : filteredAvailableUnits.length === 0
+                              ? "No available units for this property"
+                              : "Select an available unit"
+                          }
                           options={filteredAvailableUnits}
                         />
                       ) : (
@@ -643,13 +832,19 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
                         />
                       )}
                       {!isUnitEditable && (
-                         <p className="mt-1 text-xs text-gray-500">Tenant already assigned to this unit.</p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Tenant already assigned to this unit.
+                        </p>
                       )}
                       {fieldErrors.unit_id && isUnitEditable && (
-                        <p className="mt-1 text-sm text-red-600">{fieldErrors.unit_id}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {fieldErrors.unit_id}
+                        </p>
                       )}
                       {fieldErrors.unit && !isUnitEditable && (
-                        <p className="mt-1 text-sm text-red-600">{fieldErrors.unit}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {fieldErrors.unit}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -658,7 +853,9 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
                 <FormSection title="Lease Details">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <Label htmlFor="start_date" required>Lease Start Date</Label>
+                      <Label htmlFor="start_date" required>
+                        Lease Start Date
+                      </Label>
                       <Input
                         type="date"
                         id="start_date"
@@ -668,12 +865,16 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
                         required
                       />
                       {fieldErrors.start_date && (
-                        <p className="mt-1 text-sm text-red-600">{fieldErrors.start_date}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {fieldErrors.start_date}
+                        </p>
                       )}
                     </div>
 
                     <div>
-                      <Label htmlFor="end_date" required>Lease End Date</Label>
+                      <Label htmlFor="end_date" required>
+                        Lease End Date
+                      </Label>
                       <Input
                         type="date"
                         id="end_date"
@@ -683,12 +884,16 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
                         required
                       />
                       {fieldErrors.end_date && (
-                        <p className="mt-1 text-sm text-red-600">{fieldErrors.end_date}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {fieldErrors.end_date}
+                        </p>
                       )}
                     </div>
 
                     <div>
-                      <Label htmlFor="monthly_rent" required>Monthly Rent</Label>
+                      <Label htmlFor="monthly_rent" required>
+                        Monthly Rent
+                      </Label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <span className="text-gray-500 sm:text-sm">$</span>
@@ -706,12 +911,16 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
                         />
                       </div>
                       {fieldErrors.monthly_rent && (
-                        <p className="mt-1 text-sm text-red-600">{fieldErrors.monthly_rent}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {fieldErrors.monthly_rent}
+                        </p>
                       )}
                     </div>
 
                     <div>
-                      <Label htmlFor="security_deposit" required>Security Deposit</Label>
+                      <Label htmlFor="security_deposit" required>
+                        Security Deposit
+                      </Label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <span className="text-gray-500 sm:text-sm">$</span>
@@ -729,7 +938,9 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
                         />
                       </div>
                       {fieldErrors.security_deposit && (
-                        <p className="mt-1 text-sm text-red-600">{fieldErrors.security_deposit}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {fieldErrors.security_deposit}
+                        </p>
                       )}
                     </div>
 
@@ -744,9 +955,13 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
                         min="1"
                         max="31"
                       />
-                      <p className="mt-1 text-xs text-gray-500">Day of the month when rent is due</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Day of the month when rent is due
+                      </p>
                       {fieldErrors.rent_due_day && (
-                        <p className="mt-1 text-sm text-red-600">{fieldErrors.rent_due_day}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {fieldErrors.rent_due_day}
+                        </p>
                       )}
                     </div>
 
@@ -755,43 +970,62 @@ const ConfirmLeaseModal = ({ isOpen, onClose, leaseData, tenant, onSubmit, avail
                       <textarea
                         id="special_terms"
                         name="special_terms"
-                        value={formData.special_terms || ''}
+                        value={formData.special_terms || ""}
                         onChange={handleChange}
                         rows={2}
                         className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200"
                       />
-                      <p className="mt-1 text-xs text-gray-500">Any special conditions for this lease</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Any special conditions for this lease
+                      </p>
                     </div>
                   </div>
                 </FormSection>
               </form>
             </div>
-            
+
             {/* Footer */}
             <div className="sticky bottom-0 z-10 px-6 py-4 bg-white border-t border-gray-200 flex justify-end space-x-3">
-              <Button 
-                type="button" 
-                variant="secondary" 
-                onClick={onClose}
-              >
+              <Button type="button" variant="secondary" onClick={onClose}>
                 Cancel
               </Button>
               <Button
                 type="submit"
                 variant="primary"
                 onClick={handleCreateLease}
-                disabled={isLoading || isLoadingUnits || isLoadingProperties || isLoadingLeases}
+                disabled={
+                  isLoading ||
+                  isLoadingUnits ||
+                  isLoadingProperties ||
+                  isLoadingLeases
+                }
               >
                 {isLoading ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                     Creating Lease
                   </>
                 ) : (
-                  'Create Lease'
+                  "Create Lease"
                 )}
               </Button>
             </div>

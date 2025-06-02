@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
-import { AuthContext } from '../App';
-import { 
-  fetchConversations, 
-  fetchMessages, 
-  sendMessage, 
-  markMessageAsRead, 
+import React, { useState, useEffect, useRef, useContext } from "react";
+import { AuthContext } from "../App";
+import {
+  fetchConversations,
+  fetchMessages,
+  sendMessage,
+  markMessageAsRead,
   createConversation,
-  sendAnnouncement 
-} from '../utils/api';
+  sendAnnouncement,
+} from "../utils/api";
 
 const Messages = () => {
   const { user } = useContext(AuthContext);
@@ -15,29 +15,49 @@ const Messages = () => {
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [messageText, setMessageText] = useState('');
+  const [messageText, setMessageText] = useState("");
   const [error, setError] = useState(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [recipients, setRecipients] = useState([]);
   const [availableUsers, setAvailableUsers] = useState([]);
-  const [announcementText, setAnnouncementText] = useState('');
-  const [selectedRecipientType, setSelectedRecipientType] = useState('');
-  
+  const [announcementText, setAnnouncementText] = useState("");
+  const [selectedRecipientType, setSelectedRecipientType] = useState("");
+
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     loadConversations();
-    
+
     // In a real app, we would load users from API
     setAvailableUsers([
-      { id: 1, name: 'John Doe', email: 'john@example.com', type: 'tenant' },
-      { id: 2, name: 'Jane Smith', email: 'jane@example.com', type: 'landlord' },
-      { id: 3, name: 'Robert Johnson', email: 'robert@example.com', type: 'tenant' },
-      { id: 4, name: 'Mary Williams', email: 'mary@example.com', type: 'vendor' },
-      { id: 5, name: 'James Brown', email: 'james@example.com', type: 'tenant' },
+      { id: 1, name: "John Doe", email: "john@example.com", type: "tenant" },
+      {
+        id: 2,
+        name: "Jane Smith",
+        email: "jane@example.com",
+        type: "landlord",
+      },
+      {
+        id: 3,
+        name: "Robert Johnson",
+        email: "robert@example.com",
+        type: "tenant",
+      },
+      {
+        id: 4,
+        name: "Mary Williams",
+        email: "mary@example.com",
+        type: "vendor",
+      },
+      {
+        id: 5,
+        name: "James Brown",
+        email: "james@example.com",
+        type: "tenant",
+      },
     ]);
   }, []);
 
@@ -56,16 +76,16 @@ const Messages = () => {
       setLoading(true);
       const data = await fetchConversations();
       setConversations(data);
-      
+
       // If there are conversations and none is selected, select the first one
       if (data.length > 0 && !selectedConversation) {
         setSelectedConversation(data[0]);
       }
-      
+
       setError(null);
     } catch (err) {
-      console.error('Error loading conversations:', err);
-      setError('Failed to load conversations. Please try again.');
+      console.error("Error loading conversations:", err);
+      setError("Failed to load conversations. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -78,40 +98,40 @@ const Messages = () => {
       setMessages(data);
       setError(null);
     } catch (err) {
-      console.error('Error loading messages:', err);
-      setError('Failed to load messages. Please try again.');
+      console.error("Error loading messages:", err);
+      setError("Failed to load messages. Please try again.");
     } finally {
       setLoadingMessages(false);
     }
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    
+
     if (!messageText.trim() || !selectedConversation) return;
-    
+
     try {
       const messageData = {
         content: messageText,
         conversation_id: selectedConversation.id,
-        message_type: 'direct'
+        message_type: "direct",
       };
-      
+
       await sendMessage(messageData);
-      setMessageText('');
-      
+      setMessageText("");
+
       // Refresh messages
       await loadMessages(selectedConversation.id);
-      
+
       // Refresh conversations to update latest message
       await loadConversations();
     } catch (err) {
-      console.error('Error sending message:', err);
-      setError('Failed to send message. Please try again.');
+      console.error("Error sending message:", err);
+      setError("Failed to send message. Please try again.");
     }
   };
 
@@ -122,57 +142,60 @@ const Messages = () => {
 
   const handleOpenAnnouncementModal = () => {
     setShowAnnouncementModal(true);
-    setAnnouncementText('');
-    setSelectedRecipientType('');
+    setAnnouncementText("");
+    setSelectedRecipientType("");
   };
 
   const handleCreateConversation = async () => {
     if (recipients.length === 0) return;
-    
+
     try {
       const conversationData = {
         is_group: recipients.length > 1,
-        title: recipients.length > 1 ? 'Group Conversation' : null,
-        participant_ids: [...recipients.map(r => r.id), user.id]
+        title: recipients.length > 1 ? "Group Conversation" : null,
+        participant_ids: [...recipients.map((r) => r.id), user.id],
       };
-      
+
       const newConversation = await createConversation(conversationData);
-      
+
       // Close modal and refresh conversations
       setShowNewMessageModal(false);
       await loadConversations();
-      
+
       // Select the new conversation
       setSelectedConversation(newConversation);
     } catch (err) {
-      console.error('Error creating conversation:', err);
-      setError('Failed to create conversation. Please try again.');
+      console.error("Error creating conversation:", err);
+      setError("Failed to create conversation. Please try again.");
     }
   };
 
   const handleSendAnnouncement = async () => {
     if (!announcementText.trim()) return;
-    
+
     try {
-      await sendAnnouncement(announcementText, selectedRecipientType || undefined);
-      
+      await sendAnnouncement(
+        announcementText,
+        selectedRecipientType || undefined
+      );
+
       // Close modal and refresh conversations
       setShowAnnouncementModal(false);
-      setAnnouncementText('');
-      setSelectedRecipientType('');
-      
+      setAnnouncementText("");
+      setSelectedRecipientType("");
+
       await loadConversations();
     } catch (err) {
-      console.error('Error sending announcement:', err);
-      setError('Failed to send announcement. Please try again.');
+      console.error("Error sending announcement:", err);
+      setError("Failed to send announcement. Please try again.");
     }
   };
 
   const handleSelectRecipient = (user) => {
     // Check if the user is already selected
-    if (recipients.some(r => r.id === user.id)) {
+    if (recipients.some((r) => r.id === user.id)) {
       // Remove user from recipients
-      setRecipients(recipients.filter(r => r.id !== user.id));
+      setRecipients(recipients.filter((r) => r.id !== user.id));
     } else {
       // Add user to recipients
       setRecipients([...recipients, user]);
@@ -182,17 +205,20 @@ const Messages = () => {
   const formatMessageTime = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
-    
+
     // If the message is from today, show only time
     if (date.toDateString() === now.toDateString()) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     }
-    
+
     // If the message is from this year, show date without year
     if (date.getFullYear() === now.getFullYear()) {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      return date.toLocaleDateString([], { month: "short", day: "numeric" });
     }
-    
+
     // Otherwise show full date
     return date.toLocaleDateString();
   };
@@ -212,9 +238,9 @@ const Messages = () => {
     <div className="h-full flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-semibold text-gray-900">Messages</h1>
-        
+
         <div className="space-x-3">
-          {(user?.user_type === 'admin' || user?.user_type === 'landlord') && (
+          {(user?.user_type === "admin" || user?.user_type === "landlord") && (
             <button
               onClick={handleOpenAnnouncementModal}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
@@ -223,7 +249,7 @@ const Messages = () => {
               Announcement
             </button>
           )}
-          
+
           <button
             onClick={handleOpenNewMessageModal}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -233,11 +259,11 @@ const Messages = () => {
           </button>
         </div>
       </div>
-      
+
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           <p>{error}</p>
-          <button 
+          <button
             onClick={() => {
               if (selectedConversation) loadMessages(selectedConversation.id);
               else loadConversations();
@@ -248,7 +274,7 @@ const Messages = () => {
           </button>
         </div>
       )}
-      
+
       <div className="flex-1 bg-white rounded-lg shadow overflow-hidden flex">
         {/* Conversations List */}
         <div className="w-full sm:w-1/3 md:w-1/4 border-r border-gray-200">
@@ -266,23 +292,31 @@ const Messages = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="overflow-y-auto h-[calc(100vh-13rem)]">
             {conversations.length > 0 ? (
               conversations
-                .filter(conv => {
+                .filter((conv) => {
                   if (!searchTerm) return true;
                   // Search in conversation title or latest message
                   return (
-                    (conv.title && conv.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                    (conv.latest_message && conv.latest_message.content.toLowerCase().includes(searchTerm.toLowerCase()))
+                    (conv.title &&
+                      conv.title
+                        .toLowerCase()
+                        .includes(searchTerm.toLowerCase())) ||
+                    (conv.latest_message &&
+                      conv.latest_message.content
+                        .toLowerCase()
+                        .includes(searchTerm.toLowerCase()))
                   );
                 })
                 .map((conversation) => (
                   <div
                     key={conversation.id}
                     className={`p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 ${
-                      selectedConversation?.id === conversation.id ? 'bg-blue-50' : ''
+                      selectedConversation?.id === conversation.id
+                        ? "bg-blue-50"
+                        : ""
                     }`}
                     onClick={() => setSelectedConversation(conversation)}
                   >
@@ -298,20 +332,20 @@ const Messages = () => {
                       <div className="ml-3 flex-1">
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-medium text-gray-900">
-                            {conversation.title || 'Direct Message'}
+                            {conversation.title || "Direct Message"}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {conversation.latest_message ? 
-                              formatMessageTime(conversation.latest_message.created_at) : 
-                              formatMessageTime(conversation.created_at)
-                            }
+                            {conversation.latest_message
+                              ? formatMessageTime(
+                                  conversation.latest_message.created_at
+                                )
+                              : formatMessageTime(conversation.created_at)}
                           </p>
                         </div>
                         <p className="text-sm text-gray-500 truncate">
-                          {conversation.latest_message ? 
-                            conversation.latest_message.content : 
-                            'No messages yet'
-                          }
+                          {conversation.latest_message
+                            ? conversation.latest_message.content
+                            : "No messages yet"}
                         </p>
                       </div>
                     </div>
@@ -324,7 +358,7 @@ const Messages = () => {
             )}
           </div>
         </div>
-        
+
         {/* Messages Area */}
         <div className="w-full sm:w-2/3 md:w-3/4 flex flex-col">
           {selectedConversation ? (
@@ -342,17 +376,16 @@ const Messages = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm font-medium text-gray-900">
-                      {selectedConversation.title || 'Direct Message'}
+                      {selectedConversation.title || "Direct Message"}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {selectedConversation.is_group ? 
-                        `${selectedConversation.participants.length} participants` : 
-                        'Online'
-                      }
+                      {selectedConversation.is_group
+                        ? `${selectedConversation.participants.length} participants`
+                        : "Online"}
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex space-x-2">
                   <button className="text-gray-400 hover:text-gray-500">
                     <i className="fas fa-phone"></i>
@@ -365,7 +398,7 @@ const Messages = () => {
                   </button>
                 </div>
               </div>
-              
+
               {/* Messages List */}
               <div className="flex-1 p-4 overflow-y-auto">
                 {loadingMessages ? (
@@ -377,35 +410,46 @@ const Messages = () => {
                     {messages.map((message) => (
                       <div
                         key={message.id}
-                        className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
+                        className={`flex ${
+                          message.sender_id === user?.id
+                            ? "justify-end"
+                            : "justify-start"
+                        }`}
                       >
-                        <div className={`max-w-xs sm:max-w-md rounded-lg px-4 py-2 ${
-                          message.sender_id === user?.id ?
-                            'bg-blue-600 text-white' :
-                            message.message_type === 'announcement' ?
-                              'bg-purple-100 text-purple-800' :
-                              'bg-gray-100 text-gray-800'
-                        }`}>
-                          {message.message_type === 'announcement' && (
+                        <div
+                          className={`max-w-xs sm:max-w-md rounded-lg px-4 py-2 ${
+                            message.sender_id === user?.id
+                              ? "bg-blue-600 text-white"
+                              : message.message_type === "announcement"
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {message.message_type === "announcement" && (
                             <div className="flex items-center mb-1 text-purple-600">
                               <i className="fas fa-bullhorn mr-1 text-xs"></i>
-                              <span className="text-xs font-semibold">Announcement</span>
+                              <span className="text-xs font-semibold">
+                                Announcement
+                              </span>
                             </div>
                           )}
                           <p>{message.content}</p>
-                          <p className={`text-xs mt-1 ${
-                            message.sender_id === user?.id ?
-                              'text-blue-200' :
-                              message.message_type === 'announcement' ?
-                                'text-purple-600' :
-                                'text-gray-500'
-                          }`}>
+                          <p
+                            className={`text-xs mt-1 ${
+                              message.sender_id === user?.id
+                                ? "text-blue-200"
+                                : message.message_type === "announcement"
+                                ? "text-purple-600"
+                                : "text-gray-500"
+                            }`}
+                          >
                             {formatMessageTime(message.created_at)}
-                            {message.sender_id === user?.id && message.is_read && (
-                              <span className="ml-1">
-                                <i className="fas fa-check-double"></i>
-                              </span>
-                            )}
+                            {message.sender_id === user?.id &&
+                              message.is_read && (
+                                <span className="ml-1">
+                                  <i className="fas fa-check-double"></i>
+                                </span>
+                              )}
                           </p>
                         </div>
                       </div>
@@ -418,10 +462,13 @@ const Messages = () => {
                   </div>
                 )}
               </div>
-              
+
               {/* Message Input */}
               <div className="p-4 border-t border-gray-200">
-                <form onSubmit={handleSendMessage} className="flex items-center">
+                <form
+                  onSubmit={handleSendMessage}
+                  className="flex items-center"
+                >
                   <button
                     type="button"
                     className="text-gray-400 hover:text-gray-500 mr-3"
@@ -461,7 +508,7 @@ const Messages = () => {
           )}
         </div>
       </div>
-      
+
       {/* New Message Modal */}
       {showNewMessageModal && (
         <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
@@ -469,11 +516,14 @@ const Messages = () => {
           <div className="relative bg-white rounded-lg max-w-md w-full mx-auto p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">New Message</h3>
-              <button onClick={() => setShowNewMessageModal(false)} className="text-gray-400 hover:text-gray-500">
+              <button
+                onClick={() => setShowNewMessageModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
                 <i className="fas fa-times"></i>
               </button>
             </div>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Recipients
@@ -489,7 +539,7 @@ const Messages = () => {
                   <i className="fas fa-search text-gray-400"></i>
                 </div>
               </div>
-              
+
               {/* Selected recipients */}
               {recipients.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -511,19 +561,24 @@ const Messages = () => {
                 </div>
               )}
             </div>
-            
+
             <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-md">
               {availableUsers
-                .filter(user => user.id !== (user?.id || 0)) // Filter out current user
-                .filter(user => 
-                  user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  user.email.toLowerCase().includes(searchTerm.toLowerCase())
+                .filter((user) => user.id !== (user?.id || 0)) // Filter out current user
+                .filter(
+                  (user) =>
+                    user.name
+                      .toLowerCase()
+                      .includes(searchTerm.toLowerCase()) ||
+                    user.email.toLowerCase().includes(searchTerm.toLowerCase())
                 )
                 .map((user) => (
                   <div
                     key={user.id}
                     className={`p-3 border-b border-gray-200 flex items-center justify-between cursor-pointer hover:bg-gray-50 last:border-b-0 ${
-                      recipients.some(r => r.id === user.id) ? 'bg-blue-50' : ''
+                      recipients.some((r) => r.id === user.id)
+                        ? "bg-blue-50"
+                        : ""
                     }`}
                     onClick={() => handleSelectRecipient(user)}
                   >
@@ -532,29 +587,32 @@ const Messages = () => {
                         {user.name.charAt(0)}
                       </div>
                       <div className="ml-3">
-                        <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {user.name}
+                        </p>
                         <p className="text-xs text-gray-500">{user.email}</p>
                       </div>
                     </div>
-                    
-                    {recipients.some(r => r.id === user.id) && (
+
+                    {recipients.some((r) => r.id === user.id) && (
                       <div className="text-blue-600">
                         <i className="fas fa-check-circle"></i>
                       </div>
                     )}
                   </div>
                 ))}
-              
-              {availableUsers.filter(user => 
-                user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                user.email.toLowerCase().includes(searchTerm.toLowerCase())
+
+              {availableUsers.filter(
+                (user) =>
+                  user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  user.email.toLowerCase().includes(searchTerm.toLowerCase())
               ).length === 0 && (
                 <div className="p-4 text-center text-gray-500">
                   No users found
                 </div>
               )}
             </div>
-            
+
             <div className="mt-6 flex justify-end">
               <button
                 type="button"
@@ -575,7 +633,7 @@ const Messages = () => {
           </div>
         </div>
       )}
-      
+
       {/* Announcement Modal */}
       {showAnnouncementModal && (
         <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
@@ -583,11 +641,14 @@ const Messages = () => {
           <div className="relative bg-white rounded-lg max-w-md w-full mx-auto p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">Send Announcement</h3>
-              <button onClick={() => setShowAnnouncementModal(false)} className="text-gray-400 hover:text-gray-500">
+              <button
+                onClick={() => setShowAnnouncementModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
                 <i className="fas fa-times"></i>
               </button>
             </div>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Recipient Type (Optional)
@@ -603,7 +664,7 @@ const Messages = () => {
                 <option value="vendor">Vendors Only</option>
               </select>
             </div>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Announcement Message
@@ -617,7 +678,7 @@ const Messages = () => {
                 required
               ></textarea>
             </div>
-            
+
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
               <div className="flex">
                 <div className="flex-shrink-0">
@@ -625,12 +686,14 @@ const Messages = () => {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-yellow-700">
-                    This announcement will be sent to {selectedRecipientType || 'all users'} and cannot be recalled.
+                    This announcement will be sent to{" "}
+                    {selectedRecipientType || "all users"} and cannot be
+                    recalled.
                   </p>
                 </div>
               </div>
             </div>
-            
+
             <div className="mt-6 flex justify-end">
               <button
                 type="button"

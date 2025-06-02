@@ -40,11 +40,11 @@ COPY pyproject.toml poetry.lock ./
 
 # Install all defined dependencies from pyproject.toml using the lock file
 RUN if [ -f "pyproject.toml" ]; then \
-       echo 'Poetry files found, installing dependencies...'; \
-       /opt/poetry/bin/poetry install --no-root --no-interaction; \
+    echo 'Poetry files found, installing dependencies...'; \
+    /opt/poetry/bin/poetry install --no-root --no-interaction; \
     else \
-       echo 'No poetry files found, falling back to pip.'; \
-       pip install --upgrade pip && pip install -r requirements.txt; \
+    echo 'No poetry files found, falling back to pip.'; \
+    pip install --upgrade pip && pip install -r requirements.txt; \
     fi
 
 # 7. Copy Application Code
@@ -55,7 +55,7 @@ EXPOSE 8000
 
 # 9. Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/api/health || exit 1
+    CMD curl -f http://localhost:8000/api/health || exit 1
 
 # 10. Run the Application
 # CMD ["/usr/local/bin/python3.11", "-m", "gunicorn", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "--timeout", "300", "--bind", "0.0.0.0:8000", "Backend.api.app:app"]

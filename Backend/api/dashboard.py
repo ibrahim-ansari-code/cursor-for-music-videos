@@ -1,17 +1,17 @@
 import logging
-from typing import List, Optional
-from datetime import datetime, date, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
-from pydantic import BaseModel
+from datetime import date, timedelta
 
-from Backend.database import get_session
-from Backend.models.user import User, UserType
-from Backend.models.property import Property, PropertyUnit
-from Backend.models.accounting import Payment, Invoice, Expense, PaymentStatus
-from Backend.models.lease import Lease, LeaseStatus
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from Backend.api.auth import get_current_user
+from Backend.database import get_session
+from Backend.models.accounting import PaymentStatus
+from Backend.models.enums import UserType
+from Backend.models.user import User
+from Backend.utils.datetime_utils import date_to_utc_range
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -23,6 +23,8 @@ router = APIRouter(
 )
 
 # API models
+
+
 class DashboardSummary(BaseModel):
     total_properties: int
     total_units: int
@@ -33,41 +35,61 @@ class DashboardSummary(BaseModel):
     outstanding_rent: float
     maintenance_expenses: float
 
+
 class OccupancyData(BaseModel):
     total_units: int
     occupied_units: int
     vacant_units: int
     occupancy_rate: float  # percentage
 
+
 class RevenueData(BaseModel):
-    months: List[str]
-    revenue: List[float]
-    expenses: List[float]
-    net_income: List[float]
+    months: list[str]
+    revenue: list[float]
+    expenses: list[float]
+    net_income: list[float]
+
 
 class PaymentDue(BaseModel):
     id: int
     tenant_name: str
     amount: float
     due_date: date
-    days_overdue: Optional[int] = None
+    days_overdue: int | None = None
     status: PaymentStatus
+
 
 class DashboardResponse(BaseModel):
     summary: DashboardSummary
     occupancy: OccupancyData
     revenue: RevenueData
-    payments_due: List[PaymentDue]
+    payments_due: list[PaymentDue]
 
 # API endpoints
+
+
 @router.get("", response_model=DashboardResponse)
 async def get_dashboard_data(
-    property_id: Optional[int] = None,
+    property_id: int | None = None,
     time_period: str = "month",  # Options: week, month, quarter, year
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
-):
-    """Get dashboard data with occupancy rates, revenue trends, and more"""
+) -> DashboardResponse:
+    """
+    Retrieves summarized dashboard data for real estate management, including occupancy rates, revenue trends, and outstanding payments.
+
+    Only users with ADMIN or LANDLORD roles are authorized to access this endpoint. The response aggregates property, unit, and financial metrics, optionally filtered by property and time period (week, month, quarter, or year). Returns a structured summary with occupancy statistics, revenue and expense trends for the past 12 months, and up to five pending or overdue payments.
+
+    Args:
+        property_id: If provided, restricts data to a specific property.
+        time_period: Time range for summary calculations; one of "week", "month", "quarter", or "year".
+
+    Returns:
+        DashboardResponse: An object containing summary metrics, occupancy data, revenue trends, and a list of payments due.
+
+    Raises:
+        HTTPException: If the user is not authorized to access dashboard data.
+    """
     # Convert user_type to uppercase for comparison
     user_type = current_user.user_type.upper() if current_user.user_type else None
     if user_type not in [UserType.ADMIN.value, UserType.LANDLORD.value]:
@@ -75,7 +97,7 @@ async def get_dashboard_data(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access dashboard data"
         )
-    
+
     # Define a filter for landlord's properties
     landlord_property_filter_sql = ""
     landlord_params = {}
@@ -83,32 +105,25 @@ async def get_dashboard_data(
         landlord_property_filter_sql = "AND CAST(p.user_id AS TEXT) = CAST(:current_user_id AS TEXT)"
         landlord_params["current_user_id"] = current_user.id
 
-    # Calculate date ranges based on selected time period
+    # Calculate date range for filtering
     today = date.today()
     if time_period == "week":
-        start_date = today - timedelta(days=today.weekday())  # Monday of current week
-        end_date = start_date + timedelta(days=6)  # Sunday of current week
+        start_date = today - timedelta(days=7)
     elif time_period == "month":
-        start_date = date(today.year, today.month, 1)  # First day of current month
-        # Last day of current month
-        if today.month == 12:
-            end_date = date(today.year, 12, 31)
-        else:
-            end_date = date(today.year, today.month + 1, 1) - timedelta(days=1)
+        start_date = today - timedelta(days=30)
     elif time_period == "quarter":
-        current_quarter = (today.month - 1) // 3 + 1
-        start_date = date(today.year, (current_quarter - 1) * 3 + 1, 1)
-        if current_quarter == 4:
-            end_date = date(today.year, 12, 31)
-        else:
-            end_date = date(today.year, current_quarter * 3 + 1, 1) - timedelta(days=1)
-    else:  # year
-        start_date = date(today.year, 1, 1)
-        end_date = date(today.year, 12, 31)
-    
+        start_date = today - timedelta(days=90)
+    elif time_period == "year":
+        start_date = today - timedelta(days=365)
+    else:
+        start_date = today - timedelta(days=30)  # Default to month
+
+    # Convert to timezone-aware datetime range for business date filtering
+    start_datetime, end_datetime = date_to_utc_range(start_date, today)
+
     # Generate mock data for dashboard
     # In a real application, this would query the database
-    
+
     # 1. Summary data
     summary_query = """
     WITH property_counts AS (
@@ -162,27 +177,28 @@ async def get_dashboard_data(
         property_counts pc,
         financial_summary fs
     """
-    
+
     property_filter = ""
     params = {
-        "start_date": start_date,
-        "end_date": end_date,
+        "user_id": current_user.id,
+        "start_date": start_datetime,
+        "end_date": end_datetime,
         **landlord_params  # Add landlord params here
     }
-    
+
     if property_id:
         property_filter = "AND p.id = :property_id"
         params["property_id"] = property_id
-    
+
     # Replace the placeholder
     summary_query = summary_query.format(
         property_filter=property_filter,
         landlord_property_filter_sql=landlord_property_filter_sql
     )
-    
+
     summary_result = await session.execute(text(summary_query), params)
     summary_row = summary_result.mappings().one_or_none()
-    
+
     if summary_row:
         summary = DashboardSummary(
             total_properties=summary_row['total_properties'] or 0,
@@ -206,7 +222,7 @@ async def get_dashboard_data(
             outstanding_rent=0.0,
             maintenance_expenses=0.0
         )
-    
+
     # 2. Occupancy data
     occupancy = OccupancyData(
         total_units=summary.total_units,
@@ -214,7 +230,7 @@ async def get_dashboard_data(
         vacant_units=summary.total_units - summary.occupied_units,
         occupancy_rate=100.0 - summary.vacancy_rate
     )
-    
+
     # 3. Revenue trends (last 12 months)
     revenue_query = """
     WITH months AS (
@@ -254,34 +270,34 @@ async def get_dashboard_data(
     FROM 
         monthly_data
     """
-    
+
     # Replace the placeholder
     revenue_query = revenue_query.format(
         property_filter=property_filter,
         landlord_property_filter_sql=landlord_property_filter_sql
     )
-    
+
     revenue_result = await session.execute(text(revenue_query), params)
     revenue_rows = revenue_result.mappings().all()
-    
+
     months = []
     revenue_values = []
     expense_values = []
     net_income_values = []
-    
+
     for row in revenue_rows:
         months.append(row['month_name'])
         revenue_values.append(float(row['revenue']))
         expense_values.append(float(row['expenses']))
         net_income_values.append(float(row['net_income']))
-    
+
     revenue_data = RevenueData(
         months=months,
         revenue=revenue_values,
         expenses=expense_values,
         net_income=net_income_values
     )
-    
+
     # 4. Payments due
     payments_query = """
     SELECT 
@@ -290,7 +306,7 @@ async def get_dashboard_data(
         i.amount,
         i.due_date,
         CASE 
-            WHEN i.due_date < CURRENT_DATE THEN (CURRENT_DATE - i.due_date)::integer
+            WHEN i.due_date < CURRENT_DATE THEN EXTRACT(DAY FROM (CURRENT_DATE - i.due_date))
             ELSE NULL
         END as days_overdue,
         i.status
@@ -307,16 +323,16 @@ async def get_dashboard_data(
         i.due_date ASC
     LIMIT 5
     """
-    
+
     # Replace the placeholder
     payments_query = payments_query.format(
         property_filter=property_filter,
         landlord_property_filter_sql=landlord_property_filter_sql
     )
-    
+
     payments_result = await session.execute(text(payments_query), params)
     payments_rows = payments_result.mappings().all()
-    
+
     payments_due = []
     for row in payments_rows:
         payments_due.append(PaymentDue(
@@ -327,7 +343,7 @@ async def get_dashboard_data(
             days_overdue=row['days_overdue'],
             status=row['status']
         ))
-    
+
     return DashboardResponse(
         summary=summary,
         occupancy=occupancy,

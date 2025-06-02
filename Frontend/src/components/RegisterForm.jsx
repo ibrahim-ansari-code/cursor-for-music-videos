@@ -1,16 +1,29 @@
-import React, { useState, useContext, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { AuthContext } from '../App';
-import { supabase } from '../supabaseClient'; // Import Supabase client
-import GoogleSignInButton from './GoogleSignInButton'; // Import the new component
+import React, { useState, useContext, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { AuthContext } from "../App";
+import { supabase } from "../supabaseClient"; // Import Supabase client
+import GoogleSignInButton from "./GoogleSignInButton"; // Import the new component
+import { motion, AnimatePresence } from "framer-motion";
 
 const RegisterForm = () => {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [phoneRequirements, setPhoneRequirements] = useState({
+    length: false,
+    digits: false,
+  });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    digits: false,
+    special: false,
+  });
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
@@ -20,18 +33,22 @@ const RegisterForm = () => {
   useEffect(() => {
     // If user is already logged in, redirect to dashboard
     const checkSession = async () => {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        if (currentSession) {
-            console.log('User already logged in, redirecting to dashboard from RegisterForm');
-            navigate('/dashboard', { replace: true });
-        }
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      if (currentSession) {
+        console.log(
+          "User already logged in, redirecting to dashboard from RegisterForm"
+        );
+        navigate("/dashboard", { replace: true });
+      }
     };
     checkSession();
   }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
     setRegistrationSuccess(false);
     setResendSuccess(false);
@@ -40,21 +57,22 @@ const RegisterForm = () => {
       email,
       password,
       options: {
-        data: { // Custom data to be stored in Supabase user_metadata
+        data: {
+          // Custom data to be stored in Supabase user_metadata
           first_name: firstName,
           last_name: lastName,
           phone: phone || null,
-          user_type: "LANDLORD" 
-        }
-      }
+          user_type: "LANDLORD",
+        },
+      },
     };
 
     try {
       const { data, error } = await supabase.auth.signUp(userData);
 
       if (error) {
-        setError(error.message || 'Registration failed. Please try again.');
-        console.error('Supabase SignUp error:', error);
+        setError("Registration failed. Please try again.");
+        console.error("Supabase SignUp error:", error);
         setLoading(false);
         return;
       }
@@ -64,98 +82,132 @@ const RegisterForm = () => {
         // Now, call backend to sync user to local DB
         // This is a new endpoint you'll need to create on your backend.
         try {
-          const syncResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/sync-user`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              // If your sync endpoint requires auth (e.g. an admin/service key for this action),
-              // you'd add it here. However, this specific sync is for a new user.
-              // Alternatively, this could be a Supabase function triggered by new auth.users row.
-            },
-            body: JSON.stringify({
-              supabase_user_id: data.user.id,
-              email: data.user.email,
-              first_name: firstName,
-              last_name: lastName,
-              phone: phone || null,
-              user_type: "LANDLORD",
-              // Include any other fields your backend /sync-user expects or that your local User model needs
-            }),
-          });
+          const syncResponse = await fetch(
+            `${import.meta.env.VITE_API_URL}/api/auth/sync-user`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                // If your sync endpoint requires auth (e.g. an admin/service key for this action),
+                // you'd add it here. However, this specific sync is for a new user.
+                // Alternatively, this could be a Supabase function triggered by new auth.users row.
+              },
+              body: JSON.stringify({
+                supabase_user_id: data.user.id,
+                email: data.user.email,
+                first_name: firstName,
+                last_name: lastName,
+                phone: phone || null,
+                user_type: "LANDLORD",
+                // Include any other fields your backend /sync-user expects or that your local User model needs
+              }),
+            }
+          );
 
           const syncData = await syncResponse.json();
 
           if (!syncResponse.ok) {
             // Handle error from your /sync-user endpoint
-            console.error('Error syncing user to local DB:', syncData);
+            console.error("Error syncing user to local DB:", syncData);
             // Decide on user experience: inform them verification email sent but profile sync failed?
             // Or treat as full registration failure for now?
-            setError(syncData.detail || 'Registration partially failed (user created, profile sync failed). Please contact support.');
+            setError("Registration failed. User may already exist.");
             // Potentially, you might want to delete the Supabase user if local sync fails critically.
             // await supabase.auth.admin.deleteUser(data.user.id) // Requires admin privileges on Supabase client
             setLoading(false);
             return;
           }
-          
+
           // User synced to local DB successfully
           setRegistrationSuccess(true);
           // Clear the form
-          setFirstName('');
-          setLastName('');
-          setPhone('');
-          setEmail(''); // Keep email for resend verification if needed, or clear too
-          setPassword('');
-
+          setFirstName("");
+          setLastName("");
+          setPhone("");
+          setEmail(""); // Keep email for resend verification if needed, or clear too
+          setPassword("");
         } catch (syncError) {
-          console.error('Error calling /sync-user endpoint:', syncError);
-          setError('Registration partially failed (user created, profile sync had network issue). Please contact support.');
+          console.error("Error calling /sync-user endpoint:", syncError);
+          setError("Registration failed. Please contact support.");
           // Potentially, delete Supabase user.
           setLoading(false);
           return;
         }
-
       } else {
         // Should not happen if error is not thrown, but as a fallback
-        setError('Registration failed. No user data returned from Supabase.');
+        setError("Registration failed. No user data. Please contact support.");
       }
-      
-    } catch (err) { // This catch is for errors not caught by supabase.auth.signUp's own error object
+    } catch (err) {
+      // This catch is for errors not caught by supabase.auth.signUp's own error object
       // err is the error object thrown by handleResponse (via apiRegister)
       // It should have a .message property, and .data for JSON error details
-      let displayError = 'Registration failed. Please try again.';
+      let displayError = "Registration failed. Please try again.";
       if (err.message) {
         displayError = err.message;
       }
 
       if (err.data && err.data.detail) {
-        if (Array.isArray(err.data.detail)) { // For RequestValidationError (FastAPI Pydantic errors)
-          displayError = err.data.detail.map(d => {
-            const field = d.loc && d.loc.length > 1 ? d.loc[d.loc.length - 1] : (d.loc && d.loc.length === 1 ? d.loc[0] : 'Error');
-            return `${field}: ${d.msg}`;
-          }).join('; ');
-        } else if (typeof err.data.detail === 'string') { // For HTTPException (FastAPI general errors)
+        if (Array.isArray(err.data.detail)) {
+          // For RequestValidationError (FastAPI Pydantic errors)
+          displayError = err.data.detail
+            .map((d) => {
+              const field =
+                d.loc && d.loc.length > 1
+                  ? d.loc[d.loc.length - 1]
+                  : d.loc && d.loc.length === 1
+                  ? d.loc[0]
+                  : "Error";
+              return `${field}: ${d.msg}`;
+            })
+            .join("; ");
+        } else if (typeof err.data.detail === "string") {
+          // For HTTPException (FastAPI general errors)
           displayError = err.data.detail;
         }
       }
       setError(displayError);
-      console.error('Registration error:', err);
+      console.error("Registration error:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  const handlePhoneChange = (e) => {
+    const phone = e.target.value;
+    setPhone(phone);
+    setPhoneRequirements({
+      length: phone.length === 10,
+      digits: /^\d*$/.test(phone),
+    });
+  };
+
+  const handlePasswordChange = (e) => {
+    const pass = e.target.value;
+    setPassword(pass);
+    setPasswordRequirements({
+      length: pass.length >= 8,
+      uppercase: /[A-Z]/.test(pass),
+      lowercase: /[a-z]/.test(pass),
+      digits: /[0-9]/.test(pass),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(pass),
+    });
+  };
+
+  const isPhoneValid = Object.values(phoneRequirements).every(Boolean);
+  const isPasswordValid = Object.values(passwordRequirements).every(Boolean);
+
   const handleResendVerification = async () => {
     setResendingEmail(true);
     setResendSuccess(false);
-    setError(''); // Clear previous errors
-    
+    setError(""); // Clear previous errors
+
     // To resend verification, Supabase needs the email of the user.
     // If the form was cleared, we need to ensure `email` state is still available or re-fetch it.
     // For now, assuming `email` state used in the form is the one we need to resend for.
     if (!email) {
-        setError('Please enter the email address to resend verification.');
-        setResendingEmail(false);
-        return;
+      setError("Please enter the email address to resend verification.");
+      setResendingEmail(false);
+      return;
     }
 
     try {
@@ -168,31 +220,29 @@ const RegisterForm = () => {
       // if (error) throw error;
 
       // Sticking to the existing pattern of calling a backend endpoint for this:
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/resend-verification`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }), // Backend needs to handle this email
-      });
-      
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/auth/resend-verification`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email }), // Backend needs to handle this email
+        }
+      );
+
       const responseData = await response.json();
       if (response.ok) {
         setResendSuccess(true);
       } else {
-        setError(responseData.detail || 'Failed to resend verification email');
+        setError("Failed to resend verification email");
       }
     } catch (err) {
-      setError('Failed to resend verification email. Please try again.');
-      console.error('Resend verification error:', err);
+      setError("Failed to resend verification email. Please try again.");
+      console.error("Resend verification error:", err);
     } finally {
       setResendingEmail(false);
     }
-  };
-
-  const validatePhone = (value) => {
-    const phoneRegex = /^[0-9]{10}$/;
-    return phoneRegex.test(value);
   };
 
   // If registration was successful, show success message instead of form
@@ -201,16 +251,29 @@ const RegisterForm = () => {
       <div className="w-full h-full flex flex-col justify-center items-center p-6">
         <div className="text-center mb-8">
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6 text-green-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-gray-900">Account created!</h3>
+          <h3 className="text-lg font-medium text-gray-900">
+            Account created!
+          </h3>
           <p className="mt-2 text-sm text-gray-600">
             Please check your email to verify your account before signing in.
           </p>
         </div>
-        
+
         <div className="w-full max-w-md">
           <button
             type="button"
@@ -218,19 +281,24 @@ const RegisterForm = () => {
             disabled={resendingEmail}
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-teal hover:bg-brand-teal/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-teal"
           >
-            {resendingEmail ? 'Sending...' : 'Resend Verification Email'}
+            {resendingEmail ? "Sending..." : "Resend Verification Email"}
           </button>
-          
+
           {resendSuccess && (
             <div className="mt-4 rounded-md bg-green-50 p-4">
               <div className="flex">
-                <div className="text-sm text-green-700">Verification email sent! Please check your inbox.</div>
+                <div className="text-sm text-green-700">
+                  Verification email sent! Please check your inbox.
+                </div>
               </div>
             </div>
           )}
-          
+
           <div className="mt-6 text-center">
-            <Link to="/login" className="font-medium text-brand-teal hover:text-brand-teal/80">
+            <Link
+              to="/login"
+              className="font-medium text-brand-teal hover:text-brand-teal/80"
+            >
               Go to login page
             </Link>
           </div>
@@ -253,25 +321,27 @@ const RegisterForm = () => {
       <div className="mt-8 sm:mx-auto sm:w-full">
         <GoogleSignInButton setLoading={setLoading} setError={setError} />
 
-        {error && (
-          <div className="text-sm text-red-600 mt-2 mb-4 text-center">
-            {error}
-          </div>
-        )}
-
         <div className="relative my-4">
-          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+          <div
+            className="absolute inset-0 flex items-center"
+            aria-hidden="true"
+          >
             <div className="w-full border-t border-gray-300" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">Or create an account with email</span>
+            <span className="px-2 bg-white text-gray-500">
+              Or create an account with email
+            </span>
           </div>
         </div>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="first-name" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="first-name"
+                className="block text-sm font-medium text-gray-700"
+              >
                 First Name
               </label>
               <input
@@ -284,9 +354,12 @@ const RegisterForm = () => {
                 onChange={(e) => setFirstName(e.target.value)}
               />
             </div>
-            
+
             <div>
-              <label htmlFor="last-name" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="last-name"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Last Name
               </label>
               <input
@@ -302,7 +375,10 @@ const RegisterForm = () => {
           </div>
 
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="phone"
+              className="block text-sm font-medium text-gray-700"
+            >
               Phone Number
             </label>
             <input
@@ -311,21 +387,26 @@ const RegisterForm = () => {
               type="tel"
               required
               className={`mt-1 block w-full rounded-md border ${
-                phone && !validatePhone(phone)
-                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:border-brand-teal focus:ring-brand-teal'
+                phone && !isPhoneValid
+                  ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                  : "border-gray-300 focus:border-brand-teal focus:ring-brand-teal"
               } px-3 py-2 shadow-sm focus:outline-none sm:text-sm`}
               placeholder="10-digit phone number"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={handlePhoneChange}
             />
-            {phone && !validatePhone(phone) && (
-              <p className="mt-1 text-sm text-red-600">Please enter a valid 10-digit phone number</p>
+            {phone && !isPhoneValid && (
+              <p className="mt-1 text-sm text-red-600">
+                Please enter a valid 10-digit phone number
+              </p>
             )}
           </div>
 
           <div>
-            <label htmlFor="email-address" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="email-address"
+              className="block text-sm font-medium text-gray-700"
+            >
               Email address
             </label>
             <input
@@ -341,7 +422,10 @@ const RegisterForm = () => {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700"
+            >
               Password
             </label>
             <input
@@ -352,8 +436,59 @@ const RegisterForm = () => {
               required
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-brand-teal focus:outline-none focus:ring-brand-teal sm:text-sm"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={handlePasswordChange}
+              onFocus={() => setIsPasswordFocused(true)}
+              onBlur={() => setIsPasswordFocused(false)}
             />
+
+            <AnimatePresence>
+              {isPasswordFocused && (
+                <motion.ul
+                  key="password-requirements"
+                  initial={{ opacity: 0, y: -10, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: "auto" }}
+                  exit={{ opacity: 0, y: -10, height: 0 }}
+                  transition={{ duration: 0.5, ease: "easeInOut" }}
+                  style={{ overflow: "hidden", margin: 0, padding: "0.5rem 0" }}
+                >
+                  <li
+                    style={{
+                      color: passwordRequirements.length ? "green" : "red",
+                    }}
+                  >
+                    At least 8 characters
+                  </li>
+                  <li
+                    style={{
+                      color: passwordRequirements.uppercase ? "green" : "red",
+                    }}
+                  >
+                    At least one uppercase letter
+                  </li>
+                  <li
+                    style={{
+                      color: passwordRequirements.lowercase ? "green" : "red",
+                    }}
+                  >
+                    At least one lowercase letter
+                  </li>
+                  <li
+                    style={{
+                      color: passwordRequirements.digits ? "green" : "red",
+                    }}
+                  >
+                    At least one number
+                  </li>
+                  <li
+                    style={{
+                      color: passwordRequirements.special ? "green" : "red",
+                    }}
+                  >
+                    At least one special character (!@#$...)
+                  </li>
+                </motion.ul>
+              )}
+            </AnimatePresence>
           </div>
 
           {error && (
@@ -367,16 +502,26 @@ const RegisterForm = () => {
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={
+                loading ||
+                !firstName ||
+                !lastName ||
+                !email ||
+                !isPasswordValid ||
+                !isPhoneValid
+              }
               className="flex w-full justify-center rounded-md border border-transparent bg-brand-teal py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-teal/90 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2 disabled:opacity-75"
             >
-              {loading ? 'Creating account...' : 'Create account'}
+              {loading ? "Creating account..." : "Create account"}
             </button>
           </div>
 
           <div className="text-center text-sm text-gray-600">
-            Already have an account?{' '}
-            <Link to="/login" className="font-medium text-brand-teal hover:text-brand-teal/80">
+            Already have an account?{" "}
+            <Link
+              to="/login"
+              className="font-medium text-brand-teal hover:text-brand-teal/80"
+            >
               Sign in
             </Link>
           </div>
@@ -386,4 +531,4 @@ const RegisterForm = () => {
   );
 };
 
-export default RegisterForm; 
+export default RegisterForm;

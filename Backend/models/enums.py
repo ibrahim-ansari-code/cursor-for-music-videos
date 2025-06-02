@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class UserType(str, Enum):
     TENANT = "TENANT"
     LANDLORD = "LANDLORD"
@@ -14,8 +15,9 @@ class UserType(str, Enum):
                 pass
         return super()._missing_(value)
 
+
 class PropertyStatus(str, Enum):
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
     DRAFT = "DRAFT"
-    ARCHIVED = "ARCHIVED" 
+    ARCHIVED = "ARCHIVED"

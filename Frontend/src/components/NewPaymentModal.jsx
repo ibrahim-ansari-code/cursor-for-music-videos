@@ -1,39 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import { toast } from 'react-toastify';
-import { 
-  fetchProperties, 
-  fetchTenantsByProperty, 
+import React, { useState, useEffect } from "react";
+import { toast } from "react-toastify";
+import {
+  fetchProperties,
+  fetchTenantsByProperty,
   createPayment,
-  fetchLeases 
-} from '../utils/api';
+  fetchLeases,
+} from "../utils/api";
 
 const PAYMENT_METHODS = [
-  'Credit Card',
-  'Bank Transfer',
-  'Cash',
-  'Check',
-  'Other'
+  "Credit Card",
+  "Bank Transfer",
+  "Cash",
+  "Check",
+  "Other",
 ];
 
 const PAYMENT_STATUSES = [
-  'Pending',
-  'Paid',
-  'Partial',
-  'Overdue',
-  'Cancelled',
-  'Refunded'
+  "Pending",
+  "Paid",
+  "Partial",
+  "Overdue",
+  "Cancelled",
+  "Refunded",
 ];
 
 const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
   // Form state
   const [formData, setFormData] = useState({
-    property_id: '',
-    tenant_id: '',
-    amount: '',
-    payment_date: new Date().toISOString().split('T')[0],
-    payment_method: '',
-    status: 'Paid',
-    notes: ''
+    property_id: "",
+    tenant_id: "",
+    amount: "",
+    payment_date: new Date().toISOString().split("T")[0],
+    payment_method: "",
+    status: "Paid",
+    notes: "",
   });
 
   // UI state
@@ -44,9 +44,9 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
   const [lease, setLease] = useState(null);
 
   // Dropdown states
-  const [dropdownOpen, setDropdownOpen] = useState('');
-  const [propertySearchTerm, setPropertySearchTerm] = useState('');
-  const [tenantSearchTerm, setTenantSearchTerm] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState("");
+  const [propertySearchTerm, setPropertySearchTerm] = useState("");
+  const [tenantSearchTerm, setTenantSearchTerm] = useState("");
 
   // Load properties on mount
   useEffect(() => {
@@ -55,8 +55,8 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
         const data = await fetchProperties();
         setProperties(data);
       } catch (err) {
-        console.error('Failed to load properties:', err);
-        setError('Failed to load properties. Please try again.');
+        console.error("Failed to load properties:", err);
+        setError("Failed to load properties. Please try again.");
       }
     };
 
@@ -71,14 +71,14 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
       if (formData.property_id) {
         try {
           const data = await fetchTenantsByProperty(formData.property_id);
-          console.log('Fetched tenants:', data); // Log tenant data
+          console.log("Fetched tenants:", data); // Log tenant data
           setTenants(data);
           // Clear tenant selection when property changes
-          setFormData(prev => ({ ...prev, tenant_id: '' }));
+          setFormData((prev) => ({ ...prev, tenant_id: "" }));
           setLease(null);
         } catch (err) {
-          console.error('Failed to load tenants:', err);
-          setError('Failed to load tenants. Please try again.');
+          console.error("Failed to load tenants:", err);
+          setError("Failed to load tenants. Please try again.");
         }
       }
     };
@@ -92,30 +92,31 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
       if (formData.property_id && formData.tenant_id) {
         try {
           const leases = await fetchLeases(); // Fetch all leases
-          console.log('Fetched leases:', leases); // Log fetched leases
+          console.log("Fetched leases:", leases); // Log fetched leases
 
-          const activeLease = leases.find(lease => 
-            lease.tenant_id === formData.tenant_id && 
-            lease.property_id === formData.property_id &&
-            lease.status?.toLowerCase() === 'active' // Filter client-side
+          const activeLease = leases.find(
+            (lease) =>
+              lease.tenant_id === formData.tenant_id &&
+              lease.property_id === formData.property_id &&
+              lease.status?.toLowerCase() === "active" // Filter client-side
           );
 
-          console.log('Active lease found:', activeLease); // Log active lease
+          console.log("Active lease found:", activeLease); // Log active lease
 
           if (activeLease) {
             setLease(activeLease);
             setError(null);
-            
+
             // Log the tenant details
-            console.log('Selected tenant ID:', formData.tenant_id);
-            console.log('Lease tenant ID (user_id):', activeLease.tenant_id);
+            console.log("Selected tenant ID:", formData.tenant_id);
+            console.log("Lease tenant ID (user_id):", activeLease.tenant_id);
           } else {
-            setError('No active lease found for this tenant.');
+            setError("No active lease found for this tenant.");
             setLease(null);
           }
         } catch (err) {
-          console.error('Failed to find active lease:', err);
-          setError('Failed to verify lease information.');
+          console.error("Failed to find active lease:", err);
+          setError("Failed to verify lease information.");
         }
       }
     };
@@ -125,17 +126,17 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!lease) {
-      setError('No active lease found. Cannot create payment.');
+      setError("No active lease found. Cannot create payment.");
       return;
     }
 
@@ -144,34 +145,38 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
       setError(null);
 
       // Get the selected tenant from the tenants array
-      const selectedTenant = tenants.find(tenant => tenant.id === formData.tenant_id);
+      const selectedTenant = tenants.find(
+        (tenant) => tenant.id === formData.tenant_id
+      );
 
       // Properly format the payment data to match backend expectations
       const paymentData = {
         lease_id: lease.id,
         // Include the tenant's name to display in the payment list
-        tenant_name: selectedTenant?.full_name || 'Unknown Tenant',
+        tenant_name: selectedTenant?.full_name || "Unknown Tenant",
         // Remove tenant_id as we'll use the current user's ID on the backend
         amount: parseFloat(formData.amount),
         // Create a timezone-naive datetime string in ISO format without the 'Z' at the end
-        payment_date: formData.payment_date ? `${formData.payment_date}T00:00:00` : null,
+        payment_date: formData.payment_date
+          ? `${formData.payment_date}T00:00:00`
+          : null,
         payment_method: formData.payment_method,
         // Make sure status is a valid enum value
         status: formData.status,
         // Add transaction_reference as empty string to avoid null issues
         transaction_reference: "",
-        notes: formData.notes || ""
+        notes: formData.notes || "",
       };
 
-      console.log('Submitting payment with data:', paymentData);
+      console.log("Submitting payment with data:", paymentData);
       await createPayment(paymentData);
       // Success notification is now handled by the parent component
       onSuccess?.();
       handleClose();
     } catch (err) {
-      console.error('Failed to create payment:', err);
-      setError(err.message || 'Failed to create payment. Please try again.');
-      toast.error('Failed to create payment');
+      console.error("Failed to create payment:", err);
+      setError(err.message || "Failed to create payment. Please try again.");
+      toast.error("Failed to create payment");
     } finally {
       setIsLoading(false);
     }
@@ -179,18 +184,18 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleClose = () => {
     setFormData({
-      property_id: '',
-      tenant_id: '',
-      amount: '',
-      payment_date: new Date().toISOString().split('T')[0],
-      payment_method: '',
-      status: 'Paid',
-      notes: ''
+      property_id: "",
+      tenant_id: "",
+      amount: "",
+      payment_date: new Date().toISOString().split("T")[0],
+      payment_method: "",
+      status: "Paid",
+      notes: "",
     });
     setError(null);
     setLease(null);
-    setPropertySearchTerm('');
-    setTenantSearchTerm('');
+    setPropertySearchTerm("");
+    setTenantSearchTerm("");
     onClose();
   };
 
@@ -222,25 +227,30 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
                 value={propertySearchTerm}
                 onChange={(e) => {
                   setPropertySearchTerm(e.target.value);
-                  setDropdownOpen('property');
+                  setDropdownOpen("property");
                 }}
                 className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
-              {dropdownOpen === 'property' && (
+              {dropdownOpen === "property" && (
                 <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md">
                   <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
                     {properties
-                      .filter(property => 
-                        property.name.toLowerCase().includes(propertySearchTerm.toLowerCase())
+                      .filter((property) =>
+                        property.name
+                          .toLowerCase()
+                          .includes(propertySearchTerm.toLowerCase())
                       )
                       .map((property) => (
                         <li
                           key={property.id}
                           className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
                           onClick={() => {
-                            setFormData(prev => ({ ...prev, property_id: property.id }));
+                            setFormData((prev) => ({
+                              ...prev,
+                              property_id: property.id,
+                            }));
                             setPropertySearchTerm(property.name);
-                            setDropdownOpen('');
+                            setDropdownOpen("");
                           }}
                         >
                           <span className="font-normal block truncate">
@@ -266,27 +276,32 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
                 value={tenantSearchTerm}
                 onChange={(e) => {
                   setTenantSearchTerm(e.target.value);
-                  setDropdownOpen('tenant');
+                  setDropdownOpen("tenant");
                 }}
                 disabled={!formData.property_id}
                 className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
               />
-              {dropdownOpen === 'tenant' && (
+              {dropdownOpen === "tenant" && (
                 <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md">
                   <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
                     {tenants
-                      .filter(tenant => 
-                        (tenant.full_name || '').toLowerCase().includes(tenantSearchTerm.toLowerCase())
+                      .filter((tenant) =>
+                        (tenant.full_name || "")
+                          .toLowerCase()
+                          .includes(tenantSearchTerm.toLowerCase())
                       )
                       .map((tenant) => (
                         <li
                           key={tenant.id}
                           className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
                           onClick={() => {
-                            console.log('Selected tenant:', tenant);
-                            setFormData(prev => ({ ...prev, tenant_id: tenant.id }));
+                            console.log("Selected tenant:", tenant);
+                            setFormData((prev) => ({
+                              ...prev,
+                              tenant_id: tenant.id,
+                            }));
                             setTenantSearchTerm(tenant.full_name);
-                            setDropdownOpen('');
+                            setDropdownOpen("");
                           }}
                         >
                           <span className="font-normal block truncate">
@@ -351,7 +366,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
               className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
               <option value="">Select a method</option>
-              {PAYMENT_METHODS.map(method => (
+              {PAYMENT_METHODS.map((method) => (
                 <option key={method} value={method}>
                   {method}
                 </option>
@@ -371,7 +386,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
               required
               className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
-              {PAYMENT_STATUSES.map(status => (
+              {PAYMENT_STATUSES.map((status) => (
                 <option key={status} value={status}>
                   {status}
                 </option>
@@ -417,14 +432,30 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
             >
               {isLoading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                   </svg>
                   Creating...
                 </>
               ) : (
-                'Create Payment'
+                "Create Payment"
               )}
             </button>
           </div>
@@ -434,4 +465,4 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
   );
 };
 
-export default NewPaymentModal; 
+export default NewPaymentModal;

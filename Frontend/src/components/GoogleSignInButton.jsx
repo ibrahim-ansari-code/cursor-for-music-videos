@@ -1,5 +1,5 @@
-import React from 'react';
-import { supabase } from '../supabaseClient'; // Ensure this path is correct
+import React from "react";
+import { supabase } from "../supabaseClient"; // Ensure this path is correct
 
 // Google SVG Icon (inline or imported)
 const GoogleIcon = () => (
@@ -26,13 +26,13 @@ const GoogleIcon = () => (
 const GoogleSignInButton = ({ setLoading, setError }) => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
-    setError('');
+    setError("");
     // Analytics placeholder
-    console.log('Attempting Google Sign-In'); // Or your trackEvent('Login with Google Attempt')
+    console.log("Attempting Google Sign-In"); // Or your trackEvent('Login with Google Attempt')
 
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         // Remove options.redirectTo to rely on Supabase dashboard configuration for redirects
         // options: {
         //   redirectTo: 'https://ajyvwgfynxjbtjrbwfc.supabase.co/auth/v1/callback',
@@ -40,20 +40,23 @@ const GoogleSignInButton = ({ setLoading, setError }) => {
       });
 
       if (error) {
-        console.error('Google Sign-In error:', error);
-        setError(error.message || 'Failed to sign in with Google. Please try again.');
+        console.error("Google Sign-In error:", error);
+        setError(
+          error.message || "Failed to sign in with Google. Please try again."
+        );
         // Analytics placeholder
-        console.log('Google Sign-In Failed', { error: error.message }); // Or trackEvent('Login with Google Failed', { error: error.message })
+        console.log("Google Sign-In Failed", { error: error.message }); // Or trackEvent('Login with Google Failed', { error: error.message })
       }
       // On success, Supabase handles the redirect. If it gets here without redirecting,
       // it implies an issue before the redirect could occur or a misconfiguration.
       // setLoading(false) might be needed if the redirect doesn't happen immediately
       // or if there's an error caught by the 'if (error)' block.
-    } catch (err) { // Catch any other unexpected errors
-      console.error('Unexpected error during Google Sign-In:', err);
-      setError('An unexpected error occurred. Please try again.');
+    } catch (err) {
+      // Catch any other unexpected errors
+      console.error("Unexpected error during Google Sign-In:", err);
+      setError("An unexpected error occurred. Please try again.");
       // Analytics placeholder
-      console.log('Google Sign-In Unexpected Error', { error: err.message }); // Or trackEvent('Login with Google Unexpected Error', { error: err.message })
+      console.log("Google Sign-In Unexpected Error", { error: err.message }); // Or trackEvent('Login with Google Unexpected Error', { error: err.message })
     } finally {
       // setLoading is typically managed by page navigation.
       // If an error occurs *before* navigation, we need to stop loading.
@@ -75,4 +78,4 @@ const GoogleSignInButton = ({ setLoading, setError }) => {
   );
 };
 
-export default GoogleSignInButton; 
+export default GoogleSignInButton;

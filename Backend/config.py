@@ -1,10 +1,12 @@
 import os
+
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
 # Load from .env.production by default
-env_path = os.getenv("DOTENV_KEY", ".env.production")
+env_path = os.getenv("DOTENV_KEY", ".env")
 load_dotenv(dotenv_path=env_path)
+
 
 class Settings(BaseSettings):
     """Application settings"""
@@ -22,11 +24,21 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 
     # Azure Storage
-    AZURE_STORAGE_CONNECTION_STRING: str = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "")
+    AZURE_STORAGE_CONNECTION_STRING: str = os.getenv(
+        "AZURE_STORAGE_CONNECTION_STRING", "")
     AZURE_BLOB_PUBLIC_URL: str = os.getenv("AZURE_BLOB_PUBLIC_URL", "")
+
+    def __init__(self, **values):
+        super().__init__(**values)
+        secret_key_val = os.getenv("SECRET_KEY")
+        if not secret_key_val:
+            raise ValueError(
+                "SECRET_KEY environment variable must be set and not empty.")
+        self.SECRET_KEY = secret_key_val
 
     class Config:
         env_file = env_path
         extra = "allow"
+
 
 settings = Settings()

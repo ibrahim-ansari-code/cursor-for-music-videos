@@ -1,24 +1,96 @@
+/*
+*
+* UI Feedback Elements
+*
+*/
+
 /* Spinner; Sizing inherited -- see App.jsx */
 .spinner {
-    border-radius: 50%;
-    display: inline-block;
-    border-top: 2px solid #0E3D0E;
-    border-right: 3px solid transparent;
-    box-sizing: border-box;
-    animation: rotation 1s linear infinite;
+  border-radius: 50%;
+  display: inline-block;
+  border-top: 2px solid #0e3d0e;
+  border-right: 3px solid transparent;
+  box-sizing: border-box;
+  animation: spinner-rotation 1s linear infinite;
 }
+
+/* Color scroll animation line up to the text */
+.color-scroll {
+  position: relative;
+  display: inline-block;
+}
+
+/* Color scroll animation set up the text */
+.color-scroll::before {
+  content: attr(data-hover);
+  color: #cecece;
+  position: absolute;
+  top: 0;
+  width: 0%;
+  transition: width 0.5s ease-in-out;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Color scroll animation left to right */
+.color-scroll.l-to-r::before {
+  left: 0;
+}
+
+/* Color scroll animation right to left */
+.color-scroll.r-to-l::before {
+  right: 0;
+}
+
+/* Color scroll animation on hover, reveal the coloured text */
+.animation-parent:hover .color-scroll::before {
+  width: 100%;
+}
+
+/* Color Fade Animation */
+.color-fade {
+  color: white;
+  transition: color 0.5s ease-in-out;
+}
+
+.animation-parent:hover .color-fade {
+  color: #cecece;
+}
+
+/* Box Shadow Animation */
+.box-shadow-animation {
+  animation: box-shadow-animation 5s infinite;
+}
+
+/*
+*
+* References
+*
+*/
 
 /* Reference to Brikli's green color */
 .brikli-color {
-    color: #0E3D0E;
+  color: #0e3d0e;
 }
 
+/*
+*
+* ANIMATION KEYFRAMES
+*
+*/
+
 /* Constant rotation animation */
-@keyframes rotation {
-0% {
+@keyframes spinner-rotation {
+  0% {
     transform: rotate(0deg);
-}
-100% {
+  }
+  100% {
     transform: rotate(360deg);
+  }
 }
-} 
+
+@keyframes box-shadow-animation {
+  50% {
+    box-shadow: 0 0 10px;
+  }
+}

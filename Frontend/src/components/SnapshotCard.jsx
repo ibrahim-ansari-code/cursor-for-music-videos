@@ -1,28 +1,42 @@
-import React from 'react';
-import CountUp from 'react-countup';
+import React from "react";
+import CountUp from "react-countup";
 
 const SnapshotCard = ({ data }) => {
-  const { occupancyRate = 0, paidRent = 0, totalRent = 0, avgRent = 0 } = data || {};
-  
+  const {
+    occupancyRate = 0,
+    paidRent = 0,
+    totalRent = 0,
+    avgRent = 0,
+  } = data || {};
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm h-full flex flex-col">
       <h2 className="text-lg font-medium text-gray-800 mb-5">Snapshot</h2>
-      
+
       <div className="grid grid-cols-3 gap-4 flex-grow">
         <div className="border-r border-gray-200 pr-4 flex flex-col justify-center">
-          <p className="text-sm font-medium text-gray-500 mb-2">Occupancy Rate</p>
+          <p className="text-sm font-medium text-gray-500 mb-2">
+            Occupancy Rate
+          </p>
           <p className="text-xl font-semibold text-blue-600">
-            <CountUp end={occupancyRate} duration={1.5} decimals={1} separator="," />%
+            <CountUp
+              end={occupancyRate}
+              duration={1.5}
+              decimals={1}
+              separator=","
+            />
+            %
           </p>
         </div>
-        
+
         <div className="border-r border-gray-200 px-4 flex flex-col justify-center">
           <p className="text-sm font-medium text-gray-500 mb-2">Paid Rent</p>
           <p className="text-xl font-semibold text-green-600">
-            {paidRent}<span className="text-gray-500">/{totalRent}</span>
+            {paidRent}
+            <span className="text-gray-500">/{totalRent}</span>
           </p>
         </div>
-        
+
         <div className="pl-4 flex flex-col justify-center">
           <p className="text-sm font-medium text-gray-500 mb-2">Avg Rent</p>
           <p className="text-xl font-semibold text-gray-900">
@@ -34,4 +48,4 @@ const SnapshotCard = ({ data }) => {
   );
 };
 
-export default SnapshotCard; 
+export default SnapshotCard;

@@ -4,3 +4,5 @@ module.exports = {
     autoprefixer: {},
   },
 };
+
+// Keep this as commonjs

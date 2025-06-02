@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Request, APIRouter
+import logging
+
+from fastapi import APIRouter, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-import logging
-from starlette.middleware.base import BaseHTTPMiddleware
-from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -14,33 +15,39 @@ logger.info("🚀 Booting FastAPI app...")
 app = FastAPI()
 api_main_router = APIRouter()
 
-# CORS Configuration
+# CORS Configuration with regex support for dynamic preview URLs
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-    "http://localhost:5173",
-    "https://localhost:5173",
-    "http://127.0.0.1:5173",
-    "https://127.0.0.1:5173",
-    "https://app.brikli.com",
-    "https://brikli.azurewebsites.net",
-    "https://lemon-island-038ac790f.6.azurestaticapps.net",
-    "https://icy-glacier-00294140f.6.azurestaticapps.net", # Corrected Staging frontend
-    "https://brikli-staging.azurewebsites.net",
-    "https://thankful-pond-068620f0f.6.azurestaticapps.net"
+        "http://localhost:5173",
+        "https://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://127.0.0.1:5173",
+        "https://app.brikli.com",
+        "https://brikli.azurewebsites.net",
+        "https://lemon-island-038ac790f.6.azurestaticapps.net",
+        "https://icy-glacier-00294140f.6.azurestaticapps.net",
+        "https://brikli-staging.azurewebsites.net",
+        "https://thankful-pond-068620f0f.6.azurestaticapps.net",
+        "https://brikli-api-8919-151e4fdf-aa5gqdc5.onporter.run"
     ],
+    # Allow any Porter preview environment URL
+    allow_origin_regex=r"https://.*\.onporter\.run",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Custom middleware to handle X-Forwarded-Proto header from Azure's proxy
+
+
 class ProxyHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         forwarded_proto = request.headers.get("X-Forwarded-Proto")
         if forwarded_proto:
             request.scope["scheme"] = forwarded_proto
         return await call_next(request)
+
 
 # Azure App Service runs behind a proxy, so we need to:
 # 1. Trust X-Forwarded-* headers to ensure the app knows requests are HTTPS
@@ -59,17 +66,19 @@ app.add_middleware(
         "brikli.azurewebsites.net",
         "localhost",
         "brikli-staging.azurewebsites.net",
-        "icy-glacier-00294140f.6.azurestaticapps.net", 
+        "icy-glacier-00294140f.6.azurestaticapps.net",
         "thankful-pond-068620f0f.6.azurestaticapps.net",
-        "brikli-api-8919-7953fd68-fofj7ysk.onporter.run",
-        "*.onporter.run" # Porter Wildcard
+        "*.onporter.run",  # Allow all Porter preview environments
     ]
 )
 
 # Add the RequestValidationError handler here
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.error(f"Validation error: {exc.errors()} for request: {request.url} with body: {exc.body}")
+    logger.error(
+        f"Validation error: {exc.errors()} for request: {request.url} with body: {exc.body}")
     return JSONResponse(
         status_code=422,
         content={"detail": exc.errors(), "body": exc.body},
@@ -78,17 +87,17 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Router import + error trapping
 try:
     # Router Imports
-    from Backend.api.auth import router as auth_router
-    from Backend.api.properties import router as properties_router
-    from Backend.api.dashboard import router as dashboard_router
-    from Backend.api.leases import router as leases_router
     from Backend.api.accounting import router as accounting_router
     from Backend.api.ai import router as ai_router
-    from Backend.api.tenants import router as tenants_router
-    from Backend.api.rent_tracker import router as rent_tracker_router
-    from Backend.api.units import router as units_router
-    from Backend.api.reports import router as reports_router
+    from Backend.api.auth import router as auth_router
+    from Backend.api.dashboard import router as dashboard_router
     from Backend.api.health import router as health_router
+    from Backend.api.leases import router as leases_router
+    from Backend.api.properties import router as properties_router
+    from Backend.api.rent_tracker import router as rent_tracker_router
+    from Backend.api.reports import router as reports_router
+    from Backend.api.tenants import router as tenants_router
+    from Backend.api.units import router as units_router
 
     # Include routers into the central api_main_router
     # Their internal prefixes (e.g., /auth, /properties) will apply
@@ -123,11 +132,13 @@ except Exception as e:
     raise
 
 # Root endpoint (remains on app, not under /api)
+
+
 @app.get("/")
 def root():
     return {"message": "Brikli backend is running"}
 
+
 # Initialize all models before creating the FastAPI app
-import Backend.models
 
 logger.info("🚀 FastAPI app initialization complete.")

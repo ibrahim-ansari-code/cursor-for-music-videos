@@ -1,17 +1,15 @@
-import React from 'react';
+import React from "react";
 
 const BrandingPanel = () => {
   return (
     <div className="hidden md:flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-brand-green to-brand-teal/90 p-8 text-white">
       <div className="flex flex-col items-center max-w-md text-center">
-        <img 
-          src="/BrikliTransparentWhite.png" 
-          alt="Brikli Logo" 
-          className="h-20 w-auto mb-8" 
+        <img
+          src="/BrikliTransparentWhite.png"
+          alt="Brikli Logo"
+          className="h-20 w-auto mb-8"
         />
-        <h1 className="text-4xl font-bold mb-4">
-          Welcome to Brikli
-        </h1>
+        <h1 className="text-4xl font-bold mb-4">Welcome to Brikli</h1>
         <p className="text-xl mb-6">
           Smarter Property Management, Powered by AI
         </p>
@@ -32,4 +30,4 @@ const FeatureItem = ({ icon, text }) => (
   </div>
 );
 
-export default BrandingPanel; 
+export default BrandingPanel;

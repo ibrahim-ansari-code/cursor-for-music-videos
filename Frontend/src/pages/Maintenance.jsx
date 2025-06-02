@@ -1,5 +1,5 @@
-import React from 'react';
-import ComingSoonPage from '../components/ComingSoonPage';
+import React from "react";
+import ComingSoonPage from "../components/ComingSoonPage";
 
 const Maintenance = () => {
   return (
@@ -12,4 +12,4 @@ const Maintenance = () => {
   );
 };
 
-export default Maintenance; 
+export default Maintenance;
