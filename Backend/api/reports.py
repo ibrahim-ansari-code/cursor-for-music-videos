@@ -205,7 +205,7 @@ async def get_report_summary(
     # Query expenses grouped by month
     expenses_query = select(
         func.date_trunc('month', Expense.expense_date).label('month'),
-        func.sum(Expense.amount).label('total_expenses')
+        func.sum(Expense.total_amount).label('total_expenses')
     ).where(
         col(Expense.expense_date) >= start_datetime_utc,
         col(Expense.expense_date) <= end_datetime_utc,
@@ -270,7 +270,7 @@ async def get_report_summary(
             col(Lease.property_id).in_(accessible_property_ids)
     ).group_by(col(Lease.property_id))
 
-    all_expenses_query = select(col(Expense.property_id), func.sum(Expense.amount).label('total_expenses'))\
+    all_expenses_query = select(col(Expense.property_id), func.sum(Expense.total_amount).label('total_expenses'))\
         .where(
             col(Expense.expense_date) >= start_datetime_utc,
             col(Expense.expense_date) <= end_datetime_utc,

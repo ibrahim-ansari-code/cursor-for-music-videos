@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from uuid import UUID as PythonUUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, computed_field, model_validator
@@ -209,7 +210,7 @@ class TenantBase(BaseModel):
     phone: str | None = None
     email: str | None = None
     status: TenantStatus = TenantStatus.ACTIVE
-    user_id: int | None = None
+    user_id: PythonUUID | None = None
     current_property_id: int | None = None
 
 
@@ -298,6 +299,7 @@ class TenantResponse(BaseModel):
     status: TenantStatus
     created_at: datetime
     updated_at: datetime
+    current_property_id: int | None = None
     # Add fields for unit and property
     unit: UnitResponseSimple | None = None
     property: PropertyResponseSimple | None = None

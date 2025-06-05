@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import React, { useEffect, useState } from "react";
 import {
   fetchProperties,
-  parseLease,
+  fetchPropertyUnits,
   fetchTenants,
   getCurrentUser,
-  fetchPropertyUnits,
+  parseLease,
   uploadLeasePDF,
 } from "../utils/api";
-import TenantModal from "./TenantModal";
 import ConfirmLeaseModal from "./ConfirmLeaseModal";
-import { motion, AnimatePresence } from "framer-motion";
+import TenantModal from "./TenantModal";
 
 // UI Components
 const Label = ({ htmlFor, required, children }) => (

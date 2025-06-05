@@ -1,10 +1,12 @@
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, List, Optional
+from uuid import UUID as PythonUUID
 
 from sqlalchemy import DateTime
 from sqlalchemy import Enum as PgEnum
 from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Column, Field, Relationship, SQLModel
 
 from Backend.models.enums import PropertyStatus
@@ -57,8 +59,8 @@ class Property(SQLModel, table=True):
     )
 
     # Foreign keys
-    user_id: str = Field(
-        sa_column=Column(String(36), ForeignKey(
+    user_id: PythonUUID = Field(
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey(
             "users.id", ondelete="CASCADE"), nullable=False)
     )
 

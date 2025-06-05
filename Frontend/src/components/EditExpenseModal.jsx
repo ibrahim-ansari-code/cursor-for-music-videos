@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import {
+  updateExpenseAPI,
   fetchProperties,
-  createExpense,
   parseExpenseReceiptAPI,
 } from "../utils/api";
 import {
@@ -12,11 +12,11 @@ import {
   Select,
   TextArea,
   Button,
-  // ErrorMessage, // General error is now handled by ModalShell's error prop
 } from "./ui/SharedModalComponents";
-import { AnimatePresence } from "framer-motion";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
+// Reusing PAYMENT_METHODS and PAYMENT_STATUSES if expense categories/statuses are similar,
+// otherwise define EXPENSE_CATEGORIES, EXPENSE_STATUSES
 const EXPENSE_CATEGORIES = [
   "maintenance",
   "utilities",
@@ -26,57 +26,82 @@ const EXPENSE_CATEGORIES = [
   "other",
 ];
 
-const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
+const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
   const initialFormData = {
-    property_id: "",
-    property_name: "", // For displaying in search input after selection
     category: "",
-    amount: "",
-    expense_date: new Date().toISOString().split("T")[0],
+    amount: "", // Subtotal (before tax)
+    expense_date: "",
     description: "",
     receipt_url: null,
+    property_id: "",
+    property_name: "", // For displaying property name
     taxes: [{ tax_name: "", tax_rate: "" }],
   };
   const [formData, setFormData] = useState(initialFormData);
   const [calculatedTotalTaxAmount, setCalculatedTotalTaxAmount] = useState(0);
   const [calculatedTotalAmount, setCalculatedTotalAmount] = useState(0);
   const [properties, setProperties] = useState([]);
-  const [isLoading, setIsLoading] = useState(false); // For main form submission
-  const [error, setError] = useState(null); // General modal error
-  const [receiptFile, setReceiptFile] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [isParsingReceipt, setIsParsingReceipt] = useState(false);
-  const [receiptParseError, setReceiptParseError] = useState(null); // Specific error for receipt parsing
+  const [receiptParseError, setReceiptParseError] = useState(null);
   const [currentReceiptUrl, setCurrentReceiptUrl] = useState(null);
   const [showReceiptPreview, setShowReceiptPreview] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState("");
-  const propertySearchInputRef = useRef(null);
 
   useEffect(() => {
-    const loadProperties = async () => {
-      try {
-        const data = await fetchProperties();
-        setProperties(data);
-      } catch (err) {
-        console.error("Failed to load properties:", err);
-        // setError("Failed to load properties. Please try again."); // Potentially set general modal error
-        toast.error("Failed to load properties for dropdown.");
-      }
-    };
-    if (isOpen) {
-      loadProperties();
-      // Reset form when modal opens
+    if (isOpen && expenseData) {
+      // Fetch properties to find the name for the given property_id
+      const loadPropertiesAndSetForm = async () => {
+        let currentPropertyName = `Property ID ${expenseData.property_id}`;
+        try {
+          const props = await fetchProperties();
+          setProperties(props);
+          const currentProp = props.find(
+            (p) => p.id === expenseData.property_id
+          );
+          if (currentProp) {
+            currentPropertyName = currentProp.name;
+          }
+        } catch (err) {
+          console.error("Failed to load properties for EditExpenseModal:", err);
+          // Potentially show a toast or minor error, but don't block form population
+        }
+
+        setFormData({
+          category: expenseData.category || "",
+          amount: expenseData.subtotal_amount?.toString() || "0",
+          expense_date: expenseData.expense_date
+            ? new Date(expenseData.expense_date).toISOString().split("T")[0]
+            : new Date().toISOString().split("T")[0],
+          description: expenseData.description || "",
+          receipt_url: expenseData.receipt_url || null,
+          property_id: expenseData.property_id || "",
+          property_name: currentPropertyName, // Set fetched or default property name
+          taxes:
+            expenseData.taxes && expenseData.taxes.length > 0
+              ? expenseData.taxes.map((tax) => ({
+                  tax_name: tax.tax_name || "",
+                  tax_rate: tax.tax_rate?.toString() || "",
+                }))
+              : [{ tax_name: "", tax_rate: "" }],
+        });
+        setCurrentReceiptUrl(expenseData.receipt_url || null);
+        setError(null); // Clear any previous errors
+        setReceiptParseError(null);
+        setShowReceiptPreview(false);
+      };
+      loadPropertiesAndSetForm();
+    } else if (!isOpen) {
+      // Reset form if modal is closed (e.g. if not saved)
       setFormData(initialFormData);
-      setCalculatedTotalTaxAmount(0);
-      setCalculatedTotalAmount(0);
-      setError(null);
-      setReceiptFile(null);
-      setIsParsingReceipt(false);
-      setReceiptParseError(null);
       setCurrentReceiptUrl(null);
+      setCalculatedTotalAmount(0);
+      setCalculatedTotalTaxAmount(0);
+      setError(null);
+      setReceiptParseError(null);
       setShowReceiptPreview(false);
-      setDropdownOpen("");
     }
-  }, [isOpen]);
+  }, [isOpen, expenseData]);
 
   useEffect(() => {
     const subtotal = Number.parseFloat(formData.amount) || 0;
@@ -95,10 +120,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleTaxInputChange = (index, e) => {
@@ -126,226 +148,128 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
   const handleReceiptFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setReceiptFile(file);
       setReceiptParseError(null);
       setIsParsingReceipt(true);
-      setCurrentReceiptUrl(null);
-      setShowReceiptPreview(false);
+      // setCurrentReceiptUrl(null); // Keep existing URL until new one is confirmed
+      // setShowReceiptPreview(false);
       const formDataForApi = new FormData();
       formDataForApi.append("file", file);
       try {
         const response = await parseExpenseReceiptAPI(formDataForApi);
-        if (response && response.parsed_details) {
+        if (response?.parsed_details) {
           const { parsed_details, receipt_url: parsedReceiptUrl } = response;
-          let updatedAmount = formData.amount;
-          let updatedTaxes = formData.taxes;
-
-          if (
-            parsed_details.subtotal_amount !== null &&
-            parsed_details.subtotal_amount > 0
-          ) {
-            updatedAmount = parsed_details.subtotal_amount.toString();
-            if (
-              parsed_details.total_amount !== null &&
-              parsed_details.total_amount > parsed_details.subtotal_amount
-            ) {
-              const totalTaxParsed =
-                parsed_details.total_amount - parsed_details.subtotal_amount;
-              const taxRate =
-                (totalTaxParsed / parsed_details.subtotal_amount) * 100;
-              if (taxRate > 0) {
-                updatedTaxes = [
-                  {
-                    tax_name: "Sales Tax (auto)",
-                    tax_rate: taxRate.toFixed(2),
-                  },
-                ];
-              } else {
-                updatedTaxes = [{ tax_name: "", tax_rate: "" }];
-              }
-            } else {
-              updatedTaxes = [{ tax_name: "", tax_rate: "" }];
-            }
-          } else if (parsed_details.total_amount !== null) {
-            updatedAmount = parsed_details.total_amount.toString();
-            updatedTaxes = [{ tax_name: "", tax_rate: "" }];
-          }
-
-          setFormData((prev) => ({
-            ...prev,
-            amount: updatedAmount,
-            taxes: updatedTaxes,
-            expense_date:
-              parsed_details.payment_date ||
-              prev.expense_date ||
-              new Date().toISOString().split("T")[0],
-            description:
-              parsed_details.description_notes || prev.description || "",
-          }));
-          setCurrentReceiptUrl(parsedReceiptUrl);
-          toast.success(response.message || "Receipt parsed successfully!");
+          setCurrentReceiptUrl(parsedReceiptUrl); // Set new receipt URL immediately
+          // Optionally update form fields based on parsed data, if desired for edit modal
+          // For now, primary focus is updating the receipt URL
+          toast.success(
+            response.message || "New receipt parsed and ready to save."
+          );
         } else {
           throw new Error("Invalid response from receipt parser.");
         }
       } catch (err) {
-        setReceiptParseError(err.message || "Failed to parse receipt.");
-        toast.error(err.message || "Failed to parse receipt.");
+        setReceiptParseError(err.message || "Failed to parse new receipt.");
+        toast.error(err.message || "Failed to parse new receipt.");
       } finally {
         setIsParsingReceipt(false);
       }
     }
   };
 
-  const handleExpensePropertySelect = (property) => {
-    setFormData((prev) => ({
-      ...prev,
-      property_id: property.id.toString(),
-      property_name: property.name,
-    }));
-    setDropdownOpen("");
-  };
-
-  const handleExpensePropertySelectKeyDown = (event, property) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      handleExpensePropertySelect(property);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null); // Clear previous general errors
-
-    if (!formData.property_id) {
-      setError("Please select a property.");
+    if (!expenseData || !expenseData.id) {
+      setError("Original expense data is missing. Cannot update.");
       return;
     }
-    if (!formData.category) {
-      setError("Please select a category.");
-      return;
-    }
-    if (!formData.amount || Number.parseFloat(formData.amount) <= 0) {
-      setError("Please enter a valid subtotal amount greater than 0.");
-      return;
-    }
-
+    setError(null);
     setIsLoading(true);
-    try {
-      const expenseData = {
-        property_id: Number.parseInt(formData.property_id, 10),
-        category: formData.category,
-        subtotal_amount: Number.parseFloat(formData.amount),
-        expense_date: formData.expense_date,
-        description: formData.description || "",
-        receipt_url: currentReceiptUrl,
-        taxes: formData.taxes
-          .filter(
-            (tax) =>
-              tax.tax_name && tax.tax_rate && Number.parseFloat(tax.tax_rate) >= 0
-          )
-          .map((tax) => ({
-            tax_name: tax.tax_name,
-            tax_rate: Number.parseFloat(tax.tax_rate),
-          })),
-      };
 
-      await createExpense(expenseData);
-      toast.success("Expense created successfully!");
+    const payload = {
+      category: formData.category || undefined,
+      subtotal_amount: Number.parseFloat(formData.amount) || undefined,
+      expense_date: formData.expense_date
+        ? `${formData.expense_date}T00:00:00Z`
+        : undefined, // Ensure UTC for backend
+      description: formData.description || undefined,
+      receipt_url: currentReceiptUrl,
+      // property_id: formData.property_id ? parseInt(formData.property_id) : undefined, // Property ID is not editable
+      taxes: formData.taxes
+        .filter(
+          (tax) =>
+            tax.tax_name &&
+            tax.tax_rate !== "" &&
+            !isNaN(Number.parseFloat(tax.tax_rate)) &&
+            Number.parseFloat(tax.tax_rate) >= 0
+        )
+        .map((tax) => ({
+          tax_name: tax.tax_name,
+          tax_rate: Number.parseFloat(tax.tax_rate),
+        })),
+    };
+
+    // Clean payload: remove undefined fields to avoid overwriting with nothing
+    const cleanedPayload = Object.entries(payload).reduce(
+      (acc, [key, value]) => {
+        if (value !== undefined) acc[key] = value;
+        return acc;
+      },
+      {}
+    );
+
+    try {
+      await updateExpenseAPI(expenseData.id, cleanedPayload);
+      toast.success("Expense updated successfully!");
       onSuccess?.();
-      onClose(); // This will trigger useEffect to reset form state
+      onClose(); // This will trigger form reset via useEffect on isOpen change
     } catch (err) {
-      console.error("Failed to create expense:", err);
-      const errorMsg =
-        err.data?.detail ||
-        err.message ||
-        "Failed to create expense. Please try again.";
-      setError(errorMsg);
-      toast.error(errorMsg);
+      const errorDetail =
+        err.data?.detail || err.message || "Failed to update expense.";
+      setError(
+        typeof errorDetail === "string"
+          ? errorDetail
+          : JSON.stringify(errorDetail)
+      );
+      toast.error(
+        typeof errorDetail === "string"
+          ? errorDetail
+          : "Error updating expense."
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        propertySearchInputRef.current &&
-        !propertySearchInputRef.current.contains(event.target)
-      ) {
-        setDropdownOpen("");
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [propertySearchInputRef]);
+  const modalTitle =
+    expenseData?.category && formData.property_name
+      ? `Edit ${
+          expenseData.category.charAt(0).toUpperCase() +
+          expenseData.category.slice(1)
+        } for ${formData.property_name}`
+      : `Edit Expense`;
 
   const formContent = (
     <form onSubmit={handleSubmit} className="space-y-5 w-full">
-      <div>
-        <Label htmlFor="property_id" required>
-          Property
-        </Label>
-        <div className="relative" ref={propertySearchInputRef}>
-          <Input
-            type="text"
-            id="property_search"
-            name="property_search"
-            placeholder="Search and select a property..."
-            value={formData.property_name} // Display selected property name
-            onChange={(e) => {
-              setFormData((prev) => ({
-                ...prev,
-                property_id: "",
-                property_name: e.target.value,
-              }));
-              setDropdownOpen("property");
-            }}
-            onFocus={() => setDropdownOpen("property")}
-            autoComplete="off"
-          />
-          {dropdownOpen === "property" && properties.length > 0 && (
-            <div className="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-              <ul className="py-1" role="listbox">
-                {properties
-                  .filter((property) =>
-                    property.name
-                      .toLowerCase()
-                      .includes(formData.property_name.toLowerCase())
-                  )
-                  .map((property) => (
-                    <li
-                      key={property.id}
-                      role="option"
-                      tabIndex={0}
-                      aria-selected={formData.property_id === property.id.toString()}
-                      className="px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-500 hover:text-white cursor-pointer transition-colors duration-150"
-                      onClick={() => handleExpensePropertySelect(property)}
-                      onKeyDown={(e) => handleExpensePropertySelectKeyDown(e, property)}
-                    >
-                      {property.name}
-                    </li>
-                  ))}
-              </ul>
-            </div>
-          )}
+      {formData.property_name && (
+        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-700">
+            <span className="font-semibold">Property:</span>{" "}
+            {formData.property_name}
+          </p>
         </div>
-      </div>
-
+      )}
       <div>
-        <Label htmlFor="category" required>
+        <Label htmlFor={`category_edit-${expenseData?.id}`} required>
           Category
         </Label>
         <Select
-          id="category"
           name="category"
+          id={`category_edit-${expenseData?.id}`}
           value={formData.category}
           onChange={handleInputChange}
           required
         >
-          <option value="">Select a category</option>
+          <option value="">Select Category</option>
           {EXPENSE_CATEGORIES.map((cat) => (
             <option key={cat} value={cat}>
               {cat.charAt(0).toUpperCase() + cat.slice(1)}
@@ -353,9 +277,8 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
           ))}
         </Select>
       </div>
-
       <div>
-        <Label htmlFor="amount" required>
+        <Label htmlFor={`amount_edit-${expenseData?.id}`} required>
           Subtotal (before tax)
         </Label>
         <div className="relative">
@@ -364,13 +287,13 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
           </div>
           <Input
             type="number"
-            id="amount"
             name="amount"
+            id={`amount_edit-${expenseData?.id}`}
             value={formData.amount}
             onChange={handleInputChange}
-            min="0.01" // Typically expenses should be positive
-            step="0.01"
             required
+            min="0.01"
+            step="0.01"
             placeholder="0.00"
             className="pl-7"
           />
@@ -388,7 +311,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
               <Input
                 type="text"
                 name="tax_name"
-                id={`tax_name_${index}`}
+                id={`edit_tax_name_${index}_${expenseData?.id}`}
                 value={tax.tax_name}
                 onChange={(e) => handleTaxInputChange(index, e)}
                 placeholder="Tax Name (e.g., GST)"
@@ -399,13 +322,13 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
               <Input
                 type="number"
                 name="tax_rate"
-                id={`tax_rate_${index}`}
+                id={`edit_tax_rate_${index}_${expenseData?.id}`}
                 value={tax.tax_rate}
                 onChange={(e) => handleTaxInputChange(index, e)}
                 min="0"
                 step="0.01"
                 placeholder="Rate"
-                className="text-sm py-2 pr-6" // Added pr-6 for percent sign
+                className="text-sm py-2 pr-6"
               />
               <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
                 <span className="text-gray-500 text-sm">%</span>
@@ -417,7 +340,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
                 variant="danger"
                 onClick={() => removeTaxItem(index)}
                 className="p-2 text-xs h-9 w-9 flex items-center justify-center bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 border-none shadow-none"
-                title="Remove Tax"
+                title="Remove Tax Item"
               >
                 <i className="fas fa-trash-alt" />
               </Button>
@@ -448,7 +371,6 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
           />
         </div>
       </div>
-
       <div>
         <Label>Total Amount (incl. tax)</Label>
         <div className="relative">
@@ -463,53 +385,50 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
           />
         </div>
       </div>
-
       <div>
-        <Label htmlFor="expense_date" required>
-          Date
+        <Label htmlFor={`expense_date_edit-${expenseData?.id}`} required>
+          Expense Date
         </Label>
         <Input
           type="date"
-          id="expense_date"
           name="expense_date"
+          id={`expense_date_edit-${expenseData?.id}`}
           value={formData.expense_date}
           onChange={handleInputChange}
           required
         />
       </div>
-
       <div>
-        <Label htmlFor="description">Description</Label>
+        <Label htmlFor={`description_edit-${expenseData?.id}`}>
+          Description
+        </Label>
         <TextArea
-          id="description"
           name="description"
+          id={`description_edit-${expenseData?.id}`}
           value={formData.description}
           onChange={handleInputChange}
-          rows="2"
-          placeholder="Optional description of the expense..."
+          rows="3"
+          placeholder="Optional description of the expense"
         />
       </div>
-
       <div>
         <Label>Receipt (Optional)</Label>
         <Input
           type="file"
-          id="receipt_file"
-          name="receipt_file"
           accept=".pdf,.png,.jpg,.jpeg"
           onChange={handleReceiptFileChange}
           disabled={isParsingReceipt}
           className="block w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 disabled:opacity-50"
         />
         {isParsingReceipt && (
-          <p className="mt-1.5 text-sm text-blue-600">Parsing receipt...</p>
+          <p className="mt-1.5 text-sm text-blue-600">Parsing new receipt...</p>
         )}
         {receiptParseError && (
           <p className="mt-1.5 text-sm text-red-600">
             Error: {receiptParseError}
           </p>
         )}
-        {currentReceiptUrl && !isParsingReceipt && !receiptParseError && (
+        {formData.receipt_url && !isParsingReceipt && (
           <div className="mt-2">
             <Button
               type="button"
@@ -523,14 +442,14 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
                 </>
               ) : (
                 <>
-                  <i className="fas fa-eye mr-2" />Preview Receipt
+                  <i className="fas fa-eye mr-2" />Preview Current
                 </>
               )}
             </Button>
           </div>
         )}
         <AnimatePresence>
-          {showReceiptPreview && currentReceiptUrl && (
+          {showReceiptPreview && formData.receipt_url && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "24rem" }}
@@ -539,7 +458,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
               className="mt-3 border rounded-lg overflow-hidden shadow bg-gray-50"
             >
               {(() => {
-                const url = currentReceiptUrl;
+                const url = formData.receipt_url;
                 const lowerUrl = url.toLowerCase();
                 if (
                   lowerUrl.endsWith(".png") ||
@@ -561,7 +480,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
                       src={pdfDisplayUrl}
                       title="Receipt Preview"
                       className="w-full h-full border-0"
-                    />
+                    ></iframe>
                   );
                 } else {
                   return (
@@ -569,7 +488,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
                       src={url}
                       title="Receipt Preview"
                       className="w-full h-full border-0"
-                    />
+                    ></iframe>
                   );
                 }
               })()}
@@ -586,12 +505,19 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
         Cancel
       </Button>
       <Button
-        type="submit" // Will trigger form onSubmit
+        type="submit"
         variant="primary"
         isLoading={isLoading || isParsingReceipt}
-        loadingText={isLoading ? "Creating..." : "Parsing..."}
+        loadingText={
+          isLoading
+            ? "Updating..."
+            : isParsingReceipt
+            ? "Parsing..."
+            : "Saving..."
+        }
+        onClick={handleSubmit}
       >
-        Create Expense
+        Update Expense
       </Button>
     </>
   );
@@ -599,15 +525,15 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
   return (
     <ModalShell
       isOpen={isOpen}
-      onClose={onClose}
-      title="Add New Expense"
-      error={error} // General error for the modal
+      onClose={onClose} // The internal handleClose for reset is triggered by useEffect on isOpen and expenseData change
+      title={modalTitle}
+      error={error}
       footerContent={footerButtons}
-      maxWidth="max-w-lg" // Slightly wider for more complex form
+      maxWidth="max-w-lg"
     >
       {formContent}
     </ModalShell>
   );
 };
 
-export default NewExpenseModal;
+export default EditExpenseModal;

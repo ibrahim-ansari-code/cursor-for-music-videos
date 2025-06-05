@@ -6,9 +6,11 @@ used to manage rental agreements and their documentation.
 from datetime import date, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
+from uuid import UUID as PythonUUID
 
-from sqlalchemy import String
-from sqlmodel import Column, Field, ForeignKey, Integer, Relationship, SQLModel
+from sqlalchemy import Column
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlmodel import Field, ForeignKey, Integer, Relationship, SQLModel
 
 from Backend.models.user import User
 from Backend.utils.datetime_utils import create_audit_datetime
@@ -84,15 +86,15 @@ class LeaseDocument(SQLModel, table=True):
     # Foreign keys
     lease_id: int = Field(sa_column=Column(
         Integer, ForeignKey("leases.id", ondelete="CASCADE")))
-    uploaded_by_id: str | None = Field(
+    uploaded_by_id: PythonUUID | None = Field(
         default=None,
-        sa_column=Column(String(36), ForeignKey(
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey(
             "users.id", ondelete="SET NULL"))
     )
 
     # Relationships
-    lease: Lease = Relationship(back_populates="documents")
-    uploaded_by: User = Relationship()
+    lease: "Lease" = Relationship(back_populates="documents")
+    uploaded_by: "User" = Relationship()
 
 
 class LeaseCreate(SQLModel):

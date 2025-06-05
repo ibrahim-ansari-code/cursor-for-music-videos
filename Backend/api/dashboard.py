@@ -91,8 +91,7 @@ async def get_dashboard_data(
         HTTPException: If the user is not authorized to access dashboard data.
     """
     # Convert user_type to uppercase for comparison
-    user_type = current_user.user_type.upper() if current_user.user_type else None
-    if user_type not in [UserType.ADMIN.value, UserType.LANDLORD.value]:
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access dashboard data"
@@ -101,8 +100,8 @@ async def get_dashboard_data(
     # Define a filter for landlord's properties
     landlord_property_filter_sql = ""
     landlord_params = {}
-    if user_type == UserType.LANDLORD.value:
-        landlord_property_filter_sql = "AND CAST(p.user_id AS TEXT) = CAST(:current_user_id AS TEXT)"
+    if current_user.user_type == UserType.LANDLORD:
+        landlord_property_filter_sql = "AND p.user_id = :current_user_id"
         landlord_params["current_user_id"] = current_user.id
 
     # Calculate date range for filtering
@@ -142,8 +141,8 @@ async def get_dashboard_data(
     financial_summary AS (
         SELECT 
             COALESCE(SUM(CASE WHEN pay.status IN ('Paid', 'Partial') THEN pay.amount ELSE 0 END), 0) as monthly_revenue,
-            COALESCE(SUM(CASE WHEN exp.category = 'maintenance' THEN exp.amount ELSE 0 END), 0) as maintenance_expenses,
-            COALESCE(SUM(exp.amount), 0) as monthly_expenses,
+            COALESCE(SUM(CASE WHEN exp.category = 'maintenance' THEN exp.total_amount ELSE 0 END), 0) as maintenance_expenses,
+            COALESCE(SUM(exp.total_amount), 0) as monthly_expenses,
             COALESCE(SUM(CASE WHEN inv.status IN ('Pending', 'Overdue') THEN inv.amount ELSE 0 END), 0) as outstanding_rent
         FROM 
             properties p
@@ -156,7 +155,7 @@ async def get_dashboard_data(
         LEFT JOIN 
             expenses exp ON p.id = exp.property_id AND exp.expense_date BETWEEN :start_date AND :end_date
         LEFT JOIN 
-            invoices inv ON (p.id = inv.property_id OR t.user_id = inv.tenant_id)
+            invoices inv ON (p.id = inv.property_id OR t.id = inv.tenant_id)
                          AND inv.status IN ('Pending', 'Overdue')
         WHERE 
             1=1
@@ -180,15 +179,16 @@ async def get_dashboard_data(
 
     property_filter = ""
     params = {
-        "user_id": current_user.id,
         "start_date": start_datetime,
         "end_date": end_datetime,
-        **landlord_params  # Add landlord params here
+        **landlord_params
     }
 
     if property_id:
         property_filter = "AND p.id = :property_id"
         params["property_id"] = property_id
+    else:
+        property_filter = ""
 
     # Replace the placeholder
     summary_query = summary_query.format(
@@ -244,7 +244,7 @@ async def get_dashboard_data(
         SELECT 
             date_trunc('month', m.month_start)::date as month,
             COALESCE(SUM(CASE WHEN pay.status IN ('Paid', 'Partial') THEN pay.amount ELSE 0 END), 0) as revenue,
-            COALESCE(SUM(exp.amount), 0) as expenses
+            COALESCE(SUM(exp.total_amount), 0) as expenses
         FROM 
             months m
         LEFT JOIN 
@@ -302,7 +302,7 @@ async def get_dashboard_data(
     payments_query = """
     SELECT 
         i.id,
-        CONCAT(u.first_name, ' ', u.last_name) as tenant_name,
+        CONCAT(t.first_name, ' ', t.last_name) as tenant_name,
         i.amount,
         i.due_date,
         CASE 
@@ -313,7 +313,7 @@ async def get_dashboard_data(
     FROM 
         invoices i
     JOIN 
-        users u ON i.tenant_id = u.id
+        tenants t ON i.tenant_id = t.id
     LEFT JOIN 
         properties p ON i.property_id = p.id
     WHERE 

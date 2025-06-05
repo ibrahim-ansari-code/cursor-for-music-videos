@@ -50,10 +50,20 @@ const handleResponse = async (response) => {
       }
 
       // Throw enhanced error with all details
-      throw Object.assign(
-        new Error(errorData.detail || `API error: ${response.status}`),
-        errorObj
-      );
+      let errorMessage = `API error: ${response.status}`;
+      if (errorData.detail) {
+        if (typeof errorData.detail === "string") {
+          errorMessage = errorData.detail;
+        } else {
+          // If detail is an array or object (e.g., Pydantic validation errors), stringify it.
+          try {
+            errorMessage = JSON.stringify(errorData.detail);
+          } catch (e) {
+            errorMessage = "Could not stringify error details.";
+          }
+        }
+      }
+      throw Object.assign(new Error(errorMessage), errorObj);
     } catch (e) {
       // If response is not JSON or another error occurs
       if (e.data) {
@@ -120,33 +130,35 @@ const apiRequest = async (endpoint, options = {}) => {
   // Use the validated API_BASE_URL
   if (!API_BASE_URL) {
     console.error("API URL is not configured. Cannot make API requests.");
-    // Optionally, redirect to an error page or show a message
     throw new Error("API configuration error.");
   }
 
-  // Check if token exists before making authenticated requests
-  // Skip this check for /auth/me as it's used to validate the token
   if (!token && !endpoint.includes("/auth/")) {
     console.error("No token found for authenticated request");
     window.location.href = "/login";
     throw new Error("Authentication required. Please log in.");
   }
 
-  const defaultOptions = {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    },
+  const requestHeaders = {
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...options.headers,
   };
 
+  // Add Cache-Control header for GET requests to prevent unwanted caching
+  if (!options.method || options.method.toUpperCase() === "GET") {
+    requestHeaders["Cache-Control"] = "no-cache";
+    requestHeaders["Pragma"] = "no-cache"; // For older HTTP/1.0 caches
+    requestHeaders["Expires"] = "0"; // For proxies
+  }
+
+  // Do NOT set Content-Type for FormData; browser handles it.
+  if (!(options.body instanceof FormData)) {
+    requestHeaders["Content-Type"] = "application/json";
+  }
+
   const requestOptions = {
-    ...defaultOptions,
-    ...options,
-    headers: {
-      ...defaultOptions.headers,
-      ...(options.headers || {}),
-    },
+    ...options, // Spread options first to allow overriding method, body, etc.
+    headers: requestHeaders,
   };
 
   // Debug logging for request data
@@ -163,14 +175,31 @@ const apiRequest = async (endpoint, options = {}) => {
 
     // For debugging: Log the raw response for payment creation
     if (
-      endpoint.includes("/accounting/payments") &&
+      (endpoint.includes("/accounting/parse-payment-receipt") ||
+        endpoint.includes("/accounting/payments")) &&
       options.method === "POST"
     ) {
       const responseClone = response.clone();
       const rawText = await responseClone.text();
-      console.log("Raw payment response:", rawText || "Empty response");
+      console.log(`Raw response for ${endpoint}:`, rawText || "Empty response");
 
       if (!response.ok) {
+        // Use the detailed error message from rawText if available for 422s from this specific path
+        if (response.status === 422 && rawText) {
+          try {
+            const parsedError = JSON.parse(rawText);
+            let detailMessage = "Unprocessable Entity";
+            if (parsedError.detail) {
+              detailMessage =
+                typeof parsedError.detail === "string"
+                  ? parsedError.detail
+                  : JSON.stringify(parsedError.detail);
+            }
+            throw new Error(detailMessage);
+          } catch (jsonError) {
+            throw new Error(rawText); // Fallback to raw text if JSON parsing of error fails
+          }
+        }
         throw new Error(rawText || `HTTP error ${response.status}`);
       }
 
@@ -487,6 +516,12 @@ export const updatePayment = async (paymentId, paymentData) => {
   });
 };
 
+export const deletePaymentAPI = async (paymentId) => {
+  return apiRequest(`/accounting/payments/${paymentId}`, {
+    method: "DELETE",
+  });
+};
+
 export const fetchInvoices = async (params = {}) => {
   const queryParams = new URLSearchParams();
 
@@ -513,7 +548,6 @@ export const fetchExpenses = async (params = {}) => {
   const queryParams = new URLSearchParams();
 
   if (params.property_id) queryParams.append("property_id", params.property_id);
-  if (params.vendor_id) queryParams.append("vendor_id", params.vendor_id);
   if (params.category) queryParams.append("category", params.category);
   if (params.start_date) queryParams.append("start_date", params.start_date);
   if (params.end_date) queryParams.append("end_date", params.end_date);
@@ -1236,4 +1270,36 @@ export const uploadLeasePDF = async (file) => {
     console.error("Error uploading lease PDF:", error);
     throw error;
   }
+};
+
+// New function to parse payment receipt
+export const parsePaymentReceiptAPI = async (fileFormData) => {
+  // Note: apiRequest is a generic helper. For FormData, we don't set Content-Type header manually.
+  // The browser will set it to multipart/form-data with the correct boundary.
+  return apiRequest("/accounting/parse-payment-receipt", {
+    method: "POST",
+    body: fileFormData, // Pass FormData directly
+    // headers: {} // Do not set Content-Type for FormData
+  });
+};
+
+// New/Updated Expense API functions
+export const parseExpenseReceiptAPI = async (fileFormData) => {
+  return apiRequest("/accounting/parse-expense-receipt", {
+    method: "POST",
+    body: fileFormData,
+  });
+};
+
+export const updateExpenseAPI = async (expenseId, expenseData) => {
+  return apiRequest(`/accounting/expenses/${expenseId}`, {
+    method: "PUT",
+    body: JSON.stringify(expenseData),
+  });
+};
+
+export const deleteExpenseAPI = async (expenseId) => {
+  return apiRequest(`/accounting/expenses/${expenseId}`, {
+    method: "DELETE",
+  });
 };

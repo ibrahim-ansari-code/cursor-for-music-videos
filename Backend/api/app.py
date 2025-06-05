@@ -1,11 +1,12 @@
 import logging
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.datastructures import FormData
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -77,11 +78,50 @@ app.add_middleware(
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    body_representation = exc.body  # Default to original body
+
+    if isinstance(exc.body, FormData):
+        # If body is FormData, create a serializable representation
+        form_fields = {}
+        file_fields = {}
+        try:
+            for key, value in exc.body.items():
+                if isinstance(value, UploadFile):
+                    file_fields[key] = value.filename if value.filename is not None else "[FileUploadWithoutName]"
+                elif isinstance(value, str):  # Standard form fields
+                    form_fields[key] = value
+                else:  # Other types, convert to string to be safe
+                    form_fields[key] = str(value)
+
+            if form_fields or file_fields:
+                body_representation = {
+                    "form_fields": form_fields, "file_fields": file_fields}
+            else:
+                body_representation = "[Empty FormData Content]"
+        except (TypeError, AttributeError, ValueError) as e:  # Catch more specific errors
+            logger.exception(
+                "Error processing FormData in exception handler:"
+            )
+            body_representation = "[FormData Content - Error during processing]"
+
+    # For logging, use a potentially more verbose but safe string representation of the original body
+    log_body_str = str(exc.body)
+    if isinstance(exc.body, FormData):
+        # Avoid logging full file content
+        log_body_str = f"[FormData with keys: {list(exc.body.keys())}]"
+
     logger.error(
-        f"Validation error: {exc.errors()} for request: {request.url} with body: {exc.body}")
+        "Validation error: %s for request: %s with body: %s", exc.errors(), request.url, log_body_str
+    )
+
+    # Ensure the final body for the JSON response is serializable
+    final_response_body = body_representation
+    if not isinstance(body_representation, (dict, list, str, int, float, bool, type(None))):
+        final_response_body = str(body_representation)
+
     return JSONResponse(
         status_code=422,
-        content={"detail": exc.errors(), "body": exc.body},
+        content={"detail": exc.errors(), "body": final_response_body},
     )
 
 # Router import + error trapping

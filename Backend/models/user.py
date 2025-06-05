@@ -1,8 +1,10 @@
 """Defines the User SQLModel, representing users within the application, including their attributes and relationships."""
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
+from uuid import UUID as PythonUUID
 
 from sqlalchemy import Column, String
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, Relationship, SQLModel
 
 from Backend.utils.datetime_utils import create_audit_datetime
@@ -15,8 +17,9 @@ if TYPE_CHECKING:
 class User(SQLModel, table=True):
     __tablename__ = "users"  # type: ignore
 
-    id: str = Field(
-        sa_column=Column(String(36), primary_key=True)
+    id: PythonUUID = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), primary_key=True)
     )
     email: str = Field(unique=True, index=True)
     first_name: str | None = None

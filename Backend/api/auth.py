@@ -2,6 +2,7 @@ import logging
 import traceback
 from datetime import datetime
 from typing import Optional, Protocol
+from uuid import UUID as PythonUUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -53,10 +54,10 @@ def touch_updated_at(obj: HasUpdatedAt) -> None:
 
 
 class UserResponse(BaseModel):
-    id: str  # UUID from Supabase
+    id: PythonUUID
     email: str
-    first_name: str
-    last_name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     user_type: UserType
     phone: Optional[str] = None
     address: Optional[str] = None
@@ -94,11 +95,11 @@ class AvatarUploadResponse(BaseModel):
 class UserSyncRequest(BaseModel):
     supabase_user_id: str  # This will be the UUID from Supabase
     email: EmailStr
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    phone: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    phone: str | None = None
     # Assuming UserType enum strings like "LANDLORD"
-    user_type: Optional[str] = None
+    user_type: str | None = None
 
 
 class UserSyncResponse(UserResponse):  # Reuse existing UserResponse
@@ -222,7 +223,7 @@ async def upload_user_avatar(
 
     try:
         # Upload to Azure Blob Storage
-        profile_image_url = await upload_avatar_to_blob(file, f"avatars/{user_id}")
+        profile_image_url = await upload_avatar_to_blob(file, current_user.id)
 
         # Update user profile
         current_user.profile_image_url = profile_image_url

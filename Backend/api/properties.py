@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Optional
+from uuid import UUID as PythonUUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -72,7 +73,7 @@ class PropertyResponse(BaseModel):
     description: str | None = None
     year_built: int | None = None
     status: PropertyStatus = PropertyStatus.ACTIVE
-    user_id: str  # Changed from int to str
+    user_id: PythonUUID
     created_at: datetime
     updated_at: datetime
 
@@ -81,9 +82,9 @@ class PropertyResponse(BaseModel):
 
 
 class OwnerResponse(BaseModel):
-    id: str  # Changed from int to str
-    first_name: str
-    last_name: str
+    id: PythonUUID
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     email: str
     phone: str | None = None
     profile_image_url: str | None = None
@@ -121,8 +122,8 @@ class PropertyDetailResponse_Standalone(BaseModel):
     property_type: str
     description: str | None = None
     year_built: int | None = None
-    status: str  # Changed from PropertyStatus to str
-    user_id: str  # Will inherit str from PropertyResponse if it was based on it, explicitly set for clarity
+    status: str
+    user_id: PythonUUID
     created_at: datetime
     updated_at: datetime
     # Additional fields for detail view
@@ -260,8 +261,7 @@ async def get_property(
             description=property_orm.description,
             year_built=property_orm.year_built,
             status=response_status,  # Use calculated status
-            # Ensure user_id is explicitly cast to string
-            user_id=str(property_orm.user_id),
+            user_id=property_orm.user_id,
             created_at=property_orm.created_at,
             updated_at=property_orm.updated_at,
             owner=OwnerResponse.model_validate(
@@ -358,8 +358,7 @@ async def create_property(
             description=property_data.description,
             year_built=property_data.year_built,
             status=property_data.status or PropertyStatus.ACTIVE,
-            # Ensure user_id is explicitly cast to string
-            user_id=str(current_user.id),
+            user_id=current_user.id,
             created_at=create_audit_datetime(),
             updated_at=create_audit_datetime()
         )
@@ -557,8 +556,7 @@ async def update_property(
             description=updated_property_orm.description,
             year_built=updated_property_orm.year_built,
             status=response_status,
-            # Ensure user_id is explicitly cast to string
-            user_id=str(updated_property_orm.user_id),
+            user_id=updated_property_orm.user_id,
             created_at=updated_property_orm.created_at,
             updated_at=updated_property_orm.updated_at,
             owner=OwnerResponse.model_validate(

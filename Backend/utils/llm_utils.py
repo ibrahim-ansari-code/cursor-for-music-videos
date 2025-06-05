@@ -2,13 +2,26 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict
+from typing import Any, Dict, List
+import base64  # Added for image processing
 
+import fitz  # Added for PDF parsing
 from dotenv import find_dotenv, load_dotenv
 from openai import AzureOpenAI
+# Import specific types for messages from the OpenAI SDK
+from openai.types.chat import (
+    ChatCompletionMessageParam,
+    ChatCompletionContentPartTextParam,
+    ChatCompletionContentPartImageParam
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+# Custom Exception
+class PaymentReceiptAnalysisError(Exception):
+    """Custom exception for errors during payment receipt analysis."""
+    pass
 
 # Load environment variables from .env file
 
@@ -102,6 +115,371 @@ try:
 except Exception as e:
     logger.error("Failed to initialize Azure OpenAI client: %s", str(e))
     client = None
+
+
+SYSTEM_PROMPT_PAYMENT_RECEIPT = """
+You are an intelligent assistant specialized in extracting information from payment receipts (which could be provided as text extracted from a PDF, or as an image).
+Analyze the provided content and return a single valid JSON object.
+Do not return any markdown, commentary, or explanation. Your response must **only** contain the JSON, wrapped in triple backticks (```json ... ```).
+
+Use empty strings `""` for any missing fields.
+The `payment_date` must be in ISO format (YYYY-MM-DD). If the year is missing, assume the current year. If the full date cannot be determined, use an empty string.
+The `subtotal_amount` (amount before taxes) must be a float (e.g., 100.00). If not found or not applicable, use 0.0 or try to calculate if total and taxes are obvious.
+The `total_amount` (final amount paid, including all taxes) must be a float (e.g., 112.00). If not found, use 0.0.
+The `currency` should be the currency code (e.g., USD, CAD, EUR) if identifiable, otherwise an empty string.
+The `payment_method` could be 'Cash', 'Credit Card', 'Debit Card', 'Bank Transfer', 'Check', or other common methods. If not clear, use 'Other' or an empty string.
+The `description_notes` should capture any line items, notes, or memo relevant to the payment.
+
+The output must match this structure exactly:
+
+```json
+{
+  "payment_date": "<string, YYYY-MM-DD format or empty string>",
+  "subtotal_amount": "<float, e.g., 70.00>",
+  "total_amount": "<float, e.g., 75.00>",
+  "currency": "<string, e.g., USD, CAD>",
+  "payment_method": "<string, e.g., Credit Card>",
+  "description_notes": "<string, relevant notes or line items>",
+  "raw_text_preview": "<string, first 200 characters of the extracted text if applicable, or a note about image processing>"
+}
+```
+
+Be strict. Never include trailing commas, extra markdown, or introductory text. Just the JSON block wrapped in triple backticks.
+"""
+
+SYSTEM_PROMPT_EXPENSE_RECEIPT = """
+You are an intelligent assistant specialized in extracting information from expense receipts (which could be provided as text extracted from a PDF, or as an image).
+Analyze the provided content and return a single valid JSON object.
+Do not return any markdown, commentary, or explanation. Your response must **only** contain the JSON, wrapped in triple backticks (```json ... ```).
+
+Use empty strings `""` for any missing fields.
+The `payment_date` (expense date) must be in ISO format (YYYY-MM-DD). If the year is missing, assume the current year. If the full date cannot be determined, use an empty string.
+The `subtotal_amount` (amount before taxes) must be a float (e.g., 100.00). If not found, try to calculate by subtracting taxes from total.
+The `total_amount` (final amount including all taxes and fees) must be a float (e.g., 112.00). If not found, use 0.0.
+The `currency` should be the currency code (e.g., USD, CAD, EUR) if identifiable, otherwise an empty string.
+The `payment_method` could be 'Cash', 'Credit Card', 'Debit Card', 'Bank Transfer', 'Check', or other common methods. If not clear, use 'Other' or an empty string.
+The `description_notes` should capture the vendor name, expense category, line items, or any relevant notes about the expense.
+
+Focus on extracting expense-specific information like vendor details, expense categories (maintenance, utilities, supplies, etc.), and tax breakdowns.
+
+The output must match this structure exactly:
+
+```json
+{
+  "payment_date": "<string, YYYY-MM-DD format or empty string>",
+  "subtotal_amount": "<float, e.g., 70.00>",
+  "total_amount": "<float, e.g., 75.00>",
+  "currency": "<string, e.g., USD, CAD>",
+  "payment_method": "<string, e.g., Credit Card>",
+  "description_notes": "<string, vendor name, category, line items, or notes>",
+  "raw_text_preview": "<string, first 200 characters of the extracted text if applicable, or a note about image processing>"
+}
+```
+
+Be strict. Never include trailing commas, extra markdown, or introductory text. Just the JSON block wrapped in triple backticks.
+"""
+
+
+def _extract_json_from_markdown(content: str) -> str:
+    """
+    Helper function to extract JSON from markdown-wrapped content.
+    
+    Handles cases where Azure returns JSON wrapped in markdown code blocks
+    despite using response_format={"type": "json_object"}.
+    
+    Args:
+        content: The raw response content that may contain markdown
+        
+    Returns:
+        The cleaned JSON string
+        
+    Raises:
+        ValueError: If no valid JSON can be extracted
+    """
+    # Try to extract from markdown code blocks first
+    json_pattern = r'```(?:json)?\s*([\s\S]*?)\s*```'
+    json_match = re.search(json_pattern, content)
+    
+    if json_match:
+        return json_match.group(1).strip()
+    
+    # Fallback: try to extract JSON object directly
+    json_pattern_direct = r'({[\s\S]*})'
+    json_match_direct = re.search(json_pattern_direct, content)
+    
+    if json_match_direct:
+        return json_match_direct.group(1).strip()
+    
+    # If no patterns match, return the content as-is for final attempt
+    return content.strip()
+
+
+def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[str, Any]:
+    """
+    Analyzes content from a payment receipt file (PDF or image) using Azure OpenAI GPT-4o with vision.
+    For PDFs, text is extracted and sent. For images, the image is base64 encoded and sent.
+    This is a synchronous function.
+    """
+    if not client:
+        raise OSError("Azure OpenAI client not initialized")
+
+    file_extension = os.path.splitext(filename)[1].lower()
+
+    # Explicitly type the messages list
+    messages: List[ChatCompletionMessageParam] = [
+        {"role": "system", "content": SYSTEM_PROMPT_PAYMENT_RECEIPT},
+    ]
+    raw_text_preview = ""
+
+    if file_extension == '.pdf':
+        try:
+            pdf_document = fitz.open(stream=file_content, filetype="pdf")
+            extracted_text = "".join(page.get_text("text") for page in pdf_document)  # type: ignore[attr-defined]
+            pdf_document.close()
+            logger.info("Extracted text from PDF: %s", filename)
+            if not extracted_text.strip():
+                logger.warning(
+                    "No text could be extracted from PDF: %s", filename)
+                raise ValueError("No text could be extracted from PDF receipt. Please ensure the PDF contains selectable text.")
+            messages.append({"role": "user", "content": extracted_text})
+            raw_text_preview = extracted_text[:200].replace('\n', ' ')
+        except Exception as e:
+            logger.exception(
+                "Failed to extract text from PDF %s: %s", filename, e)
+            raise ValueError(f"Could not process PDF file {filename}: {e}") from e
+    elif file_extension in ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif', '.webp']:
+        logger.info("Processing image file for GPT-4o vision: %s", filename)
+        base64_image = base64.b64encode(file_content).decode('utf-8')
+        image_url_content = f"data:image/{file_extension[1:]};base64,{base64_image}"
+
+        # This user message structure conforms to ChatCompletionUserMessageParam (with list content)
+        user_message_content: List[ChatCompletionContentPartTextParam | ChatCompletionContentPartImageParam] = [
+            {"type": "text", "text": "Please extract the payment details from this receipt image according to the JSON schema provided in the system prompt."},
+            {
+                "type": "image_url",
+                "image_url": {"url": image_url_content, "detail": "auto"},
+            },
+        ]
+        messages.append({"role": "user", "content": user_message_content})
+        raw_text_preview = f"Image file processed: {filename}"
+    else:
+        logger.warning("Unsupported file type for LLM analysis: %s", filename)
+        raise ValueError(
+            f"Unsupported file type: {file_extension}. Please upload a PDF or common image format.")
+
+    try:
+        logger.info(
+            "Starting payment receipt analysis for: %s (type: %s)", filename, file_extension)
+        response = client.chat.completions.create(
+            model=os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
+            messages=messages,
+            temperature=0.1,
+            max_tokens=2000,  # Limit response size for efficiency
+            timeout=30.0,  # 30 second timeout to prevent blocking
+            response_format={"type": "json_object"},
+        )
+
+        llm_response_content = response.choices[0].message.content
+        if llm_response_content is None:
+            error_msg = "No content in LLM response for payment receipt: %s."
+            logger.error(error_msg, filename)
+            raise ValueError(error_msg % filename)
+
+        logger.debug(
+            "LLM raw response for receipt (%s): %s...", filename, llm_response_content[:200])
+
+        # Trust the direct JSON parse first since we use response_format={"type": "json_object"}
+        try:
+            parsed_data = json.loads(llm_response_content)
+            logger.debug("Successfully parsed LLM JSON response directly.")
+        except json.JSONDecodeError:
+            # Rare case: Azure returns markdown despite the contract
+            logger.warning(
+                "Failed to parse LLM response directly as JSON, trying markdown extraction.")
+            try:
+                json_str = _extract_json_from_markdown(llm_response_content)
+                parsed_data = json.loads(json_str)
+                logger.debug("Successfully parsed JSON after markdown extraction.")
+            except (json.JSONDecodeError, ValueError) as json_err:
+                error_msg = "Failed to parse JSON from LLM response for %s: %s"
+                logger.exception(error_msg, filename, json_err)
+                logger.exception("LLM response content: %s", llm_response_content)
+                raise ValueError(error_msg % (filename, json_err)) from json_err
+
+        parsed_data['raw_text_preview'] = raw_text_preview
+
+        # Basic validation and defaulting to ensure correct types
+        parsed_data['payment_date'] = str(parsed_data.get('payment_date', ""))
+        try:
+            parsed_data['subtotal_amount'] = float(
+                parsed_data.get('subtotal_amount', 0.0) or 0.0)
+        except (ValueError, TypeError):
+            logger.warning(
+                "Could not parse subtotal_amount '%s' as float. Defaulting to 0.0.", parsed_data.get('subtotal_amount'))
+            parsed_data['subtotal_amount'] = 0.0
+        try:
+            parsed_data['total_amount'] = float(
+                parsed_data.get('total_amount', 0.0) or 0.0)
+        except (ValueError, TypeError):
+            logger.warning(
+                "Could not parse total_amount '%s' as float. Defaulting to 0.0.", parsed_data.get('total_amount'))
+            parsed_data['total_amount'] = 0.0
+        parsed_data['currency'] = str(parsed_data.get('currency', ""))
+        parsed_data['payment_method'] = str(
+            parsed_data.get('payment_method', ""))
+        parsed_data['description_notes'] = str(
+            parsed_data.get('description_notes', ""))
+
+    except json.JSONDecodeError as e:
+        logger.exception(
+            "Failed to parse LLM response as JSON for payment receipt %s: %s", filename, e)
+        raise ValueError(
+            f"Invalid JSON response from LLM for payment receipt {filename}: {e}") from e
+    except ValueError as e:
+        logger.exception(
+            "ValueError during payment receipt analysis for %s: %s", filename, e)
+        raise # Re-raise the specific ValueError, it might be from a previous step
+    except Exception as e: # Catch any other unexpected exception
+        logger.exception(
+            "Unexpected error analyzing payment receipt %s: %s", filename, e)
+        raise PaymentReceiptAnalysisError(f"Failed to analyze payment receipt {filename}: {e}") from e
+    else:
+        logger.info("Payment receipt analysis completed for: %s", filename)
+        return parsed_data
+
+
+def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[str, Any]:
+    """
+    Analyzes content from an expense receipt file (PDF or image) using Azure OpenAI GPT-4o with vision.
+    For PDFs, text is extracted and sent. For images, the image is base64 encoded and sent.
+    This is a synchronous function specifically designed for expense receipt parsing.
+    """
+    if not client:
+        raise OSError("Azure OpenAI client not initialized")
+
+    file_extension = os.path.splitext(filename)[1].lower()
+
+    # Explicitly type the messages list
+    messages: List[ChatCompletionMessageParam] = [
+        {"role": "system", "content": SYSTEM_PROMPT_EXPENSE_RECEIPT},
+    ]
+    raw_text_preview = ""
+
+    if file_extension == '.pdf':
+        try:
+            pdf_document = fitz.open(stream=file_content, filetype="pdf")
+            extracted_text = "".join(page.get_text("text") for page in pdf_document)  # type: ignore[attr-defined]
+            pdf_document.close()
+            logger.info("Extracted text from PDF for expense: %s", filename)
+            if not extracted_text.strip():
+                logger.warning(
+                    "No text could be extracted from PDF: %s", filename)
+                raise ValueError("No text could be extracted from PDF expense receipt. Please ensure the PDF contains selectable text.")
+            messages.append({"role": "user", "content": extracted_text})
+            raw_text_preview = extracted_text[:200].replace('\n', ' ')
+        except Exception as e:
+            logger.exception(
+                "Failed to extract text from PDF %s: %s", filename, e)
+            raise ValueError(f"Could not process PDF file {filename}: {e}") from e
+    elif file_extension in ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif', '.webp']:
+        logger.info("Processing image file for expense analysis: %s", filename)
+        base64_image = base64.b64encode(file_content).decode('utf-8')
+        image_url_content = f"data:image/{file_extension[1:]};base64,{base64_image}"
+
+        # This user message structure conforms to ChatCompletionUserMessageParam (with list content)
+        user_message_content: List[ChatCompletionContentPartTextParam | ChatCompletionContentPartImageParam] = [
+            {"type": "text", "text": "Please extract the expense details from this receipt image according to the JSON schema provided in the system prompt."},
+            {
+                "type": "image_url",
+                "image_url": {"url": image_url_content, "detail": "auto"},
+            },
+        ]
+        messages.append({"role": "user", "content": user_message_content})
+        raw_text_preview = f"Image file processed: {filename}"
+    else:
+        logger.warning("Unsupported file type for expense LLM analysis: %s", filename)
+        raise ValueError(
+            f"Unsupported file type: {file_extension}. Please upload a PDF or common image format.")
+
+    try:
+        logger.info(
+            "Starting expense receipt analysis for: %s (type: %s)", filename, file_extension)
+        response = client.chat.completions.create(
+            model=os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
+            messages=messages,
+            temperature=0.1,
+            max_tokens=2000,  # Limit response size for efficiency
+            timeout=30.0,  # 30 second timeout to prevent blocking
+            response_format={"type": "json_object"},
+        )
+
+        llm_response_content = response.choices[0].message.content
+        if llm_response_content is None:
+            error_msg = "No content in LLM response for expense receipt: %s."
+            logger.error(error_msg, filename)
+            raise ValueError(error_msg % filename)
+
+        logger.debug(
+            "LLM raw response for expense receipt (%s): %s...", filename, llm_response_content[:200])
+
+        # Trust the direct JSON parse first since we use response_format={"type": "json_object"}
+        try:
+            parsed_data = json.loads(llm_response_content)
+            logger.debug("Successfully parsed LLM JSON response directly.")
+        except json.JSONDecodeError:
+            # Rare case: Azure returns markdown despite the contract
+            logger.warning(
+                "Failed to parse LLM response directly as JSON, trying markdown extraction.")
+            try:
+                json_str = _extract_json_from_markdown(llm_response_content)
+                parsed_data = json.loads(json_str)
+                logger.debug("Successfully parsed JSON after markdown extraction.")
+            except (json.JSONDecodeError, ValueError) as json_err:
+                error_msg = "Failed to parse JSON from LLM response for expense %s: %s"
+                logger.exception(error_msg, filename, json_err)
+                logger.exception("LLM response content: %s", llm_response_content)
+                raise ValueError(error_msg % (filename, json_err)) from json_err
+
+        parsed_data['raw_text_preview'] = raw_text_preview
+
+        # Basic validation and defaulting to ensure correct types
+        parsed_data['payment_date'] = str(parsed_data.get('payment_date', ""))
+        try:
+            parsed_data['subtotal_amount'] = float(
+                parsed_data.get('subtotal_amount', 0.0) or 0.0)
+        except (ValueError, TypeError):
+            logger.warning(
+                "Could not parse subtotal_amount '%s' as float. Defaulting to 0.0.", parsed_data.get('subtotal_amount'))
+            parsed_data['subtotal_amount'] = 0.0
+        try:
+            parsed_data['total_amount'] = float(
+                parsed_data.get('total_amount', 0.0) or 0.0)
+        except (ValueError, TypeError):
+            logger.warning(
+                "Could not parse total_amount '%s' as float. Defaulting to 0.0.", parsed_data.get('total_amount'))
+            parsed_data['total_amount'] = 0.0
+        parsed_data['currency'] = str(parsed_data.get('currency', ""))
+        parsed_data['payment_method'] = str(
+            parsed_data.get('payment_method', ""))
+        parsed_data['description_notes'] = str(
+            parsed_data.get('description_notes', ""))
+
+    except json.JSONDecodeError as e:
+        logger.exception(
+            "Failed to parse LLM response as JSON for expense receipt %s: %s", filename, e)
+        raise ValueError(
+            f"Invalid JSON response from LLM for expense receipt {filename}: {e}") from e
+    except ValueError as e:
+        logger.exception(
+            "ValueError during expense receipt analysis for %s: %s", filename, e)
+        raise # Re-raise the specific ValueError, it might be from a previous step
+    except Exception as e: # Catch any other unexpected exception
+        logger.exception(
+            "Unexpected error analyzing expense receipt %s: %s", filename, e)
+        raise PaymentReceiptAnalysisError(f"Failed to analyze expense receipt {filename}: {e}") from e
+    else:
+        logger.info("Expense receipt analysis completed for: %s", filename)
+        return parsed_data
 
 
 def analyze_lease_text(text: str) -> Dict[str, Any]:
@@ -243,6 +621,9 @@ def analyze_lease_text(text: str) -> Dict[str, Any]:
                 {"role": "user", "content": text}
             ],
             temperature=0.1,
+            max_tokens=4000,  # Larger limit for lease analysis
+            timeout=45.0,  # Longer timeout for complex lease analysis
+            response_format={"type": "json_object"}
         )
 
         content = response.choices[0].message.content
@@ -253,39 +634,22 @@ def analyze_lease_text(text: str) -> Dict[str, Any]:
 
         logger.info("Received response from LLM, extracting JSON")
 
-        # Extract JSON object using regex, supporting both direct JSON and backtick wrapped formats
-        # First try to extract from markdown code blocks (```json ... ```)
-        json_pattern = r'```(?:json)?\s*([\s\S]*?)\s*```'
-        json_match = re.search(json_pattern, content)
-
-        if json_match:
-            # Found JSON in code block format
-            json_str = json_match.group(1)
-            logger.debug("Extracted JSON from code block format")
-        else:
-            # Fall back to looking for direct JSON object
-            json_pattern = r'({[\s\S]*})'
-            json_match = re.search(json_pattern, content)
-
-            if not json_match:
-                error_msg = "No valid JSON object found in LLM response"
-                logger.error(error_msg)
-                logger.error("LLM response content: %s", content)
-                raise ValueError(error_msg)
-
-            json_str = json_match.group(1)
-            logger.debug("Extracted JSON from direct format")
-
-        # Log first 100 chars of extracted JSON
-        logger.debug("Extracted JSON: %s...", json_str[:100])
-
+        # Trust the direct JSON parse first since we use response_format={"type": "json_object"}
         try:
-            parsed_data = json.loads(json_str)
-        except json.JSONDecodeError as json_err:
-            logger.error("Extracted text is not valid JSON: %s", str(json_err))
-            logger.error("Extracted text: %s", json_str)
-            raise ValueError(
-                f"Failed to parse extracted JSON: {str(json_err)}")
+            parsed_data = json.loads(content)
+            logger.debug("Successfully parsed LLM JSON response directly.")
+        except json.JSONDecodeError:
+            # Rare case: Azure returns markdown despite the contract
+            logger.warning("Failed to parse LLM response directly as JSON, trying markdown extraction.")
+            try:
+                json_str = _extract_json_from_markdown(content)
+                parsed_data = json.loads(json_str)
+                logger.debug("Successfully parsed JSON after markdown extraction.")
+            except (json.JSONDecodeError, ValueError) as json_err:
+                error_msg = f"Failed to parse JSON from LLM response: {json_err}"
+                logger.exception(error_msg)
+                logger.exception("LLM response content: %s", content)
+                raise ValueError(error_msg) from json_err
 
         # Validate required fields in the nested structure
         # These fields are expected by LeaseAnalysisResponse but we will allow them to be missing
@@ -319,16 +683,16 @@ def analyze_lease_text(text: str) -> Dict[str, Any]:
                 "Field core_identifiers.unit_number missing in LLM response, defaulting to empty string.")
             parsed_data['core_identifiers']['unit_number'] = ''
 
-        logger.info(
-            "Lease text analysis completed successfully, returning potentially defaulted data.")
-        return parsed_data
-
     except json.JSONDecodeError as e:
-        logger.error("Failed to parse LLM response as JSON: %s", str(e))
-        raise ValueError(f"Invalid JSON response from LLM: {str(e)}")
+        logger.error("Failed to parse LLM response as JSON: %s", str(e), exc_info=True)
+        raise ValueError(f"Invalid JSON response from LLM: {str(e)}") from e
     except ValueError as e:
         # Re-raise ValueError exceptions (like the ones we defined above)
         raise
     except Exception as e:
-        logger.error("Failed to analyze lease text: %s", str(e))
-        raise Exception(f"Failed to analyze lease text: {str(e)}")
+        logger.error("Failed to analyze lease text: %s", str(e), exc_info=True)
+        raise Exception(f"Failed to analyze lease text: {str(e)}") from e
+    else:
+        logger.info(
+            "Lease text analysis completed successfully, returning potentially defaulted data.")
+        return parsed_data

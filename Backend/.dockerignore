@@ -1,0 +1,53 @@
+# Exclude tests from production builds
+Backend/tests/
+tests/
+
+# Python cache and artifacts
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.Python
+*.so
+.pytest_cache/
+
+# Development and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Environment files (these should be set via environment variables in Porter)
+.env
+.env.local
+.env.*.local
+
+# Documentation that's not needed in production
+*.md
+docs/
+
+# Development dependencies lock files (we copy these separately in the workflow)
+# pyproject.toml and poetry.lock are copied separately in the CI workflow
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Temporary files
+tmp/
+temp/

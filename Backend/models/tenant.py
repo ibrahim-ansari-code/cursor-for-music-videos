@@ -1,9 +1,10 @@
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
-from uuid import UUID
+from uuid import UUID as PythonUUID
 
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, Relationship, SQLModel
 
 from Backend.utils.datetime_utils import create_audit_datetime
@@ -39,9 +40,9 @@ class Tenant(SQLModel, table=True):
     __tablename__ = "tenants"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
-    user_id: UUID | None = Field(
+    user_id: PythonUUID | None = Field(
         default=None,
-        sa_column=Column(String(36), ForeignKey(
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey(
             "users.id", ondelete="SET NULL"), index=True)
     )
     first_name: str = Field(max_length=100)

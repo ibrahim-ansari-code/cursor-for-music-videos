@@ -1,70 +1,65 @@
 import logging
+import functools # Add functools import
 from datetime import UTC, date, datetime
-from typing import Any, TypeVar
-from uuid import UUID
+from typing import Any, TypeVar, Annotated # Added Annotated
+from uuid import UUID as PythonUUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, field_validator
 from sqlalchemy import and_, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, selectinload
-from sqlmodel import col
+from sqlmodel import col, select
 
 from Backend.api.auth import get_current_user
 from Backend.database import get_session
-from Backend.models.accounting import (Expense, Invoice, Payment,
+from Backend.models.accounting import (Expense, ExpenseTaxDetail, Invoice, Payment,
                                        PaymentMethod, PaymentStatus)
 from Backend.models.enums import UserType
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.property import Property
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
+# Custom utils
+from Backend.utils.azure_blob import (delete_blob_by_url,
+                                      upload_expense_receipt_to_blob,
+                                      upload_payment_receipt_to_blob)
 from Backend.utils.datetime_utils import (create_audit_datetime,
                                           date_to_utc_range, utc_now,
                                           validate_business_datetime)
+from Backend.utils.llm_utils import analyze_payment_receipt_content, analyze_expense_receipt_content
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Set up API router
+# Set up API router̦
 router = APIRouter(
     prefix="/accounting",
     tags=["accounting"],
 )
 
-# Define a TypeVar for the ID types
-IDType = TypeVar('IDType', int, str, UUID)
+# Define a TypeVar for the ID types, ensuring PythonUUID is used
+IDType = TypeVar('IDType', int, str, PythonUUID)
 
 # === Helper Functions for Permission Checks ===
 
 
-def _convert_to_uuid(user_id: UUID | str | None, context: str = "user ID") -> UUID:
+def _convert_to_uuid(user_id: PythonUUID | str | None, context: str = "user ID") -> PythonUUID:
     """
     Converts a user ID to UUID format, handling both UUID and string inputs.
-
-    Args:
-        user_id: The user ID to convert (must be either UUID or string).
-        context: Description of what this user ID represents for error messages.
-
-    Returns:
-        UUID: The converted UUID object.
-
-    Raises:
-        HTTPException: If the user ID cannot be converted to a valid UUID.
+    Returns a PythonUUID object.
     """
-    # Handle None values explicitly
     if user_id is None:
         logger.error("Cannot convert None to UUID for %s", context)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"User ID cannot be None for {context}"
         )
-
     try:
-        if isinstance(user_id, UUID):
+        if isinstance(user_id, PythonUUID):
             return user_id
-        return UUID(str(user_id))
+        return PythonUUID(str(user_id))
     except (ValueError, TypeError) as e:
         logger.exception(
             "Invalid user_id format for UUID conversion: %s (type: %s)", user_id, type(user_id).__name__)
@@ -194,6 +189,7 @@ class PaymentCreate(BaseModel):
     transaction_reference: str | None = None
     description: str | None = None
     tenant_name: str | None = None
+    receipt_url: str | None = None
 
 
 class PaymentUpdate(BaseModel):
@@ -204,19 +200,21 @@ class PaymentUpdate(BaseModel):
     status: PaymentStatus | None = None
     transaction_reference: str | None = None
     description: str | None = None
+    receipt_url: str | None = None
 
 
 class PaymentResponse(BaseModel):
     """Schema for payment response"""
     id: int
     lease_id: int
-    tenant_id: str | None = None
+    tenant_id: int | None = None
     amount: float
     payment_date: datetime | None = None
-    payment_method: str | None = None
+    payment_method: PaymentMethod | None = None
     status: PaymentStatus | None = None
     transaction_reference: str | None = None
     description: str | None = None
+    receipt_url: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
     tenant_name: str | None = None
@@ -234,7 +232,7 @@ class InvoiceBase(BaseModel):
     due_date: datetime
     status: PaymentStatus = PaymentStatus.PENDING
     property_id: int | None = None
-    tenant_id: str
+    tenant_id: int | None = None
 
 
 class InvoiceCreate(InvoiceBase):
@@ -259,30 +257,59 @@ class InvoiceResponse(InvoiceBase):
         from_attributes = True
 
 
-class ExpenseBase(BaseModel):
-    amount: float
-    category: str
-    description: str
-    expense_date: datetime
-    receipt_url: str | None = None
-    property_id: int
+class ExpenseTaxDetailBase(BaseModel):
+    tax_name: str
+    tax_rate: float  # Percentage, e.g., 5 for 5%
 
 
-class ExpenseCreate(ExpenseBase):
+class ExpenseTaxDetailCreate(ExpenseTaxDetailBase):
     pass
 
 
-class ExpenseUpdate(BaseModel):
-    """Schema for updating an existing expense record."""
-    amount: float | None = None
-    category: str | None = None
-    description: str | None = None
-    expense_date: datetime | None = None
-    receipt_url: str | None = None
-
-
-class ExpenseResponse(ExpenseBase):
+class ExpenseTaxDetailResponse(ExpenseTaxDetailBase):
     id: int
+    tax_amount: float  # Calculated amount for this specific tax line
+    expense_id: int  # For context on frontend if needed
+
+    class Config:
+        from_attributes = True
+
+
+# Base for shared fields in ExpenseResponse
+class _ExpenseInternalBase(BaseModel):
+    category: str
+    description: str | None = None
+    expense_date: datetime
+    receipt_url: str | None = None
+    property_id: int
+    subtotal_amount: float
+
+
+class ExpenseCreate(BaseModel):
+    property_id: int
+    category: str
+    subtotal_amount: float
+    expense_date: datetime
+    description: str | None = None
+    receipt_url: str | None = None
+    taxes: list[ExpenseTaxDetailCreate] | None = None  # Use list from typing and default to None
+
+
+class ExpenseUpdate(BaseModel):
+    property_id: int | None = None
+    category: str | None = None
+    subtotal_amount: float | None = None
+    expense_date: datetime | None = None
+    description: str | None = None
+    receipt_url: str | None = None
+    taxes: list[ExpenseTaxDetailCreate] | None = None  # Use list from typing
+
+
+class ExpenseResponse(_ExpenseInternalBase):
+    id: int
+    total_tax_amount: float
+    total_amount: float
+    taxes: list[ExpenseTaxDetailResponse] = []  # Use list from typing
     created_at: datetime
     updated_at: datetime
 
@@ -344,7 +371,186 @@ async def get_month_payments(session: AsyncSession, lease_id: int, month_date: d
     result = await session.execute(query)
     return result.scalar_one_or_none() is not None
 
+
+async def _handle_receipt_url_update(
+    db_expense: Expense, new_receipt_url: str | None, old_receipt_url: str | None
+) -> None:
+    """
+    Helper function to handle receipt URL updates and cleanup of old blobs.
+    
+    Args:
+        db_expense: The expense object to update
+        new_receipt_url: The new receipt URL to set
+        old_receipt_url: The current receipt URL to potentially clean up
+    """
+    if new_receipt_url != old_receipt_url:
+        db_expense.receipt_url = new_receipt_url
+        if old_receipt_url:  # If there was an old URL, try to delete it
+            try:
+                await delete_blob_by_url(old_receipt_url)
+                logger.info(
+                    "Successfully deleted old blob %s during expense update.", old_receipt_url)
+            except Exception as e:
+                logger.error(
+                    "Failed to delete old blob %s during expense update: %s", old_receipt_url, e)
+
+
+def _calculate_expense_taxes(
+    expense_data: ExpenseUpdate, current_subtotal: float, existing_expense_id: int
+) -> tuple[list[ExpenseTaxDetail], float]:
+    """
+    Helper function to calculate and create tax details for an expense.
+    
+    Args:
+        expense_data: The expense update data containing tax information
+        current_subtotal: The current subtotal amount for tax calculations
+        existing_expense_id: The ID of the expense being updated
+        
+    Returns:
+        Tuple of (new_tax_details_list, calculated_total_tax_amount)
+        
+    Raises:
+        HTTPException: If tax rate is negative
+    """
+    new_tax_details_orm: list[ExpenseTaxDetail] = []
+    calculated_total_tax_amount = 0.0
+
+    if expense_data.taxes is not None:
+        for tax_item_data in expense_data.taxes:  # tax_item_data is ExpenseTaxDetailCreate
+            if tax_item_data.tax_rate < 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Tax rate for '{tax_item_data.tax_name}' cannot be negative."
+                )
+            item_tax_amount = round(
+                (current_subtotal * tax_item_data.tax_rate) / 100, 2)
+            calculated_total_tax_amount += item_tax_amount
+
+            new_tax_details_orm.append(ExpenseTaxDetail(
+                tax_name=tax_item_data.tax_name,
+                tax_rate=tax_item_data.tax_rate,
+                tax_amount=item_tax_amount,
+                expense_id=existing_expense_id
+            ))
+
+    return new_tax_details_orm, round(calculated_total_tax_amount, 2)
+
+
+def _recalculate_existing_taxes(existing_taxes: list[ExpenseTaxDetail], new_subtotal: float) -> float:
+    """
+    Helper function to recalculate tax amounts for existing tax details.
+    
+    Args:
+        existing_taxes: List of existing tax details to recalculate
+        new_subtotal: The new subtotal amount to base calculations on
+        
+    Returns:
+        The calculated total tax amount
+    """
+    calculated_total_tax_amount = 0.0
+    for existing_tax_detail in existing_taxes:
+        existing_tax_detail.tax_amount = round(
+            (new_subtotal * existing_tax_detail.tax_rate) / 100, 2
+        )
+        calculated_total_tax_amount += existing_tax_detail.tax_amount
+    return round(calculated_total_tax_amount, 2)
+
+# === Models for Payment Receipt Parsing ===
+
+
+class PaymentReceiptParseDetails(BaseModel):
+    """Details extracted from a payment receipt by LLM."""
+    payment_date: str | None = None
+    subtotal_amount: float | None = None  # Added for expenses
+    total_amount: float | None = None    # Renamed from amount
+    currency: str | None = None
+    payment_method: str | None = None  # May be less relevant for generic expenses
+    description_notes: str | None = None
+    raw_text_preview: str | None = None
+
+
+class PaymentReceiptParseResponse(BaseModel):
+    """Response model for the payment receipt parsing endpoint."""
+    receipt_url: str
+    parsed_details: PaymentReceiptParseDetails
+    message: str | None = None
+
+
 # API endpoints - Payments
+
+
+@router.post("/parse-payment-receipt", response_model=PaymentReceiptParseResponse)
+async def parse_payment_receipt(
+    file: Annotated[UploadFile, File()],
+    current_user: Annotated[User, Depends(get_current_user)]
+    # session: AsyncSession = Depends(get_session) # Not strictly needed if not saving state here
+) -> PaymentReceiptParseResponse:
+    """
+    Uploads a payment receipt (image or PDF), stores it in Azure Blob Storage,
+    parses it using an LLM to extract payment details, and returns the
+    extracted information along with the receipt's URL.
+
+    Allowed file types: PDF, PNG, JPG, JPEG.
+    User must be a landlord or admin.
+    """
+    if current_user.user_type not in [UserType.LANDLORD, UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to parse payment receipts."
+        )
+
+    allowed_content_types = ["application/pdf",
+                             "image/jpeg", "image/png", "image/jpg"]
+    if file.content_type not in allowed_content_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type: {file.content_type}. Allowed types are PDF, JPG, PNG."
+        )
+
+    try:
+        # Read file content once into memory for LLM analysis
+        file_content = await file.read()
+        
+        # Reset file pointer to beginning for Azure upload
+        await file.seek(0)
+        
+        # Upload to Azure Blob Storage (uses file stream, not the in-memory content)
+        receipt_url = await upload_payment_receipt_to_blob(file, current_user.id)
+
+        # Analyze content using LLM (uses the already-read content)
+        # Use functools.partial to pass keyword arguments correctly
+        func_to_run = functools.partial(
+            analyze_payment_receipt_content,
+            file_content=file_content,
+            filename=file.filename if file.filename is not None else "uploaded_receipt"
+        )
+        parsed_data_dict = await run_in_threadpool(func_to_run)
+
+        parsed_details = PaymentReceiptParseDetails(**parsed_data_dict)
+
+        return PaymentReceiptParseResponse(
+            receipt_url=receipt_url,
+            parsed_details=parsed_details,
+            message="Receipt processed. Review extracted details."
+        )
+
+    except ValueError as ve:  # Catch specific errors from llm_utils or file processing
+        logger.exception(
+            "Validation error during receipt parsing for user %s: %s", current_user.id, ve)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve)) from ve
+    except ConnectionError as ce:  # Catch Azure connection issues
+        logger.exception(
+            "Azure Blob Storage connection error for user %s: %s", current_user.id, ce)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(ce)) from ce
+    except Exception as e:
+        logger.exception(
+            "Error parsing payment receipt for user %s: %s", current_user.id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to parse payment receipt: {str(e)}"
+        ) from e
 
 
 @router.post("/payments", response_model=PaymentResponse)
@@ -366,16 +572,8 @@ async def create_payment(
     # Validate lease existence and landlord ownership
     lease = await check_lease_ownership(payment.lease_id, session, current_user)
 
-    # Create payment record
-    # Convert tenant_id to UUID if it's not None, else pass None
-    tenant_uuid: UUID | None = None
-    actual_tenant_id_for_payment = lease.tenant.user_id if lease.tenant else None
-
-    if actual_tenant_id_for_payment is not None:
-        tenant_uuid = _convert_to_uuid(
-            actual_tenant_id_for_payment,
-            "Tenant associated with lease"
-        )
+    # Create payment record - use the tenant's ID directly
+    actual_tenant_id_for_payment = lease.tenant.id if lease.tenant else None
 
     # Ensure payment_date is properly timezone-aware for business date storage
     final_payment_date: datetime
@@ -386,14 +584,15 @@ async def create_payment(
 
     payment_obj = Payment(
         lease_id=payment.lease_id,
-        tenant_id=tenant_uuid,
+        tenant_id=actual_tenant_id_for_payment,
         amount=payment.amount,
         payment_date=final_payment_date,
         status=payment.status or PaymentStatus.PENDING,
         description=payment.description,
         payment_method=PaymentMethod(
             payment.payment_method) if payment.payment_method else PaymentMethod.OTHER,
-        transaction_reference=payment.transaction_reference
+        transaction_reference=payment.transaction_reference,
+        receipt_url=payment.receipt_url
     )
 
     try:
@@ -407,14 +606,14 @@ async def create_payment(
         response = PaymentResponse(
             id=validated_payment_id,
             lease_id=payment_obj.lease_id,
-            tenant_id=str(
-                payment_obj.tenant_id) if payment_obj.tenant_id is not None else None,
+            tenant_id=payment_obj.tenant_id,
             amount=payment_obj.amount,
             payment_date=payment_obj.payment_date,
-            payment_method=payment_obj.payment_method,
+            payment_method=PaymentMethod(payment_obj.payment_method) if payment_obj.payment_method else None,
             status=payment_obj.status,
             transaction_reference=payment_obj.transaction_reference,
-            description=payment_obj.description,  # Changed from notes
+            description=payment_obj.description,
+            receipt_url=payment_obj.receipt_url,
             created_at=payment_obj.created_at,
             updated_at=payment_obj.updated_at,
             tenant_name=payment.tenant_name,
@@ -437,7 +636,7 @@ async def create_payment(
 async def get_payments(
     lease_id: int | None = None,
     property_id: int | None = None,
-    tenant_id: str | None = None,
+    tenant_id: int | None = None,
     payment_status: PaymentStatus | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
@@ -473,24 +672,41 @@ async def get_payments(
 
         # Role-based access control and filtering
         if current_user.user_type == UserType.TENANT:
-            # Tenants see their payments (check Payment.tenant_id)
-            # Also allow filtering by lease_id if it's theirs
-            if tenant_id and tenant_id != current_user.id:
-                return []  # Tenant trying to filter for someone else
-            filters.append(Payment.tenant_id == current_user.id)
+            # Tenants see their payments - need to find their tenant record to get the tenant.id
+            tenant_query = select(Tenant).where(col(Tenant.user_id) == current_user.id)
+            tenant_result = await session.execute(tenant_query)
+            user_tenant = tenant_result.scalar_one_or_none()
+            
+            if not user_tenant:
+                return []  # User has no tenant record, so no payments
+                
+            user_tenant_id = user_tenant.id
+            if tenant_id and tenant_id != user_tenant_id:
+                return []
+            filters.append(Payment.tenant_id == user_tenant_id)
             if property_id:  # Tenants cannot filter by arbitrary property_id
                 logger.warning(
                     "Tenant %s attempted to filter payments by property_id %s", current_user.id, property_id)
                 return []
 
         elif current_user.user_type == UserType.LANDLORD:
-            # Landlords see payments for leases on their properties
-            query = query.join(getattr(Payment, "lease")).join(
-                getattr(Lease, "property"))
+            # Landlords see payments for leases on properties they own.
+            # Join using getattr to access relationship attributes, aiming for linter compatibility.
+            query = query.join(getattr(Payment, "lease"))\
+                         .join(getattr(Lease, "property"))
+
+            # Filter by the current landlord's user_id on the Property table.
+            # Both current_user.id and Property.user_id are now PythonUUID / native UUID.
+            # Direct UUID comparison
             filters.append(Property.user_id == current_user.id)
-            if property_id:  # Landlord can filter by specific owned property
+
+            # Apply optional additional filters if provided by the landlord:
+            if property_id:
+                # If a specific property_id is provided, filter by it on the Property table.
                 filters.append(Property.id == property_id)
-            if tenant_id:  # Landlord can filter by tenant_id
+
+            if tenant_id:
+                # Filter by tenant_id on the Payment table (now integer)
                 filters.append(Payment.tenant_id == tenant_id)
 
         elif current_user.is_admin:
@@ -530,14 +746,14 @@ async def get_payments(
             response = PaymentResponse(
                 id=p.id,
                 lease_id=p.lease_id,
-                tenant_id=str(
-                    p.tenant_id) if p.tenant_id is not None else None,
+                tenant_id=p.tenant_id,
                 amount=p.amount,
                 payment_date=p.payment_date,
-                payment_method=p.payment_method,  # Use from model
+                payment_method=PaymentMethod(p.payment_method) if p.payment_method else None,
                 status=p.status,
-                transaction_reference=p.transaction_reference,  # Use from model
+                transaction_reference=p.transaction_reference,
                 description=p.description,
+                receipt_url=p.receipt_url,
                 created_at=p.created_at,
                 updated_at=p.updated_at,
                 tenant_name=tenant_name,
@@ -582,7 +798,12 @@ async def get_payment(
 
     # Permission check
     if current_user.user_type == UserType.TENANT:
-        if payment.tenant_id != current_user.id:
+        # Get tenant record to check if this payment belongs to the current user
+        tenant_query = select(Tenant).where(col(Tenant.user_id) == current_user.id)
+        tenant_result = await session.execute(tenant_query)
+        user_tenant = tenant_result.scalar_one_or_none()
+        
+        if not user_tenant or payment.tenant_id != user_tenant.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     elif current_user.user_type == UserType.LANDLORD:
@@ -606,14 +827,14 @@ async def get_payment(
     response = PaymentResponse(
         id=payment.id,
         lease_id=payment.lease_id,
-        tenant_id=str(
-            payment.tenant_id) if payment.tenant_id is not None else None,
+        tenant_id=payment.tenant_id,
         amount=payment.amount,
         payment_date=payment.payment_date,
-        payment_method=payment.payment_method,  # Use from model
+        payment_method=PaymentMethod(payment.payment_method) if payment.payment_method else None,
         status=payment.status,
-        transaction_reference=payment.transaction_reference,  # Use from model
+        transaction_reference=payment.transaction_reference,
         description=payment.description,
+        receipt_url=payment.receipt_url,
         created_at=payment.created_at,
         updated_at=payment.updated_at,
         tenant_name=tenant_name,
@@ -697,14 +918,14 @@ async def update_payment(
         response = PaymentResponse(
             id=payment.id,
             lease_id=payment.lease_id,
-            tenant_id=str(
-                payment.tenant_id) if payment.tenant_id is not None else None,
+            tenant_id=payment.tenant_id,
             amount=payment.amount,
             payment_date=payment.payment_date,
-            payment_method=payment.payment_method,  # Use from model
+            payment_method=PaymentMethod(payment.payment_method) if payment.payment_method else None,
             status=payment.status,
-            transaction_reference=payment.transaction_reference,  # Use from model
+            transaction_reference=payment.transaction_reference,
             description=payment.description,
+            receipt_url=payment.receipt_url,
             created_at=payment.created_at,
             updated_at=payment.updated_at,
             tenant_name=tenant_name,
@@ -719,6 +940,75 @@ async def update_payment(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update payment: {str(e)}"
         )
+
+
+@router.delete("/payments/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_payment(
+    payment_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Deletes a payment record by its ID.
+
+    Only landlords or admins can delete payments. 
+    If the payment has an associated receipt_url, the blob will be deleted from Azure Storage.
+    Raises 404 if payment not found, 403 if not authorized.
+    """
+    # Use getattr for relationship names in selectinload for robustness with type checkers
+    query = select(Payment).options(
+        selectinload(getattr(Payment, "lease")).options(
+            selectinload(getattr(Lease, "property"))
+        )
+    )
+    result = await session.execute(query.where(col(Payment.id) == payment_id))
+    payment_to_delete = result.unique().scalar_one_or_none()
+
+    if not payment_to_delete:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Payment {payment_id} not found")
+
+    # Permission Check: Landlord owns the property associated with the payment's lease, or is Admin
+    if not current_user.is_admin:
+        # Wrap long conditions in parentheses for clarity and to avoid backslash issues
+        is_not_authorized = (
+            not payment_to_delete.lease or
+            not payment_to_delete.lease.property or
+            payment_to_delete.lease.property.user_id != current_user.id
+        )
+        if is_not_authorized:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Not authorized to delete this payment")
+
+    receipt_url_to_delete = payment_to_delete.receipt_url
+
+    try:
+        await session.delete(payment_to_delete)
+        await session.commit()
+        logger.info(
+            f"Payment {payment_id} deleted successfully by user {current_user.id}")
+
+        if receipt_url_to_delete:
+            logger.info(
+                f"Attempting to delete receipt blob: {receipt_url_to_delete}")
+            deleted_from_azure = await delete_blob_by_url(receipt_url_to_delete)
+            if deleted_from_azure:
+                logger.info(
+                    f"Successfully deleted blob {receipt_url_to_delete} from Azure Storage.")
+            else:
+                logger.warning(
+                    f"Could not delete blob {receipt_url_to_delete} from Azure Storage or blob not found.")
+
+        return None
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        logger.error(
+            f"Error deleting payment {payment_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to delete payment: {str(e)}")
 
 # API endpoints - Invoices
 
@@ -748,12 +1038,12 @@ async def create_invoice(
     else:
         # If no property_id, we need to infer from tenant and check ownership via their lease/property
         tenant_query = select(Tenant).options(selectinload(getattr(Tenant, "leases")).selectinload(
-            getattr(Lease, "property"))).where(col(Tenant.user_id) == invoice_data.tenant_id)
+            getattr(Lease, "property"))).where(col(Tenant.id) == invoice_data.tenant_id)
         tenant_result = await session.execute(tenant_query)
         tenant = tenant_result.scalar_one_or_none()
         if not tenant:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail=f"Tenant with user ID {invoice_data.tenant_id} not found")
+                                detail=f"Tenant with ID {invoice_data.tenant_id} not found")
 
         # Find a property owned by the current user that this tenant is associated with
         owned_property_found = False
@@ -808,7 +1098,7 @@ async def create_invoice(
 
 @router.get("/invoices", response_model=list[Invoice])
 async def get_invoices(
-    tenant_id: str | None = None,
+    tenant_id: int | None = None,
     property_id: int | None = None,
     status: PaymentStatus | None = None,
     start_date: date | None = None,
@@ -836,9 +1126,18 @@ async def get_invoices(
 
     # Role-based access control
     if current_user.user_type == UserType.TENANT:
-        if tenant_id and tenant_id != current_user.id:
+        # Get tenant record to check if this matches the current user
+        tenant_query = select(Tenant).where(col(Tenant.user_id) == current_user.id)
+        tenant_result = await session.execute(tenant_query)
+        user_tenant = tenant_result.scalar_one_or_none()
+        
+        if not user_tenant:
+            return []  # User has no tenant record, so no invoices
+            
+        user_tenant_id = user_tenant.id
+        if tenant_id and tenant_id != user_tenant_id:
             return []  # Tenant filtering for someone else
-        filters.append(Invoice.tenant_id == current_user.id)
+        filters.append(Invoice.tenant_id == user_tenant_id)
         if property_id:
             return []  # Tenant cannot filter by property
 
@@ -895,103 +1194,322 @@ async def get_invoices(
 # API endpoints - Expenses
 
 
-@router.post("/expenses", response_model=ExpenseResponse, status_code=status.HTTP_201_CREATED)
-async def create_expense(
-    expense_data: ExpenseCreate,
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+@router.post("/parse-expense-receipt", response_model=PaymentReceiptParseResponse)
+async def parse_expense_receipt(
+    file: Annotated[UploadFile, File()],
+    current_user: Annotated[User, Depends(get_current_user)]
 ):
     """
-    Creates a new expense record after verifying that the current user owns the specified property.
-
-    Only users with landlord or admin roles are permitted to create expenses. Raises a 403 error if unauthorized, or a 500 error if the expense creation fails.
+    Uploads an expense receipt (image or PDF), stores it in Azure Blob Storage ("expense-receipts" container),
+    parses it using an LLM to extract expense details, and returns the
+    extracted information along with the receipt's URL.
+    Allowed file types: PDF, PNG, JPG, JPEG.
+    User must be a landlord or admin.
     """
-    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+    if current_user.user_type not in [UserType.LANDLORD, UserType.ADMIN]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to parse expense receipts."
+        )
 
-    # Check property ownership
-    await check_property_ownership(expense_data.property_id, session, current_user)
+    allowed_content_types = ["application/pdf",
+                             "image/jpeg", "image/png", "image/jpg"]
+    if file.content_type not in allowed_content_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type: {file.content_type}. Allowed types are PDF, JPG, PNG."
+        )
 
     try:
-        expense_data_dict = expense_data.model_dump()
+        # Read file content once into memory for LLM analysis
+        file_content = await file.read()
+        
+        # Reset file pointer to beginning for Azure upload
+        await file.seek(0)
+        
+        # Upload to Azure Blob Storage (uses file stream, not the in-memory content)
+        # user_id is already PythonUUID from current_user.id
+        receipt_url = await upload_expense_receipt_to_blob(file, current_user.id)
 
-        # Ensure expense_date is properly timezone-aware for business date storage
-        if expense_data_dict.get('expense_date') and isinstance(expense_data_dict['expense_date'], datetime):
-            expense_data_dict['expense_date'] = validate_business_datetime(
-                expense_data_dict['expense_date'])
+        # Use expense-specific parsing logic (uses the already-read content)
+        # Use functools.partial to pass keyword arguments correctly
+        func_to_run = functools.partial(
+            analyze_expense_receipt_content,
+            file_content=file_content,
+            filename=file.filename if file.filename is not None else "uploaded_expense_receipt"
+        )
+        parsed_data_dict = await run_in_threadpool(func_to_run)
 
-        new_expense = Expense(**expense_data_dict)
-        session.add(new_expense)
-        await session.commit()
-        await session.refresh(new_expense)
-        logger.info("Expense %s created for property %s by user %s",
-                    new_expense.id, expense_data.property_id, current_user.id)
-        return new_expense
+        # Reusing PaymentReceiptParseDetails. Define ExpenseReceiptParseDetails if structure differs.
+        parsed_details = PaymentReceiptParseDetails(**parsed_data_dict)
+
+        return PaymentReceiptParseResponse(
+            receipt_url=receipt_url,
+            parsed_details=parsed_details,
+            message="Expense receipt processed. Review extracted details."
+        )
+
+    except ValueError as ve:
+        logger.exception(
+            "Validation error during expense receipt parsing for user %s: %s", current_user.id, ve)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve)) from ve
+    except ConnectionError as ce:
+        logger.exception(
+            "Azure Blob Storage connection error for user %s: %s", current_user.id, ce)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(ce)) from ce
     except Exception as e:
-        await session.rollback()
-        logger.error("Error creating expense for property %s: %s",
-                     expense_data.property_id, str(e), exc_info=True)
+        logger.exception(
+            "Error parsing expense receipt for user %s: %s", current_user.id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create expense: {str(e)}"
+            detail=f"Failed to parse expense receipt: {str(e)}"
         ) from e
 
 
-@router.get("/expenses", response_model=list[Expense])
-async def get_expenses(
-    property_id: int | None = None,
-    category: str | None = None,
-    start_date: date | None = None,
-    end_date: date | None = None,
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-) -> list[Expense]:
-    """
-    Retrieves expenses filtered by property, category, and date range, with results limited to properties owned by the current landlord or all properties for admins.
+@router.post("/expenses", response_model=ExpenseResponse, status_code=status.HTTP_201_CREATED)
+async def create_expense(
+    expense_data: ExpenseCreate, session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)
+):
+    if current_user.user_type not in [UserType.LANDLORD, UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    await check_property_ownership(expense_data.property_id, session, current_user)
 
-    Only landlords and admins can access this endpoint. Landlords see expenses for their own properties, while admins may filter by any property.
-    Returns a list of matching expense records.
-    """
+    calculated_total_tax_amount = 0.0
+    tax_details_to_create: list[ExpenseTaxDetail] = []
+    if expense_data.taxes is not None: # Check for None explicitly
+        for tax_item_data in expense_data.taxes:
+            if tax_item_data.tax_rate < 0:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail=f"Tax rate for '{tax_item_data.tax_name}' cannot be negative.")
+            item_tax_amount = round(
+                (expense_data.subtotal_amount * tax_item_data.tax_rate) / 100, 2)
+            calculated_total_tax_amount += item_tax_amount
+            # Use placeholder expense_id=0 - SQLAlchemy will automatically update this when the relationship is established
+            tax_details_to_create.append(ExpenseTaxDetail(
+                tax_name=tax_item_data.tax_name, 
+                tax_rate=tax_item_data.tax_rate, 
+                tax_amount=item_tax_amount,
+                expense_id=0  # Placeholder - will be updated by SQLAlchemy relationship
+            ))
+
+    calculated_total_tax_amount = round(calculated_total_tax_amount, 2)
+    calculated_total_amount = round(
+        expense_data.subtotal_amount + calculated_total_tax_amount, 2)
+
+    db_expense = Expense(
+        property_id=expense_data.property_id, category=expense_data.category,
+        description=expense_data.description, expense_date=validate_business_datetime(
+            expense_data.expense_date),
+        receipt_url=expense_data.receipt_url, subtotal_amount=round(
+            expense_data.subtotal_amount, 2),
+        total_tax_amount=calculated_total_tax_amount, total_amount=calculated_total_amount,
+        taxes=tax_details_to_create
+    )
+    try:
+        session.add(db_expense)
+        await session.commit()
+        await session.refresh(db_expense)
+        # Ensure the relationship is loaded for the response, especially if not automatically handled by refresh.
+        await session.refresh(db_expense, attribute_names=['taxes'])
+        logger.info(
+            f"Expense {db_expense.id} created for property {db_expense.property_id} by user {current_user.id}")
+        return db_expense
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Error creating expense: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to create expense: {str(e)}")
+
+
+@router.get("/expenses", response_model=list[ExpenseResponse])
+async def get_expenses(
+    property_id: int | None = None, category: str | None = None, start_date: date | None = None, end_date: date | None = None,
+    session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)
+) -> list[ExpenseResponse]:
     if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
+    # Use getattr for selectinload to ensure proper typing
     query = select(Expense).options(selectinload(
-        getattr(Expense, "property")))  # Load property for filtering
+        getattr(Expense, "property")), selectinload(getattr(Expense, "taxes")))
     filters = []
-
-    # Basic filters
     if category:
-        # pass `category` as a SQLAlchemy bound parameter instead of f-string
         filters.append(col(Expense.category).ilike(f"%{category}%"))
     if start_date:
-        start_datetime, _ = date_to_utc_range(start_date, start_date)
-        filters.append(col(Expense.expense_date) >= start_datetime)
+        filters.append(col(Expense.expense_date) >=
+                       date_to_utc_range(start_date, start_date)[0])
     if end_date:
-        _, end_datetime = date_to_utc_range(end_date, end_date)
-        filters.append(col(Expense.expense_date) <= end_datetime)
+        filters.append(col(Expense.expense_date) <=
+                       date_to_utc_range(end_date, end_date)[1])
 
-    # Ownership filtering
     if current_user.user_type == UserType.LANDLORD:
+        # Explicit join condition
         query = query.join(Property, col(
             Expense.property_id) == col(Property.id))
-        filters.append(col(Property.user_id) == current_user.id)
-        if property_id:  # Landlord filtering by specific owned property
-            filters.append(col(Expense.property_id) == property_id)
-
-    elif current_user.is_admin:
-        # Admin can filter by any property_id
+        filters.append(Property.user_id == current_user.id)
         if property_id:
-            filters.append(col(Expense.property_id) == property_id)
+            filters.append(Expense.property_id == property_id)
+    elif current_user.is_admin and property_id:
+        filters.append(Expense.property_id == property_id)
 
     if filters:
         query = query.where(and_(*filters))
-
     query = query.order_by(col(Expense.expense_date).desc())
     result = await session.execute(query)
-    expenses = result.scalars().all()
-    return list(expenses)
+    expenses_orm = result.scalars().unique().all()
+    return [ExpenseResponse.model_validate(exp) for exp in expenses_orm]
+
+
+@router.get("/expenses/{expense_id}", response_model=ExpenseResponse)
+async def get_expense_by_id(
+    expense_id: int, session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)
+):
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    # Use getattr for selectinload to ensure proper typing
+    query = select(Expense).options(selectinload(getattr(Expense, "property")),
+                                    selectinload(getattr(Expense, "taxes"))).where(Expense.id == expense_id)
+    db_expense = await session.scalar(query)
+
+    if not db_expense:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Expense {expense_id} not found")
+    if not current_user.is_admin and (not db_expense.property or db_expense.property.user_id != current_user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Not authorized to access this expense")
+    return ExpenseResponse.model_validate(db_expense)
+
+
+@router.put("/expenses/{expense_id}", response_model=ExpenseResponse)
+async def update_expense(
+    expense_id: int, expense_data: ExpenseUpdate, session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)
+):
+    # Permission and authorization checks
+    if current_user.user_type not in [UserType.LANDLORD, UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    # Use getattr for selectinload to ensure proper typing
+    db_expense = await session.get(Expense, expense_id, options=[selectinload(getattr(Expense, "taxes")), selectinload(getattr(Expense, "property"))])
+    if not db_expense:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Expense {expense_id} not found")
+    if not current_user.is_admin and (not db_expense.property or db_expense.property.user_id != current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    update_payload = expense_data.model_dump(exclude_unset=True)
+
+    # Update basic fields
+    if "property_id" in update_payload and update_payload["property_id"] != db_expense.property_id:
+        await check_property_ownership(update_payload["property_id"], session, current_user)
+        db_expense.property_id = update_payload["property_id"]
+    if "category" in update_payload and update_payload["category"] is not None:
+        db_expense.category = update_payload["category"]
+    # Allow setting description to None (empty string from frontend might become None)
+    if "description" in update_payload:
+        db_expense.description = update_payload["description"]
+    if "expense_date" in update_payload and update_payload["expense_date"] is not None:
+        db_expense.expense_date = validate_business_datetime(
+            update_payload["expense_date"])
+
+    # Handle receipt URL updates and cleanup
+    if "receipt_url" in update_payload:  # Allows setting receipt_url to None
+        await _handle_receipt_url_update(
+            db_expense, update_payload["receipt_url"], db_expense.receipt_url)
+
+    # Handle subtotal amount updates
+    subtotal_updated_in_payload = False
+    if "subtotal_amount" in update_payload and update_payload["subtotal_amount"] is not None:
+        db_expense.subtotal_amount = round(float(update_payload["subtotal_amount"]), 2)
+        subtotal_updated_in_payload = True
+
+    # Handle tax calculations
+    if expense_data.taxes is not None:
+        # User explicitly provides new tax lines
+        if db_expense.id is None:  # Should not happen for an update
+            logger.error(
+                "Critical error: db_expense.id is None during tax detail creation in update_expense.")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail="Cannot create tax detail without parent expense ID.")
+        
+        new_tax_details_orm, calculated_total_tax_amount = _calculate_expense_taxes(
+            expense_data, db_expense.subtotal_amount, db_expense.id)
+        # Assign new list; delete-orphan (if configured on relationship) handles old ones.
+        db_expense.taxes = new_tax_details_orm
+        db_expense.total_tax_amount = calculated_total_tax_amount
+    elif subtotal_updated_in_payload:  # No new tax lines, but subtotal changed. Recalculate existing.
+        db_expense.total_tax_amount = _recalculate_existing_taxes(db_expense.taxes, db_expense.subtotal_amount)
+    # If expense_data.taxes was None and subtotal was not updated,
+    # db_expense.taxes and db_expense.total_tax_amount remain unchanged.
+
+    # Recalculate total_amount and update audit timestamp
+    db_expense.total_amount = round(
+        db_expense.subtotal_amount + db_expense.total_tax_amount, 2)
+    db_expense.updated_at = create_audit_datetime()
+
+    # Commit changes to database
+    try:
+        # db_expense is already persistent and attached to the session.
+        # Modifying its attributes and collections marks it as dirty.
+        # session.add(db_expense) is generally not needed here but harmless.
+        # This will flush all changes, including cascades.
+        await session.commit()
+        await session.refresh(db_expense)
+        # Eagerly load/refresh the 'taxes' relationship to ensure the response model has them.
+        await session.refresh(db_expense, attribute_names=['taxes'])
+        logger.info(
+            "Expense %s updated by user %s", db_expense.id, current_user.id)
+        return db_expense
+    except Exception as e:
+        await session.rollback()
+        logger.error(
+            "Error updating expense %s: %s", expense_id, str(e), exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to update expense: {str(e)}")
+
+
+@router.delete("/expenses/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_expense(
+    expense_id: int, session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)
+):
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    # Use getattr for selectinload to ensure proper typing
+    expense_to_delete = await session.get(Expense, expense_id, options=[selectinload(getattr(Expense, "property"))])
+    if not expense_to_delete:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Expense {expense_id} not found")
+    if not current_user.is_admin and (not expense_to_delete.property or expense_to_delete.property.user_id != current_user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Not authorized to delete this expense")
+
+    receipt_url_to_delete = expense_to_delete.receipt_url
+    try:
+        await session.delete(expense_to_delete)
+        await session.commit()
+        logger.info(f"Expense {expense_id} deleted by user {current_user.id}")
+        if receipt_url_to_delete:
+            try:
+                await delete_blob_by_url(receipt_url_to_delete)
+            except Exception as e:
+                logger.error(
+                    f"Failed to delete blob {receipt_url_to_delete} for deleted expense: {e}")
+        return None
+    except Exception as e:
+        await session.rollback()
+        logger.error(
+            f"Error deleting expense {expense_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to delete expense: {str(e)}")
 
 # Analytics endpoints - Applying Ownership Checks
 
@@ -1129,7 +1647,7 @@ async def get_revenue_trends(
             GROUP BY EXTRACT(MONTH FROM p.payment_date)
         ),
         expense_data AS (
-            SELECT EXTRACT(MONTH FROM e.expense_date) AS month, SUM(e.amount) AS expenses
+            SELECT EXTRACT(MONTH FROM e.expense_date) AS month, SUM(e.total_amount) AS expenses
             FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id
             WHERE EXTRACT(YEAR FROM e.expense_date) = :year {ownership_filter_expenses}
             GROUP BY EXTRACT(MONTH FROM e.expense_date)
@@ -1159,7 +1677,7 @@ async def get_revenue_trends(
             GROUP BY EXTRACT(YEAR FROM p.payment_date)
         ),
         expense_data AS (
-            SELECT EXTRACT(YEAR FROM e.expense_date) AS year, SUM(e.amount) AS expenses
+            SELECT EXTRACT(YEAR FROM e.expense_date) AS year, SUM(e.total_amount) AS expenses
             FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id
             WHERE 1=1 {ownership_filter_expenses}
             GROUP BY EXTRACT(YEAR FROM e.expense_date)
@@ -1253,13 +1771,13 @@ async def get_accounting_overview(
     # Monthly Expenses
     monthly_expenses_params = {**base_query_params, "filter_date": month_start}
     monthly_expenses_q = build_filtered_query(
-        "SELECT COALESCE(SUM(e.amount), 0.0) FROM expenses e", "e.expense_date", "filter_date")
+        "SELECT COALESCE(SUM(e.total_amount), 0.0) FROM expenses e", "e.expense_date", "filter_date")
     monthly_expenses = await session.scalar(monthly_expenses_q, monthly_expenses_params)
 
     # YTD Expenses
     ytd_expenses_params = {**base_query_params, "filter_date": year_start}
     ytd_expenses_q = build_filtered_query(
-        "SELECT COALESCE(SUM(e.amount), 0.0) FROM expenses e", "e.expense_date", "filter_date")
+        "SELECT COALESCE(SUM(e.total_amount), 0.0) FROM expenses e", "e.expense_date", "filter_date")
     ytd_expenses = await session.scalar(ytd_expenses_q, ytd_expenses_params)
 
     # Outstanding Payments
@@ -1307,7 +1825,7 @@ async def get_accounting_overview(
             GROUP BY 1
         ),
         expense_data AS (
-            SELECT date_trunc('month', e.expense_date)::date as month, SUM(e.amount) AS expenses
+            SELECT date_trunc('month', e.expense_date)::date as month, SUM(e.total_amount) AS expenses
             FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id
             WHERE 1=1 {trend_ownership_filter_expenses} AND e.expense_date >= date_trunc('month', current_date - interval '11 months')
             GROUP BY 1
@@ -1402,15 +1920,12 @@ async def generate_due_payments(
                 ) if t.first_name else f"Tenant #{t.id}"
 
             # Create new payment - ensure we use the correct tenant_id from the lease
-            tenant_user_id_for_payment: UUID | None = None
-            if lease.tenant and lease.tenant.user_id:
-                tenant_user_id_for_payment = _convert_to_uuid(
-                    lease.tenant.user_id,
-                    f"Tenant associated with lease {lease.id}"
-                )
+            actual_tenant_id_for_payment: int | None = None
+            if lease.tenant and lease.tenant.id:
+                actual_tenant_id_for_payment = lease.tenant.id
             else:
                 logger.warning(
-                    "Tenant or tenant user_id missing for lease %s. Skipping payment generation.", lease.id)
+                    "Tenant or tenant ID missing for lease %s. Skipping payment generation.", lease.id)
                 continue  # Skip this lease
 
             if lease.id is None:
@@ -1419,7 +1934,7 @@ async def generate_due_payments(
                 continue
             new_payment = Payment(
                 lease_id=lease.id,
-                tenant_id=tenant_user_id_for_payment,  # Use the validated/converted UUID
+                tenant_id=actual_tenant_id_for_payment,
                 amount=lease.monthly_rent,
                 payment_date=utc_now(),  # Store as timezone-aware UTC for business date
                 status=PaymentStatus.PENDING,
@@ -1448,13 +1963,20 @@ async def generate_due_payments(
 
                 property_name = lease.property.name if lease.property else "Unknown Property"
                 response = PaymentResponse(
-                    id=new_payment.id, lease_id=new_payment.lease_id, tenant_id=str(
-                        new_payment.tenant_id) if new_payment.tenant_id is not None else None,
-                    amount=new_payment.amount, payment_date=new_payment.payment_date,
-                    payment_method=new_payment.payment_method, status=new_payment.status,  # Use from model
-                    transaction_reference=new_payment.transaction_reference, description=new_payment.description,  # Use from model
-                    created_at=new_payment.created_at, updated_at=new_payment.updated_at,
-                    tenant_name=tenant_name, property_name=property_name
+                    id=new_payment.id,
+                    lease_id=new_payment.lease_id,
+                    tenant_id=new_payment.tenant_id,
+                    amount=new_payment.amount,
+                    payment_date=new_payment.payment_date,
+                    payment_method=PaymentMethod(new_payment.payment_method) if new_payment.payment_method else None,
+                    status=new_payment.status,
+                    transaction_reference=new_payment.transaction_reference,
+                    description=new_payment.description,
+                    receipt_url=new_payment.receipt_url,
+                    created_at=new_payment.created_at,
+                    updated_at=new_payment.updated_at,
+                    tenant_name=tenant_name,
+                    property_name=property_name
                 )
                 created_payments_responses.append(response)
                 logger.info("Created payment %s for lease %s",
@@ -1514,8 +2036,15 @@ async def get_outstanding_payments(
 
         # Apply ownership filter
         if current_user.user_type == UserType.TENANT:
-            query = query.where(col(Payment.tenant_id) ==
-                                current_user.id)  # Applied col()
+            # Get tenant record to check payments for this tenant
+            tenant_query = select(Tenant).where(col(Tenant.user_id) == current_user.id)
+            tenant_result = await session.execute(tenant_query)
+            user_tenant = tenant_result.scalar_one_or_none()
+            
+            if user_tenant:
+                query = query.where(col(Payment.tenant_id) == user_tenant.id)
+            else:
+                return []  # No tenant record means no payments
         elif current_user.user_type == UserType.LANDLORD:
             query = query.join(getattr(Payment, "lease")).join(getattr(Lease, "property")).where(
                 col(Property.user_id) == current_user.id)  # Applied getattr & col()
@@ -1538,11 +2067,20 @@ async def get_outstanding_payments(
             property_name = p.lease.property.name if p.lease and p.lease.property else "Unknown Property"
 
             response = PaymentResponse(
-                id=p.id, lease_id=p.lease_id, tenant_id=str(p.tenant_id) if p.tenant_id is not None else None, amount=p.amount,
+                id=p.id,
+                lease_id=p.lease_id,
+                tenant_id=p.tenant_id,
+                amount=p.amount,
                 payment_date=p.payment_date,
-                payment_method=p.payment_method, status=p.status,  # Use from model
-                transaction_reference=p.transaction_reference, description=p.description, created_at=p.created_at,  # Use from model
-                updated_at=p.updated_at, tenant_name=tenant_name, property_name=property_name
+                payment_method=PaymentMethod(p.payment_method) if p.payment_method else None,
+                status=p.status,
+                transaction_reference=p.transaction_reference,
+                description=p.description,
+                receipt_url=p.receipt_url,
+                created_at=p.created_at,
+                updated_at=p.updated_at,
+                tenant_name=tenant_name,
+                property_name=property_name
             )
             payment_responses.append(response)
 

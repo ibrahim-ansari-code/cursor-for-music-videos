@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
-# Load from .env.production by default
+# Load from .env by default
 env_path = os.getenv("DOTENV_KEY", ".env")
 load_dotenv(dotenv_path=env_path)
 

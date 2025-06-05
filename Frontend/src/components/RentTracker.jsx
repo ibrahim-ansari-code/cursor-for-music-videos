@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { fetchRentTracker } from "../utils/api";
+import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { fetchRentTracker } from "../utils/api";
 
 const RentTracker = ({ onDataLoaded }) => {
   const [loading, setLoading] = useState(true);

@@ -3,6 +3,7 @@ import json
 import logging
 import re
 from datetime import date, datetime
+from uuid import UUID as PythonUUID
 
 # Third-party imports
 import fitz
@@ -298,8 +299,8 @@ class LeaseResponse(LeaseBase):
     status: LeaseStatus
     created_at: datetime
     updated_at: datetime
-    tenant: Tenant | None = None
-    property: Property | None = None
+    tenant: Tenant | None
+    property: Property | None
 
     class Config:
         from_attributes = True
@@ -311,6 +312,7 @@ class LeaseDocumentResponse(BaseModel):
     file_path: str
     document_type: str
     upload_date: datetime
+    uploaded_by_id: PythonUUID | None = None
 
     class Config:
         from_attributes = True
