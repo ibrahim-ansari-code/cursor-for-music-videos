@@ -105,3 +105,33 @@ class LeaseCreate(SQLModel):
     end_date: date
     monthly_rent: float
     security_deposit: float
+    status: LeaseStatus | None = LeaseStatus.DRAFT
+    file_url: str | None = None
+
+
+class LeaseUpdate(SQLModel):
+    """
+    Model for applying partial updates to an existing Lease object.
+
+    All fields are optional, allowing clients to send only the data points
+    that need to be modified. Status updates (e.g., activating or
+    terminating a lease) are handled via a separate mechanism to maintain
+    a clear distinction in API operations and business logic.
+    """
+    start_date: date | None = None
+    end_date: date | None = None
+    monthly_rent: float | None = None
+    security_deposit: float | None = None
+    rent_due_day: int | None = None
+    late_fee_amount: float | None = Field(default=None)
+    late_fee_after_days: int | None = Field(default=None)
+    special_terms: str | None = Field(default=None)
+    # Consider if status updates should be part of this or a separate endpoint
+    # status: LeaseStatus | None = None
+
+# Ensure all Field imports from sqlmodel are correct if this class uses them.
+# If only Pydantic BaseModel is needed, adjust SQLModel inheritance.
+# For now, assuming SQLModel is appropriate for consistency or future ORM use.
+# If it's purely for API data validation, from pydantic import BaseModel would be more standard.
+# However, to keep it consistent with LeaseCreate, using SQLModel.
+# Added default=None to optional fields to be more explicit.

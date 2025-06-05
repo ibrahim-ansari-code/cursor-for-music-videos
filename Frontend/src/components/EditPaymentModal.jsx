@@ -125,7 +125,8 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
     setIsLoading(true);
 
     const payload = {
-      amount: formData.amount !== "" ? Number.parseFloat(formData.amount) : undefined,
+      amount:
+        formData.amount !== "" ? Number.parseFloat(formData.amount) : undefined,
       payment_date: formData.payment_date
         ? `${formData.payment_date}T00:00:00Z`
         : undefined, // Ensure UTC
@@ -171,7 +172,11 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
   } (ID: ${paymentData?.id || "N/A"})`;
 
   const formContent = (
-    <form id="edit-payment-form" onSubmit={handleSubmit} className="space-y-5 w-full">
+    <form
+      id="edit-payment-form"
+      onSubmit={handleSubmit}
+      className="space-y-5 w-full"
+    >
       {(paymentData?.tenant_name || paymentData?.property_name) && (
         <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
           {paymentData?.tenant_name && (
@@ -272,7 +277,9 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
         />
       </div>
       <div>
-        <Label htmlFor={`payment-receipt-upload-${paymentData?.id}`}>Payment Receipt (Optional)</Label>
+        <Label htmlFor={`payment-receipt-upload-${paymentData?.id}`}>
+          Payment Receipt (Optional)
+        </Label>
         <Input
           type="file"
           id={`payment-receipt-upload-${paymentData?.id}`}
@@ -299,11 +306,13 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
             >
               {showReceiptPreview ? (
                 <>
-                  <i className="fas fa-eye-slash mr-2" />Hide Preview
+                  <i className="fas fa-eye-slash mr-2" />
+                  Hide Preview
                 </>
               ) : (
                 <>
-                  <i className="fas fa-eye mr-2" />Preview Current
+                  <i className="fas fa-eye mr-2" />
+                  Preview Current
                 </>
               )}
             </Button>
@@ -368,6 +377,7 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
       </Button>
       <Button
         type="submit"
+        form="edit-payment-form"
         variant="primary"
         isLoading={isLoading || isParsingReceipt}
         loadingText={

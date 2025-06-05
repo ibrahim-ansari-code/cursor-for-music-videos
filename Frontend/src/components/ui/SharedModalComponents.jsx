@@ -149,7 +149,6 @@ export const ErrorMessage = ({ message }) => (
       viewBox="0 0 20 20"
       fill="currentColor"
     >
-      <title>Error icon</title>
       <path
         fillRule="evenodd"
         d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 9a1 1 0 100-2 1 1 0 000 2z"
@@ -167,8 +166,8 @@ export const Button = ({
   disabled,
   children,
   className = "",
-  isLoading = false, // Added isLoading prop
-  loadingText = "Saving...", // Added loadingText prop
+  isLoading = false,
+  loadingText = "Saving...",
   ...props
 }) => {
   const baseClasses =
@@ -187,7 +186,7 @@ export const Button = ({
     <button
       type={type}
       onClick={onClick}
-      disabled={disabled || isLoading} // Disable button when isLoading
+      disabled={disabled || isLoading}
       className={`${baseClasses} ${variants[variant]} ${className}`}
       {...props}
     >
@@ -198,7 +197,6 @@ export const Button = ({
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
-            aria-hidden="true"
           >
             <circle
               className="opacity-25"
@@ -222,6 +220,24 @@ export const Button = ({
     </button>
   );
 };
+
+// FormSection Component (from EditLeaseModal)
+export const FormSection = ({
+  title,
+  children,
+  containerClass = "pt-6", // Default container style
+  titleClass = "text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200", // Default title style
+}) => (
+  <div className={containerClass}>
+    {title && (
+      <h3 className={titleClass}>
+        {title}
+      </h3>
+    )}
+    {/* Render children directly for flexibility */}
+    {children}
+  </div>
+);
 
 // Modal Shell Component
 export const ModalShell = ({
@@ -301,7 +317,6 @@ export const ModalShell = ({
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
-              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"

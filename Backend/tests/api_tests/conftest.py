@@ -2,6 +2,7 @@
 Shared pytest fixtures for API tests.
 """
 
+from dotenv import load_dotenv
 import asyncio
 import os
 import sys
@@ -9,7 +10,7 @@ import logging
 import pytest
 import httpx
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Iterator
 import pytest_asyncio
 import time
 import aiofiles
@@ -24,7 +25,6 @@ PROJECT_ROOT = os.path.dirname(_BACKEND_DIR)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from dotenv import load_dotenv
 
 # Load environment variables
 dotenv_path = os.path.join(PROJECT_ROOT, '.env')
@@ -47,25 +47,42 @@ except ImportError:
 
 class APITestClient:
     """Enhanced test client with authentication handling for pytest"""
-    
+
     def __init__(self, base_url: str):
+        """
+        Initializes an asynchronous API test client with the specified base URL.
+        
+        Args:
+            base_url: The root URL for all API requests made by this client.
+        """
         self.base_url = base_url
         self.client = httpx.AsyncClient(timeout=30.0)
         self.auth_token: str | None = None
         self.current_user: dict[str, Any] | None = None
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
-    
+
     async def __aenter__(self):
+        """
+        Authenticates the API client and returns itself for use in asynchronous context managers.
+        """
         await self._authenticate()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """
+        Closes the underlying HTTP client when exiting the async context.
+        """
         await self.client.aclose()
-    
+
     async def _authenticate(self):
-        """Authenticate and obtain JWT token"""
-        logger.info("APITestClient: Attempting to acquire authentication token...")
+        """
+        Attempts to authenticate the API client by acquiring a JWT token.
         
+        Tries to obtain a fresh token using an async helper, then falls back to an environment variable, and finally to a local token file. Logs the outcome and sets the token for use in authenticated requests.
+        """
+        logger.info(
+            "APITestClient: Attempting to acquire authentication token...")
+
         # Try to get fresh token from auth helper
         if get_test_jwt:
             try:
@@ -73,17 +90,19 @@ class APITestClient:
                 if fresh_token:
                     self.auth_token = fresh_token
                     os.environ["TEST_USER_JWT"] = fresh_token
-                    logger.info(f"✅ Token obtained via get_test_jwt: {self.auth_token[:20]}...")
+                    logger.info(
+                        "✅ Token obtained via get_test_jwt: %s...", self.auth_token[:20])
                     return
             except Exception as e:
-                logger.warning(f"⚠️ Error getting token from auth helper: {e}")
-        
+                logger.warning("⚠️ Error getting token from auth helper: %s", e)
+
         # Fallback to environment variable
         self.auth_token = os.getenv("TEST_USER_JWT")
         if self.auth_token:
-            logger.info(f"✅ Using JWT from TEST_USER_JWT env var: {self.auth_token[:20]}...")
+            logger.info(
+                "✅ Using JWT from TEST_USER_JWT env var: %s...", self.auth_token[:20])
             return
-        
+
         # Fallback to token file
         token_file_path = os.path.join(self.script_dir, '.test_jwt_token')
         if os.path.exists(token_file_path):
@@ -91,62 +110,128 @@ class APITestClient:
                 async with aiofiles.open(token_file_path, 'r', encoding='utf-8') as f:
                     self.auth_token = (await f.read()).strip()
                 if self.auth_token:
-                    logger.info(f"✅ Loaded JWT from {token_file_path}: {self.auth_token[:20]}...")
+                    logger.info(
+                        "✅ Loaded JWT from %s: %s...", token_file_path, self.auth_token[:20])
                     return
-            except Exception as e:
-                logger.warning(f"⚠️ Error loading token from {token_file_path}: {e}")
-        
+            except OSError as e:
+                logger.exception(
+                    "⚠️ Error loading token from %s:", token_file_path)
+
         logger.error("❌ CRITICAL: No JWT token available!")
-        
+
     def _get_headers(self) -> Dict[str, str]:
+        """
+        Constructs HTTP headers for API requests, including authorization if a token is present.
+        
+        Returns:
+            A dictionary of HTTP headers with 'Content-Type' set to 'application/json' and, if available, an 'Authorization' header containing the bearer token.
+        """
         headers = {"Content-Type": "application/json"}
         if self.auth_token:
             headers["Authorization"] = f"Bearer {self.auth_token}"
         return headers
-    
+
     async def get(self, endpoint: str, **kwargs) -> httpx.Response:
+        """
+        Sends an authenticated asynchronous GET request to the specified API endpoint.
+        
+        Args:
+        	endpoint: The API endpoint path, relative to the base URL.
+        
+        Returns:
+        	The HTTP response from the API.
+        """
         return await self.client.get(f"{self.base_url}{endpoint}", headers=self._get_headers(), **kwargs)
-    
+
     async def post(self, endpoint: str, json_data: dict[str, Any] | None = None, **kwargs) -> httpx.Response:
+        """
+        Sends an authenticated asynchronous POST request to the specified API endpoint.
+        
+        Args:
+        	endpoint: The API endpoint path to append to the base URL.
+        	json_data: Optional JSON-serializable dictionary to include in the request body.
+        
+        Returns:
+        	The HTTP response object from the POST request.
+        """
         return await self.client.post(f"{self.base_url}{endpoint}", json=json_data, headers=self._get_headers(), **kwargs)
-    
+
     async def put(self, endpoint: str, json_data: dict[str, Any] | None = None, **kwargs) -> httpx.Response:
+        """
+        Sends an authenticated HTTP PUT request to the specified API endpoint.
+        
+        Args:
+        	endpoint: The API endpoint path, appended to the base URL.
+        	json_data: Optional JSON-serializable dictionary to include in the request body.
+        
+        Returns:
+        	The HTTP response from the API.
+        """
         return await self.client.put(f"{self.base_url}{endpoint}", json=json_data, headers=self._get_headers(), **kwargs)
-    
+
     async def patch(self, endpoint: str, json_data: dict[str, Any] | None = None, **kwargs) -> httpx.Response:
+        """
+        Sends an authenticated HTTP PATCH request to the specified API endpoint.
+        
+        Args:
+            endpoint: The API endpoint path to patch, relative to the base URL.
+            json_data: Optional JSON-serializable dictionary to include in the request body.
+        
+        Returns:
+            The HTTP response from the API.
+        """
         return await self.client.patch(f"{self.base_url}{endpoint}", json=json_data, headers=self._get_headers(), **kwargs)
-    
+
     async def delete(self, endpoint: str, **kwargs) -> httpx.Response:
+        """
+        Sends an authenticated HTTP DELETE request to the specified API endpoint.
+        
+        Args:
+            endpoint: The API endpoint path, relative to the base URL.
+        
+        Returns:
+            The HTTP response from the DELETE request.
+        """
         return await self.client.delete(f"{self.base_url}{endpoint}", headers=self._get_headers(), **kwargs)
 
 
 @pytest_asyncio.fixture(scope="function")
 async def api_client():
-    """Function-scoped API client fixture with authentication"""
+    """
+    Provides a function-scoped pytest fixture yielding an authenticated async API client.
+    
+    The fixture ensures a valid JWT token is available and verifies authentication by calling the `/api/auth/me` endpoint. If authentication fails or no token is present, the test is skipped. The authenticated client is yielded for use in tests.
+    """
     async with APITestClient(BASE_URL) as client:
         # Verify authentication works
         if not client.auth_token:
             pytest.skip("No JWT token available for authenticated tests")
-        
+
         # Test the token with /api/auth/me
         try:
             me_response = await client.get("/api/auth/me")
             if me_response.status_code != 200:
-                pytest.skip(f"Authentication verification failed: {me_response.status_code}")
-            
+                pytest.skip(
+                    f"Authentication verification failed: {me_response.status_code}")
+
             user_data = me_response.json()
             client.current_user = user_data
             logger.info(f"✅ Authenticated as: {user_data.get('email')}")
-            
+
         except Exception as e:
             pytest.skip(f"Authentication verification error: {e}")
-        
+
         yield client
 
 
-@pytest_asyncio.fixture(scope="function")  
+@pytest_asyncio.fixture(scope="function")
 async def fresh_api_client():
-    """Function-scoped API client fixture for tests that need isolation"""
+    """
+    Provides a function-scoped authenticated API client fixture for isolated tests.
+    
+    Yields:
+        An instance of APITestClient authenticated with a JWT token, or skips the test if authentication is unavailable.
+    """
     async with APITestClient(BASE_URL) as client:
         if not client.auth_token:
             pytest.skip("No JWT token available for authenticated tests")
@@ -155,49 +240,62 @@ async def fresh_api_client():
 
 @pytest_asyncio.fixture(scope="function")
 async def created_landlord_property(api_client: APITestClient):
-    """Fixture to create a property owned by the current authenticated test user."""
+    """
+    Creates a test property owned by the authenticated user and yields its ID.
+    
+    This fixture posts a new property to the API for the current test user, yields the created property's ID for use in tests, and ensures the property is deleted after the test completes. If the user is not authenticated or property creation fails, the test is skipped.
+    """
     if not api_client.current_user or not api_client.current_user.get("id"):
-        pytest.skip("Cannot create landlord property without authenticated user ID.")
+        pytest.skip(
+            "Cannot create landlord property without authenticated user ID.")
 
     user_id = api_client.current_user["id"]
     property_name = f"TestProp_Landlord_{user_id[:8]}_{int(time.time())}"
-    
+
     property_data = {
         "name": property_name,
         "address": "123 Test St",
         "city": "Testville",
-        "province": "TS", # Assuming TS is a valid province/state code
+        "province": "TS",  # Assuming TS is a valid province/state code
         "postal_code": "T3S T3S",
-        "property_type": "Residential", # Ensure this is property_type
-        "user_id": user_id # Explicitly set user_id for clarity, though backend might infer
+        "property_type": "Residential",  # Ensure this is property_type
+        "user_id": user_id  # Explicitly set user_id for clarity, though backend might infer
     }
-    
-    logger.info(f"Attempting to create property: {property_name} for user {user_id} with data: {property_data}")
+
+    logger.info(
+        f"Attempting to create property: {property_name} for user {user_id} with data: {property_data}")
     response = await api_client.post("/api/properties/", json_data=property_data)
-    
+
     if response.status_code != 201:
-        # If property creation fails, log and skip tests that depend on it
-        logger.error(f"Failed to create landlord property: {response.status_code} - {response.text[:200]}")
-        pytest.skip(f"Failed to create landlord property, status: {response.status_code}")
+        # If property creation fails, log and fail the test
+        error_message = f"Failed to create landlord property: {response.status_code} - {response.text[:200]}"
+        logger.error(error_message)
+        pytest.fail(error_message)
 
     created_property = response.json()
     property_id = created_property["id"]
-    logger.info(f"✅ Landlord property created: ID {property_id}, Name: {property_name}")
-    
-    yield property_id # Yield only the ID as that's what's usually needed
-    
+    logger.info(
+        f"✅ Landlord property created: ID {property_id}, Name: {property_name}")
+
+    yield property_id  # Yield only the ID as that's what's usually needed
+
     # Cleanup
-    logger.info(f"Attempting to delete landlord property: ID {property_id}")
+    logger.info(f"[CLEANUP START] Attempting to delete landlord property: ID {property_id}")
     try:
         delete_response = await api_client.delete(f"/api/properties/{property_id}")
         if delete_response.status_code == 204:
-            logger.info(f"✅ Fixture cleanup: deleted landlord property {property_id}")
+            logger.info(
+                f"✅ Fixture cleanup: deleted landlord property {property_id}")
         elif delete_response.status_code == 404:
-            logger.info(f"✅ Fixture cleanup: landlord property {property_id} already deleted.")
+            logger.info(
+                f"✅ Fixture cleanup: landlord property {property_id} already deleted.")
         else:
-            logger.error(f"❌ Fixture cleanup failed for landlord property {property_id}: DELETE returned {delete_response.status_code} - {delete_response.text[:200]}")
+            logger.error(
+                f"❌ Fixture cleanup failed for landlord property {property_id}: DELETE returned {delete_response.status_code} - {delete_response.text[:200]}")
     except Exception as e:
-        logger.error(f"❌ Fixture cleanup exception for landlord property {property_id}: {e}")
+        logger.error(
+            f"❌ Fixture cleanup exception for landlord property {property_id}: {e}")
+    logger.info(f"[CLEANUP END] Finished attempt to delete landlord property: ID {property_id}")
 
 
 @pytest.fixture(autouse=True)
@@ -217,15 +315,25 @@ pytestmark = [
 
 
 def pytest_configure(config):
-    """Pytest configuration hook"""
+    """
+    Registers custom pytest markers for authentication, slow tests, and integration tests.
+    
+    This hook adds the 'auth', 'slow', and 'integration' markers to the pytest configuration, enabling their use in test files.
+    """
     # Add custom markers
-    config.addinivalue_line("markers", "auth: mark test as requiring authentication")
+    config.addinivalue_line(
+        "markers", "auth: mark test as requiring authentication")
     config.addinivalue_line("markers", "slow: mark test as slow running")
-    config.addinivalue_line("markers", "integration: mark test as integration test") 
+    config.addinivalue_line(
+        "markers", "integration: mark test as integration test")
 
 
 def pytest_collection_modifyitems(config, items):
-    """Modify test items during collection"""
+    """
+    Automatically adds the 'auth' marker to tests that use API client fixtures.
+    
+    This ensures that any test using the 'api_client' or 'fresh_api_client' fixture is marked as requiring authentication.
+    """
     # Add auth marker to all tests by default (since API tests require auth)
     for item in items:
         if "api_client" in item.fixturenames or "fresh_api_client" in item.fixturenames:
@@ -242,80 +350,122 @@ def assert_api_success(response: httpx.Response, expected_status: int = 200):
 
 
 def assert_valid_json_response(response: httpx.Response, expected_type=None, expected_status=200):
-    """Helper to assert valid JSON response"""
+    """
+    Asserts that an HTTP response has the expected status and contains valid JSON.
+    
+    If `expected_type` is provided, also asserts that the parsed JSON matches the specified type.
+    
+    Args:
+        response: The HTTP response to validate.
+        expected_type: Optional type to check the parsed JSON against.
+        expected_status: Expected HTTP status code (default is 200).
+    
+    Returns:
+        The parsed JSON data.
+    
+    Raises:
+        Fails the test if the response is not valid JSON or does not match the expected type.
+    """
     assert_api_success(response, expected_status)
     try:
         data = response.json()
         if expected_type:
-            assert isinstance(data, expected_type), f"Expected {expected_type}, got {type(data)}"
+            assert isinstance(
+                data, expected_type), f"Expected {expected_type}, got {type(data)}"
         return data
     except json.JSONDecodeError as e:
-        pytest.fail(f"Invalid JSON response: {e}. Response text: {response.text[:500]}")
+        pytest.fail(
+            f"Invalid JSON response: {e}. Response text: {response.text[:500]}")
 
 
 async def cleanup_test_data(api_client: APITestClient):
-    """Helper function to clean up test data"""
-    logger.info("🧹 Starting test data cleanup...")
+    """
+    Asynchronously deletes test tenants and properties created during testing.
     
+    Identifies and removes tenants and properties whose names or emails match test patterns, skipping protected accounts. Logs the outcome of each deletion attempt.
+    """
+    logger.info("🧹 Starting test data cleanup...")
+
     try:
         # Get all test tenants
         response = await api_client.get("/api/tenants/")
         if response.status_code == 200:
             tenants = response.json()
             test_tenants = [
-                t for t in tenants 
+                t for t in tenants
                 if (
                     (t.get('first_name', '').startswith(('Test', 'CreateTest', 'UpdateTest', 'DeleteTest')) or
-                     t.get('email', '').endswith('@example.com') or 
+                     t.get('email', '').endswith('@example.com') or
                      'test' in t.get('email', '').lower()) and
-                    t.get('email') != 'test@gmail.com'  # Don't delete production test user
+                    # Don't delete production test user
+                    t.get('email') != 'test@gmail.com'
                 )
             ]
-            
+
             for tenant in test_tenants:
                 try:
                     delete_response = await api_client.delete(f"/api/tenants/{tenant['id']}")
                     if delete_response.status_code == 204:
-                        logger.info(f"✅ Cleaned up test tenant {tenant['id']} ({tenant.get('email')})")
+                        logger.info(
+                            f"✅ Cleaned up test tenant {tenant['id']} ({tenant.get('email')})")
                     elif delete_response.status_code == 403:
-                        logger.info(f"⚠️ Test tenant {tenant['id']} cleanup blocked by RLS (expected)")
+                        logger.info(
+                            f"⚠️ Test tenant {tenant['id']} cleanup blocked by RLS (expected)")
                     else:
-                        logger.warning(f"⚠️ Test tenant {tenant['id']} cleanup returned {delete_response.status_code}")
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to cleanup test tenant {tenant['id']}: {e}")
-        
+                        logger.warning(
+                            f"⚠️ Test tenant {tenant['id']} cleanup returned {delete_response.status_code}")
+                except httpx.RequestError as exc:
+                    logger.warning(
+                        f"⚠️ Failed to cleanup test tenant {tenant['id']} due to network/request error: {exc}")
+                except Exception:
+                    logger.exception(
+                        f"⚠️ Failed to cleanup test tenant {tenant['id']}:")
+
         # Get all test properties
         response = await api_client.get("/api/properties/")
         if response.status_code == 200:
             properties = response.json()
             test_properties = [
-                p for p in properties 
+                p for p in properties
                 if p.get('name', '').startswith(('Test', 'CreateTest', 'UpdateTest', 'DeleteTest'))
             ]
-            
+
             for prop in test_properties:
                 try:
                     delete_response = await api_client.delete(f"/api/properties/{prop['id']}")
                     if delete_response.status_code == 204:
-                        logger.info(f"✅ Cleaned up test property {prop['id']} ({prop.get('name')})")
+                        logger.info(
+                            f"✅ Cleaned up test property {prop['id']} ({prop.get('name')})")
                     else:
-                        logger.warning(f"⚠️ Test property {prop['id']} cleanup returned {delete_response.status_code}")
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to cleanup test property {prop['id']}: {e}")
-                    
-    except Exception as e:
-        logger.warning(f"⚠️ Global test data cleanup failed: {e}")
+                        logger.warning(
+                            f"⚠️ Test property {prop['id']} cleanup returned {delete_response.status_code}")
+                except httpx.RequestError as exc:
+                    logger.warning(
+                        f"⚠️ Failed to cleanup test property {prop['id']} due to network/request error: {exc}")
+                except Exception:
+                    logger.exception(
+                        f"⚠️ Failed to cleanup test property {prop['id']}:")
+
+    except httpx.RequestError as exc:
+        logger.warning(f"⚠️ Global test data cleanup failed due to network/request error: {exc}")
+    except Exception:
+        logger.exception("⚠️ Global test data cleanup failed:")
 
 
 # Explicitly provide an event loop fixture for pytest-asyncio
 @pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the session."""
+def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
+    """
+    Creates and yields a new asyncio event loop for the test session.
+    
+    On Windows platforms, sets a compatible event loop policy for improved stability.
+    Closes the event loop after the session completes.
+    """
     # Set Windows-compatible event loop policy for better stability
     if sys.platform.startswith('win'):
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
         logger.info("Set Windows SelectorEventLoopPolicy for compatibility")
-    
+
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
-    loop.close() 
+    loop.close()

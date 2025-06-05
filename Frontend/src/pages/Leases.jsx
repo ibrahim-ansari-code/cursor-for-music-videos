@@ -1,7 +1,13 @@
-import React, { useState, useEffect } from "react";
-import { fetchLeases, uploadLeaseDocument } from "../utils/api";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  fetchLeases,
+  uploadLeaseDocument,
+  fetchLeaseDocuments,
+} from "../utils/api";
 import ImportLeaseModal from "../components/ImportLeaseModal";
 import UpdateLeaseStatusModal from "../components/UpdateLeaseStatusModal";
+import FilePreviewModal from "../components/FilePreviewModal";
+import EditLeaseModal from "../components/EditLeaseModal";
 
 const Leases = () => {
   const [leases, setLeases] = useState([]);
@@ -9,24 +15,111 @@ const Leases = () => {
   const [error, setError] = useState(null);
   const [selectedLease, setSelectedLease] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState(null); // 'create', 'edit', 'upload', 'status'
+  const [modalType, setModalType] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadDocumentType, setUploadDocumentType] = useState("contract");
   const [documentUploading, setDocumentUploading] = useState(false);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [openDocumentDropdown, setOpenDocumentDropdown] = useState(null);
+  const [dropdownPositionClass, setDropdownPositionClass] =
+    useState("top-full mt-2");
+  const documentButtonRefs = useRef({});
+  const [fileToPreviewUrl, setFileToPreviewUrl] = useState(null);
+  const [filePreviewName, setFilePreviewName] = useState("");
+  const [showFilePreviewModal, setShowFilePreviewModal] = useState(false);
+  const tableScrollContainerRef = useRef(null);
+
+  // Helper function for dropdown positioning
+  const calculateDropdownPosition = (buttonRect, scrollContainerRect, itemCount) => {
+    if (!buttonRect || !scrollContainerRect) {
+      return "top-full mt-2"; // Default position if refs are not available
+    }
+
+    const spaceBelowInContainer =
+      scrollContainerRect.bottom - buttonRect.bottom;
+    const spaceAboveInContainer = buttonRect.top - scrollContainerRect.top;
+
+    const itemHeight = 36; // Approximate height of a dropdown item
+    const dropdownPaddingAndBorder = 10; // Approximate padding and border height
+    const dynamicDropdownApproxHeight =
+      itemCount * itemHeight + dropdownPaddingAndBorder;
+    const buffer = 10; // Buffer to prevent cutting off
+
+    if (
+      spaceBelowInContainer - buffer < dynamicDropdownApproxHeight &&
+      (spaceAboveInContainer - buffer > dynamicDropdownApproxHeight ||
+        spaceAboveInContainer > spaceBelowInContainer)
+    ) {
+      return "bottom-0 mb-1"; // Position above if not enough space below
+    }
+    return "top-full mt-2"; // Default position below
+  };
 
   useEffect(() => {
     loadLeases();
   }, [statusFilter]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (openDocumentDropdown && !event.target.closest(".document-dropdown")) {
+        setOpenDocumentDropdown(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [openDocumentDropdown]);
+
   const loadLeases = async () => {
     try {
       setLoading(true);
+      setError(null);
+      setDocumentsLoading(false);
+
       const data = await fetchLeases({
         status: statusFilter !== "all" ? statusFilter : undefined,
       });
-      setLeases(data);
-      setError(null);
+
+      if (data && data.length > 0) {
+        setDocumentsLoading(true);
+        try {
+          const leasesWithDocuments = await Promise.all(
+            data.map(async (lease) => {
+              try {
+                const documents = await fetchLeaseDocuments(lease.id);
+                const contractDoc =
+                  documents.find(
+                    (doc) =>
+                      doc.document_type === "contract" ||
+                      doc.document_type === "lease" ||
+                      doc.document_type === "agreement"
+                  ) || documents[0];
+
+                return {
+                  ...lease,
+                  documents: documents,
+                  file_url: contractDoc ? contractDoc.file_path : null,
+                };
+              } catch (err) {
+                console.error(
+                  `Failed to fetch documents for lease ${lease.id}:`,
+                  err
+                );
+                return { ...lease, documents: [], file_url: null };
+              }
+            })
+          );
+          setLeases(leasesWithDocuments);
+        } finally {
+          setDocumentsLoading(false);
+        }
+      } else {
+        setLeases([]);
+      }
     } catch (err) {
       console.error("Error loading leases:", err);
       setError("Failed to load leases. Please try again.");
@@ -46,6 +139,10 @@ const Leases = () => {
     setSelectedLease(null);
     setUploadFile(null);
     setUploadDocumentType("contract");
+    setShowFilePreviewModal(false);
+    setFileToPreviewUrl(null);
+    setFilePreviewName("");
+    loadLeases();
   };
 
   const handleFileChange = (e) => {
@@ -129,12 +226,75 @@ const Leases = () => {
     return "T";
   };
 
+  const handleShowFilePreviewModal = (lease) => {
+    if (lease?.file_url) {
+      setFileToPreviewUrl(lease.file_url);
+      const tenantName = getTenantName(lease.tenant) || "N/A";
+      const propertyName =
+        lease.property?.name || `Property #${lease.property_id}`;
+      setFilePreviewName(`Lease: ${tenantName} - ${propertyName}`);
+      setShowFilePreviewModal(true);
+    }
+  };
+
+  const handlePreviewDocument = (lease, document) => {
+    if (!document || !document.file_path) {
+      console.error(
+        "[handlePreviewDocument] Document or file_path is missing:",
+        document
+      );
+      setError("Cannot preview document: file path is missing.");
+      setOpenDocumentDropdown(null);
+      return;
+    }
+    setFileToPreviewUrl(document.file_path);
+    const tenantName = getTenantName(lease.tenant) || "N/A";
+    const propertyName =
+      lease.property?.name || `Property #${lease.property_id}`;
+    const docType =
+      document.document_type.charAt(0).toUpperCase() +
+      document.document_type.slice(1);
+    setFilePreviewName(`${docType}: ${tenantName} - ${propertyName}`);
+    setShowFilePreviewModal(true);
+    setOpenDocumentDropdown(null);
+  };
+
+  const toggleDocumentDropdown = (event, lease) => {
+    const leaseId = lease.id;
+    const currentButton = event.currentTarget;
+
+    if (openDocumentDropdown === leaseId) {
+      setOpenDocumentDropdown(null);
+    } else {
+      const positionClass = calculateDropdownPosition(
+        currentButton?.getBoundingClientRect(),
+        tableScrollContainerRef.current?.getBoundingClientRect(),
+        lease.documents ? lease.documents.length : 1
+      );
+      setDropdownPositionClass(positionClass);
+      setOpenDocumentDropdown(leaseId);
+    }
+  };
+
+  const handleCloseFilePreviewModal = () => {
+    setShowFilePreviewModal(false);
+    setFileToPreviewUrl(null);
+    setFilePreviewName("");
+  };
+
+  const handleLeaseUpdated = (updatedLease) => {
+    setShowModal(false);
+    loadLeases();
+  };
+
   if (loading && leases.length === 0) {
     return (
       <div className="p-4 flex justify-center items-center h-full">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-3 text-gray-600">Loading leases...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto" />
+          <p className="mt-3 text-gray-600">
+            {documentsLoading ? "Loading lease documents..." : "Loading leases..."}
+          </p>
         </div>
       </div>
     );
@@ -183,8 +343,11 @@ const Leases = () => {
       )}
 
       <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+        <div
+          ref={tableScrollContainerRef}
+          className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-20rem)]"
+        >
+          <table className="min-w-full divide-y divide-gray-200 relative">
             <thead className="bg-gray-50">
               <tr>
                 <th
@@ -291,24 +454,84 @@ const Leases = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex space-x-2">
+                      <div className="flex items-center justify-center space-x-2">
+                        {/* Documents dropdown or upload button */}
+                        {lease.documents && lease.documents.length > 0 ? (
+                          <div className="relative document-dropdown">
+                            <button
+                              type="button"
+                              ref={(el) =>
+                                (documentButtonRefs.current[lease.id] = el)
+                              }
+                              onClick={(e) => toggleDocumentDropdown(e, lease)}
+                              className="text-purple-600 hover:text-purple-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 transition-colors duration-150"
+                              title={`View ${lease.documents.length} document${
+                                lease.documents.length > 1 ? "s" : ""
+                              }`}
+                            >
+                              <i className="fas fa-eye"></i>
+                              {lease.documents.length > 1 && (
+                                <span className="ml-1 text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded-full">
+                                  {lease.documents.length}
+                                </span>
+                              )}
+                            </button>
+
+                            {/* Dropdown menu */}
+                            {openDocumentDropdown === lease.id && (
+                              <div
+                                className={`absolute right-0 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20 ${dropdownPositionClass}`}
+                              >
+                                <div className="py-1" role="menu">
+                                  {lease.documents.map((doc, index) => (
+                                    <button
+                                      key={doc.id || index}
+                                      type="button"
+                                      onClick={() =>
+                                        handlePreviewDocument(lease, doc)
+                                      }
+                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 flex items-center justify-between"
+                                      role="menuitem"
+                                    >
+                                      <span className="truncate">
+                                        {doc.document_type
+                                          .charAt(0)
+                                          .toUpperCase() +
+                                          doc.document_type.slice(1)}
+                                      </span>
+                                      <i className="fas fa-external-link-alt text-gray-400 text-xs"></i>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleShowModal("upload", lease)}
+                            className="text-green-600 hover:text-green-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 transition-colors duration-150"
+                            title="Upload document"
+                          >
+                            <i className="fas fa-file-upload"></i>
+                          </button>
+                        )}
+
+                        {/* Edit button */}
                         <button
+                          type="button"
                           onClick={() => handleShowModal("edit", lease)}
-                          className="text-indigo-600 hover:text-indigo-900"
+                          className="text-indigo-600 hover:text-indigo-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 transition-colors duration-150"
                           title="Edit lease"
                         >
                           <i className="fas fa-edit"></i>
                         </button>
+
+                        {/* Status update button */}
                         <button
-                          onClick={() => handleShowModal("upload", lease)}
-                          className="text-green-600 hover:text-green-900"
-                          title="Upload document"
-                        >
-                          <i className="fas fa-file-upload"></i>
-                        </button>
-                        <button
+                          type="button"
                           onClick={() => handleShowModal("status", lease)}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-blue-600 hover:text-blue-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors duration-150"
                           title="Update status"
                         >
                           <i className="fas fa-tasks"></i>
@@ -415,6 +638,26 @@ const Leases = () => {
           isOpen={showModal}
           onClose={handleCloseModal}
           onImport={handleImport}
+        />
+      )}
+
+      {/* Edit Lease Modal */}
+      {showModal && modalType === "edit" && selectedLease && (
+        <EditLeaseModal
+          isOpen={showModal}
+          onClose={handleCloseModal}
+          lease={selectedLease}
+          onLeaseUpdated={handleLeaseUpdated}
+        />
+      )}
+
+      {/* Document Preview Modal - Updated to use FilePreviewModal */}
+      {showFilePreviewModal && fileToPreviewUrl && (
+        <FilePreviewModal
+          isOpen={showFilePreviewModal}
+          onClose={handleCloseFilePreviewModal}
+          fileUrl={fileToPreviewUrl}
+          fileName={filePreviewName}
         />
       )}
     </div>

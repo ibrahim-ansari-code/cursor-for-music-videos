@@ -24,7 +24,6 @@ Key Considerations:
 import logging
 from Backend.config import settings
 from logging.config import fileConfig
-import os
 import sys
 from pathlib import Path
 
@@ -35,13 +34,6 @@ from alembic import context
 
 # Import your models' metadata
 from sqlmodel import SQLModel
-
-# Explicitly import all model modules to ensure they're registered with SQLModel
-from Backend.models.user import User
-from Backend.models.property import Property, PropertyUnit
-from Backend.models.tenant import Tenant, TenantUnitLink
-from Backend.models.lease import Lease, LeaseDocument
-from Backend.models.accounting import Payment, Invoice, Expense
 
 target_metadata = SQLModel.metadata
 
@@ -89,7 +81,15 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode."""
+    """
+    Runs Alembic migrations in online mode using a synchronous database connection.
+    
+    Establishes a connection to the database, configures the Alembic context
+    with the current SQLModel metadata, and executes migrations within a
+    transaction block. This approach ensures that all migrations are applied
+    atomically, except for operations that require manual intervention (such as
+    Row-Level Security policy changes).
+    """
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
@@ -119,19 +119,11 @@ def run_migrations_online() -> None:
         # We will keep the transaction block here, as it's standard for most migrations.
         # The manual dropping of policies *before* this entire `alembic upgrade head`
         # is the key for the current RLS issue.
-
         logger.info("Configuring Alembic context to run migrations.")
         context.configure(
             connection=connection,
             target_metadata=target_metadata
         )
-
-        # The `transactional=False` in the script file is a directive to operations
-        # within that script, not necessarily a switch for this env.py block itself
-        # for all database backends in a simple way.
-        # We will keep the transaction block here, as it's standard for most migrations.
-        # The manual dropping of policies *before* this entire `alembic upgrade head`
-        # is the key for the current RLS issue.
 
         with context.begin_transaction():
             logger.info("Executing migrations within a transaction.")

@@ -9,6 +9,7 @@ import {
   Select,
   Checkbox,
   Button,
+  FormSection,
   // ErrorMessage is implicitly used by ModalShell via its error prop
 } from "./ui/SharedModalComponents";
 import { toast } from "react-toastify"; // Using react-toastify for success messages
@@ -55,18 +56,6 @@ function generateUnits(numFloors, unitsPerFloor) {
   }
   return units;
 }
-
-// Local FormSection as it's specific to this complex modal's layout
-const FormSection = ({ title, children, className = "" }) => (
-  <div className={`space-y-6 ${className}`}>
-    {title && (
-      <h3 className="text-lg font-semibold text-gray-900 pb-2 mb-4 border-b border-gray-200">
-        {title}
-      </h3>
-    )}
-    {children}
-  </div>
-);
 
 const NewPropertyModal = ({
   isOpen,
@@ -356,7 +345,11 @@ const NewPropertyModal = ({
 
   const formContent = (
     <form onSubmit={handleSubmit} className="space-y-8">
-      <FormSection title="Property Information">
+      <FormSection
+        title="Property Information"
+        containerClass="space-y-6"
+        titleClass="text-lg font-semibold text-gray-900 pb-2 mb-4 border-b border-gray-200"
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Label htmlFor="name" required>
@@ -565,7 +558,8 @@ const NewPropertyModal = ({
           >
             <FormSection
               title="Apartment Details"
-              className="pt-6 mt-6 border-t border-gray-200"
+              containerClass="space-y-6 pt-6 mt-6 border-t border-gray-200"
+              titleClass="text-lg font-semibold text-gray-900 pb-2 mb-4 border-b border-gray-200"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>

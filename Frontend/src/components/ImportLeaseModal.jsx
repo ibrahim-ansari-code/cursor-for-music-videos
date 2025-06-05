@@ -10,114 +10,13 @@ import {
 } from "../utils/api";
 import ConfirmLeaseModal from "./ConfirmLeaseModal";
 import TenantModal from "./TenantModal";
-
-// UI Components
-const Label = ({ htmlFor, required, children }) => (
-  <label
-    htmlFor={htmlFor}
-    className={`block text-sm font-medium text-gray-700 mb-1.5 ${
-      required ? 'after:content-["*"] after:ml-0.5 after:text-red-500' : ""
-    }`}
-  >
-    {children}
-  </label>
-);
-
-const Input = ({
-  id,
-  name,
-  value,
-  onChange,
-  placeholder,
-  required,
-  readOnly,
-  type = "text",
-  className = "",
-  ...props
-}) => (
-  <input
-    id={id || name}
-    name={name}
-    type={type}
-    value={value}
-    onChange={onChange}
-    placeholder={placeholder}
-    required={required}
-    readOnly={readOnly}
-    className={`w-full px-4 py-2.5 text-gray-900 bg-white border ${
-      readOnly ? "bg-gray-50 border-gray-200" : "border-gray-300"
-    } rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 ${className}`}
-    {...props}
-  />
-);
-
-const ErrorMessage = ({ message }) => (
-  <motion.div
-    initial={{ opacity: 0, y: -10 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0 }}
-    className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg flex items-start gap-2"
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      className="h-5 w-5 mt-0.5 flex-shrink-0"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-    >
-      <path
-        fillRule="evenodd"
-        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 9a1 1 0 100-2 1 1 0 000 2z"
-        clipRule="evenodd"
-      />
-    </svg>
-    <span>{message}</span>
-  </motion.div>
-);
-
-const Button = ({
-  type,
-  onClick,
-  variant = "primary",
-  disabled,
-  children,
-  className = "",
-  ...props
-}) => {
-  const baseClasses =
-    "px-4 py-2.5 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed";
-
-  const variants = {
-    primary:
-      "bg-blue-600 hover:bg-blue-700 text-white border border-transparent focus:ring-blue-500",
-    secondary:
-      "bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 focus:ring-blue-500",
-    danger:
-      "bg-red-600 hover:bg-red-700 text-white border border-transparent focus:ring-red-500",
-  };
-
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      className={`${baseClasses} ${variants[variant]} ${className}`}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-};
-
-const FormSection = ({ title, children, className = "" }) => (
-  <div className={`space-y-6 ${className}`}>
-    {title && (
-      <h3 className="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200">
-        {title}
-      </h3>
-    )}
-    {children}
-  </div>
-);
+import {
+  Label,
+  Input,
+  Button,
+  ErrorMessage,
+  FormSection,
+} from "./ui/SharedModalComponents";
 
 const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
   const [properties, setProperties] = useState([]);
@@ -502,7 +401,11 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
               </AnimatePresence>
 
               <form className="space-y-6">
-                <FormSection title="Property & Tenant Selection">
+                <FormSection
+                  title="Property & Tenant Selection"
+                  containerClass="space-y-6"
+                  titleClass="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200"
+                >
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="property" required>
@@ -639,7 +542,11 @@ const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
                   </div>
                 </FormSection>
 
-                <FormSection title="Upload Lease Document">
+                <FormSection
+                  title="Upload Lease Document"
+                  containerClass="space-y-6"
+                  titleClass="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200"
+                >
                   <div
                     onDrop={handleFileDrop}
                     onDragOver={(e) => e.preventDefault()}

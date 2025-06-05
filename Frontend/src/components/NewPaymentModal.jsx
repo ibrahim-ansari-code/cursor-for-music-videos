@@ -193,7 +193,9 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
               parsed_details.payment_method || prev.payment_method,
             notes: parsed_details.description_notes || prev.notes,
             receipt_url: parsedReceiptUrl,
-            transaction_reference: parsed_details.transaction_reference || prev.transaction_reference,
+            transaction_reference:
+              parsed_details.transaction_reference ||
+              prev.transaction_reference,
           }));
           toast.success(response.message || "Receipt parsed successfully!");
         } else {
@@ -287,7 +289,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const handlePropertySelectKeyDown = (event, property) => {
-    if (event.key === 'Enter' || event.key === ' ') {
+    if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       handlePropertySelect(property);
     }
@@ -303,14 +305,18 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const handleTenantSelectKeyDown = (event, tenant) => {
-    if (event.key === 'Enter' || event.key === ' ') {
+    if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       handleTenantSelect(tenant);
     }
   };
 
   const formContent = (
-    <form onSubmit={handleSubmit} className="space-y-5 w-full">
+    <form
+      id="new-payment-form"
+      onSubmit={handleSubmit}
+      className="space-y-5 w-full"
+    >
       <div ref={propertyDropdownRef}>
         <Label htmlFor="property_search" required>
           Property
@@ -512,7 +518,9 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
         </Select>
       </div>
       <div>
-        <Label htmlFor="transaction_reference">Transaction Reference (Optional)</Label>
+        <Label htmlFor="transaction_reference">
+          Transaction Reference (Optional)
+        </Label>
         <Input
           type="text"
           name="transaction_reference"
@@ -624,6 +632,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
       </Button>
       <Button
         type="submit"
+        form="new-payment-form"
         variant="primary"
         isLoading={isLoading || isParsingReceipt}
         loadingText={
@@ -633,7 +642,6 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
             ? "Parsing..."
             : "Saving..."
         }
-        onClick={handleSubmit}
         disabled={!lease || isLoading || isParsingReceipt}
       >
         Create Payment

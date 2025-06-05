@@ -206,7 +206,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const handleExpensePropertySelectKeyDown = (event, property) => {
-    if (event.key === 'Enter' || event.key === ' ') {
+    if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       handleExpensePropertySelect(property);
     }
@@ -241,7 +241,9 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
         taxes: formData.taxes
           .filter(
             (tax) =>
-              tax.tax_name && tax.tax_rate && Number.parseFloat(tax.tax_rate) >= 0
+              tax.tax_name &&
+              tax.tax_rate &&
+              Number.parseFloat(tax.tax_rate) >= 0
           )
           .map((tax) => ({
             tax_name: tax.tax_name,
@@ -283,7 +285,11 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
   }, [propertySearchInputRef]);
 
   const formContent = (
-    <form onSubmit={handleSubmit} className="space-y-5 w-full">
+    <form
+      id="new-expense-form"
+      onSubmit={handleSubmit}
+      className="space-y-5 w-full"
+    >
       <div>
         <Label htmlFor="property_id" required>
           Property
@@ -320,10 +326,14 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
                       key={property.id}
                       role="option"
                       tabIndex={0}
-                      aria-selected={formData.property_id === property.id.toString()}
+                      aria-selected={
+                        formData.property_id === property.id.toString()
+                      }
                       className="px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-500 hover:text-white cursor-pointer transition-colors duration-150"
                       onClick={() => handleExpensePropertySelect(property)}
-                      onKeyDown={(e) => handleExpensePropertySelectKeyDown(e, property)}
+                      onKeyDown={(e) =>
+                        handleExpensePropertySelectKeyDown(e, property)
+                      }
                     >
                       {property.name}
                     </li>
@@ -519,11 +529,13 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
             >
               {showReceiptPreview ? (
                 <>
-                  <i className="fas fa-eye-slash mr-2" />Hide Preview
+                  <i className="fas fa-eye-slash mr-2" />
+                  Hide Preview
                 </>
               ) : (
                 <>
-                  <i className="fas fa-eye mr-2" />Preview Receipt
+                  <i className="fas fa-eye mr-2" />
+                  Preview Receipt
                 </>
               )}
             </Button>
@@ -586,7 +598,8 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
         Cancel
       </Button>
       <Button
-        type="submit" // Will trigger form onSubmit
+        type="submit"
+        form="new-expense-form"
         variant="primary"
         isLoading={isLoading || isParsingReceipt}
         loadingText={isLoading ? "Creating..." : "Parsing..."}

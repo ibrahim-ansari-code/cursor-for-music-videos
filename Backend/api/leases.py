@@ -20,7 +20,7 @@ from Backend.api.auth import get_current_user
 # Local application imports
 from Backend.database import get_session
 from Backend.models.enums import UserType
-from Backend.models.lease import Lease, LeaseDocument, LeaseStatus
+from Backend.models.lease import Lease, LeaseDocument, LeaseStatus, LeaseCreate, LeaseUpdate
 from Backend.models.property import Property, PropertyUnit
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
@@ -263,37 +263,6 @@ class LeaseBase(BaseModel):
     tenant_id: int
 
 
-class LeaseCreate(LeaseBase):
-    """
-    Schema for creating a new lease with optional status and file URL.
-
-    Inherits all required lease fields from LeaseBase and adds optional status
-    (defaults to DRAFT) and file_url for associating a lease document.
-    """
-    status: LeaseStatus | None = LeaseStatus.DRAFT
-    file_url: str | None = None
-
-
-class LeaseUpdate(BaseModel):
-    """
-    Schema for updating an existing lease with partial field updates.
-
-    All fields are optional to allow partial updates. Only provided fields
-    will be updated in the database, preserving existing values for omitted fields.
-    """
-    start_date: date | None = None
-    end_date: date | None = None
-    monthly_rent: float | None = None
-    security_deposit: float | None = None
-    status: LeaseStatus | None = None
-    is_renewable: bool | None = None
-    auto_renew: bool | None = None
-    rent_due_day: int | None = None
-    late_fee_amount: float | None = None
-    late_fee_after_days: int | None = None
-    special_terms: str | None = None
-
-
 class LeaseResponse(LeaseBase):
     id: int
     status: LeaseStatus
@@ -516,7 +485,7 @@ async def create_lease(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error: {str(db_error)}"
-        )
+        ) from db_error
 
 
 @router.get("/", response_model=list[LeaseResponse])
@@ -596,43 +565,51 @@ async def update_lease(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Updates an existing lease and manages related side effects based on status changes.
-
-    Verifies user permissions before applying updates. If the lease status transitions to ACTIVE, updates the tenant's current property and marks the associated unit as rented. If the lease is deactivated from ACTIVE, revokes these side effects, such as clearing the tenant's current property and marking the unit as vacant if appropriate. Commits all changes to the database and returns the updated lease. Rolls back and raises an HTTP 500 error if the update fails.
+    Updates general terms of an existing lease, excluding status changes.
+    
+    Checks user permissions before applying updates to lease fields such as dates, rent, deposit, and related information. Ignores any attempt to modify the lease status, which must be changed via the dedicated status endpoint. Commits changes to the database and returns the updated lease. Rolls back and raises an HTTP 500 error if the update fails.
     """
     lease = await check_lease_permission(lease_id, session, current_user, action="update")
 
     # Update lease fields
     lease_data_dict = lease_data.model_dump(exclude_unset=True)
-    original_status = lease.status
-    status_changed = 'status' in lease_data_dict and lease_data_dict['status'] != original_status
-    new_status = lease_data_dict.get('status')
+
+    # Status changes are not handled by this endpoint to avoid complex side-effects here.
+    # Use the dedicated /status endpoint for status modifications.
+    if 'status' in lease_data_dict:
+        logger.warning(
+            "Attempt to update status via general update endpoint for lease %s. "
+            "Status field will be ignored. Use POST /leases/{lease_id}/status for status changes.",
+            lease_id,
+        )
+        # Ensure status is not accidentally updated
+        del lease_data_dict['status']
 
     for key, value in lease_data_dict.items():
         setattr(lease, key, value)
 
-    # Update the updated_at timestamp (handled by model default/onupdate? check model)
-    # lease.updated_at = datetime.utcnow() # May not be needed if model handles it
+    lease.updated_at = create_audit_datetime()  # Explicitly set updated_at
 
     try:
         session.add(lease)  # Add the modified object to the session
-
-        # Handle tenant current_property_id update if status changed to ACTIVE
-        if status_changed and new_status == LeaseStatus.ACTIVE:
-            # If activating, apply side effects
-            await _apply_active_lease_side_effects(lease, session)
-        elif status_changed and new_status != LeaseStatus.ACTIVE and original_status == LeaseStatus.ACTIVE:
-            await _revoke_active_lease_side_effects(lease, session)
-
         await session.commit()
+        # Refresh to get any DB-generated changes and updated relationships
         await session.refresh(lease)
 
-        logger.info("Lease updated: %s by user %s", lease.id, current_user.id)
+        # Refresh with relations for response consistency, similar to create_lease
+        await session.refresh(lease, attribute_names=['tenant', 'property', 'unit'])
+
+        logger.info("Lease updated: %s by user %s. Fields updated: %s",
+                    lease.id, current_user.id, ", ".join(lease_data_dict.keys()))
         return lease
     except Exception as e:
         await session.rollback()
         logger.exception("Error updating lease %s", lease_id)
-        raise
+        # Consider specific error types if needed
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update lease: {str(e)}",
+        ) from e
 
 
 @router.post("/{lease_id}/validate", response_model=LeaseResponse)
