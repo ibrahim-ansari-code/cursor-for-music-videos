@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from Backend.models.accounting import Expense
     from Backend.models.lease import Lease
     from Backend.models.tenant import Tenant
+    from Backend.models.maintenance import MaintenanceRequest
 
 
 class PropertyType(str, Enum):
@@ -83,7 +84,7 @@ class Property(SQLModel, table=True):
     # Configure cascade delete for units
     units: list["PropertyUnit"] = Relationship(
         back_populates="property",
-        sa_relationship_kwargs={'cascade': 'all, delete-orphan'}
+        sa_relationship_kwargs={'cascade': 'all, delete-orphan', }
     )
 
     leases: list["Lease"] = Relationship(back_populates="property")
@@ -99,6 +100,12 @@ class Property(SQLModel, table=True):
             "foreign_keys": "[Tenant.current_property_id]",
             "lazy": "selectin",
         }
+    )
+
+    # Relationship to maintenance requests (One-to-many)
+    maintenance_requests: list["MaintenanceRequest"] = Relationship(
+        back_populates="property",
+        sa_relationship_kwargs={'cascade': 'all, delete-orphan'}
     )
 
 
@@ -152,3 +159,5 @@ class PropertyUnit(SQLModel, table=True):
         link_model=TenantUnitLink,
         sa_relationship_kwargs={"lazy": "selectin"}
     )
+    maintenance_requests: list["MaintenanceRequest"] = Relationship(
+        back_populates="unit")

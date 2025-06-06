@@ -10,6 +10,7 @@ import StatCard from "../components/StatCard"; // Import StatCard
 import UnitTable from "../components/UnitTable"; // Import UnitTable
 import NewUnitModal from "../components/NewUnitModal"; // Import NewUnitModal
 import AssignTenantModal from "../components/AssignTenantModal"; // Import AssignTenantModal
+import LoadingSpinner from "../components/LoadingSpinner"; // Import LoadingSpinner
 
 // Icons for StatCards
 const UnitIcon = () => <i className="fas fa-door-closed text-blue-600"></i>;
@@ -298,13 +299,7 @@ const PropertyDetail = () => {
     setUnitInitialData(null);
   };
 
-  if (loading)
-    return (
-      <div className="p-6 text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
-        <p className="text-gray-600">Loading property details...</p>
-      </div>
-    );
+  if (loading) return <LoadingSpinner message="Loading property details..." />;
 
   if (error)
     return (

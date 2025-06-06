@@ -28,6 +28,7 @@ import Settings from "./pages/Settings";
 // Import the login API function
 import { getCurrentUser } from "./utils/api";
 import { supabase } from "./supabaseClient"; // Import Supabase client
+import LoadingSpinner from "./components/LoadingSpinner";
 
 // Auth Context
 export const AuthContext = createContext(null);
@@ -250,14 +251,7 @@ function App() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="spinner block mx-auto mb-2 w-7 h-7" />
-          <p>Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading app..." />;
   }
 
   return (

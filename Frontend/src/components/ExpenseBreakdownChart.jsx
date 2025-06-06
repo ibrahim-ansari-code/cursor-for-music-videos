@@ -24,10 +24,7 @@ const ExpenseBreakdownChart = ({ expenses = [] }) => {
   ];
 
   // Calculate percentages
-  const total = data.reduce(
-    (sum, amount) => sum + (Number(amount) || 0),
-    0
-  );
+  const total = data.reduce((sum, amount) => sum + (Number(amount) || 0), 0);
   const percentages = data.map((amount) =>
     total > 0 ? (((Number(amount) || 0) / total) * 100).toFixed(1) : "0.0"
   );

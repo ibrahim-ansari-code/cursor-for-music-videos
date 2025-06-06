@@ -2,6 +2,7 @@ import os
 
 from supabase import Client, create_client
 
+
 def get_supabase_client() -> Client:
     """Get a Supabase client instance."""
     url = os.getenv("SUPABASE_URL")

@@ -10,6 +10,7 @@ from .conftest import assert_valid_json_response, APITestClient
 
 logger = logging.getLogger(__name__)
 
+
 @pytest.mark.auth
 @pytest.mark.integration
 class TestDashboardAPI:
@@ -19,12 +20,13 @@ class TestDashboardAPI:
     async def test_dashboard_get_operations(self, api_client: APITestClient) -> None:
         """Test GET /api/dashboard endpoint."""
         logger.info("Testing GET /api/dashboard...")
-        
+
         # api_client fixture from conftest.py handles authentication and initial checks.
-        response = await api_client.get("/api/dashboard") 
+        response = await api_client.get("/api/dashboard")
         data = assert_valid_json_response(response, dict)
-        
-        logger.info("✅ GET /api/dashboard successful. Received sections: %s", ', '.join(data.keys()))
+
+        logger.info(
+            "✅ GET /api/dashboard successful. Received sections: %s", ', '.join(data.keys()))
         assert "summary" in data, "Dashboard response missing 'summary' key"
         assert "occupancy" in data, "Dashboard response missing 'occupancy' key"
         assert "revenue" in data, "Dashboard response missing 'revenue' key"
@@ -37,10 +39,10 @@ class TestDashboardAPI:
     #     response = await api_client.get(f"/api/dashboard?property_id={test_property_id}")
     #     data = assert_valid_json_response(response, dict)
     #     logger.info("✅ GET /api/dashboard with property filter successful")
-    #     # Add assertions specific to filtered data 
+    #     # Add assertions specific to filtered data
 
     # TODO: Add more dashboard tests:
     # - Test dashboard with time period filters
     # - Test dashboard data accuracy (if test data is available)
     # - Test dashboard performance metrics
-    # - Test dashboard with invalid filters 
+    # - Test dashboard with invalid filters

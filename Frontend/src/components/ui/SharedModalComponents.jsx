@@ -229,11 +229,7 @@ export const FormSection = ({
   titleClass = "text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200", // Default title style
 }) => (
   <div className={containerClass}>
-    {title && (
-      <h3 className={titleClass}>
-        {title}
-      </h3>
-    )}
+    {title && <h3 className={titleClass}>{title}</h3>}
     {/* Render children directly for flexibility */}
     {children}
   </div>

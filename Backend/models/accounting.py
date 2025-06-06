@@ -91,7 +91,7 @@ class Payment(SQLModel, table=True):
 class Invoice(SQLModel, table=True):
     """Invoice model for billing tenants or other parties"""
 
-    __tablename__ = "invoices" # type: ignore
+    __tablename__ = "invoices"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
     invoice_number: str
@@ -136,7 +136,7 @@ class ExpenseTaxDetail(SQLModel, table=True):
     and the calculated tax amount for that specific line item. It is linked
     to an `Expense` record.
     """
-    __tablename__ = "expense_tax_details" # type: ignore
+    __tablename__ = "expense_tax_details"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
     # E.g., "GST", "PST", "Service Fee"
@@ -163,7 +163,7 @@ class ExpenseTaxDetail(SQLModel, table=True):
 class Expense(SQLModel, table=True):
     """Expense model for property-related expenses"""
 
-    __tablename__ = "expenses" # type: ignore
+    __tablename__ = "expenses"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
 

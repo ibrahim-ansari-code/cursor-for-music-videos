@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from Backend.models.lease import Lease
     from Backend.models.property import Property, PropertyUnit
     from Backend.models.user import User
+    from Backend.models.maintenance import MaintenanceRequest
 
 
 class TenantStatus(str, Enum):
@@ -77,3 +78,5 @@ class Tenant(SQLModel, table=True):
         link_model=TenantUnitLink,
         sa_relationship_kwargs={"lazy": "selectin"}
     )
+    maintenance_requests: list["MaintenanceRequest"] = Relationship(
+        back_populates="tenant")

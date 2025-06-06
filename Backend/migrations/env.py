@@ -83,7 +83,7 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """
     Runs Alembic migrations in online mode using a synchronous database connection.
-    
+
     Establishes a connection to the database, configures the Alembic context
     with the current SQLModel metadata, and executes migrations within a
     transaction block. This approach ensures that all migrations are applied

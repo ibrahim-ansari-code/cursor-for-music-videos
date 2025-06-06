@@ -19,6 +19,8 @@ from openai.types.chat import (
 logger = logging.getLogger(__name__)
 
 # Custom Exception
+
+
 class PaymentReceiptAnalysisError(Exception):
     """Custom exception for errors during payment receipt analysis."""
     pass
@@ -183,33 +185,33 @@ Be strict. Never include trailing commas, extra markdown, or introductory text. 
 def _extract_json_from_markdown(content: str) -> str:
     """
     Helper function to extract JSON from markdown-wrapped content.
-    
+
     Handles cases where Azure returns JSON wrapped in markdown code blocks
     despite using response_format={"type": "json_object"}.
-    
+
     Args:
         content: The raw response content that may contain markdown
-        
+
     Returns:
         The cleaned JSON string
-        
+
     Raises:
         ValueError: If no valid JSON can be extracted
     """
     # Try to extract from markdown code blocks first
     json_pattern = r'```(?:json)?\s*([\s\S]*?)\s*```'
     json_match = re.search(json_pattern, content)
-    
+
     if json_match:
         return json_match.group(1).strip()
-    
+
     # Fallback: try to extract JSON object directly
     json_pattern_direct = r'({[\s\S]*})'
     json_match_direct = re.search(json_pattern_direct, content)
-    
+
     if json_match_direct:
         return json_match_direct.group(1).strip()
-    
+
     # If no patterns match, return the content as-is for final attempt
     return content.strip()
 
@@ -234,19 +236,23 @@ def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[
     if file_extension == '.pdf':
         try:
             pdf_document = fitz.open(stream=file_content, filetype="pdf")
-            extracted_text = "".join(page.get_text("text") for page in pdf_document)  # type: ignore[attr-defined]
+            # type: ignore[attr-defined]
+            extracted_text = "".join(page.get_text("text")
+                                     for page in pdf_document)
             pdf_document.close()
             logger.info("Extracted text from PDF: %s", filename)
             if not extracted_text.strip():
                 logger.warning(
                     "No text could be extracted from PDF: %s", filename)
-                raise ValueError("No text could be extracted from PDF receipt. Please ensure the PDF contains selectable text.")
+                raise ValueError(
+                    "No text could be extracted from PDF receipt. Please ensure the PDF contains selectable text.")
             messages.append({"role": "user", "content": extracted_text})
             raw_text_preview = extracted_text[:200].replace('\n', ' ')
         except Exception as e:
             logger.exception(
                 "Failed to extract text from PDF %s: %s", filename, e)
-            raise ValueError(f"Could not process PDF file {filename}: {e}") from e
+            raise ValueError(
+                f"Could not process PDF file {filename}: {e}") from e
     elif file_extension in ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif', '.webp']:
         logger.info("Processing image file for GPT-4o vision: %s", filename)
         base64_image = base64.b64encode(file_content).decode('utf-8')
@@ -299,12 +305,15 @@ def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[
             try:
                 json_str = _extract_json_from_markdown(llm_response_content)
                 parsed_data = json.loads(json_str)
-                logger.debug("Successfully parsed JSON after markdown extraction.")
+                logger.debug(
+                    "Successfully parsed JSON after markdown extraction.")
             except (json.JSONDecodeError, ValueError) as json_err:
                 error_msg = "Failed to parse JSON from LLM response for %s: %s"
                 logger.exception(error_msg, filename, json_err)
-                logger.exception("LLM response content: %s", llm_response_content)
-                raise ValueError(error_msg % (filename, json_err)) from json_err
+                logger.exception("LLM response content: %s",
+                                 llm_response_content)
+                raise ValueError(error_msg %
+                                 (filename, json_err)) from json_err
 
         parsed_data['raw_text_preview'] = raw_text_preview
 
@@ -338,11 +347,12 @@ def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[
     except ValueError as e:
         logger.exception(
             "ValueError during payment receipt analysis for %s: %s", filename, e)
-        raise # Re-raise the specific ValueError, it might be from a previous step
-    except Exception as e: # Catch any other unexpected exception
+        raise  # Re-raise the specific ValueError, it might be from a previous step
+    except Exception as e:  # Catch any other unexpected exception
         logger.exception(
             "Unexpected error analyzing payment receipt %s: %s", filename, e)
-        raise PaymentReceiptAnalysisError(f"Failed to analyze payment receipt {filename}: {e}") from e
+        raise PaymentReceiptAnalysisError(
+            f"Failed to analyze payment receipt {filename}: {e}") from e
     else:
         logger.info("Payment receipt analysis completed for: %s", filename)
         return parsed_data
@@ -368,19 +378,23 @@ def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[
     if file_extension == '.pdf':
         try:
             pdf_document = fitz.open(stream=file_content, filetype="pdf")
-            extracted_text = "".join(page.get_text("text") for page in pdf_document)  # type: ignore[attr-defined]
+            # type: ignore[attr-defined]
+            extracted_text = "".join(page.get_text("text")
+                                     for page in pdf_document)
             pdf_document.close()
             logger.info("Extracted text from PDF for expense: %s", filename)
             if not extracted_text.strip():
                 logger.warning(
                     "No text could be extracted from PDF: %s", filename)
-                raise ValueError("No text could be extracted from PDF expense receipt. Please ensure the PDF contains selectable text.")
+                raise ValueError(
+                    "No text could be extracted from PDF expense receipt. Please ensure the PDF contains selectable text.")
             messages.append({"role": "user", "content": extracted_text})
             raw_text_preview = extracted_text[:200].replace('\n', ' ')
         except Exception as e:
             logger.exception(
                 "Failed to extract text from PDF %s: %s", filename, e)
-            raise ValueError(f"Could not process PDF file {filename}: {e}") from e
+            raise ValueError(
+                f"Could not process PDF file {filename}: {e}") from e
     elif file_extension in ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif', '.webp']:
         logger.info("Processing image file for expense analysis: %s", filename)
         base64_image = base64.b64encode(file_content).decode('utf-8')
@@ -397,7 +411,8 @@ def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[
         messages.append({"role": "user", "content": user_message_content})
         raw_text_preview = f"Image file processed: {filename}"
     else:
-        logger.warning("Unsupported file type for expense LLM analysis: %s", filename)
+        logger.warning(
+            "Unsupported file type for expense LLM analysis: %s", filename)
         raise ValueError(
             f"Unsupported file type: {file_extension}. Please upload a PDF or common image format.")
 
@@ -433,12 +448,15 @@ def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[
             try:
                 json_str = _extract_json_from_markdown(llm_response_content)
                 parsed_data = json.loads(json_str)
-                logger.debug("Successfully parsed JSON after markdown extraction.")
+                logger.debug(
+                    "Successfully parsed JSON after markdown extraction.")
             except (json.JSONDecodeError, ValueError) as json_err:
                 error_msg = "Failed to parse JSON from LLM response for expense %s: %s"
                 logger.exception(error_msg, filename, json_err)
-                logger.exception("LLM response content: %s", llm_response_content)
-                raise ValueError(error_msg % (filename, json_err)) from json_err
+                logger.exception("LLM response content: %s",
+                                 llm_response_content)
+                raise ValueError(error_msg %
+                                 (filename, json_err)) from json_err
 
         parsed_data['raw_text_preview'] = raw_text_preview
 
@@ -472,11 +490,12 @@ def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[
     except ValueError as e:
         logger.exception(
             "ValueError during expense receipt analysis for %s: %s", filename, e)
-        raise # Re-raise the specific ValueError, it might be from a previous step
-    except Exception as e: # Catch any other unexpected exception
+        raise  # Re-raise the specific ValueError, it might be from a previous step
+    except Exception as e:  # Catch any other unexpected exception
         logger.exception(
             "Unexpected error analyzing expense receipt %s: %s", filename, e)
-        raise PaymentReceiptAnalysisError(f"Failed to analyze expense receipt {filename}: {e}") from e
+        raise PaymentReceiptAnalysisError(
+            f"Failed to analyze expense receipt {filename}: {e}") from e
     else:
         logger.info("Expense receipt analysis completed for: %s", filename)
         return parsed_data
@@ -640,11 +659,13 @@ def analyze_lease_text(text: str) -> Dict[str, Any]:
             logger.debug("Successfully parsed LLM JSON response directly.")
         except json.JSONDecodeError:
             # Rare case: Azure returns markdown despite the contract
-            logger.warning("Failed to parse LLM response directly as JSON, trying markdown extraction.")
+            logger.warning(
+                "Failed to parse LLM response directly as JSON, trying markdown extraction.")
             try:
                 json_str = _extract_json_from_markdown(content)
                 parsed_data = json.loads(json_str)
-                logger.debug("Successfully parsed JSON after markdown extraction.")
+                logger.debug(
+                    "Successfully parsed JSON after markdown extraction.")
             except (json.JSONDecodeError, ValueError) as json_err:
                 error_msg = f"Failed to parse JSON from LLM response: {json_err}"
                 logger.exception(error_msg)
@@ -684,7 +705,8 @@ def analyze_lease_text(text: str) -> Dict[str, Any]:
             parsed_data['core_identifiers']['unit_number'] = ''
 
     except json.JSONDecodeError as e:
-        logger.error("Failed to parse LLM response as JSON: %s", str(e), exc_info=True)
+        logger.error("Failed to parse LLM response as JSON: %s",
+                     str(e), exc_info=True)
         raise ValueError(f"Invalid JSON response from LLM: {str(e)}") from e
     except ValueError as e:
         # Re-raise ValueError exceptions (like the ones we defined above)

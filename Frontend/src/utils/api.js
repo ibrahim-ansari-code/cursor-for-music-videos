@@ -395,18 +395,9 @@ export const updateLeaseStatus = async (leaseId, status) => {
 };
 
 export const uploadLeaseDocument = async (leaseId, formData) => {
-  const token = localStorage.getItem("token");
-
-  const response = await fetch(`${API_BASE_URL}/api/leases/${leaseId}/upload`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      // Don't set Content-Type as it will be set automatically for FormData
-    },
-    body: formData,
+  return uploadFile(`/api/leases/${leaseId}/upload`, formData, {
+    errorMsg: "Failed to upload lease document.",
   });
-
-  return handleResponse(response);
 };
 
 export const fetchLeaseDocuments = async (leaseId) => {
@@ -450,21 +441,9 @@ export const updateVendorStatus = async (vendorId, status) => {
 };
 
 export const uploadVendorDocument = async (vendorId, formData) => {
-  const token = localStorage.getItem("token");
-
-  const response = await fetch(
-    `${API_BASE_URL}/api/vendors/${vendorId}/upload`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        // Don't set Content-Type as it will be set automatically for FormData
-      },
-      body: formData,
-    }
-  );
-
-  return handleResponse(response);
+  return uploadFile(`/api/vendors/${vendorId}/upload`, formData, {
+    errorMsg: "Failed to upload vendor document.",
+  });
 };
 
 export const fetchVendorDocuments = async (vendorId) => {
@@ -768,6 +747,16 @@ export const deleteUnit = async (unitId) => {
   }
 };
 
+export const fetchUnit = async (unitId) => {
+  try {
+    const response = await apiRequest(`/units/${unitId}`);
+    return response;
+  } catch (error) {
+    console.error(`Error fetching unit ${unitId}:`, error);
+    throw error;
+  }
+};
+
 // Tenant Management API Functions
 export const fetchTenants = async (params = {}) => {
   const queryParams = new URLSearchParams();
@@ -1012,34 +1001,51 @@ export const updateLandlord = async (landlordId, landlordData) => {
 };
 
 // Maintenance API Functions
+export const getMaintenanceSummary = async () => {
+  return apiRequest("/maintenance/summary");
+};
+
 export const fetchMaintenanceRequests = async (params = {}) => {
   const queryParams = new URLSearchParams();
 
-  if (params.property_id) queryParams.append("property_id", params.property_id);
-  if (params.status) queryParams.append("status", params.status);
-  if (params.priority) queryParams.append("priority", params.priority);
+  Object.keys(params).forEach((key) => {
+    const value = params[key];
+    if (value === null || value === undefined || value === "") return;
+
+    if (Array.isArray(value)) {
+      value.forEach((v) => queryParams.append(key, v));
+    } else {
+      queryParams.append(key, value);
+    }
+  });
 
   const queryString = queryParams.toString();
-  return apiRequest(`/maintenance${queryString ? "?" + queryString : ""}`);
+  return apiRequest(
+    `/maintenance/requests${queryString ? `?${queryString}` : ""}`
+  );
 };
 
 export const createMaintenanceRequest = async (requestData) => {
-  return apiRequest("/maintenance", {
+  return apiRequest("/maintenance/requests", {
     method: "POST",
     body: JSON.stringify(requestData),
   });
 };
 
+export const getMaintenanceRequest = async (requestId) => {
+  return apiRequest(`/maintenance/requests/${requestId}`);
+};
+
 export const updateMaintenanceRequest = async (requestId, requestData) => {
-  return apiRequest(`/maintenance/${requestId}`, {
+  return apiRequest(`/maintenance/requests/${requestId}`, {
     method: "PUT",
     body: JSON.stringify(requestData),
   });
 };
 
-export const assignMaintenanceRequest = async (requestId, vendorId) => {
-  return apiRequest(`/maintenance/${requestId}/assign?vendor_id=${vendorId}`, {
-    method: "POST",
+export const deleteMaintenanceRequest = async (requestId) => {
+  return apiRequest(`/maintenance/requests/${requestId}`, {
+    method: "DELETE",
   });
 };
 
@@ -1195,22 +1201,10 @@ export const changeUserPassword = async (userId, newPassword) => {
  */
 export const uploadUserAvatar = async (userId, formData) => {
   if (!userId) throw new Error("User ID is required to upload avatar.");
-  const token = localStorage.getItem("token");
-
-  // Use fetch directly for FormData as apiRequest might stringify it
-  const response = await fetch(
-    `${API_BASE_URL}/api/auth/users/${userId}/avatar`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        // 'Content-Type' header is automatically set by the browser for FormData
-      },
-      body: formData,
-    }
-  );
-
-  return handleResponse(response);
+  // Assume formData contains the avatar under the key 'avatar'
+  return uploadFile(`/api/auth/users/${userId}/avatar`, formData, {
+    errorMsg: "Failed to upload avatar.",
+  });
 };
 
 // Add the new report summary function
@@ -1230,46 +1224,10 @@ export const fetchReportSummary = async (params = {}) => {
 
 // New function to upload lease PDF to blob storage
 export const uploadLeasePDF = async (file) => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
-    throw new Error("Authentication required. Please log in.");
-  }
-
-  const formData = new FormData();
-  formData.append("file", file);
-
-  try {
-    console.log("Uploading lease PDF to blob storage...");
-    const url = `${API_BASE_URL}/api/leases/upload-lease`;
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      let errorMessage = "Failed to upload lease PDF";
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.detail || errorMessage;
-      } catch (e) {
-        const errorText = await response.text();
-        errorMessage = `${errorMessage}: ${response.status} ${response.statusText}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const data = await response.json();
-    console.log("Lease PDF uploaded successfully:", data);
-    return data.file_url;
-  } catch (error) {
-    console.error("Error uploading lease PDF:", error);
-    throw error;
-  }
+  const data = await uploadFile("/api/leases/upload-lease", file, {
+    errorMsg: "Failed to upload lease PDF.",
+  });
+  return data.file_url;
 };
 
 // New function to parse payment receipt
@@ -1302,4 +1260,60 @@ export const deleteExpenseAPI = async (expenseId) => {
   return apiRequest(`/accounting/expenses/${expenseId}`, {
     method: "DELETE",
   });
+};
+
+export const uploadMaintenancePhoto = async (file) => {
+  const data = await uploadFile("/api/maintenance/upload-photo", file, {
+    errorMsg: "Failed to upload maintenance photo.",
+  });
+  return data.photo_url;
+};
+
+/**
+ * Helper to upload a file to a given API endpoint with authentication and error handling.
+ * @param {string} endpoint - The API endpoint (relative, e.g. '/api/maintenance/upload-photo').
+ * @param {File|FormData} fileOrFormData - The file or FormData to upload. If a File, will be wrapped in FormData as 'file'.
+ * @param {Object} [options] - Optional extra options (e.g., custom form key, extra fields).
+ * @returns {Promise<object>} The parsed JSON response.
+ */
+export const uploadFile = async (endpoint, fileOrFormData, options = {}) => {
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Authentication required. Please log in.");
+
+  let formData;
+  if (fileOrFormData instanceof FormData) {
+    formData = fileOrFormData;
+  } else {
+    formData = new FormData();
+    const formKey = options.formKey || "file";
+    formData.append(formKey, fileOrFormData);
+    // Add any extra fields if provided
+    if (options.extraFields) {
+      Object.entries(options.extraFields).forEach(([k, v]) =>
+        formData.append(k, v)
+      );
+    }
+  }
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      // Content-Type is set automatically for FormData
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let errorMsg = options.errorMsg || "Failed to upload file.";
+    try {
+      const errorData = await response.json();
+      errorMsg = errorData.detail || errorMsg;
+    } catch (e) {
+      errorMsg = response.statusText || errorMsg;
+    }
+    throw new Error(errorMsg);
+  }
+
+  return response.json();
 };

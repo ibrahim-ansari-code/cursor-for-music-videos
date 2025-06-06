@@ -4,7 +4,7 @@ import {
   fetchProperties,
   fetchTenants,
   updateLease,
-  fetchUnitById,
+  fetchUnit,
 } from "../utils/api";
 import {
   Label,
@@ -56,17 +56,17 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
       }
       if (lease.unit_id && lease.property_id) {
         // Assuming fetchPropertyUnits might not be ideal for a single unit if not available,
-        // we rely on lease.unit if present or would need a fetchUnitById.
+        // we rely on lease.unit if present or would need a fetchUnit.
         // For now, use pre-loaded data if available.
         if (lease.unit) {
-            setUnitDetails(lease.unit);
+          setUnitDetails(lease.unit);
         } else {
-            fetchUnitById(lease.unit_id)
-                .then(setUnitDetails)
-                .catch(err => {
-                    console.error("Failed to fetch unit details:", err);
-                    setUnitDetails(null); // Set to null or some error state
-                });
+          fetchUnit(lease.unit_id)
+            .then(setUnitDetails)
+            .catch((err) => {
+              console.error("Failed to fetch unit details:", err);
+              setUnitDetails(null); // Set to null or some error state
+            });
         }
       }
       if (lease.tenant_id) {
@@ -105,7 +105,8 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
       security_deposit: Number.parseFloat(formData.security_deposit) || null,
       rent_due_day: Number.parseInt(formData.rent_due_day, 10) || null,
       late_fee_amount: Number.parseFloat(formData.late_fee_amount) || null,
-      late_fee_after_days: Number.parseInt(formData.late_fee_after_days, 10) || null,
+      late_fee_after_days:
+        Number.parseInt(formData.late_fee_after_days, 10) || null,
       special_terms: formData.special_terms || null,
     };
 

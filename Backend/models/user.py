@@ -12,6 +12,7 @@ from Backend.utils.datetime_utils import create_audit_datetime
 if TYPE_CHECKING:
     from Backend.models.property import Property
     from Backend.models.tenant import Tenant
+    from Backend.models.maintenance import MaintenanceRequest
 
 
 class User(SQLModel, table=True):
@@ -42,3 +43,5 @@ class User(SQLModel, table=True):
 
     # Define tenant_details relationship directly
     tenant_details: Optional["Tenant"] = Relationship(back_populates="user")
+    maintenance_requests: list["MaintenanceRequest"] = Relationship(
+        back_populates="user")

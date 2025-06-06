@@ -1,7 +1,7 @@
 import logging
-import functools # Add functools import
+import functools  # Add functools import
 from datetime import UTC, date, datetime
-from typing import Any, TypeVar, Annotated # Added Annotated
+from typing import Any, TypeVar, Annotated  # Added Annotated
 from uuid import UUID as PythonUUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -292,7 +292,8 @@ class ExpenseCreate(BaseModel):
     expense_date: datetime
     description: str | None = None
     receipt_url: str | None = None
-    taxes: list[ExpenseTaxDetailCreate] | None = None  # Use list from typing and default to None
+    # Use list from typing and default to None
+    taxes: list[ExpenseTaxDetailCreate] | None = None
 
 
 class ExpenseUpdate(BaseModel):
@@ -377,7 +378,7 @@ async def _handle_receipt_url_update(
 ) -> None:
     """
     Helper function to handle receipt URL updates and cleanup of old blobs.
-    
+
     Args:
         db_expense: The expense object to update
         new_receipt_url: The new receipt URL to set
@@ -400,15 +401,15 @@ def _calculate_expense_taxes(
 ) -> tuple[list[ExpenseTaxDetail], float]:
     """
     Helper function to calculate and create tax details for an expense.
-    
+
     Args:
         expense_data: The expense update data containing tax information
         current_subtotal: The current subtotal amount for tax calculations
         existing_expense_id: The ID of the expense being updated
-        
+
     Returns:
         Tuple of (new_tax_details_list, calculated_total_tax_amount)
-        
+
     Raises:
         HTTPException: If tax rate is negative
     """
@@ -439,11 +440,11 @@ def _calculate_expense_taxes(
 def _recalculate_existing_taxes(existing_taxes: list[ExpenseTaxDetail], new_subtotal: float) -> float:
     """
     Helper function to recalculate tax amounts for existing tax details.
-    
+
     Args:
         existing_taxes: List of existing tax details to recalculate
         new_subtotal: The new subtotal amount to base calculations on
-        
+
     Returns:
         The calculated total tax amount
     """
@@ -510,10 +511,10 @@ async def parse_payment_receipt(
     try:
         # Read file content once into memory for LLM analysis
         file_content = await file.read()
-        
+
         # Reset file pointer to beginning for Azure upload
         await file.seek(0)
-        
+
         # Upload to Azure Blob Storage (uses file stream, not the in-memory content)
         receipt_url = await upload_payment_receipt_to_blob(file, current_user.id)
 
@@ -609,7 +610,8 @@ async def create_payment(
             tenant_id=payment_obj.tenant_id,
             amount=payment_obj.amount,
             payment_date=payment_obj.payment_date,
-            payment_method=PaymentMethod(payment_obj.payment_method) if payment_obj.payment_method else None,
+            payment_method=PaymentMethod(
+                payment_obj.payment_method) if payment_obj.payment_method else None,
             status=payment_obj.status,
             transaction_reference=payment_obj.transaction_reference,
             description=payment_obj.description,
@@ -673,13 +675,14 @@ async def get_payments(
         # Role-based access control and filtering
         if current_user.user_type == UserType.TENANT:
             # Tenants see their payments - need to find their tenant record to get the tenant.id
-            tenant_query = select(Tenant).where(col(Tenant.user_id) == current_user.id)
+            tenant_query = select(Tenant).where(
+                col(Tenant.user_id) == current_user.id)
             tenant_result = await session.execute(tenant_query)
             user_tenant = tenant_result.scalar_one_or_none()
-            
+
             if not user_tenant:
                 return []  # User has no tenant record, so no payments
-                
+
             user_tenant_id = user_tenant.id
             if tenant_id and tenant_id != user_tenant_id:
                 return []
@@ -749,7 +752,8 @@ async def get_payments(
                 tenant_id=p.tenant_id,
                 amount=p.amount,
                 payment_date=p.payment_date,
-                payment_method=PaymentMethod(p.payment_method) if p.payment_method else None,
+                payment_method=PaymentMethod(
+                    p.payment_method) if p.payment_method else None,
                 status=p.status,
                 transaction_reference=p.transaction_reference,
                 description=p.description,
@@ -799,10 +803,11 @@ async def get_payment(
     # Permission check
     if current_user.user_type == UserType.TENANT:
         # Get tenant record to check if this payment belongs to the current user
-        tenant_query = select(Tenant).where(col(Tenant.user_id) == current_user.id)
+        tenant_query = select(Tenant).where(
+            col(Tenant.user_id) == current_user.id)
         tenant_result = await session.execute(tenant_query)
         user_tenant = tenant_result.scalar_one_or_none()
-        
+
         if not user_tenant or payment.tenant_id != user_tenant.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
@@ -830,7 +835,8 @@ async def get_payment(
         tenant_id=payment.tenant_id,
         amount=payment.amount,
         payment_date=payment.payment_date,
-        payment_method=PaymentMethod(payment.payment_method) if payment.payment_method else None,
+        payment_method=PaymentMethod(
+            payment.payment_method) if payment.payment_method else None,
         status=payment.status,
         transaction_reference=payment.transaction_reference,
         description=payment.description,
@@ -921,7 +927,8 @@ async def update_payment(
             tenant_id=payment.tenant_id,
             amount=payment.amount,
             payment_date=payment.payment_date,
-            payment_method=PaymentMethod(payment.payment_method) if payment.payment_method else None,
+            payment_method=PaymentMethod(
+                payment.payment_method) if payment.payment_method else None,
             status=payment.status,
             transaction_reference=payment.transaction_reference,
             description=payment.description,
@@ -1127,13 +1134,14 @@ async def get_invoices(
     # Role-based access control
     if current_user.user_type == UserType.TENANT:
         # Get tenant record to check if this matches the current user
-        tenant_query = select(Tenant).where(col(Tenant.user_id) == current_user.id)
+        tenant_query = select(Tenant).where(
+            col(Tenant.user_id) == current_user.id)
         tenant_result = await session.execute(tenant_query)
         user_tenant = tenant_result.scalar_one_or_none()
-        
+
         if not user_tenant:
             return []  # User has no tenant record, so no invoices
-            
+
         user_tenant_id = user_tenant.id
         if tenant_id and tenant_id != user_tenant_id:
             return []  # Tenant filtering for someone else
@@ -1223,10 +1231,10 @@ async def parse_expense_receipt(
     try:
         # Read file content once into memory for LLM analysis
         file_content = await file.read()
-        
+
         # Reset file pointer to beginning for Azure upload
         await file.seek(0)
-        
+
         # Upload to Azure Blob Storage (uses file stream, not the in-memory content)
         # user_id is already PythonUUID from current_user.id
         receipt_url = await upload_expense_receipt_to_blob(file, current_user.id)
@@ -1279,7 +1287,7 @@ async def create_expense(
 
     calculated_total_tax_amount = 0.0
     tax_details_to_create: list[ExpenseTaxDetail] = []
-    if expense_data.taxes is not None: # Check for None explicitly
+    if expense_data.taxes is not None:  # Check for None explicitly
         for tax_item_data in expense_data.taxes:
             if tax_item_data.tax_rate < 0:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
@@ -1289,8 +1297,8 @@ async def create_expense(
             calculated_total_tax_amount += item_tax_amount
             # Use placeholder expense_id=0 - SQLAlchemy will automatically update this when the relationship is established
             tax_details_to_create.append(ExpenseTaxDetail(
-                tax_name=tax_item_data.tax_name, 
-                tax_rate=tax_item_data.tax_rate, 
+                tax_name=tax_item_data.tax_name,
+                tax_rate=tax_item_data.tax_rate,
                 tax_amount=item_tax_amount,
                 expense_id=0  # Placeholder - will be updated by SQLAlchemy relationship
             ))
@@ -1427,7 +1435,8 @@ async def update_expense(
     # Handle subtotal amount updates
     subtotal_updated_in_payload = False
     if "subtotal_amount" in update_payload and update_payload["subtotal_amount"] is not None:
-        db_expense.subtotal_amount = round(float(update_payload["subtotal_amount"]), 2)
+        db_expense.subtotal_amount = round(
+            float(update_payload["subtotal_amount"]), 2)
         subtotal_updated_in_payload = True
 
     # Handle tax calculations
@@ -1438,14 +1447,16 @@ async def update_expense(
                 "Critical error: db_expense.id is None during tax detail creation in update_expense.")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                                 detail="Cannot create tax detail without parent expense ID.")
-        
+
         new_tax_details_orm, calculated_total_tax_amount = _calculate_expense_taxes(
             expense_data, db_expense.subtotal_amount, db_expense.id)
         # Assign new list; delete-orphan (if configured on relationship) handles old ones.
         db_expense.taxes = new_tax_details_orm
         db_expense.total_tax_amount = calculated_total_tax_amount
-    elif subtotal_updated_in_payload:  # No new tax lines, but subtotal changed. Recalculate existing.
-        db_expense.total_tax_amount = _recalculate_existing_taxes(db_expense.taxes, db_expense.subtotal_amount)
+    # No new tax lines, but subtotal changed. Recalculate existing.
+    elif subtotal_updated_in_payload:
+        db_expense.total_tax_amount = _recalculate_existing_taxes(
+            db_expense.taxes, db_expense.subtotal_amount)
     # If expense_data.taxes was None and subtotal was not updated,
     # db_expense.taxes and db_expense.total_tax_amount remain unchanged.
 
@@ -1968,7 +1979,8 @@ async def generate_due_payments(
                     tenant_id=new_payment.tenant_id,
                     amount=new_payment.amount,
                     payment_date=new_payment.payment_date,
-                    payment_method=PaymentMethod(new_payment.payment_method) if new_payment.payment_method else None,
+                    payment_method=PaymentMethod(
+                        new_payment.payment_method) if new_payment.payment_method else None,
                     status=new_payment.status,
                     transaction_reference=new_payment.transaction_reference,
                     description=new_payment.description,
@@ -2037,10 +2049,11 @@ async def get_outstanding_payments(
         # Apply ownership filter
         if current_user.user_type == UserType.TENANT:
             # Get tenant record to check payments for this tenant
-            tenant_query = select(Tenant).where(col(Tenant.user_id) == current_user.id)
+            tenant_query = select(Tenant).where(
+                col(Tenant.user_id) == current_user.id)
             tenant_result = await session.execute(tenant_query)
             user_tenant = tenant_result.scalar_one_or_none()
-            
+
             if user_tenant:
                 query = query.where(col(Payment.tenant_id) == user_tenant.id)
             else:
@@ -2072,7 +2085,8 @@ async def get_outstanding_payments(
                 tenant_id=p.tenant_id,
                 amount=p.amount,
                 payment_date=p.payment_date,
-                payment_method=PaymentMethod(p.payment_method) if p.payment_method else None,
+                payment_method=PaymentMethod(
+                    p.payment_method) if p.payment_method else None,
                 status=p.status,
                 transaction_reference=p.transaction_reference,
                 description=p.description,

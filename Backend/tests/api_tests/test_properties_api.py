@@ -24,7 +24,7 @@ async def created_property(api_client: APITestClient) -> AsyncGenerator[dict[str
     """
     Asynchronously creates a test property for use in API tests and ensures
     its deletion after the test completes.
-    
+
     Yields:
         The created property object as a dictionary.
     """
@@ -70,7 +70,7 @@ class TestPropertiesAPI:
     async def test_create_property(self, api_client: APITestClient) -> None:
         """
         Tests property creation via POST /api/properties/ and verifies the response.
-        
+
         Sends a request to create a new property with test data, asserts the
         response contains the expected fields and values, and immediately deletes
         the created property to maintain test isolation.
@@ -119,7 +119,7 @@ class TestPropertiesAPI:
     async def test_get_all_properties(self, api_client: APITestClient) -> None:
         """
         Tests retrieval of all properties via the GET /api/properties/ endpoint.
-        
+
         Sends a GET request to fetch all properties and asserts that the response
         is a valid JSON list.
         """
@@ -135,7 +135,7 @@ class TestPropertiesAPI:
     async def test_get_specific_property(self, created_property: dict[str, Any], api_client: APITestClient) -> None:
         """
         Tests retrieval of a specific property using its ID.
-        
+
         Uses a fixture to ensure the property exists, sends a GET request to
         fetch it, and verifies the response contains the expected property data.
         """
@@ -161,7 +161,7 @@ class TestPropertiesAPI:
     async def test_update_property(self, created_property: dict[str, Any], api_client: APITestClient) -> None:
         """
         Tests updating a property via PUT /api/properties/{id} using a fixture property.
-        
+
         Verifies that the property's name and description are updated as expected
         and that the property ID remains unchanged.
         """
@@ -189,7 +189,7 @@ class TestPropertiesAPI:
     async def test_delete_property(self, api_client: APITestClient) -> None:
         """
         Tests that a property can be created and successfully deleted via the API.
-        
+
         Creates a new property, deletes it using the DELETE endpoint, and verifies
         that subsequent retrieval attempts return a 404 status, confirming deletion.
         """

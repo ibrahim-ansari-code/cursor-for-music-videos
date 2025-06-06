@@ -7,6 +7,7 @@ import {
 } from "../utils/api";
 import TenantModal from "../components/TenantModal";
 import UpdateTenantModal from "../components/UpdateTenantModal";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const Tenants = () => {
   const [tenants, setTenants] = useState([]);
@@ -495,14 +496,7 @@ const Tenants = () => {
         </div>
 
         {/* Loading State */}
-        {isLoading && (
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-            <div className="p-6 text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-200 border-t-blue-600 mb-4"></div>
-              <p className="text-gray-500">Loading tenants...</p>
-            </div>
-          </div>
-        )}
+        {isLoading && <LoadingSpinner message="Loading tenants..." />}
 
         {/* Error State */}
         {!isLoading && error && (

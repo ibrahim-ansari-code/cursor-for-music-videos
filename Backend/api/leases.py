@@ -566,7 +566,7 @@ async def update_lease(
 ):
     """
     Updates general terms of an existing lease, excluding status changes.
-    
+
     Checks user permissions before applying updates to lease fields such as dates, rent, deposit, and related information. Ignores any attempt to modify the lease status, which must be changed via the dedicated status endpoint. Commits changes to the database and returns the updated lease. Rolls back and raises an HTTP 500 error if the update fails.
     """
     lease = await check_lease_permission(lease_id, session, current_user, action="update")

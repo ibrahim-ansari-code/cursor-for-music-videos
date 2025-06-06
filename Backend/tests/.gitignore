@@ -1,5 +1,5 @@
 # Sensitive authentication files
-.test_jwt_token
+api_tests/.test_jwt_token
 .test_credentials.json
 
 # Python cache directories

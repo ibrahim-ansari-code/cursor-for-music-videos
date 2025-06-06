@@ -50,34 +50,37 @@ async def _upload_to_blob(
     container_client = blob_service_client.get_container_client(container_name)
     try:
         await container_client.create_container()
-        logger.info("Container '%s' created or already exists.", container_name)
+        logger.info("Container '%s' created or already exists.",
+                    container_name)
     except ResourceExistsError:
         logger.debug("Container '%s' already exists.", container_name)
     except Exception as e:
-        logger.error(
-            "Failed to create or access container '%s': %s", container_name, e)
+        logger.error("Failed to create or access container '%s': %s",
+                     container_name, e)
         raise
 
     blob_client = container_client.get_blob_client(blob_name)
-    
+
     # Provide a default content type if file.content_type is None
     effective_content_type = file.content_type if file.content_type else 'application/octet-stream'
-    blob_content_settings = ContentSettings(content_type=effective_content_type)
+    blob_content_settings = ContentSettings(
+        content_type=effective_content_type)
 
     try:
         # Reset the stream's pointer to the beginning before uploading
         await file.seek(0)
         # Pass the underlying file-like object (UploadFile.file) for streaming
         await blob_client.upload_blob(data=file.file, overwrite=True, content_settings=blob_content_settings)
-        logger.info(
-            "Successfully uploaded %s to %s/%s", default_filename_prefix, container_name, blob_name)
+        logger.info("Successfully uploaded %s to %s/%s",
+                    default_filename_prefix, container_name, blob_name)
     except Exception as e:
-        logger.error(
-            "Failed to upload blob '%s' to container '%s': %s", blob_name, container_name, e)
+        logger.error("Failed to upload blob '%s' to container '%s': %s",
+                     blob_name, container_name, e)
         raise
 
     public_url = f"{settings.AZURE_BLOB_PUBLIC_URL.rstrip('/')}/{container_name}/{blob_name}"
-    logger.info("%s public URL: %s", default_filename_prefix.capitalize(), public_url)
+    logger.info("%s public URL: %s",
+                default_filename_prefix.capitalize(), public_url)
     return public_url
 
 # Preserve original docstrings and annotations for the partial functions
@@ -185,7 +188,8 @@ upload_payment_receipt_to_blob = functools.partial(
     safe_filename_suffix_limit=50
 )
 setattr(upload_payment_receipt_to_blob, '__doc__', _upload_payment_receipt_doc)
-setattr(upload_payment_receipt_to_blob, '__annotations__', _upload_payment_receipt_annotations)
+setattr(upload_payment_receipt_to_blob, '__annotations__',
+        _upload_payment_receipt_annotations)
 
 
 _upload_expense_receipt_doc = """
@@ -217,7 +221,40 @@ upload_expense_receipt_to_blob = functools.partial(
     safe_filename_suffix_limit=50
 )
 setattr(upload_expense_receipt_to_blob, '__doc__', _upload_expense_receipt_doc)
-setattr(upload_expense_receipt_to_blob, '__annotations__', _upload_expense_receipt_annotations)
+setattr(upload_expense_receipt_to_blob, '__annotations__',
+        _upload_expense_receipt_annotations)
+
+
+upload_maintenance_photo_to_blob = functools.partial(
+    _upload_to_blob,
+    container_name="maintenance-photos",
+    default_filename_prefix="maintenance_photo",
+    safe_filename_suffix_limit=80
+)
+setattr(upload_maintenance_photo_to_blob, '__doc__', """
+    Asynchronously uploads a maintenance photo file to Azure Blob Storage and returns its public URL.
+
+    Uploads the provided file to the 'maintenance-photos' container, generating a
+    unique blob name using the user ID and a UUID to prevent collisions.
+    Creates the container if it does not exist. Returns the public URL of the
+    uploaded file.
+
+    Args:
+        file (UploadFile): The maintenance photo file to upload (image or PDF).
+        user_id (PythonUUID): The user identifier used to namespace the uploaded file.
+
+    Returns:
+        str: The public URL of the uploaded maintenance photo file.
+
+    Raises:
+        ConnectionError: If the Azure Blob Storage client is not initialized.
+        Exception: If container creation or file upload fails.
+""")
+setattr(upload_maintenance_photo_to_blob, '__annotations__', {
+    'file': UploadFile,
+    'user_id': PythonUUID,
+    'return': str
+})
 
 
 async def delete_blob_by_url(blob_url: str) -> bool:
@@ -241,8 +278,8 @@ async def delete_blob_by_url(blob_url: str) -> bool:
     try:
         public_url_base = settings.AZURE_BLOB_PUBLIC_URL.rstrip('/')
         if not blob_url.startswith(public_url_base):
-            logger.error(
-                "Blob URL '%s' does not match configured public base URL '%s'.", blob_url, public_url_base)
+            logger.error("Blob URL '%s' does not match configured public base URL '%s'.",
+                         blob_url, public_url_base)
             return False
 
         path_part = blob_url[len(public_url_base):].lstrip('/')
@@ -250,8 +287,8 @@ async def delete_blob_by_url(blob_url: str) -> bool:
         # Path part is expected to be "container_name/actual_blob_name_with_internal_path"
         parts = path_part.split('/', 1)
         if len(parts) < 2:
-            logger.error(
-                "Could not parse container and blob name from path: %s", path_part)
+            logger.error("Could not parse container and blob name from path: %s",
+                         path_part)
             return False
 
         container_name = parts[0]
@@ -274,5 +311,6 @@ async def delete_blob_by_url(blob_url: str) -> bool:
         return True
 
     except Exception as e:
-        logger.error("Failed to delete blob '%s': %s", blob_url, e, exc_info=True)
+        logger.error("Failed to delete blob '%s': %s",
+                     blob_url, e, exc_info=True)
         return False

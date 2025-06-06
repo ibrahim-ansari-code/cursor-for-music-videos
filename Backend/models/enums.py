@@ -21,3 +21,25 @@ class PropertyStatus(str, Enum):
     INACTIVE = "INACTIVE"
     DRAFT = "DRAFT"
     ARCHIVED = "ARCHIVED"
+
+
+class MaintenancePriority(str, Enum):
+    """
+    Defines priority levels for maintenance requests.
+
+    Levels:
+    - LOW: Non-urgent issues that can be addressed during routine maintenance
+    - MEDIUM: Important issues requiring attention but not immediate action
+    - HIGH: Critical issues requiring immediate attention to prevent damage or safety concerns
+    """
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
+
+
+class MaintenanceStatus(str, Enum):
+    PENDING = "Pending"
+    IN_PROGRESS = "In Progress"
+    SCHEDULED = "Scheduled"
+    COMPLETED = "Completed"
+    CANCELLED = "Cancelled"

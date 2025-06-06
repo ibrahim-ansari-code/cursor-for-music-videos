@@ -1,4 +1,17 @@
+# Import all models to ensure they are registered with SQLModel/SQLAlchemy
+# before any relationship mapping or configuration occurs.
+from . import user
+from . import property
+from . import tenant
+from . import lease
+from . import accounting
+from . import maintenance
+from . import reports
+from . import enums
+
 # Initialize models to resolve circular dependencies if needed
+
+
 def initialize_models():
     """Configure mappers after all models are imported."""
     try:

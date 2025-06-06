@@ -438,11 +438,13 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
             >
               {showReceiptPreview ? (
                 <>
-                  <i className="fas fa-eye-slash mr-2" />Hide Preview
+                  <i className="fas fa-eye-slash mr-2" />
+                  Hide Preview
                 </>
               ) : (
                 <>
-                  <i className="fas fa-eye mr-2" />Preview Current
+                  <i className="fas fa-eye mr-2" />
+                  Preview Current
                 </>
               )}
             </Button>

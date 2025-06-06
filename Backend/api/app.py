@@ -138,6 +138,7 @@ try:
     from Backend.api.reports import router as reports_router
     from Backend.api.tenants import router as tenants_router
     from Backend.api.units import router as units_router
+    from Backend.api.maintenance import router as maintenance_router
 
     # Include routers into the central api_main_router
     # Their internal prefixes (e.g., /auth, /properties) will apply
@@ -152,6 +153,7 @@ try:
     api_main_router.include_router(units_router)
     api_main_router.include_router(reports_router)
     api_main_router.include_router(health_router)
+    api_main_router.include_router(maintenance_router)
 
     # Define the /api/health endpoint on the api_main_router
     @api_main_router.get("/health")

@@ -219,7 +219,12 @@ const NewPropertyModal = ({
   };
 
   const handleSuggestionKeyDown = (event, suggestion) => {
-    if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar' || event.code === 'Space') {
+    if (
+      event.key === "Enter" ||
+      event.key === " " ||
+      event.key === "Spacebar" ||
+      event.code === "Space"
+    ) {
       event.preventDefault(); // Prevent default action (e.g., scrolling on space)
       handleSuggestionClick(suggestion);
     }
@@ -308,7 +313,7 @@ const NewPropertyModal = ({
       }
 
       // The onSubmit function will receive the cleanPayload
-      await onSubmit(cleanPayload); 
+      await onSubmit(cleanPayload);
 
       toast.success(
         `Property ${isEditing ? "updated" : "created"} successfully!`,
@@ -444,7 +449,9 @@ const NewPropertyModal = ({
                         key={suggestion.id || index}
                         type="button"
                         onClick={() => handleSuggestionClick(suggestion)}
-                        onKeyDown={(e) => handleSuggestionKeyDown(e, suggestion)}
+                        onKeyDown={(e) =>
+                          handleSuggestionKeyDown(e, suggestion)
+                        }
                         className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-500 hover:text-white focus:bg-blue-500 focus:text-white focus:outline-none transition-colors duration-150 border-b border-gray-100 last:border-b-0"
                         role="option"
                       >

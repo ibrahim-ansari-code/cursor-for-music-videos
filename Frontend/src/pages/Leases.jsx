@@ -31,7 +31,11 @@ const Leases = () => {
   const tableScrollContainerRef = useRef(null);
 
   // Helper function for dropdown positioning
-  const calculateDropdownPosition = (buttonRect, scrollContainerRect, itemCount) => {
+  const calculateDropdownPosition = (
+    buttonRect,
+    scrollContainerRect,
+    itemCount
+  ) => {
     if (!buttonRect || !scrollContainerRect) {
       return "top-full mt-2"; // Default position if refs are not available
     }
@@ -293,7 +297,9 @@ const Leases = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto" />
           <p className="mt-3 text-gray-600">
-            {documentsLoading ? "Loading lease documents..." : "Loading leases..."}
+            {documentsLoading
+              ? "Loading lease documents..."
+              : "Loading leases..."}
           </p>
         </div>
       </div>

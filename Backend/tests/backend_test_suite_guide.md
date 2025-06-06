@@ -7,17 +7,20 @@ This test suite uses **pytest** with full async support. The tests use **pytest-
 ## 🚀 **Quick Start**
 
 ### **Prerequisites**
+
 1. **Running API server** at `http://localhost:8000`
 2. **Valid credentials** (see Setup section below)
 3. **Python dependencies** installed (see pyproject.toml)
 
 ### **Run All Tests**
+
 ```bash
 cd Backend/tests
 python run_all_api_tests_pytest.py
 ```
 
 ### **Run Specific Test Modules**
+
 ```bash
 # From the Backend/tests directory:
 cd Backend/tests
@@ -25,7 +28,7 @@ cd Backend/tests
 # Run accounting tests only
 python -m pytest api_tests/test_accounting_api.py -v
 
-# Run authentication tests only  
+# Run authentication tests only
 python -m pytest api_tests/test_auth_api.py -v
 
 # Run with specific markers
@@ -34,6 +37,7 @@ python -m pytest -m "auth" -v      # Run only authenticated tests
 ```
 
 ### **Run Individual Tests**
+
 ```bash
 # From the Backend/tests directory:
 cd Backend/tests
@@ -45,9 +49,11 @@ python -m pytest api_tests/test_accounting_api.py::TestAccountingAPI::test_get_p
 ## 🔧 **Setup & Configuration**
 
 ### **Authentication Setup**
+
 The test suite requires valid Supabase credentials for authentication. Create these files in the `Backend/tests/` directory:
 
 1. **`.test_credentials.json`** - Create this file with your Supabase credentials:
+
 ```json
 {
   "SUPABASE_URL": "your_supabase_url",
@@ -63,9 +69,11 @@ The test suite requires valid Supabase credentials for authentication. Create th
 **Note:** These files are in `.gitignore` for security. Contact your team lead or check your team's credential management system for the actual values.
 
 ### **Environment Variables**
+
 Ensure your `.env` file contains the necessary configuration for the API server to run properly.
 
 ### **Pytest Configuration** (`pytest.ini`)
+
 ```ini
 [pytest]
 # Test discovery
@@ -79,9 +87,9 @@ asyncio_mode = auto
 asyncio_default_fixture_loop_scope = function
 
 # Test markers
-markers = 
+markers =
     auth: marks tests that require authentication
-    slow: marks tests as slow  
+    slow: marks tests as slow
     integration: marks tests as integration tests
     unit: marks tests as unit tests
 
@@ -91,11 +99,11 @@ log_cli_level = INFO
 log_cli_format = %(asctime)s [%(levelname)8s] %(message)s
 log_cli_date_format = %Y-%m-%d %H:%M:%S
 
-# Output configuration  
+# Output configuration
 addopts = -v --tb=short --strict-markers --asyncio-mode=auto
 
 # Minimum Python version
-minversion = 3.11 
+minversion = 3.11
 ```
 
 ## 🏗️ **Test Architecture**
@@ -103,11 +111,13 @@ minversion = 3.11
 ### **Core Components:**
 
 1. **`conftest.py`** - Shared fixtures and configuration
+
    - `api_client` fixture - Authenticated HTTP client
    - Helper functions - Response validation utilities
    - Authentication management - JWT token handling
 
 2. **Test Modules:**
+
    - `test_accounting_api.py` - Financial operations (payments, expenses, invoices)
    - `test_auth_api.py` - Authentication endpoints
    - `test_dashboard_api.py` - Dashboard data retrieval
@@ -134,6 +144,7 @@ The test suite uses **automatic JWT authentication**:
 ## 📝 **Writing New Tests**
 
 ### **Test Structure:**
+
 ```python
 import pytest
 import logging
@@ -149,15 +160,16 @@ class TestYourAPI:
     async def test_your_endpoint(self, api_client):
         """Test description"""
         logger.info("Testing your endpoint...")
-        
+
         response = await api_client.get("/api/your/endpoint")
         data = assert_valid_json_response(response, dict)
-        
+
         assert "expected_field" in data
         logger.info("✅ Test successful")
 ```
 
 ### **Best Practices:**
+
 - Use descriptive test names that explain what is being tested
 - Add logging for test progress and debugging
 - Use appropriate markers (`@pytest.mark.auth`, `@pytest.mark.slow`)
@@ -168,7 +180,7 @@ class TestYourAPI:
 ## 📊 **Test Markers**
 
 - `@pytest.mark.auth` - Requires authentication
-- `@pytest.mark.slow` - Long-running tests  
+- `@pytest.mark.slow` - Long-running tests
 - `@pytest.mark.integration` - Integration tests
 - `@pytest.mark.unit` - Unit tests
 - `@pytest.mark.asyncio` - Async test functions (required for all async tests)
@@ -178,17 +190,20 @@ class TestYourAPI:
 ### **Common Issues:**
 
 1. **"No JWT token available"**
+
    - Ensure API server is running on `http://localhost:8000`
    - Check network connectivity
    - Verify `.test_credentials.json` file exists and has correct values
    - Try deleting `.test_jwt_token` to force a fresh login
 
 2. **"Authentication verification failed"**
+
    - Token may be expired - delete `.test_jwt_token` to force refresh
    - Check user permissions in Supabase dashboard
    - Verify test user account is active
 
 3. **"Module not found" or Import Errors**
+
    - Ensure you're in the correct directory (`Backend/tests`)
    - Check Python path configuration
    - Verify all dependencies are installed
@@ -199,6 +214,7 @@ class TestYourAPI:
    - Verify no firewall or network issues
 
 ### **Debug Mode:**
+
 ```bash
 # From the Backend/tests directory:
 cd Backend/tests
@@ -216,6 +232,7 @@ python -m pytest api_tests/test_auth_api.py::TestAuthAPI::test_verify_token -v -
 ## 📈 **Test Reporting**
 
 The test suite generates:
+
 - **Console output** with real-time progress and colored results
 - **JSON reports** (`pytest_report.json`) with detailed test metadata
 - **Detailed logging** with timestamps for debugging
@@ -224,6 +241,7 @@ The test suite generates:
 ## 🛠️ **Development Guidelines**
 
 ### **Adding New API Tests:**
+
 1. Create test class in appropriate module (or create new module)
 2. Use `@pytest.mark.auth` for authenticated endpoints
 3. Follow the naming convention: `test_<operation>_<endpoint>`
@@ -231,6 +249,7 @@ The test suite generates:
 5. Add appropriate assertions and logging
 
 ### **Modifying Existing Tests:**
+
 1. Ensure changes don't break existing functionality
 2. Update documentation if test behavior changes
 3. Run full test suite before committing changes
@@ -239,8 +258,9 @@ The test suite generates:
 ## 🚀 **Future Enhancements**
 
 Potential improvements for the test suite:
+
 1. **Expanded test coverage** for edge cases and error conditions
-2. **Performance testing** for high-load scenarios  
+2. **Performance testing** for high-load scenarios
 3. **Test data fixtures** for consistent test environments
 4. **API contract testing** to validate request/response schemas
 5. **CI/CD integration** for automated testing pipelines
@@ -249,4 +269,4 @@ Potential improvements for the test suite:
 
 --
 
-**Happy Testing!** 🧪✨ 
+**Happy Testing!** 🧪✨
