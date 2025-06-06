@@ -15,6 +15,19 @@ import {
 import LoadingSpinner from "../LoadingSpinner";
 import { AnimatePresence, motion } from "framer-motion";
 
+const initialFormState = {
+  issue_title: "",
+  description: "",
+  priority: "Medium",
+  status: "Pending",
+  property_id: "",
+  unit_id: "",
+  tenant_id: "",
+  assigned_to: "",
+  scheduled_date: "",
+  estimated_cost: "",
+};
+
 const MaintenanceRequestModal = ({
   isOpen,
   onClose,
@@ -39,19 +52,6 @@ const MaintenanceRequestModal = ({
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
 
-  const initialFormState = {
-    issue_title: "",
-    description: "",
-    priority: "Medium",
-    status: "Pending",
-    property_id: "",
-    unit_id: "",
-    tenant_id: "",
-    assigned_to: "",
-    scheduled_date: "",
-    estimated_cost: "",
-  };
-
   useEffect(() => {
     if (isOpen) {
       if (request) {
@@ -70,7 +70,7 @@ const MaintenanceRequestModal = ({
         setFormData(initialFormState);
       }
     }
-  }, [request, isOpen, initialFormState]);
+  }, [request, isOpen]);
 
   useEffect(() => {
     const loadProperties = async () => {

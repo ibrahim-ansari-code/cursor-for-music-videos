@@ -15,7 +15,7 @@ from Backend.api.auth import get_current_user
 from Backend.database import get_session
 from Backend.models.enums import MaintenancePriority, MaintenanceStatus, UserType
 from Backend.models.maintenance import MaintenanceRequest
-from Backend.models.property import Property
+from Backend.models.property import Property, PropertyUnit
 from Backend.models.user import User
 from Backend.utils.azure_blob import upload_maintenance_photo_to_blob
 
@@ -313,6 +313,37 @@ async def update_maintenance_request(
                     raise HTTPException(
                         status_code=403,
                         detail="You do not have permission to assign this maintenance request to the specified property."
+                    )
+
+        # If unit_id is being updated, check if user owns the property of the new unit
+        if 'unit_id' in update_data and update_data['unit_id'] != req.unit_id:
+            new_unit_id = update_data['unit_id']
+
+            # Skip ownership check for admins
+            if not current_user.is_admin:
+                unit_result = await session.execute(
+                    select(PropertyUnit)
+                    .where(col(PropertyUnit.id) == new_unit_id)
+                )
+                unit = unit_result.scalar_one_or_none()
+
+                if not unit:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="The specified unit does not exist."
+                    )
+
+                # Now fetch the property to check ownership
+                prop_result = await session.execute(
+                    select(Property).where(
+                        col(Property.id) == unit.property_id)
+                )
+                prop = prop_result.scalar_one_or_none()
+
+                if not prop or prop.user_id != current_user.id:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="You do not have permission to assign this maintenance request to a unit from another landlord's property."
                     )
 
     # Apply the updates

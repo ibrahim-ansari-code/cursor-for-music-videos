@@ -127,7 +127,7 @@ const MaintenanceTable = ({ requests, onEdit, onDelete, onView }) => {
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {request.property?.name || "N/A"} /{" "}
-                {request.unit?.unit_number || "N/A"}
+                {request.unit?.unit_number || request.unit?.name || "N/A"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {request.tenant?.name || "N/A"}
