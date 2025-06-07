@@ -23,13 +23,11 @@ app.add_middleware(
         "https://localhost:5173",
         "http://127.0.0.1:5173",
         "https://127.0.0.1:5173",
+        "http://app.brikli.com",
         "https://app.brikli.com",
         "https://brikli.azurewebsites.net",
-        "https://lemon-island-038ac790f.6.azurestaticapps.net",
-        "https://icy-glacier-00294140f.6.azurestaticapps.net",
-        "https://brikli-staging.azurewebsites.net",
-        "https://thankful-pond-068620f0f.6.azurestaticapps.net",
-        "https://brikli-api-8919-151e4fdf-aa5gqdc5.onporter.run"
+        "https://brikli-api-8919-151e4fdf-aa5gqdc5.onporter.run",
+        "https://brikli-api-8919-7953fd68-fofj7ysk.onporter.run"
     ],
     # Allow any Porter preview environment URL
     allow_origin_regex=r"https://.*\.onporter\.run",
@@ -63,11 +61,11 @@ app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=[
         "app.brikli.com",
+        "brikli.com",
         "brikli.azurewebsites.net",
         "localhost",
-        "brikli-staging.azurewebsites.net",
-        "icy-glacier-00294140f.6.azurestaticapps.net",
-        "thankful-pond-068620f0f.6.azurestaticapps.net",
+        "brikli-api-8919-7953fd68-fofj7ysk.onporter.run",
+        "brikli-api-8919-151e4fdf-aa5gqdc5.onporter.run",
         "*.onporter.run",  # Allow all Porter preview environments
     ]
 )
