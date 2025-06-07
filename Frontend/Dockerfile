@@ -26,8 +26,8 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy the built application from the builder stage to nginx html directory
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Expose port 80 (standard HTTP port)
-EXPOSE 80
+# Expose port 4173 to align with Porter container port
+EXPOSE 4173
 
 # Nginx runs in the foreground by default
 CMD ["nginx", "-g", "daemon off;"]
