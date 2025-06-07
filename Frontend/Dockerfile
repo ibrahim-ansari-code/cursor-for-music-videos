@@ -1,6 +1,20 @@
 # Builder stage - Creates the production build of the React app
 FROM node:20-alpine AS builder
 
+# ----- Build-time env vars from Porter env group -----
+ARG VITE_API_URL
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ARG VITE_SITE_URL
+ARG VITE_AZURE_MAPS_KEY
+
+ENV \
+  VITE_API_URL=$VITE_API_URL \
+  VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
+  VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY \
+  VITE_SITE_URL=$VITE_SITE_URL \
+  VITE_AZURE_MAPS_KEY=$VITE_AZURE_MAPS_KEY
+
 # Set working directory inside the container
 WORKDIR /app
 
