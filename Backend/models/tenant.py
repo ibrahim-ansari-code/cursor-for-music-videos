@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from Backend.models.property import Property, PropertyUnit
     from Backend.models.user import User
     from Backend.models.maintenance import MaintenanceRequest
+    from Backend.models.accounting.payment import Payment
 
 
 class TenantStatus(str, Enum):
@@ -79,4 +80,10 @@ class Tenant(SQLModel, table=True):
         sa_relationship_kwargs={"lazy": "selectin"}
     )
     maintenance_requests: list["MaintenanceRequest"] = Relationship(
-        back_populates="tenant")
+        back_populates="tenant",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
+    payments: list["Payment"] = Relationship(
+    back_populates="tenant",
+    sa_relationship_kwargs={"lazy": "selectin"}
+)

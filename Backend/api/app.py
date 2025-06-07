@@ -127,7 +127,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Router import + error trapping
 try:
     # Router Imports
-    from Backend.api.accounting import router as accounting_router
+    from Backend.api.accounting import accounting_api_router
     from Backend.api.ai import router as ai_router
     from Backend.api.auth import router as auth_router
     from Backend.api.dashboard import router as dashboard_router
@@ -146,7 +146,8 @@ try:
     api_main_router.include_router(properties_router)
     api_main_router.include_router(dashboard_router)
     api_main_router.include_router(leases_router)
-    api_main_router.include_router(accounting_router)
+    # Include the new accounting router with its own base prefix
+    api_main_router.include_router(accounting_api_router, prefix="/accounting")
     api_main_router.include_router(ai_router)
     api_main_router.include_router(tenants_router)
     api_main_router.include_router(rent_tracker_router)

@@ -70,7 +70,13 @@ async def _upload_to_blob(
         # Reset the stream's pointer to the beginning before uploading
         await file.seek(0)
         # Pass the underlying file-like object (UploadFile.file) for streaming
-        await blob_client.upload_blob(data=file.file, overwrite=True, content_settings=blob_content_settings)
+        await blob_client.upload_blob(
+            data=file.file,
+            overwrite=True,
+            content_settings=blob_content_settings,
+        )
+        # FastAPI's UploadFile exposes a synchronous close()
+        await file.close()
         logger.info("Successfully uploaded %s to %s/%s",
                     default_filename_prefix, container_name, blob_name)
     except Exception as e:

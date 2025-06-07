@@ -3,11 +3,15 @@ Datetime and timezone utilities for consistent handling across the API.
 
 This module provides utilities for proper timezone handling:
 - Business date fields (payment_date, expense_date, etc.) -> timezone-aware (UTC)
-- Audit date fields (created_at, updated_at) -> naive (server time)
+- Audit date fields (created_at, updated_at) -> timezone-aware (UTC)
+
+All datetime fields should be timezone-aware to avoid ambiguity and ensure
+consistent behavior across different deployments and timezones.
 """
 
 from datetime import UTC, date, datetime, time
-from typing import Tuple, cast
+from typing import cast
+from fastapi import HTTPException, status
 
 
 def ensure_utc_aware(dt: datetime | None) -> datetime | None:
@@ -51,7 +55,7 @@ def naive_utc_now() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-def date_to_utc_range(start_date: date, end_date: date) -> Tuple[datetime, datetime]:
+def date_to_utc_range(start_date: date, end_date: date) -> tuple[datetime, datetime]:
     """
     Converts date range to UTC timezone-aware datetime range for business date queries.
 
@@ -67,7 +71,7 @@ def date_to_utc_range(start_date: date, end_date: date) -> Tuple[datetime, datet
     return start_datetime, end_datetime
 
 
-def date_to_naive_range(start_date: date, end_date: date) -> Tuple[datetime, datetime]:
+def date_to_naive_range(start_date: date, end_date: date) -> tuple[datetime, datetime]:
     """
     Converts date range to naive datetime range for audit date queries.
 
@@ -101,9 +105,27 @@ def validate_business_datetime(dt: datetime) -> datetime:
 
 def create_audit_datetime() -> datetime:
     """
-    Creates a naive datetime for audit fields (created_at, updated_at).
+    Creates a timezone-aware UTC datetime for audit fields.
 
     Returns:
-        Naive UTC datetime for audit trail
+        Timezone-aware UTC datetime for audit trail
     """
-    return naive_utc_now()
+    return utc_now()
+
+
+def validate_date_range(start_date: date | None, end_date: date | None) -> None:
+    """
+    Validates that the start_date is not after the end_date.
+
+    Args:
+        start_date: The start of the date range.
+        end_date: The end of the date range.
+
+    Raises:
+        HTTPException: 400 if the date range is invalid.
+    """
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Start date cannot be after end date."
+        )

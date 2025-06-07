@@ -12,6 +12,7 @@ import sys
 import subprocess
 import json
 import logging
+from typing import Dict, Optional
 
 # Standard Project Root Setup
 _THIS_SCRIPT_ABSPATH = os.path.abspath(__file__)
@@ -34,46 +35,65 @@ logger = logging.getLogger(__name__)
 API_TESTS_DIR = os.path.join(_TESTS_DIR, "api_tests")
 BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
-
-def run_pytest_with_json_report():
+def run_pytest_with_json_report(plugin_status: Optional[Dict[str, bool]] = None) -> bool:
     """Run pytest with JSON reporting for structured output parsing"""
-
+    
+    if plugin_status is None:
+        plugin_status = check_dependencies()
+    
     # Create a temporary file for JSON report
     json_report_path = os.path.join(_TESTS_DIR, "pytest_report.json")
-
-    # Pytest command with JSON reporter
+    
+    # Base pytest command
     pytest_cmd = [
         sys.executable, "-m", "pytest",
         API_TESTS_DIR,
         "-v",
         "--tb=short",
-        f"--json-report",
-        f"--json-report-file={json_report_path}",
-        "--json-report-summary"
+        "--maxfail=5",  # Stop after 5 failures
+        "--durations=10",  # Show 10 slowest tests
     ]
-
+    
+    # Add parallel execution if xdist is available
+    if plugin_status.get("xdist", False):
+        pytest_cmd.extend(["-n", "auto"])  # Parallel execution with pytest-xdist
+    
+    # Add JSON reporting if available
+    if plugin_status.get("json", False):
+        pytest_cmd.extend([
+            "--json-report",
+            f"--json-report-file={json_report_path}",
+            "--json-report-summary"
+        ])
+    
     logger.info("🚀 Starting Pytest-powered API Test Runner...")
     logger.info(f"📁 Test directory: {API_TESTS_DIR}")
     logger.info(f"🌐 Base URL: {BASE_URL}")
     logger.info("=" * 60)
 
     try:
-        # Run pytest
-        result = subprocess.run(
+        # Run pytest with real-time streaming output
+        with subprocess.Popen(
             pytest_cmd,
             cwd=PROJECT_ROOT,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,  # Merge stderr into stdout
             text=True,
-            timeout=300  # 5 minute timeout
-        )
-
-        # Print pytest's stdout in real-time style
-        print(result.stdout)
-        if result.stderr:
-            print("STDERR:", result.stderr)
-
-        # Parse JSON report for detailed summary
-        if os.path.exists(json_report_path):
+            bufsize=1,  # Line-buffered
+            universal_newlines=True
+        ) as process:
+            
+            # Stream output line by line in real-time
+            if process.stdout:
+                for line in iter(process.stdout.readline, ''):
+                    if line:
+                        print(line.rstrip())  # Print without extra newlines
+                    
+            # Wait for process to complete
+            return_code = process.wait()
+        
+        # Parse JSON report for detailed summary if JSON plugin is available
+        if plugin_status.get("json", False) and os.path.exists(json_report_path):
             with open(json_report_path, 'r') as f:
                 report_data = json.load(f)
 
@@ -82,11 +102,13 @@ def run_pytest_with_json_report():
             # Clean up
             os.remove(json_report_path)
         else:
-            logger.warning(
-                "⚠️ JSON report file not found. Using basic summary.")
-            print_basic_summary(result.returncode)
+            if not plugin_status.get("json", False):
+                logger.warning("⚠️ JSON reporting plugin not available. Using basic summary.")
+            else:
+                logger.warning("⚠️ JSON report file not found. Using basic summary.")
+            print_basic_summary(return_code)
 
-        return result.returncode == 0
+        return return_code == 0
 
     except subprocess.TimeoutExpired:
         logger.error("❌ Test run timed out after 5 minutes")
@@ -124,8 +146,12 @@ def print_detailed_summary(report_data):
         print("\n" + "=" * 30 + " OVERALL SUMMARY " + "=" * 30)
 
         overall_pass_rate = (passed / total * 100) if total > 0 else 0
-
-        if total_failed == 0:
+        
+        if total == 0:
+            print("⚠️ No tests were executed!")
+        elif skipped == total or (total_failed == 0 and passed == 0):
+            print("⏭️ All tests were skipped - likely backend not running or no tests executed")
+        elif total_failed == 0 and passed > 0:
             print("✅ All API tests passed!")
         else:
             print("❌ Some API tests failed.")
@@ -227,8 +253,12 @@ def print_detailed_summary(report_data):
     skipped = overall_totals['skipped']
 
     overall_pass_rate = (passed / total * 100) if total > 0 else 0
-
-    if failed == 0:
+    
+    if total == 0:
+        print("⚠️ No tests were executed!")
+    elif skipped == total or (failed == 0 and passed == 0):
+        print("⏭️ All tests were skipped - likely backend not running or no tests executed")
+    elif failed == 0 and passed > 0:
         print("✅ All API tests passed!")
     else:
         print("❌ Some API tests failed.")
@@ -307,35 +337,54 @@ def print_basic_summary(return_code):
 
 
 def check_dependencies():
-    """Check if required dependencies are available"""
+    """
+    Check if required dependencies are available.
+    Returns a dictionary with plugin availability flags.
+    """
+    plugin_status = {
+        "pytest": False,
+        "xdist": False,
+        "json": False,
+        "asyncio": False
+    }
+    
     try:
         import pytest
         print(f"✅ pytest version: {pytest.__version__}")
+        plugin_status["pytest"] = True
     except ImportError:
         logger.error("❌ pytest is not installed. Run: poetry install")
-        return False
-
-    # Check for pytest-json-report plugin
+        return plugin_status
+    
+    # Check for required pytest plugins
     try:
-        result = subprocess.run([sys.executable, "-m", "pytest", "--help"],
-                                capture_output=True, text=True)
-        if "--json-report" not in result.stdout:
-            logger.warning(
-                "⚠️ pytest-json-report plugin not found. Installing...")
-            try:
-                subprocess.check_call(
-                    [sys.executable, "-m", "pip", "install", "pytest-json-report"])
-                print("✅ pytest-json-report installed")
-            except subprocess.CalledProcessError:
-                logger.warning(
-                    "⚠️ Could not install pytest-json-report. Using basic reporting.")
-                return False
-    except:
-        logger.warning("⚠️ Could not check for pytest-json-report plugin")
-        return False
-
-    return True
-
+        result = subprocess.run([sys.executable, "-m", "pytest", "--help"], 
+                              capture_output=True, text=True)
+        
+        # Check each plugin and update status
+        plugin_status["json"] = "--json-report" in result.stdout
+        plugin_status["xdist"] = "-n" in result.stdout
+        plugin_status["asyncio"] = "--asyncio-mode" in result.stdout
+        
+        missing_features = []
+        if not plugin_status["json"]:
+            missing_features.append("pytest-json-report (structured reporting)")
+        if not plugin_status["xdist"]:
+            missing_features.append("pytest-xdist (parallel execution)")
+        if not plugin_status["asyncio"]:
+            missing_features.append("pytest-asyncio (async support)")
+            
+        if missing_features:
+            logger.warning("⚠️ Missing optional pytest plugins:")
+            for feature in missing_features:
+                logger.warning(f"  - {feature}")
+            logger.info("Run 'poetry install' to install all dependencies")
+            logger.info("Continuing with basic functionality...")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not check for pytest plugins: {e}")
+        # All plugins remain False
+    
+    return plugin_status
 
 def main():
     """Main entry point"""
@@ -357,13 +406,14 @@ def main():
         return False
 
     # Check dependencies
-    if not check_dependencies():
+    plugin_status = check_dependencies()
+    if not plugin_status["pytest"]:
         logger.error("❌ Dependency check failed")
         return False
 
     # Run tests
-    success = run_pytest_with_json_report()
-
+    success = run_pytest_with_json_report(plugin_status)
+    
     if success:
         logger.info("\n✅ All tests completed successfully!")
     else:

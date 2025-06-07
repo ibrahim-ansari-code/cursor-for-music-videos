@@ -10,7 +10,9 @@ from sqlmodel import col
 
 from Backend.api.auth import get_current_user
 from Backend.database import get_session
-from Backend.models.accounting import Expense, Payment, PaymentStatus
+from Backend.models.accounting.expense import Expense
+from Backend.models.accounting.payment import Payment
+from Backend.models.accounting.common import PaymentStatus
 from Backend.models.enums import UserType
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.property import Property

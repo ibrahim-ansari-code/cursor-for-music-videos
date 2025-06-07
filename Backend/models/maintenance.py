@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional, List, TYPE_CHECKING
 from uuid import UUID as PythonUUID
 
@@ -30,7 +30,7 @@ class MaintenanceRequest(SQLModel, table=True):
         Integer, ForeignKey("tenants.id", ondelete="SET NULL")))
     user_id: Optional[PythonUUID] = Field(default=None, sa_column=Column(
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")))
-    request_date: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(
+    request_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(
         TIMESTAMP(timezone=True), nullable=False))
     priority: MaintenancePriority = Field(
         sa_column=Column(PgEnum(MaintenancePriority, name="maintenance_priority", create_constraint=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False))
@@ -45,9 +45,9 @@ class MaintenanceRequest(SQLModel, table=True):
         default=None, sa_column=Column(Numeric(10, 2), nullable=True))
     photos: Optional[List[str]] = Field(
         default=None, sa_column=Column(JSON, nullable=True))
-    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(
         TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")))
-    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(
         TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP"), onupdate=sa.func.now()))
     assigned_to: Optional[str] = Field(
         default=None, sa_column=Column(String, nullable=True))

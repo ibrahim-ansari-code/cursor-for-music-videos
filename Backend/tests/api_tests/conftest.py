@@ -2,6 +2,7 @@
 Shared pytest fixtures for API tests.
 """
 
+import inspect
 from dotenv import load_dotenv
 import asyncio
 import os
@@ -85,13 +86,20 @@ class APITestClient:
         # Try to get fresh token from auth helper
         if get_test_jwt:
             try:
-                fresh_token = await get_test_jwt()
+                fresh_token = (
+                    await get_test_jwt()
+                    if inspect.iscoroutinefunction(get_test_jwt)
+                    else get_test_jwt()
+                )
                 if fresh_token:
-                    self.auth_token = fresh_token
-                    os.environ["TEST_USER_JWT"] = fresh_token
-                    logger.info(
-                        "✅ Token obtained via get_test_jwt: %s...", self.auth_token[:20])
-                    return
+                    if isinstance(fresh_token, str):
+                        self.auth_token = fresh_token
+                        os.environ["TEST_USER_JWT"] = fresh_token
+                        logger.info(
+                            "✅ Token obtained via get_test_jwt: %s...", self.auth_token[:20])
+                        return
+                    else:
+                        logger.warning("⚠️ Invalid token type received from get_test_jwt")
             except Exception as e:
                 logger.warning(
                     "⚠️ Error getting token from auth helper: %s", e)
@@ -199,8 +207,10 @@ class APITestClient:
 async def api_client():
     """
     Provides a function-scoped pytest fixture yielding an authenticated async API client.
-
-    The fixture ensures a valid JWT token is available and verifies authentication by calling the `/api/auth/me` endpoint. If authentication fails or no token is present, the test is skipped. The authenticated client is yielded for use in tests.
+    
+    Authentication is cached per session for improved performance via the auth helper.
+    If authentication fails or no token is present, the test is skipped. Use this for most tests.
+    For tests requiring isolation, use fresh_api_client instead.
     """
     async with APITestClient(BASE_URL) as client:
         # Verify authentication works
@@ -470,6 +480,7 @@ def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
         logger.info("Set Windows SelectorEventLoopPolicy for compatibility")
 
     loop = asyncio.get_event_loop_policy().new_event_loop()
+    asyncio.set_event_loop(loop)
     yield loop
     loop.close()
 

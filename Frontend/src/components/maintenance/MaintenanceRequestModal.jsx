@@ -101,9 +101,8 @@ const MaintenanceRequestModal = ({
           setUnits(unitData);
           setTenants(tenantData);
 
-          if (
-            request?.property?.id.toString() !== formData.property_id.toString()
-          ) {
+          const prevPropId = String(request?.property?.id ?? "");
+          if (prevPropId !== String(formData.property_id)) {
             setFormData((f) => ({ ...f, unit_id: "", tenant_id: "" }));
           }
         } catch (error) {
@@ -135,32 +134,57 @@ const MaintenanceRequestModal = ({
     setPhotoUploadError(null);
     setPhotoUploadProgress(Array(files.length).fill("pending"));
     setUploadingPhotos(true);
+    
     try {
-      const urls = [];
-      for (let i = 0; i < files.length; i++) {
-        setPhotoUploadProgress((prev) => {
-          const next = [...prev];
-          next[i] = "uploading";
-          return next;
-        });
-        try {
-          const url = await uploadMaintenancePhoto(files[i]);
-          urls.push(url);
-          setPhotoUploadProgress((prev) => {
-            const next = [...prev];
-            next[i] = "done";
-            return next;
-          });
-        } catch (err) {
-          setPhotoUploadProgress((prev) => {
-            const next = [...prev];
-            next[i] = "error";
-            return next;
-          });
-          setPhotoUploadError(err.message || "Failed to upload photo");
+      // Create upload promises for all files simultaneously
+      const uploadPromises = files.map((file, index) => 
+        uploadMaintenancePhoto(file)
+          .then(url => {
+            // Update progress for this specific file on success
+            setPhotoUploadProgress(prev => {
+              const next = [...prev];
+              next[index] = "done";
+              return next;
+            });
+            return { success: true, url, index };
+          })
+          .catch(err => {
+            // Update progress for this specific file on error
+            setPhotoUploadProgress(prev => {
+              const next = [...prev];
+              next[index] = "error";
+              return next;
+            });
+            return { success: false, error: err.message || "Failed to upload photo", index };
+          })
+      );
+      
+      // Wait for all uploads to complete (both successful and failed)
+      const results = await Promise.all(uploadPromises);
+      
+      // Extract successful URLs and collect errors
+      const successfulUrls = [];
+      const errors = [];
+      
+      results.forEach(result => {
+        if (result.success) {
+          successfulUrls.push(result.url);
+        } else {
+          errors.push(`File ${result.index + 1}: ${result.error}`);
         }
+      });
+      
+      // Set the successful URLs
+      setFormData(prev => ({ ...prev, photos: successfulUrls }));
+      
+      // Show errors if any occurred
+      if (errors.length > 0) {
+        setPhotoUploadError(`Upload errors: ${errors.join(', ')}`);
       }
-      setFormData((prev) => ({ ...prev, photos: urls }));
+      
+    } catch (error) {
+      // Handle unexpected errors
+      setPhotoUploadError(error.message || "Unexpected error during upload");
     } finally {
       setUploadingPhotos(false);
     }
@@ -253,7 +277,7 @@ const MaintenanceRequestModal = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {renderField(
           "Property",
-          properties.find((p) => p.id === formData.property_id)?.name
+          properties.find((p) => String(p.id) === String(formData.property_id))?.name
         )}
         {renderField(
           "Unit",

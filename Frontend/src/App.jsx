@@ -24,6 +24,7 @@ import Tenants from "./pages/Tenants";
 import Maintenance from "./pages/Maintenance";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import Integrations from "./pages/Integrations";
 
 // Import the login API function
 import { getCurrentUser } from "./utils/api";
@@ -275,6 +276,7 @@ function App() {
             <Route path="maintenance" element={<Maintenance />} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="integrations" element={<Integrations />} />
           </Route>
           <Route
             path="/login"

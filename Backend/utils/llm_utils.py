@@ -111,12 +111,23 @@ def get_azure_client() -> AzureOpenAI:
         raise
 
 
-# Initialize client
-try:
-    client = get_azure_client()
-except Exception as e:
-    logger.error("Failed to initialize Azure OpenAI client: %s", str(e))
-    client = None
+# Global client variable for lazy initialization
+client = None
+
+
+def get_client() -> AzureOpenAI:
+    """
+    Get the Azure OpenAI client, initializing it lazily on first use.
+    This prevents import-time failures due to missing environment variables.
+    """
+    global client
+    if client is None:
+        try:
+            client = get_azure_client()
+        except Exception as e:
+            logger.error("Failed to initialize Azure OpenAI client: %s", str(e))
+            raise
+    return client
 
 
 SYSTEM_PROMPT_PAYMENT_RECEIPT = """
@@ -222,8 +233,7 @@ def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[
     For PDFs, text is extracted and sent. For images, the image is base64 encoded and sent.
     This is a synchronous function.
     """
-    if not client:
-        raise OSError("Azure OpenAI client not initialized")
+    client = get_client()  # Lazy load the client
 
     file_extension = os.path.splitext(filename)[1].lower()
 
@@ -236,8 +246,7 @@ def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[
     if file_extension == '.pdf':
         try:
             pdf_document = fitz.open(stream=file_content, filetype="pdf")
-            # type: ignore[attr-defined]
-            extracted_text = "".join(page.get_text("text")
+            extracted_text = "".join(page.get_text("text")  # type: ignore[attr-defined]
                                      for page in pdf_document)
             pdf_document.close()
             logger.info("Extracted text from PDF: %s", filename)
@@ -364,8 +373,7 @@ def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[
     For PDFs, text is extracted and sent. For images, the image is base64 encoded and sent.
     This is a synchronous function specifically designed for expense receipt parsing.
     """
-    if not client:
-        raise OSError("Azure OpenAI client not initialized")
+    client = get_client()  # Lazy load the client
 
     file_extension = os.path.splitext(filename)[1].lower()
 
@@ -378,8 +386,7 @@ def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[
     if file_extension == '.pdf':
         try:
             pdf_document = fitz.open(stream=file_content, filetype="pdf")
-            # type: ignore[attr-defined]
-            extracted_text = "".join(page.get_text("text")
+            extracted_text = "".join(page.get_text("text")  # type: ignore[attr-defined]
                                      for page in pdf_document)
             pdf_document.close()
             logger.info("Extracted text from PDF for expense: %s", filename)
@@ -527,8 +534,7 @@ def analyze_lease_text(text: str) -> Dict[str, Any]:
             fields or contains invalid JSON.
         Exception: If analysis fails for any other reason.
     """
-    if not client:
-        raise OSError("Azure OpenAI client not initialized")
+    client = get_client()  # Lazy load the client
 
     system_prompt = """
     You are a lease analysis assistant. Analyze the provided lease text and return a single valid JSON object. Do not return any markdown, commentary, or explanation. Your response must **only** contain the JSON, wrapped in triple backticks (```json ... ```).

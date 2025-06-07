@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   fetchPayments,
   fetchInvoices,
@@ -35,6 +35,11 @@ const Accounting = () => {
   const [invoices, setInvoices] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [overviewData, setOverviewData] = useState(null);
+  const [paymentsPagination, setPaymentsPagination] = useState({
+    currentPage: 0,
+    limit: 15, // Number of items per page
+    hasMore: true,
+  });
   const [accountingData, setAccountingData] = useState({
     monthly: { revenue: 0, expenses: 0, netIncome: 0 },
     ytd: { revenue: 0, expenses: 0, netIncome: 0 },
@@ -44,12 +49,13 @@ const Accounting = () => {
 
   // Add state for rent tracker data
   const [rentTrackerData, setRentTrackerData] = useState([]);
-  const [currentMonth] = useState(new Date().getMonth() + 1); // JavaScript months are 0-indexed
+  // JavaScript getMonth() returns 0-based index (0-11), so add 1 for human-readable month (1-12)
+  const [currentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear] = useState(new Date().getFullYear());
 
   // Modal states
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState(null); // 'payment', 'invoice', 'expense'
+  const [modalType, setModalType] = useState(null);
   const [showNewPaymentModal, setShowNewPaymentModal] = useState(false);
   const [showEditPaymentModal, setShowEditPaymentModal] = useState(false);
   const [showNewExpenseModal, setShowNewExpenseModal] = useState(false);
@@ -84,6 +90,9 @@ const Accounting = () => {
   // Add state for edit expense modal
   const [showEditExpenseModal, setShowEditExpenseModal] = useState(false);
 
+  // Ref to track previous payment filters for race condition prevention
+  const prevPaymentFiltersRef = useRef(paymentFilters);
+
   // Get overdue payments from rent tracker data
   const overduePayments = rentTrackerData.filter(
     (rent) => rent.status === "DUE" || rent.status === "PARTIAL"
@@ -91,19 +100,36 @@ const Accounting = () => {
 
   useEffect(() => {
     if (activeTab === "overview") {
-      loadOverviewData();
-      loadOutstandingPayments();
-      loadRentTrackerData(); // Load rent tracker data for overview
-      loadExpensesData(); // Load expenses data for pie chart
-      loadIncomeByProperty(); // Load income by property data
-    } else if (activeTab === "payments") {
-      loadPaymentsData();
+      loadOverviewData(); // Load financial metrics and revenue trends for dashboard cards
+      loadOutstandingPayments(); // Load unpaid/overdue payment records
+      loadRentTrackerData(); // Load rent payment status for current month
+      loadExpensesData(); // Load expense records for charts and calculations
+      loadIncomeByProperty(); // Load property-specific income data for property breakdown
     } else if (activeTab === "invoices") {
-      loadInvoicesData();
+      loadInvoicesData(); // Load invoice records with applied filters
     } else if (activeTab === "expenses") {
-      loadExpensesData();
+      loadExpensesData(); // Load expense records with applied filters
     }
+    // Note: Payments data loading is handled by the pagination useEffect below
   }, [activeTab, paymentFilters, invoiceFilters, expenseFilters]);
+
+  // Effect for handling filter changes on the payments tab
+  useEffect(() => {
+    if (activeTab === "payments") {
+      // When filters change, reset to the first page.
+      // The pagination effect will then trigger the data load.
+      setPaymentsPagination(prev => ({ ...prev, currentPage: 0 }));
+    }
+  }, [paymentFilters, activeTab]);
+
+  // Effect for handling data loading when pagination changes
+  useEffect(() => {
+    if (activeTab === "payments") {
+      loadPaymentsData();
+    }
+  // The dependency array correctly triggers this effect when either the
+  // page or the active tab changes, ensuring data is loaded when needed.
+  }, [paymentsPagination.currentPage, activeTab]);
 
   const loadRentTrackerData = async () => {
     try {
@@ -167,7 +193,7 @@ const Accounting = () => {
     }
   };
 
-  const loadPaymentsData = async (fetchAll = false) => {
+  const loadPaymentsData = async () => {
     try {
       setLoading(true);
 
@@ -180,6 +206,10 @@ const Accounting = () => {
           paymentFilters.status.charAt(0).toUpperCase() +
           paymentFilters.status.slice(1);
       }
+
+      // Add pagination params
+      params.limit = paymentsPagination.limit;
+      params.offset = paymentsPagination.currentPage * paymentsPagination.limit;
 
       // Convert date range to actual date params
       const today = new Date();
@@ -210,7 +240,8 @@ const Accounting = () => {
       console.log("API params being sent for payments:", params);
       const data = await fetchPayments(params);
       console.log("Payments received from API:", data);
-      setPayments(data);
+      setPayments(data.items);
+      setPaymentsPagination(prev => ({ ...prev, hasMore: data.has_more }));
       setError(null);
     } catch (err) {
       console.error("Error loading payments data:", err);
@@ -404,7 +435,7 @@ const Accounting = () => {
       try {
         await deletePaymentAPI(paymentId);
         toast.success("Payment deleted successfully.");
-        loadPaymentsData(true);
+        loadPaymentsData();
       } catch (err) {
         console.error("Failed to delete payment:", err);
         toast.error(err.message || "Failed to delete payment.");
@@ -450,6 +481,14 @@ const Accounting = () => {
         toast.error(err.message || "Failed to delete expense.");
       }
     }
+  };
+
+const handleNextPage = () => {
+  setPaymentsPagination(prev => ({ ...prev, currentPage: prev.currentPage + 1 }));
+};
+
+  const handlePreviousPage = () => {
+    setPaymentsPagination(prev => ({ ...prev, currentPage: Math.max(0, prev.currentPage - 1) }));
   };
 
   if (loading && activeTab === "overview") {
@@ -733,10 +772,10 @@ const Accounting = () => {
                   }
                 >
                   <option value="all_time">All Time</option>
-                  <option value="week">Last 7 days</option>
-                  <option value="month">Last 30 days</option>
-                  <option value="quarter">Last 90 days</option>
-                  <option value="year">Last year</option>
+                  <option value="week">Last 7 Days</option>
+                  <option value="month">Last 30 Days</option>
+                  <option value="quarter">Last 3 Months</option>
+                  <option value="year">Last 12 Months</option>
                 </select>
               </div>
             </div>
@@ -926,6 +965,32 @@ const Accounting = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+            {/* Pagination Controls */}
+            <div className="flex justify-between items-center mt-4">
+              <button
+                type="button"
+                onClick={handlePreviousPage}
+                disabled={paymentsPagination.currentPage === 0 || loading}
+                className="btn btn-secondary disabled:opacity-50"
+                aria-label="Go to previous page"
+              >
+                <i className="fas fa-arrow-left mr-2" aria-hidden="true" />
+                Previous
+              </button>
+              <span className="text-sm text-gray-700">
+                Page {paymentsPagination.currentPage + 1}
+              </span>
+              <button
+                type="button"
+                onClick={handleNextPage}
+                disabled={!paymentsPagination.hasMore || loading}
+                className="btn btn-secondary disabled:opacity-50"
+                aria-label="Go to next page"
+              >
+                Next
+                <i className="fas fa-arrow-right ml-2" aria-hidden="true" />
+              </button>
             </div>
           </div>
         </div>
@@ -1179,7 +1244,7 @@ const Accounting = () => {
           onSuccess={() => {
             setShowNewPaymentModal(false);
             loadOverviewData();
-            loadPaymentsData(true);
+            loadPaymentsData();
             toast.success("Payment created successfully");
           }}
         />
@@ -1195,7 +1260,7 @@ const Accounting = () => {
           onSuccess={() => {
             setShowEditPaymentModal(false);
             setSelectedItem(null);
-            loadPaymentsData(true);
+            loadPaymentsData();
             toast.success("Payment updated successfully");
           }}
           paymentData={selectedItem}

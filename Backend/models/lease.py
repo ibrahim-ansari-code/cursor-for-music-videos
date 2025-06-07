@@ -16,9 +16,9 @@ from Backend.models.user import User
 from Backend.utils.datetime_utils import create_audit_datetime
 
 if TYPE_CHECKING:
-    from Backend.models.accounting import Payment
-    from Backend.models.property import Property, PropertyUnit
-    from Backend.models.tenant import Tenant
+    from .accounting.payment import Payment
+    from .property import Property, PropertyUnit
+    from .tenant import Tenant
 
 # Enum for lease status
 

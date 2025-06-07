@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from Backend.api.auth import get_current_user
 from Backend.database import get_session
-from Backend.models.accounting import PaymentStatus
+from Backend.models.accounting.common import PaymentStatus
 from Backend.models.enums import UserType
 from Backend.models.user import User
 from Backend.utils.datetime_utils import date_to_utc_range

@@ -14,44 +14,78 @@ import LoadingSpinner from "../components/LoadingSpinner";
 const Maintenance = () => {
   const [summary, setSummary] = useState(null);
   const [requests, setRequests] = useState([]);
-  const [filteredRequests, setFilteredRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("All Requests");
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20); // Items per page
+  const [totalItems, setTotalItems] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRequest, setEditingRequest] = useState(null);
   const [viewingRequest, setViewingRequest] = useState(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (page = currentPage, resetData = false) => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Build query parameters for pagination and filtering
+      const params = {
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+      };
+      
+      // Add status filter if not "All Requests"
+      if (statusFilter !== "All Requests") {
+        params.req_status = statusFilter;
+      }
+      
       const [summaryData, requestsData] = await Promise.all([
         getMaintenanceSummary(),
-        fetchMaintenanceRequests(),
+        fetchMaintenanceRequests(params),
       ]);
+      
       setSummary(summaryData);
-      setRequests(requestsData);
+      
+      if (resetData || page === 1) {
+        setRequests(requestsData);
+      } else {
+        // For pagination, append new data (if implementing "load more" behavior)
+        setRequests(prev => [...prev, ...requestsData]);
+      }
+      
+      // Update pagination state
+      setHasMore(requestsData.length === pageSize);
+      setTotalItems(prev => {
+        if (resetData || page === 1) {
+          // For first page or when filtering, we can't determine total from this response alone
+          // We'll estimate based on the current response
+          return requestsData.length === pageSize ? pageSize * 2 : requestsData.length;
+        }
+        return prev + requestsData.length;
+      });
+      
     } catch (err) {
       setError(err.message || "Failed to fetch maintenance data.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, pageSize, statusFilter]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchData(1, true);
+  }, [statusFilter]); // Refetch when status filter changes
 
   useEffect(() => {
-    let result = [...requests];
-    if (statusFilter !== "All Requests") {
-      result = requests.filter((req) => req.status === statusFilter);
+    if (currentPage === 1) {
+      fetchData(1, true);
     }
-    setFilteredRequests(result);
-  }, [statusFilter, requests]);
+  }, []); // Initial load
 
   const handleModalSubmit = async (formData) => {
     setIsSubmitting(true);
@@ -62,7 +96,10 @@ const Maintenance = () => {
         property_id: formData.property_id
           ? Number(formData.property_id)
           : undefined,
-        unit_id: Number.parseInt(formData.unit_id, 10),
+        unit_id:
+      formData.unit_id && formData.unit_id !== ""
+        ? Number.parseInt(formData.unit_id, 10)
+        : null,
         tenant_id: formData.tenant_id
           ? Number.parseInt(formData.tenant_id, 10)
           : null,
@@ -77,7 +114,7 @@ const Maintenance = () => {
         await createMaintenanceRequest(payload);
       }
       closeModal();
-      await fetchData();
+      await fetchData(1, true); // Reset to first page after creating/editing
     } catch (error) {
       console.error("Failed to save request:", error);
       setError(error.message || "Failed to save the request.");
@@ -103,13 +140,29 @@ const Maintenance = () => {
       setError(null);
       try {
         await deleteMaintenanceRequest(requestId);
-        setRequests((prev) => prev.filter((req) => req.id !== requestId));
-        fetchData();
+        // Refresh current page data
+        await fetchData(currentPage, true);
       } catch (error) {
         console.error("Failed to delete request:", error);
         setError(error.message || "Failed to delete request.");
       }
     }
+  };
+
+  const handleStatusFilterChange = (newStatus) => {
+    setStatusFilter(newStatus);
+    setCurrentPage(1); // Reset to first page when changing filters
+  };
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    fetchData(newPage, true);
+  };
+
+  const handleLoadMore = () => {
+    const nextPage = currentPage + 1;
+    setCurrentPage(nextPage);
+    fetchData(nextPage, false); // Append data, don't reset
   };
 
   const openModalForNew = () => {
@@ -160,7 +213,7 @@ const Maintenance = () => {
           count={summary?.total_requests ?? (loading ? "..." : 0)}
           icon="fa-tools"
           color="gray"
-          onClick={() => setStatusFilter("All Requests")}
+          onClick={() => handleStatusFilterChange("All Requests")}
           active={statusFilter === "All Requests"}
         />
         <StatusCard
@@ -168,7 +221,7 @@ const Maintenance = () => {
           count={summary?.pending ?? (loading ? "..." : 0)}
           icon="fa-hourglass-start"
           color="yellow"
-          onClick={() => setStatusFilter("Pending")}
+          onClick={() => handleStatusFilterChange("Pending")}
           active={statusFilter === "Pending"}
         />
         <StatusCard
@@ -176,7 +229,7 @@ const Maintenance = () => {
           count={summary?.in_progress ?? (loading ? "..." : 0)}
           icon="fa-tasks"
           color="blue"
-          onClick={() => setStatusFilter("In Progress")}
+          onClick={() => handleStatusFilterChange("In Progress")}
           active={statusFilter === "In Progress"}
         />
         <StatusCard
@@ -184,7 +237,7 @@ const Maintenance = () => {
           count={summary?.completed ?? (loading ? "..." : 0)}
           icon="fa-check-circle"
           color="green"
-          onClick={() => setStatusFilter("Completed")}
+          onClick={() => handleStatusFilterChange("Completed")}
           active={statusFilter === "Completed"}
         />
       </div>
@@ -195,7 +248,7 @@ const Maintenance = () => {
             <button
               key={tab}
               type="button"
-              onClick={() => setStatusFilter(tab)}
+              onClick={() => handleStatusFilterChange(tab)}
               className={`px-4 py-2 ${
                 statusFilter === tab
                   ? "border-b-2 border-blue-600 text-blue-600"
@@ -216,15 +269,64 @@ const Maintenance = () => {
             </button>
           ))}
         </div>
-        {loading ? (
+        
+        {loading && currentPage === 1 ? (
           <LoadingSpinner message="Loading requests..." />
         ) : (
-          <MaintenanceTable
-            requests={filteredRequests}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onView={handleView}
-          />
+          <>
+            <MaintenanceTable
+              requests={requests}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onView={handleView}
+              currentPage={currentPage}
+              pageSize={pageSize}
+            />
+            
+            {/* Pagination Controls */}
+            <div className="mt-6 flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Showing page {currentPage} ({requests.length} items)
+                {statusFilter !== "All Requests" && (
+                  <span className="ml-2 text-blue-600">
+                    Filtered by: {statusFilter}
+                  </span>
+                )}
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                
+                <span className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md">
+                  Page {currentPage}
+                </span>
+                
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={!hasMore || loading}
+                  className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+                
+                {hasMore && (
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loading}
+                    className="ml-4 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-300 rounded-md hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? "Loading..." : "Load More"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </>
         )}
       </div>
 

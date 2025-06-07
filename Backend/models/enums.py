@@ -38,6 +38,9 @@ class MaintenancePriority(str, Enum):
 
 
 class MaintenanceStatus(str, Enum):
+    """
+    Defines status states for maintenance requests throughout their lifecycle.
+    """
     PENDING = "Pending"
     IN_PROGRESS = "In Progress"
     SCHEDULED = "Scheduled"

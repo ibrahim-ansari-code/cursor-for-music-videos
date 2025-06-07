@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from Backend.models.property import Property
     from Backend.models.tenant import Tenant
     from Backend.models.maintenance import MaintenanceRequest
+    from Backend.models.accounting.integration import Integration
 
 
 class User(SQLModel, table=True):
@@ -45,3 +46,6 @@ class User(SQLModel, table=True):
     tenant_details: Optional["Tenant"] = Relationship(back_populates="user")
     maintenance_requests: list["MaintenanceRequest"] = Relationship(
         back_populates="user")
+
+    # Integration connections (QuickBooks, Xero, etc.)
+    integrations: list["Integration"] = Relationship(back_populates="user")

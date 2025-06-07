@@ -15,7 +15,7 @@ from Backend.models.user import User
 from Backend.utils.datetime_utils import create_audit_datetime
 
 if TYPE_CHECKING:
-    from Backend.models.accounting import Expense
+    from Backend.models.accounting.expense import Expense
     from Backend.models.lease import Lease
     from Backend.models.tenant import Tenant
     from Backend.models.maintenance import MaintenanceRequest
@@ -159,5 +159,9 @@ class PropertyUnit(SQLModel, table=True):
         link_model=TenantUnitLink,
         sa_relationship_kwargs={"lazy": "selectin"}
     )
+
+    # Relationship to maintenance requests (One-to-many)
     maintenance_requests: list["MaintenanceRequest"] = Relationship(
-        back_populates="unit")
+        back_populates="unit",
+        sa_relationship_kwargs={'cascade': 'all, delete-orphan'}
+    )

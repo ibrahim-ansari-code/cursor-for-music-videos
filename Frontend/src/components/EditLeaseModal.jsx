@@ -4,7 +4,7 @@ import {
   fetchProperties,
   fetchTenants,
   updateLease,
-  fetchUnit,
+  fetchUnitById,
 } from "../utils/api";
 import {
   Label,
@@ -61,7 +61,7 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
         if (lease.unit) {
           setUnitDetails(lease.unit);
         } else {
-          fetchUnit(lease.unit_id)
+          fetchUnitById(lease.unit_id)
             .then(setUnitDetails)
             .catch((err) => {
               console.error("Failed to fetch unit details:", err);

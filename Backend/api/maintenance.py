@@ -21,6 +21,59 @@ from Backend.utils.azure_blob import upload_maintenance_photo_to_blob
 
 logger = logging.getLogger(__name__)
 
+
+# === Helper Functions ===
+
+async def validate_file_content(upload_file: UploadFile) -> bool:
+    """
+    Validate file content by checking magic bytes/file signatures.
+    Returns True if the file content matches an allowed file type.
+    """
+    # Magic bytes for supported file types
+    magic_bytes = {
+        b'\xFF\xD8\xFF': 'image/jpeg',  # JPEG
+        b'\x89PNG\r\n\x1a\n': 'image/png',  # PNG
+        b'%PDF-': 'application/pdf'  # PDF
+    }
+    
+    # Read the first 16 bytes to check magic bytes
+    await upload_file.seek(0)
+    header = await upload_file.read(16)
+    await upload_file.seek(0)  # Reset position
+    
+    # Check if file starts with any of the allowed magic bytes
+    return any(header.startswith(magic) for magic, _ in magic_bytes.items())
+
+
+async def validate_file_size(upload_file: UploadFile, max_size_bytes: int) -> int:
+    """
+    Validate file size by reading the file in chunks.
+    Returns the actual file size in bytes.
+    Raises HTTPException if file exceeds max_size_bytes.
+    """
+    await upload_file.seek(0)
+    
+    # Read in chunks to avoid loading the entire file into memory
+    size = 0
+    chunk_size = 8192  # 8 KB chunks
+    
+    while True:
+        chunk = await upload_file.read(chunk_size)
+        if not chunk:
+            break
+        size += len(chunk)
+        
+        # If we've exceeded the max size, stop reading and reject
+        if size > max_size_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File too large. Maximum allowed size is {max_size_bytes // (1024 * 1024)} MB."
+            )
+    
+    # Reset file position for the actual upload
+    await upload_file.seek(0)
+    return size
+
 router = APIRouter(prefix="/maintenance", tags=["Maintenance"])
 
 # === Pydantic Models ===
@@ -104,11 +157,11 @@ class MaintenanceSummaryResponse(BaseModel):
 # === Helper: Permission Check ===
 
 
-async def check_permission(request: MaintenanceRequest, user: User, session: AsyncSession):
+async def check_permission(request: MaintenanceRequest, user: User, session: AsyncSession) -> None:
     """Check if the user has permission to access/modify the maintenance request."""
     # Only property owner or admin can access
     if user.is_admin:
-        return True
+        return
 
     prop = getattr(request, "property", None)
 
@@ -138,7 +191,7 @@ async def check_permission(request: MaintenanceRequest, user: User, session: Asy
 
     # Now check if the user owns the property
     if hasattr(prop, "user_id") and prop.user_id == user.id:
-        return True
+        return
     else:
         raise HTTPException(
             status_code=403,
@@ -160,6 +213,8 @@ async def list_maintenance_requests(
     tenant_id: Optional[int] = Query(None, description="Filter by tenant ID"),
     assigned_to: Optional[str] = Query(
         None, description="Filter by assigned to"),
+    limit: int = Query(50, ge=1, le=100, description="Number of results to return (max 100)"),
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
@@ -189,6 +244,9 @@ async def list_maintenance_requests(
         query = query.where(col(MaintenanceRequest.tenant_id) == tenant_id)
     if assigned_to is not None:
         query = query.where(col(MaintenanceRequest.assigned_to) == assigned_to)
+
+    # Add pagination
+    query = query.offset(offset).limit(limit)
 
     result = await session.execute(query)
     requests = result.unique().scalars().all()
@@ -298,36 +356,38 @@ async def update_maintenance_request(
     if ('property_id' in update_data and update_data['property_id'] != req.property_id) or \
        ('unit_id' in update_data and update_data['unit_id'] != req.unit_id):
 
+        new_property_id = update_data.get('property_id', req.property_id)
+        new_unit_id = update_data.get('unit_id', req.unit_id)
+        
+        # Variables to store the fetched objects
+        new_property = None
+        new_unit = None
+        unit_to_check = None
+
         # If property_id is being updated, check if user owns the new property
-        if 'property_id' in update_data:
-            new_property_id = update_data['property_id']
+        if 'property_id' in update_data and not current_user.is_admin:
+            prop_result = await session.execute(
+                select(Property).where(col(Property.id) == new_property_id)
+            )
+            new_property = prop_result.scalar_one_or_none()
 
-            # Skip ownership check for admins
-            if not current_user.is_admin:
-                prop_result = await session.execute(
-                    select(Property).where(col(Property.id) == new_property_id)
+            if not new_property or new_property.user_id != current_user.id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You do not have permission to assign this maintenance request to the specified property."
                 )
-                prop = prop_result.scalar_one_or_none()
-
-                if not prop or prop.user_id != current_user.id:
-                    raise HTTPException(
-                        status_code=403,
-                        detail="You do not have permission to assign this maintenance request to the specified property."
-                    )
 
         # If unit_id is being updated, check if user owns the property of the new unit
         if 'unit_id' in update_data and update_data['unit_id'] != req.unit_id:
-            new_unit_id = update_data['unit_id']
-
             # Skip ownership check for admins
             if not current_user.is_admin:
                 unit_result = await session.execute(
                     select(PropertyUnit)
                     .where(col(PropertyUnit.id) == new_unit_id)
                 )
-                unit = unit_result.scalar_one_or_none()
+                new_unit = unit_result.scalar_one_or_none()
 
-                if not unit:
+                if not new_unit:
                     raise HTTPException(
                         status_code=404,
                         detail="The specified unit does not exist."
@@ -336,7 +396,7 @@ async def update_maintenance_request(
                 # Now fetch the property to check ownership
                 prop_result = await session.execute(
                     select(Property).where(
-                        col(Property.id) == unit.property_id)
+                        col(Property.id) == new_unit.property_id)
                 )
                 prop = prop_result.scalar_one_or_none()
 
@@ -345,6 +405,24 @@ async def update_maintenance_request(
                         status_code=403,
                         detail="You do not have permission to assign this maintenance request to a unit from another landlord's property."
                     )
+
+        # If we are only changing the property_id, we need to ensure the existing unit belongs to the new property
+        if 'property_id' in update_data and 'unit_id' not in update_data and req.unit_id is not None:
+            unit_result = await session.execute(
+                select(PropertyUnit).where(col(PropertyUnit.id) == req.unit_id)
+            )
+            unit_to_check = unit_result.scalar_one_or_none()
+        
+        # If unit_id is being updated, new_unit will be set. Otherwise, use the existing unit.
+        if new_unit:
+            unit_to_check = new_unit
+
+        # Validate that the unit belongs to the property
+        if unit_to_check and unit_to_check.property_id != new_property_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The specified unit does not belong to the specified property."
+            )
 
     # Apply the updates
     for key, value in update_data.items():
@@ -406,6 +484,13 @@ async def get_maintenance_summary(
         col(MaintenanceRequest.status),
         func.count(col(MaintenanceRequest.id))
     ).group_by(col(MaintenanceRequest.status))
+    
+    # Restrict to properties owned by the current user unless admin
+    if not current_user.is_admin:
+        query = query.join(Property, col(
+            MaintenanceRequest.property_id) == col(Property.id))
+        query = query.where(col(Property.user_id) == current_user.id)
+    
     result = await session.execute(query)
 
     summary = {status.value.lower().replace(
@@ -436,53 +521,16 @@ async def upload_maintenance_photo(
             detail="Not authorized to upload maintenance photos."
         )
 
-    allowed_content_types = [
-        "application/pdf",
-        "image/jpeg",
-        "image/png",
-        "image/jpg"
-    ]
-    if upload_file.content_type not in allowed_content_types:
+    # Validate file content by checking magic bytes (more secure than relying on MIME type)
+    if not await validate_file_content(upload_file):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file type: {upload_file.content_type}. Allowed types are PDF, JPG, PNG."
+            detail="Unsupported file type. Only PDF, JPG, and PNG files are allowed."
         )
 
-    # Check file size - 10 MB limit
+    # Validate file size - 10 MB limit
     MAX_SIZE = 10 * 1024 * 1024  # 10 MB in bytes
-
-    # First check Content-Length header if available
-    content_length = upload_file.size if hasattr(upload_file, 'size') else None
-    if content_length and content_length > MAX_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File too large. Maximum allowed size is 10 MB."
-        )
-
-    # If no reliable Content-Length, check by reading file
-    if not content_length:
-        # Reset file position to start
-        await upload_file.seek(0)
-
-        # Read in chunks to avoid loading the entire file into memory
-        size = 0
-        chunk_size = 8192  # 8 KB chunks
-
-        while True:
-            chunk = await upload_file.read(chunk_size)
-            if not chunk:
-                break
-            size += len(chunk)
-
-            # If we've exceeded the max size, stop reading and reject
-            if size > MAX_SIZE:
-                raise HTTPException(
-                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    detail=f"File too large. Maximum allowed size is 10 MB."
-                )
-
-        # Reset file position for the actual upload
-        await upload_file.seek(0)
+    await validate_file_size(upload_file, MAX_SIZE)
 
     try:
         url = await upload_maintenance_photo_to_blob(upload_file, current_user.id)

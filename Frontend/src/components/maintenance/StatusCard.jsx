@@ -1,4 +1,5 @@
 import React from "react";
+import PropTypes from "prop-types";
 
 const colorClasses = {
   blue: { ring: "ring-blue-500", bg: "bg-blue-100", text: "text-blue-600" },
@@ -14,14 +15,14 @@ const colorClasses = {
 const StatusCard = ({ title, count, icon, color, onClick, active }) => (
   <button
     className={`bg-white shadow rounded-lg p-4 cursor-pointer transition-all duration-300 w-full text-left ${
-      active ? `ring-2 ring-${color}-500` : "hover:shadow-md"
+      active ? `ring-2 ${colorClasses[color]?.ring}` : "hover:shadow-md"
     }`}
     onClick={onClick}
     aria-label={`${title}: ${count} items`}
   >
     <div className="flex items-center">
       <div
-        className={`flex-shrink-0 ${colorClasses[color]?.bg} rounded-md p-3`}
+        className={`flex-shrink-0 ${colorClasses[color]?.bg || 'bg-gray-100'} rounded-md p-3`}
       >
         <i className={`fas ${icon} fa-lg ${colorClasses[color]?.text}`} />
       </div>
@@ -32,5 +33,14 @@ const StatusCard = ({ title, count, icon, color, onClick, active }) => (
     </div>
   </button>
 );
+
+StatusCard.propTypes = {
+  title: PropTypes.string.isRequired,
+  count: PropTypes.number.isRequired,
+  icon: PropTypes.string.isRequired,
+  color: PropTypes.string.isRequired,
+  onClick: PropTypes.func.isRequired,
+  active: PropTypes.bool.isRequired,
+};
 
 export default StatusCard;

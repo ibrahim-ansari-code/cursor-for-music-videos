@@ -12,6 +12,25 @@ if (!API_BASE_URL) {
   console.log(`API Base URL: ${API_BASE_URL}`);
 }
 
+// Helper function to format query strings with proper URL formatting
+const formatQueryString = (queryString) => {
+  // Type check to ensure input is safely convertible to string
+  if (queryString == null) return "";
+  
+  let processedString = queryString;
+  if (typeof processedString !== "string") {
+    // Convert to string if possible, otherwise throw clear error
+    try {
+      processedString = String(processedString);
+    } catch (error) {
+      throw new Error(`formatQueryString expects a string or convertible value, received: ${typeof queryString}`);
+    }
+  }
+  
+  if (!processedString) return "";
+  return processedString.startsWith("?") ? processedString : `?${processedString}`;
+};
+
 // Helper function to handle API responses
 const handleResponse = async (response) => {
   if (!response.ok) {
@@ -280,7 +299,7 @@ export const fetchDashboardData = async (params = {}) => {
   if (params.time_period) queryParams.append("time_period", params.time_period);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/dashboard${queryString ? "?" + queryString : ""}`);
+  return apiRequest(`/dashboard${formatQueryString(queryString)}`);
 };
 
 // Leases API Functions
@@ -292,7 +311,7 @@ export const fetchLeases = async (params = {}) => {
   if (params.tenant_id) queryParams.append("tenant_id", params.tenant_id);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/leases${queryString ? "?" + queryString : ""}`);
+  return apiRequest(`/leases${formatQueryString(queryString)}`);
 };
 
 export const fetchLease = async (leaseId) => {
@@ -413,7 +432,7 @@ export const fetchVendors = async (params = {}) => {
     queryParams.append("business_type", params.business_type);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/vendors${queryString ? "?" + queryString : ""}`);
+  return apiRequest(`/vendors${formatQueryString(queryString)}`);
 };
 
 export const fetchVendor = async (vendorId) => {
@@ -474,10 +493,12 @@ export const fetchPayments = async (params = {}) => {
     queryParams.append("payment_status", params.payment_status);
   if (params.start_date) queryParams.append("start_date", params.start_date);
   if (params.end_date) queryParams.append("end_date", params.end_date);
+  if (params.limit) queryParams.append("limit", params.limit);
+  if (params.offset) queryParams.append("offset", params.offset);
 
   const queryString = queryParams.toString();
   return apiRequest(
-    `/accounting/payments${queryString ? "?" + queryString : ""}`
+    `/accounting/payments${formatQueryString(queryString)}`
   );
 };
 
@@ -506,13 +527,13 @@ export const fetchInvoices = async (params = {}) => {
 
   if (params.tenant_id) queryParams.append("tenant_id", params.tenant_id);
   if (params.property_id) queryParams.append("property_id", params.property_id);
-  if (params.status) queryParams.append("status", params.status);
+  if (params.status) queryParams.append("payment_status_filter", params.status);
   if (params.start_date) queryParams.append("start_date", params.start_date);
   if (params.end_date) queryParams.append("end_date", params.end_date);
 
   const queryString = queryParams.toString();
   return apiRequest(
-    `/accounting/invoices${queryString ? "?" + queryString : ""}`
+    `/accounting/invoices${formatQueryString(queryString)}`
   );
 };
 
@@ -533,7 +554,7 @@ export const fetchExpenses = async (params = {}) => {
 
   const queryString = queryParams.toString();
   return apiRequest(
-    `/accounting/expenses${queryString ? "?" + queryString : ""}`
+    `/accounting/expenses${formatQueryString(queryString)}`
   );
 };
 
@@ -546,7 +567,7 @@ export const createExpense = async (expenseData) => {
 
 export const getOccupancyRates = async (propertyId) => {
   const queryParams = propertyId ? `?property_id=${propertyId}` : "";
-  return apiRequest(`/accounting/occupancy${queryParams}`);
+  return apiRequest(`/accounting/insights/occupancy${queryParams}`);
 };
 
 export const getRevenueTrends = async (params = {}) => {
@@ -558,12 +579,12 @@ export const getRevenueTrends = async (params = {}) => {
 
   const queryString = queryParams.toString();
   return apiRequest(
-    `/accounting/revenue-trends${queryString ? "?" + queryString : ""}`
+    `/accounting/insights/revenue-trends${formatQueryString(queryString)}`
   );
 };
 
 export const getAccountingOverview = async () => {
-  return apiRequest("/accounting/overview");
+  return apiRequest("/accounting/insights/overview");
 };
 
 // Communication API Functions
@@ -586,9 +607,7 @@ export const fetchMessages = async (conversationId, params = {}) => {
 
   const queryString = queryParams.toString();
   return apiRequest(
-    `/messages/conversations/${conversationId}/messages${
-      queryString ? "?" + queryString : ""
-    }`
+    `/messages/conversations/${conversationId}/messages${formatQueryString(queryString)}`
   );
 };
 
@@ -655,7 +674,7 @@ export const fetchProperties = async (params = {}) => {
     queryParams.append("property_type", params.property_type);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/properties${queryString ? "?" + queryString : ""}`);
+  return apiRequest(`/properties${formatQueryString(queryString)}`);
 };
 
 export const fetchPropertyById = async (propertyId) => {
@@ -747,10 +766,14 @@ export const deleteUnit = async (unitId) => {
   }
 };
 
-export const fetchUnit = async (unitId) => {
+export const fetchUnitById = async (unitId) => {
+  if (!unitId) {
+    console.error("fetchUnitById called without unitId");
+    throw new Error("Unit ID is required to fetch unit details.");
+  }
   try {
-    const response = await apiRequest(`/units/${unitId}`);
-    return response;
+    console.log(`Fetching unit with ID: ${unitId}`);
+    return await apiRequest(`/units/${unitId}`);
   } catch (error) {
     console.error(`Error fetching unit ${unitId}:`, error);
     throw error;
@@ -766,7 +789,7 @@ export const fetchTenants = async (params = {}) => {
   if (params.search) queryParams.append("search", params.search);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/tenants${queryString ? "?" + queryString : ""}`);
+  return apiRequest(`/tenants${formatQueryString(queryString)}`);
 };
 
 export const fetchTenant = async (tenantId) => {
@@ -1021,7 +1044,7 @@ export const fetchMaintenanceRequests = async (params = {}) => {
 
   const queryString = queryParams.toString();
   return apiRequest(
-    `/maintenance/requests${queryString ? `?${queryString}` : ""}`
+    `/maintenance/requests${formatQueryString(queryString)}`
   );
 };
 
@@ -1144,13 +1167,13 @@ export const parseLease = async (formData) => {
 // Add these functions after the existing accounting API functions
 
 export const generateDuePayments = async () => {
-  return apiRequest("/accounting/generate-due-payments", {
+  return apiRequest("/accounting/payments/generate-due", {
     method: "POST",
   });
 };
 
 export const fetchOutstandingPayments = async () => {
-  return apiRequest("/accounting/outstanding-payments");
+  return apiRequest("/accounting/payments/outstanding");
 };
 
 export const fetchRentTracker = async (params = {}) => {
@@ -1160,7 +1183,7 @@ export const fetchRentTracker = async (params = {}) => {
   if (params.year) queryParams.append("year", params.year);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/rent-tracker${queryString ? "?" + queryString : ""}`);
+  return apiRequest(`/rent-tracker${formatQueryString(queryString)}`);
 };
 
 // User Settings API Functions
@@ -1234,7 +1257,7 @@ export const uploadLeasePDF = async (file) => {
 export const parsePaymentReceiptAPI = async (fileFormData) => {
   // Note: apiRequest is a generic helper. For FormData, we don't set Content-Type header manually.
   // The browser will set it to multipart/form-data with the correct boundary.
-  return apiRequest("/accounting/parse-payment-receipt", {
+  return apiRequest("/accounting/payments/parse-receipt", {
     method: "POST",
     body: fileFormData, // Pass FormData directly
     // headers: {} // Do not set Content-Type for FormData
@@ -1243,7 +1266,7 @@ export const parsePaymentReceiptAPI = async (fileFormData) => {
 
 // New/Updated Expense API functions
 export const parseExpenseReceiptAPI = async (fileFormData) => {
-  return apiRequest("/accounting/parse-expense-receipt", {
+  return apiRequest("/accounting/expenses/parse-receipt", {
     method: "POST",
     body: fileFormData,
   });
@@ -1264,6 +1287,7 @@ export const deleteExpenseAPI = async (expenseId) => {
 
 export const uploadMaintenancePhoto = async (file) => {
   const data = await uploadFile("/api/maintenance/upload-photo", file, {
+    formKey: "upload_file",
     errorMsg: "Failed to upload maintenance photo.",
   });
   return data.photo_url;
@@ -1304,16 +1328,21 @@ export const uploadFile = async (endpoint, fileOrFormData, options = {}) => {
     body: formData,
   });
 
-  if (!response.ok) {
-    let errorMsg = options.errorMsg || "Failed to upload file.";
-    try {
-      const errorData = await response.json();
-      errorMsg = errorData.detail || errorMsg;
-    } catch (e) {
-      errorMsg = response.statusText || errorMsg;
-    }
-    throw new Error(errorMsg);
-  }
+  return handleResponse(response);
+};
 
-  return response.json();
+// --- QuickBooks Integration API Functions ---
+
+export const connectToQuickBooks = async () => {
+  return apiRequest("/accounting/quickbooks/connect");
+};
+
+export const getQuickBooksStatus = async () => {
+  return apiRequest("/accounting/quickbooks/status");
+};
+
+export const disconnectQuickBooks = async () => {
+  return apiRequest("/accounting/quickbooks/disconnect", {
+    method: "POST",
+  });
 };

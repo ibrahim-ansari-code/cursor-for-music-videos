@@ -1,44 +1,67 @@
 import React from "react";
+import PropTypes from "prop-types";
 
 const StatusBadge = ({ status }) => {
   const statusStyles = {
-    Pending: "bg-yellow-100 text-yellow-800",
+    "PENDING": "bg-yellow-100 text-yellow-800",
+    "IN_PROGRESS": "bg-blue-100 text-blue-800", 
+    "SCHEDULED": "bg-indigo-100 text-indigo-800",
+    "COMPLETED": "bg-green-100 text-green-800",
+    "CANCELLED": "bg-gray-100 text-gray-800",
+    // Support title-case values as well for backward compatibility
+    "Pending": "bg-yellow-100 text-yellow-800",
     "In Progress": "bg-blue-100 text-blue-800",
-    Scheduled: "bg-indigo-100 text-indigo-800",
-    Completed: "bg-green-100 text-green-800",
-    Cancelled: "bg-gray-100 text-gray-800",
+    "Scheduled": "bg-indigo-100 text-indigo-800", 
+    "Completed": "bg-green-100 text-green-800",
+    "Cancelled": "bg-gray-100 text-gray-800",
   };
+
+  // Normalize status value to handle different cases
+  const normalizedStatus = status || "";
+  const style = statusStyles[normalizedStatus] || statusStyles[normalizedStatus.toUpperCase()] || "bg-gray-100 text-gray-800";
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-        statusStyles[status] || "bg-gray-100 text-gray-800"
-      }`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style}`}
     >
       {status}
     </span>
   );
 };
 
+StatusBadge.propTypes = {
+  status: PropTypes.string.isRequired,
+};
+
 const PriorityBadge = ({ priority }) => {
   const priorityStyles = {
-    High: "bg-red-100 text-red-800",
-    Medium: "bg-orange-100 text-orange-800",
-    Low: "bg-green-100 text-green-800",
+    "HIGH": "bg-red-100 text-red-800",
+    "MEDIUM": "bg-orange-100 text-orange-800", 
+    "LOW": "bg-green-100 text-green-800",
+    // Support title-case values as well for backward compatibility
+    "High": "bg-red-100 text-red-800",
+    "Medium": "bg-orange-100 text-orange-800",
+    "Low": "bg-green-100 text-green-800",
   };
+
+  // Normalize priority value to handle different cases
+  const normalizedPriority = priority || "";
+  const style = priorityStyles[normalizedPriority] || priorityStyles[normalizedPriority.toUpperCase()] || "bg-gray-100 text-gray-800";
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-        priorityStyles[priority] || "bg-gray-100 text-gray-800"
-      }`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style}`}
     >
       {priority}
     </span>
   );
 };
 
-const MaintenanceTable = ({ requests, onEdit, onDelete, onView }) => {
+PriorityBadge.propTypes = {
+  priority: PropTypes.string.isRequired,
+};
+
+const MaintenanceTable = ({ requests, onEdit, onDelete, onView, currentPage = 1, pageSize = 20 }) => {
   if (!requests || requests.length === 0) {
     return (
       <div className="p-4 text-center text-gray-500">
@@ -112,7 +135,7 @@ const MaintenanceTable = ({ requests, onEdit, onDelete, onView }) => {
           {requests.map((request, index) => (
             <tr key={request.id} className="hover:bg-gray-50 transition-colors">
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {index + 1}
+                {(currentPage - 1) * pageSize + index + 1}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm font-medium text-gray-900">
@@ -172,6 +195,43 @@ const MaintenanceTable = ({ requests, onEdit, onDelete, onView }) => {
       </table>
     </div>
   );
+};
+
+MaintenanceTable.propTypes = {
+  requests: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      issue_title: PropTypes.string.isRequired,
+      description: PropTypes.string,
+      property: PropTypes.shape({
+        id: PropTypes.number,
+        name: PropTypes.string,
+      }),
+      unit: PropTypes.shape({
+        id: PropTypes.number,
+        name: PropTypes.string,
+        unit_number: PropTypes.string,
+      }),
+      tenant: PropTypes.shape({
+        id: PropTypes.number,
+        name: PropTypes.string,
+      }),
+      request_date: PropTypes.string.isRequired,
+      priority: PropTypes.string.isRequired,
+      status: PropTypes.string.isRequired,
+      assigned_to: PropTypes.string,
+    })
+  ).isRequired,
+  onEdit: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
+  onView: PropTypes.func.isRequired,
+  currentPage: PropTypes.number,
+  pageSize: PropTypes.number,
+};
+
+MaintenanceTable.defaultProps = {
+  currentPage: 1,
+  pageSize: 20,
 };
 
 export default MaintenanceTable;

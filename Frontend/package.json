@@ -10,6 +10,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
     "chart.js": "^4.4.9",
+    "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.7.4",
     "lodash": "^4.17.21",
@@ -20,7 +21,9 @@
     "react-countup": "^6.5.3",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.4.1",
-    "react-toastify": "^11.0.5"
+    "react-toastify": "^11.0.5",
+    "tailwind-merge": "^3.3.0",
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",

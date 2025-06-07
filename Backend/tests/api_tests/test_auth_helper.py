@@ -18,9 +18,6 @@ import httpx
 from dotenv import load_dotenv
 from supabase import Client, create_client
 
-# Configure logging first
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Load environment variables from the root .env file
@@ -219,7 +216,7 @@ class AuthTestManager:
                 f"Attempting to refresh token for {email} using saved refresh token...")
             try:
                 session_response = self.supabase.auth.refresh_session(
-                    creds["refresh_token"])
+                    refresh_token=creds["refresh_token"])
                 if session_response.session and session_response.user:
                     logger.info(f"Token refreshed successfully for {email}.")
                     updated_creds = {
@@ -349,6 +346,10 @@ async def get_primary_user_jwt(prompt_for_password: bool = False) -> Optional[st
 get_test_jwt = get_primary_user_jwt
 
 if __name__ == "__main__":
+    # Configure logging for CLI usage only
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s')
+
     async def main_cli():
         auth_manager_instance = AuthTestManager()
         print(

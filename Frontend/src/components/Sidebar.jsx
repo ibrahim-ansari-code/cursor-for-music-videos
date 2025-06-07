@@ -28,6 +28,7 @@ const Sidebar = () => {
 
   // Configuration section
   const configItems = [
+    { name: "Integrations", path: "/integrations", icon: "fa-plug" },
     { name: "Settings", path: "/settings", icon: "fa-gear" },
   ];
 
