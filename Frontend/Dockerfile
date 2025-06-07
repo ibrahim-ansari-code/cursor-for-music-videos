@@ -17,23 +17,17 @@ COPY . .
 # Build the React app for production (creates /dist folder)
 RUN npm run build
 
-# Production stage - Serves the built app using Vite's preview server
-FROM node:20-alpine
+# Production stage - Uses Nginx to serve the static files
+FROM nginx:stable-alpine AS production
 
-# Set working directory for the production container
-WORKDIR /app
+# Copy custom nginx config for React Router support and optimizations
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy the built application from the builder stage
-COPY --from=builder /app/dist ./dist
+# Copy the built application from the builder stage to nginx html directory
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy package files to install production dependencies
-COPY --from=builder /app/package*.json ./
+# Expose port 80 (standard HTTP port)
+EXPOSE 80
 
-# Install only production dependencies (no devDependencies)
-RUN npm ci
-
-# Expose port 4173 (Vite preview server default port)
-EXPOSE 4173
-
-# Start the Vite preview server to serve the built static files
-CMD ["npm", "run", "preview"]
+# Nginx runs in the foreground by default
+CMD ["nginx", "-g", "daemon off;"]
