@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-import re
+import regex as re
 from typing import Any, Dict, List
 import base64  # Added for image processing
 

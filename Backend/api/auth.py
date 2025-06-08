@@ -139,8 +139,19 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+        # Quick sanity-check that the ID looks like a UUID
+        try:
+            uuid_obj = PythonUUID(str(actual_user_from_supabase.id))
+        except ValueError:
+            logger.warning("Supabase ID is not a valid UUID: %s", actual_user_from_supabase.id)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
         # Use session.get which handles primary-key lookup and proper typing
-        db_user = await session.get(User, actual_user_from_supabase.id)
+        db_user = await session.get(User, uuid_obj)
 
         # Fallback to explicit select if session.get returned None (e.g., composite PK future changes)
         if db_user is None:

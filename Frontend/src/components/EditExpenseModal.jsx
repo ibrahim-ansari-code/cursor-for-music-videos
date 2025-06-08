@@ -490,6 +490,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
                       src={url}
                       title="Receipt Preview"
                       className="w-full h-full border-0"
+                      sandbox="allow-same-origin"
                     ></iframe>
                   );
                 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { v4 as uuidv4 } from "uuid";
 import {
   fetchProperties,
   fetchPropertyUnits,
@@ -44,9 +45,9 @@ const MaintenanceRequestModal = ({
   const [isLoadingUnits, setIsLoadingUnits] = useState(false);
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [selectedFiles, setSelectedFiles] = useState([]); // [{id, file, url}]
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
-  const [photoUploadProgress, setPhotoUploadProgress] = useState([]);
+  const [photoUploadProgress, setPhotoUploadProgress] = useState([]); // [{id, status}]
   const [photoUploadError, setPhotoUploadError] = useState(null);
   const [showPhotoPreviewIdx, setShowPhotoPreviewIdx] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -130,38 +131,51 @@ const MaintenanceRequestModal = ({
 
   const handleFileChange = async (e) => {
     const files = Array.from(e.target.files);
-    setSelectedFiles(files);
+    // Assign a unique id to each file
+    const filesWithIds = files.map((file) => ({
+      id: uuidv4(),
+      file,
+      name: file.name,
+      size: file.size,
+      lastModified: file.lastModified,
+    }));
+    setSelectedFiles((prev) => [...prev, ...filesWithIds]);
     setPhotoUploadError(null);
-    setPhotoUploadProgress(Array(files.length).fill("pending"));
+    setPhotoUploadProgress((prev) => [
+      ...prev,
+      ...filesWithIds.map((f) => ({ id: f.id, status: "pending" })),
+    ]);
     setUploadingPhotos(true);
-    
     try {
       // Create upload promises for all files simultaneously
-      const uploadPromises = files.map((file) => uploadMaintenancePhoto(file));
+      const uploadPromises = filesWithIds.map((fileObj) =>
+        uploadMaintenancePhoto(fileObj.file).then((url) => ({ id: fileObj.id, url, status: "done" }))
+          .catch((err) => ({ id: fileObj.id, error: err.message || "Failed to upload photo", status: "error" }))
+      );
       // Wait for all uploads to complete (both successful and failed)
-      const results = await Promise.allSettled(uploadPromises);
+      const results = await Promise.all(uploadPromises);
       // Update progress and collect URLs/errors
-      const progress = [];
-      const successfulUrls = [];
+      const newProgress = [...photoUploadProgress];
+      const newPhotos = [];
       const errors = [];
-      results.forEach((result, index) => {
-        if (result.status === "fulfilled") {
-          progress[index] = "done";
-          successfulUrls.push(result.value);
+      results.forEach((result) => {
+        if (result.status === "done") {
+          newProgress.push({ id: result.id, status: "done" });
+          newPhotos.push({ id: result.id, url: result.url });
         } else {
-          progress[index] = "error";
-          errors.push(`File ${index + 1}: ${result.reason?.message || result.reason || "Failed to upload photo"}`);
+          newProgress.push({ id: result.id, status: "error" });
+          errors.push(`File: ${result.error}`);
         }
       });
-      setPhotoUploadProgress(progress);
-      // Merge new uploads with any existing photos
-      setFormData(prev => ({
+      setPhotoUploadProgress(newProgress);
+      // Merge new uploads with any existing photos (track by id)
+      setFormData((prev) => ({
         ...prev,
-        photos: [...(prev.photos ?? []), ...successfulUrls],
+        photos: [...(prev.photos ?? []), ...newPhotos.map((p) => p.url)],
       }));
       // Show errors if any occurred
       if (errors.length > 0) {
-        setPhotoUploadError(`Upload errors: ${errors.join(', ')}`);
+        setPhotoUploadError(`Upload errors: ${errors.join(", ")}`);
       }
     } catch (error) {
       // Handle unexpected errors
@@ -171,12 +185,13 @@ const MaintenanceRequestModal = ({
     }
   };
 
-  const handleRemoveFile = (idx) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
-    setPhotoUploadProgress((prev) => prev.filter((_, i) => i !== idx));
+  // Remove file by unique id
+  const handleRemoveFile = (fileIdOrUrl) => {
+    setSelectedFiles((prev) => prev.filter((f) => f.id !== fileIdOrUrl && f.url !== fileIdOrUrl));
+    setPhotoUploadProgress((prev) => prev.filter((p) => p.id !== fileIdOrUrl));
     setFormData((prev) => ({
       ...prev,
-      photos: (prev.photos ?? []).filter((_, i) => i !== idx),
+      photos: (prev.photos ?? []).filter((url) => url !== fileIdOrUrl),
     }));
   };
 

@@ -1,17 +1,13 @@
 services:
-  backend:
+   backend:
     build: ./Backend
-    ports:
-      - "8000:8000"
     volumes:
-      - ./backend:/app
+      - ./Backend:/app
     environment:
       - PORT=8000
 
   frontend:
-    build:
-      context: ./Frontend
-      dockerfile: Dockerfile
+    build: ./Frontend
     ports:
       - "3000:80"
     depends_on:

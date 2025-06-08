@@ -3,7 +3,8 @@ from datetime import datetime, UTC
 from typing import TYPE_CHECKING, Optional, Union, ClassVar
 from uuid import UUID
 
-from sqlalchemy import DateTime, String, Column, JSONB, UniqueConstraint, Index, CheckConstraint, text, Enum as SAEnum
+from sqlalchemy import DateTime, String, Column, UniqueConstraint, Index, CheckConstraint, text, Enum as SAEnum
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 from pydantic import field_validator
 

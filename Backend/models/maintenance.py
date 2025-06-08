@@ -46,6 +46,13 @@ class MaintenanceRequest(SQLModel, table=True):
     photos: Optional[List[str]] = Field(
         default=None, sa_column=Column(JSON, nullable=True))
 
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(
+         TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(
+         TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP"), onupdate=sa.func.now()))
+    assigned_to: Optional[str] = Field(
+         default=None, sa_column=Column(String, nullable=True))
+
     @staticmethod
     def validate_photos(value):
         if value is None:
@@ -56,12 +63,6 @@ class MaintenanceRequest(SQLModel, table=True):
             if not isinstance(item, str):
                 raise ValueError("Each photo must be a string URL")
         return value
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(
-        TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(
-        TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP"), onupdate=sa.func.now()))
-    assigned_to: Optional[str] = Field(
-        default=None, sa_column=Column(String, nullable=True))
 
     # Relationships
     property: "Property" = Relationship(back_populates="maintenance_requests")

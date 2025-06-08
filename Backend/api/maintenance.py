@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime, date
 from typing import List, Optional
-from uuid import UUID as PythonUUID
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from pydantic import BaseModel

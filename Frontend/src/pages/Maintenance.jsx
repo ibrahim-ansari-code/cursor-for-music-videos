@@ -51,10 +51,14 @@ const Maintenance = () => {
         params.req_status = map[statusFilter] ?? statusFilter;
       }
       
+      // Fetch summary only on initial load or after mutations.
+      const summaryPromise =
+        resetData || page === 1 ? getMaintenanceSummary() : Promise.resolve(null);
       const [summaryData, requestsData] = await Promise.all([
-        getMaintenanceSummary(),
+        summaryPromise,
         fetchMaintenanceRequests(params),
       ]);
+      if (summaryData) setSummary(summaryData);
       
       setSummary(summaryData);
       
@@ -65,7 +69,11 @@ const Maintenance = () => {
         setRequests(prev => [...prev, ...(requestsData.results || requestsData)]);
       }
       // Update pagination state
-      setHasMore((requestsData.results || requestsData).length === pageSize);
+      setHasMore(
+        typeof requestsData.total === "number"
+          ? page * pageSize < requestsData.total
+          : (requestsData.results || requestsData).length === pageSize
+      );
       setTotalCount(requestsData.total ?? (requestsData.results ? requestsData.results.length : requestsData.length));
     } catch (err) {
       setError(err.message || "Failed to fetch maintenance data.");

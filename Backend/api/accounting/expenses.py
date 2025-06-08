@@ -3,7 +3,7 @@ import functools
 import time
 import asyncio
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
@@ -145,7 +145,7 @@ def _calculate_expense_taxes(
             item_tax_amount = (current_subtotal * tax_item_data.tax_rate) / Decimal("100")
             calculated_total_tax_amount += item_tax_amount
             new_tax_details_dto.append(ExpenseTaxDetailCreate(tax_name=tax_item_data.tax_name, tax_rate=tax_item_data.tax_rate))
-    return new_tax_details_dto, calculated_total_tax_amount.quantize(Decimal('0.01'))
+    return new_tax_details_dto, calculated_total_tax_amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 def _create_expense_tax_orm_list(tax_details_dto: list[ExpenseTaxDetailCreate], subtotal: Decimal) -> list[ExpenseTaxDetail]:
     """
@@ -166,7 +166,7 @@ def _create_expense_tax_orm_list(tax_details_dto: list[ExpenseTaxDetailCreate], 
         tax_detail = ExpenseTaxDetail(
             tax_name=tax_item.tax_name,
             tax_rate=tax_item.tax_rate,
-            tax_amount=((subtotal * tax_item.tax_rate) / Decimal("100")).quantize(Decimal('0.01'))
+            tax_amount=((subtotal * tax_item.tax_rate) / Decimal("100")).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         )
         result.append(tax_detail)
     return result
@@ -184,10 +184,10 @@ def _recalculate_orm_taxes(existing_taxes: list[ExpenseTaxDetail], new_subtotal:
     """
     calculated_total_tax_amount = Decimal("0.00")
     for existing_tax_detail in existing_taxes:
-        tax_amount = ((new_subtotal * existing_tax_detail.tax_rate) / Decimal("100")).quantize(Decimal('0.01'))
+        tax_amount = ((new_subtotal * existing_tax_detail.tax_rate) / Decimal("100")).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         existing_tax_detail.tax_amount = tax_amount
         calculated_total_tax_amount += tax_amount
-    return calculated_total_tax_amount.quantize(Decimal('0.01'))
+    return calculated_total_tax_amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 async def _update_expense_basic_fields(
     db_expense: Expense, 
@@ -224,8 +224,8 @@ async def _update_expense_basic_fields(
         blob_to_delete = await _handle_receipt_url_update(db_expense, update_payload["receipt_url"], old_receipt_url)
     
     if "subtotal_amount" in update_payload and update_payload["subtotal_amount"] is not None:
-        new_subtotal = Decimal(update_payload["subtotal_amount"]).quantize(Decimal('0.01'))
-        current_subtotal = Decimal(db_expense.subtotal_amount).quantize(Decimal('0.01'))
+        new_subtotal = Decimal(update_payload["subtotal_amount"]).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        current_subtotal = Decimal(db_expense.subtotal_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         
         # Use direct inequality comparison after quantizing both Decimals
         if current_subtotal != new_subtotal:
@@ -246,9 +246,6 @@ async def _update_expense_taxes(
     """
     current_subtotal = Decimal(str(db_expense.subtotal_amount))
     if expense_data.taxes is not None:
-        if db_expense.id is None:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="DB error.")
-        
         tax_details_dto, calculated_total_tax_amount = _calculate_expense_taxes(expense_data, current_subtotal)
         new_tax_details_orm = _create_expense_tax_orm_list(tax_details_dto, current_subtotal)
         db_expense.taxes = new_tax_details_orm
@@ -256,7 +253,7 @@ async def _update_expense_taxes(
     elif subtotal_updated:
         db_expense.total_tax_amount = _recalculate_orm_taxes(db_expense.taxes, current_subtotal)
     
-    db_expense.total_amount = (current_subtotal + Decimal(str(db_expense.total_tax_amount))).quantize(Decimal('0.01'))
+    db_expense.total_amount = (current_subtotal + Decimal(str(db_expense.total_tax_amount))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 async def _delete_blob_in_background(blob_url: str | None) -> None:
     """
@@ -353,11 +350,11 @@ async def create_expense(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     await check_property_ownership(expense_data.property_id, session, current_user)
 
-    subtotal = Decimal(str(expense_data.subtotal_amount)).quantize(Decimal('0.01'))
+    subtotal = Decimal(str(expense_data.subtotal_amount)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     # Use the helper for tax calculation
     tax_details_dto, calculated_total_tax_amount = _calculate_expense_taxes(expense_data, subtotal)
     tax_details_to_create_orm = _create_expense_tax_orm_list(tax_details_dto, subtotal)
-    calculated_total_amount = (subtotal + calculated_total_tax_amount).quantize(Decimal('0.01'))
+    calculated_total_amount = (subtotal + calculated_total_tax_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     db_expense = Expense(
         property_id=expense_data.property_id, category=expense_data.category,
