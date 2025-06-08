@@ -7,6 +7,7 @@ import logging
 from datetime import datetime
 
 # Import helper functions from conftest.py explicitly for clarity
+from .conftest import APITestClient
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class TestGenericAPIBehaviors:
 
     @pytest.mark.asyncio
     # No auth needed, but api_client can be used
-    async def test_health_check(self, api_client):
+    async def test_health_check(self, api_client: APITestClient) -> None:
         """
         Verifies that the API health check endpoint is reachable and returns a 200 OK status.
         """
@@ -31,7 +32,7 @@ class TestGenericAPIBehaviors:
             f"✅ API health check successful, status {response.status_code}")
 
     @pytest.mark.asyncio
-    async def test_datetime_validation_in_response(self, api_client):
+    async def test_datetime_validation_in_response(self, api_client: APITestClient) -> None:
         """
         Verifies that datetime fields in the API response are properly formatted in ISO 8601.
         
@@ -66,7 +67,7 @@ class TestGenericAPIBehaviors:
         logger.info(f"✅ Datetime validation successful")
 
     @pytest.mark.asyncio
-    async def test_datetime_query_param_edge_cases(self, api_client):
+    async def test_datetime_query_param_edge_cases(self, api_client: APITestClient) -> None:
         """
         Verifies that the API accepts various valid datetime formats as query parameters without returning a 400 Bad Request error.
         
@@ -90,7 +91,7 @@ class TestGenericAPIBehaviors:
         logger.info(f"✅ Datetime query parameter edge cases successful")
 
     @pytest.mark.asyncio
-    async def test_timezone_string_handling_in_query(self, api_client):
+    async def test_timezone_string_handling_in_query(self, api_client: APITestClient) -> None:
         """
         Verifies that the API correctly handles timezone-aware datetime strings in query parameters.
         
@@ -119,7 +120,7 @@ class TestGenericAPIBehaviors:
         logger.info(f"✅ Timezone handling test completed")
 
     @pytest.mark.asyncio
-    async def test_method_not_allowed(self, api_client):
+    async def test_method_not_allowed(self, api_client: APITestClient) -> None:
         """
         Verifies that sending an unsupported HTTP method to an endpoint returns 405 or 404.
         
@@ -141,7 +142,7 @@ class TestGenericAPIBehaviors:
             f"✅ Method not allowed test successful, status {patch_response.status_code}")
 
     @pytest.mark.asyncio
-    async def test_malformed_json_payload(self, api_client):
+    async def test_malformed_json_payload(self, api_client: APITestClient) -> None:
         """
         Tests that the API returns a 400 or 422 status code when receiving a malformed JSON payload in a POST request to the payments endpoint.
         """
@@ -166,7 +167,7 @@ class TestGenericAPIBehaviors:
             f"✅ Malformed JSON handling successful, status {response.status_code}")
 
     @pytest.mark.asyncio
-    async def test_nonexistent_endpoint_returns_404(self, api_client):
+    async def test_nonexistent_endpoint_returns_404(self, api_client: APITestClient) -> None:
         """
         Verifies that a request to a nonexistent API endpoint returns a 404 status code.
         """

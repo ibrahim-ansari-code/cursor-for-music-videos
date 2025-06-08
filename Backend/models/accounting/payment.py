@@ -1,10 +1,11 @@
 """Payment model for managing tenant rent payments and payment methods."""
 
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DateTime, Enum as PgEnum, Float, String, Column
+from sqlalchemy import DateTime, Enum as PgEnum, Float, String, Column, Numeric
 from sqlmodel import Field, Relationship, SQLModel
 
 from Backend.utils.datetime_utils import create_audit_datetime, utc_now
@@ -27,7 +28,7 @@ class Payment(SQLModel, table=True):
     __tablename__ = "payments"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
-    amount: float = Field(sa_column=Column(Float, nullable=False))
+    amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     payment_date: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False)

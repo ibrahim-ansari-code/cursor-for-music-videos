@@ -18,7 +18,7 @@ class ExpenseTaxDetail(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     tax_name: str = Field(sa_column=Column(String, nullable=False))
     tax_rate: Decimal = Field(
-        sa_column=Column(Numeric(5, 2), nullable=False),
+        sa_column=Column(Numeric(6, 4), nullable=False),
         ge=0, le=100, description="Tax rate as percentage (0-100)"
     )
     tax_amount: Decimal = Field(
@@ -31,11 +31,11 @@ class ExpenseTaxDetail(SQLModel, table=True):
 
     created_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=False), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False)
     )
     updated_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=False), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False)
     )
 
 class Expense(SQLModel, table=True):
@@ -67,11 +67,11 @@ class Expense(SQLModel, table=True):
 
     created_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=False), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False)
     )
     updated_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=False), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False)
     )
 
     property: "Property" = Relationship(back_populates="expenses")

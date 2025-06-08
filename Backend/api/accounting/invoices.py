@@ -94,7 +94,7 @@ async def _infer_property_for_invoice(tenant: Tenant, current_user: User) -> int
         
         # 1. Check the tenant's currently assigned property first.
         if tenant.current_property:
-            if current_user.is_admin or tenant.current_property.user_id == current_user.id:
+            if current_user.user_type == UserType.ADMIN or tenant.current_property.user_id == current_user.id:
                 return tenant.current_property.id
 
         # 2. If no current property, check properties from the tenant's ACTIVE leases only.
@@ -105,7 +105,7 @@ async def _infer_property_for_invoice(tenant: Tenant, current_user: User) -> int
                 key=lambda lease: (lease.start_date or date.min)
             )
             for lease in active_leases:
-                if current_user.is_admin or lease.property.user_id == current_user.id:
+                if current_user.user_type == UserType.ADMIN or lease.property.user_id == current_user.id:
                     return lease.property.id
 
     except Exception:
@@ -248,7 +248,7 @@ async def create_invoice(
 
         inferred_property_id = await _infer_property_for_invoice(tenant, current_user)
         
-        if not inferred_property_id and not current_user.is_admin:
+        if not inferred_property_id and current_user.user_type != UserType.ADMIN:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Cannot create invoice for tenant with no valid property link. Please assign the tenant to a property."
@@ -354,7 +354,7 @@ async def get_invoices(
         can_proceed = await _apply_landlord_invoice_filters(filters, property_id, tenant_id, current_user, session)
         if not can_proceed:
             return []
-    elif current_user.is_admin:
+    elif current_user.user_type == UserType.ADMIN:
         _apply_admin_invoice_filters(filters, property_id, tenant_id)
     else:
         raise HTTPException(status_code=403, detail="Not authorized to access these invoices.")

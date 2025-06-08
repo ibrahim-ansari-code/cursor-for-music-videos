@@ -99,7 +99,7 @@ def run_pytest_with_json_report(plugin_status: Optional[Dict[str, bool]] = None)
         
         # Parse JSON report for detailed summary if JSON plugin is available
         if plugin_status.get("json", False) and os.path.exists(json_report_path):
-            with open(json_report_path, 'r') as f:
+            with open(json_report_path, 'r', encoding='utf-8') as f:
                 report_data = json.load(f)
 
             print_detailed_summary(report_data)
@@ -385,17 +385,17 @@ def check_dependencies():
     
     # Check for required pytest plugins using import checks
     try:
-        import pytest_xdist
+        import pytest_xdist  # type: ignore
         plugin_status["xdist"] = True
     except ModuleNotFoundError:
         plugin_status["xdist"] = False
     try:
-        import pytest_jsonreport
+        import pytest_jsonreport  # type: ignore
         plugin_status["json"] = True
     except ModuleNotFoundError:
         plugin_status["json"] = False
     try:
-        import pytest_asyncio
+        import pytest_asyncio  # type: ignore
         plugin_status["asyncio"] = True
     except ModuleNotFoundError:
         plugin_status["asyncio"] = False

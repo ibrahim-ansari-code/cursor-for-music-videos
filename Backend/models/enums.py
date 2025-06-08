@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Self, Any
 
 
 class UserType(str, Enum):
@@ -7,7 +8,7 @@ class UserType(str, Enum):
     ADMIN = "ADMIN"
 
     @classmethod
-    def _missing_(cls, value):
+    def _missing_(cls, value: Any) -> Self | None:
         if isinstance(value, str):
             try:
                 return cls(value.upper())
@@ -37,7 +38,7 @@ class MaintenancePriority(str, Enum):
     HIGH = "HIGH"
 
     @classmethod
-    def _missing_(cls, value):
+    def _missing_(cls, value: Any) -> Self | None:
         if isinstance(value, str):
             try:
                 return cls(value.upper())
@@ -57,7 +58,7 @@ class MaintenanceStatus(str, Enum):
     CANCELLED = "CANCELLED"
 
     @classmethod
-    def _missing_(cls, value):
+    def _missing_(cls, value: Any) -> Self | None:
         if isinstance(value, str):
             try:
                 return cls(value.upper())

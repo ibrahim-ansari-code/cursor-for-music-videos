@@ -56,8 +56,8 @@ def touch_updated_at(obj: HasUpdatedAt) -> None:
 class UserResponse(BaseModel):
     id: str
     email: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
     user_type: UserType
     phone: Optional[str] = None
     address: Optional[str] = None
@@ -81,9 +81,9 @@ class UserResponse(BaseModel):
 
 
 class ProfileUpdateRequest(BaseModel):
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    phone: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    phone: str | None = None
 
 
 class AvatarUploadResponse(BaseModel):
@@ -142,20 +142,20 @@ async def get_current_user(
         # Quick sanity-check that the ID looks like a UUID
         try:
             uuid_obj = PythonUUID(str(actual_user_from_supabase.id))
-        except ValueError:
+        except ValueError as e:
             logger.warning("Supabase ID is not a valid UUID: %s", actual_user_from_supabase.id)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         # Use session.get which handles primary-key lookup and proper typing
         db_user = await session.get(User, uuid_obj)
 
         # Fallback to explicit select if session.get returned None (e.g., composite PK future changes)
         if db_user is None:
-            result = await session.execute(select(User).where(col(User.id) == actual_user_from_supabase.id))
+            result = await session.execute(select(User).where(col(User.id) == uuid_obj))
             db_user = result.scalar_one_or_none()
 
         if not db_user:

@@ -482,7 +482,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
                       src={pdfDisplayUrl}
                       title="Receipt Preview"
                       className="w-full h-full border-0"
-                    ></iframe>
+                    />
                   );
                 } else {
                   return (
@@ -491,7 +491,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
                       title="Receipt Preview"
                       className="w-full h-full border-0"
                       sandbox="allow-same-origin"
-                    ></iframe>
+                    />
                   );
                 }
               })()}

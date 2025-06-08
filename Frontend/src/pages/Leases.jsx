@@ -10,6 +10,7 @@ import ImportLeaseModal from "../components/ImportLeaseModal";
 import UpdateLeaseStatusModal from "../components/UpdateLeaseStatusModal";
 import FilePreviewModal from "../components/FilePreviewModal";
 import EditLeaseModal from "../components/EditLeaseModal";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const Leases = () => {
   const [leases, setLeases] = useState([]);
@@ -313,16 +314,9 @@ const Leases = () => {
 
   if (loading && leases.length === 0) {
     return (
-      <div className="p-4 flex justify-center items-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto" />
-          <p className="mt-3 text-gray-600">
-            {documentsLoading
-              ? "Loading lease documents..."
-              : "Loading leases..."}
-          </p>
-        </div>
-      </div>
+      <LoadingSpinner 
+        message={documentsLoading ? "Loading lease documents..." : "Loading leases..."}
+      />
     );
   }
 

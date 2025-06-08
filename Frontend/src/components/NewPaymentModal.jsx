@@ -117,7 +117,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
           const activeLease = allLeases.find(
             (l) =>
               l.tenant_id === formData.tenant_id &&
-              l.property_id === parseInt(formData.property_id) &&
+              l.property_id === Number.parseInt(formData.property_id) &&
               l.status.toLowerCase() === "active"
           );
 
@@ -251,7 +251,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
         tenant_name: formData.tenant_name,
         amount: Number.parseFloat(formData.amount),
         payment_date: formData.payment_date
-          ? `${formData.payment_date}T00:00:00Z`
+          ? new Date(formData.payment_date).toISOString()
           : null,
         payment_method: formData.payment_method,
         status: formData.status,

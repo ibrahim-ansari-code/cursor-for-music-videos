@@ -652,7 +652,7 @@ const ConfirmLeaseModal = ({
                 </FormSection>
               )}
 
-              <form onSubmit={handleCreateLease} className="space-y-8">
+              <form onSubmit={handleCreateLease} className="space-y-8" id="confirm-lease-form">
                 <FormSection
                   title="Tenant Information"
                   containerClass="space-y-6"
@@ -911,8 +911,9 @@ const ConfirmLeaseModal = ({
               <Button type="button" variant="secondary" onClick={onClose}>
                 Cancel
               </Button>
-<Button
-  type="submit"
+              <Button
+                type="submit"
+                form="confirm-lease-form"
                 variant="primary"
                 disabled={
                   isLoading ||

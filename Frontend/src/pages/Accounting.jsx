@@ -24,13 +24,13 @@ import RevenueChart from "../components/RevenueChart";
 import ExpenseBreakdownChart from "../components/ExpenseBreakdownChart";
 import IncomeByPropertyCard from "../components/IncomeByPropertyCard";
 import EditExpenseModal from "../components/EditExpenseModal";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 // Reusable loading spinner row for tables
 const LoadingRow = ({ colSpan, loadingText }) => (
   <tr>
     <td colSpan={colSpan} className="px-6 py-12 text-center text-sm text-gray-500">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2" />
-      {loadingText}
+      <LoadingSpinner message={loadingText} size="medium" center={false} />
     </td>
   </tr>
 );
@@ -502,14 +502,7 @@ const handleNextPage = () => {
   };
 
   if (loading && activeTab === "overview") {
-    return (
-      <div className="p-4 flex justify-center items-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-3 text-gray-600">Loading accounting data...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading accounting data..." />;
   }
 
   return (

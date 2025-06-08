@@ -56,8 +56,11 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
         ? fetchTenants({ id: lease.tenant_id })
         : Promise.resolve(null);
 
+      let isMounted = true;
+
       Promise.all([propertyPromise, unitPromise, tenantPromise])
         .then(([props, unit, tenants]) => {
+          if (!isMounted) return; // Prevent state update on unmounted component
           // Property
           if (props && props.length > 0) setPropertyDetails(props[0]);
           else if (lease.property) setPropertyDetails(lease.property);
@@ -80,20 +83,28 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
           if (lease.unit) setUnitDetails(lease.unit);
           if (lease.tenant) setTenantDetails(lease.tenant);
         });
+
+      return () => {
+        isMounted = false; // Cleanup function to set the flag
+      };
     }
   }, [lease]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]:
-        type === "checkbox"
-          ? checked
-          : type === "number"
-          ? (value === "" ? "" : Number.parseFloat(value) || 0)
-          : value,
-    }));
+  
+    setFormData((prev) => {
+      let processedValue = value;
+      if (type === "checkbox") {
+        processedValue = checked;
+      } else if (type === "number") {
+        // Retain the raw string if it's empty or not a valid number, otherwise parse it.
+        // Fallback to empty string for incomplete/invalid inputs.
+        const parsed = Number.parseFloat(value);
+        processedValue = value === "" ? "" : (isNaN(parsed) ? value : parsed);
+      }
+      return { ...prev, [name]: processedValue };
+    });
   };
 
   const handleSubmit = async (e) => {

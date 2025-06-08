@@ -83,8 +83,8 @@ class PropertyResponse(BaseModel):
 
 class OwnerResponse(BaseModel):
     id: PythonUUID
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
     email: str
     phone: str | None = None
     profile_image_url: str | None = None

@@ -6,7 +6,7 @@ import pytest
 import logging
 
 # Import helper functions from conftest.py explicitly for clarity
-from .conftest import assert_valid_json_response
+from .conftest import assert_valid_json_response, APITestClient
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class TestLeasesAPI:
     """Test suite for Leases API endpoints"""
 
     @pytest.mark.asyncio
-    async def test_lease_get_operations(self, api_client):
+    async def test_lease_get_operations(self, api_client: APITestClient) -> None:
         """
         Performs integration tests for lease-related GET API endpoints.
         

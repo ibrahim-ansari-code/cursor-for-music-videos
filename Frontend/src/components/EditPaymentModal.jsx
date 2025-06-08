@@ -114,9 +114,11 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
     setError(null);
     setIsLoading(true);
 
+    const parsedAmount = Number.parseFloat(formData.amount);
+
     const payload = {
       amount:
-        formData.amount !== "" ? Number.parseFloat(formData.amount) : undefined,
+        formData.amount !== "" && !isNaN(parsedAmount) ? parsedAmount : undefined,
       payment_date: formData.payment_date
         ? `${formData.payment_date}T00:00:00Z`
         : undefined, // Ensure UTC
@@ -360,7 +362,7 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
                       src={pdfDisplayUrl}
                       title="Receipt Preview"
                       className="w-full h-full border-0"
-                      sandbox=""
+                      sandbox="allow-same-origin"
                     />
                   );
                 } else {

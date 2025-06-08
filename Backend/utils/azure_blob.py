@@ -91,14 +91,15 @@ async def _upload_to_blob(
             overwrite=True,
             content_settings=blob_content_settings,
         )
-        # FastAPI's UploadFile exposes a synchronous close()
-        file.close()  # type: ignore
         logger.info("Successfully uploaded %s to %s/%s",
                     default_filename_prefix, container_name, blob_name)
     except Exception as e:
         logger.error("Failed to upload blob '%s' to container '%s': %s",
                      blob_name, container_name, e)
         raise
+    finally:
+        # FastAPI's UploadFile exposes a synchronous close()
+        file.close()  # type: ignore
 
     public_url = f"{settings.AZURE_BLOB_PUBLIC_URL.rstrip('/')}/{container_name}/{blob_name}"
     logger.info("%s public URL: %s",
@@ -325,7 +326,6 @@ async def delete_blob_by_url(blob_url: str) -> bool:
                 "Blob not found, no deletion needed: %s/%s", container_name, blob_name)
         return True
 
-    except Exception as e:
-        logger.error("Failed to delete blob '%s': %s",
-                     blob_url, e, exc_info=True)
+    except Exception:
+        logger.exception("Failed to delete blob '%s'", blob_url)
         return False

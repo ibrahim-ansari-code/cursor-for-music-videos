@@ -67,7 +67,7 @@ def _build_safe_ownership_filter(filter_type: FilterType, table_alias: str = "pr
         ValueError: If the filter type is invalid or the table alias does not meet naming requirements.
     """
     if not isinstance(filter_type, FilterType):
-        raise ValueError(f"Invalid filter type '{filter_type}'. Must be a FilterType enum member.")
+        raise TypeError("filter_type must be a FilterType enum member.")
     
     # Validate table_alias to prevent SQL injection - only allow letters, digits, underscores
     # Must start with letter only (a-z or A-Z), followed by letters, digits, or underscores
@@ -323,7 +323,8 @@ async def get_revenue_trends(
                 net_income=float(row['revenue']) - float(row['expenses'])
             ) for row in trends_data
         ]
-    elif period_type == Period.YEARLY:
+        
+    if period_type == Period.YEARLY:
         # Build safe filters with appropriate table aliases
         payments_filter = _build_safe_ownership_filter(payment_filter_type, table_alias="prop")
         expenses_filter = _build_safe_ownership_filter(expense_filter_type, table_alias="exp_prop")
@@ -377,25 +378,32 @@ async def get_accounting_overview(
     
     # Static JOIN clauses with dynamic WHERE clauses via the validated filter strings
     # Monthly Revenue
-    mr_q = text(f"SELECT COALESCE(SUM(p.amount), 0.0) FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id WHERE p.payment_date >= :month_start AND p.payment_date <= :today AND p.status IN ('Paid', 'Partial') {payments_filter}")
+    mr_q_str = f"SELECT COALESCE(SUM(p.amount), 0.0) FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id WHERE p.payment_date >= :month_start AND p.payment_date <= :today AND p.status IN ('Paid', 'Partial') {payments_filter}"
+    mr_q = text(mr_q_str)
     monthly_revenue = await session.scalar(mr_q, base_params) or 0.0
     # YTD Revenue
-    yr_q = text(f"SELECT COALESCE(SUM(p.amount), 0.0) FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id WHERE p.payment_date >= :year_start AND p.payment_date <= :today AND p.status IN ('Paid', 'Partial') {payments_filter}")
+    yr_q_str = f"SELECT COALESCE(SUM(p.amount), 0.0) FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id WHERE p.payment_date >= :year_start AND p.payment_date <= :today AND p.status IN ('Paid', 'Partial') {payments_filter}"
+    yr_q = text(yr_q_str)
     ytd_revenue = await session.scalar(yr_q, base_params) or 0.0
     # Monthly Expenses
-    me_q = text(f"SELECT COALESCE(SUM(e.total_amount), 0.0) FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id WHERE e.expense_date >= :month_start AND e.expense_date <= :today {expenses_filter}")
+    me_q_str = f"SELECT COALESCE(SUM(e.total_amount), 0.0) FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id WHERE e.expense_date >= :month_start AND e.expense_date <= :today {expenses_filter}"
+    me_q = text(me_q_str)
     monthly_expenses = await session.scalar(me_q, base_params) or 0.0
     # YTD Expenses
-    ye_q = text(f"SELECT COALESCE(SUM(e.total_amount), 0.0) FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id WHERE e.expense_date >= :year_start AND e.expense_date <= :today {expenses_filter}")
+    ye_q_str = f"SELECT COALESCE(SUM(e.total_amount), 0.0) FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id WHERE e.expense_date >= :year_start AND e.expense_date <= :today {expenses_filter}"
+    ye_q = text(ye_q_str)
     ytd_expenses = await session.scalar(ye_q, base_params) or 0.0
     # Outstanding Payments (count for current month)
-    op_q = text(f"SELECT COUNT(p.id) FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id WHERE p.payment_date >= :month_start AND p.payment_date <= :today AND p.status IN ('Pending', 'Overdue') {payments_filter}")
+    op_q_str = f"SELECT COUNT(p.id) FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id WHERE p.payment_date >= :month_start AND p.payment_date <= :today AND p.status IN ('Pending', 'Overdue') {payments_filter}"
+    op_q = text(op_q_str)
     outstanding_payments = await session.scalar(op_q, base_params) or 0
     # Average Rent (active leases)
-    ar_q = text(f"SELECT COALESCE(AVG(l.monthly_rent), 0.0) FROM leases l JOIN properties prop ON l.property_id = prop.id WHERE l.status = 'ACTIVE' {leases_filter}")
+    ar_q_str = f"SELECT COALESCE(AVG(l.monthly_rent), 0.0) FROM leases l JOIN properties prop ON l.property_id = prop.id WHERE l.status = 'ACTIVE' {leases_filter}"
+    ar_q = text(ar_q_str)
     average_rent = await session.scalar(ar_q, base_params) or 0.0
     # Occupancy Rate
-    ocr_q = text(f"SELECT CASE WHEN COUNT(u.id) > 0 THEN CAST(SUM(CASE WHEN u.is_rented THEN 1 ELSE 0 END) AS FLOAT) / COUNT(u.id) * 100 ELSE 0 END FROM property_units u JOIN properties prop ON u.property_id = prop.id WHERE 1=1 {units_filter}")
+    ocr_q_str = f"SELECT CASE WHEN COUNT(u.id) > 0 THEN CAST(SUM(CASE WHEN u.is_rented THEN 1 ELSE 0 END) AS FLOAT) / COUNT(u.id) * 100 ELSE 0 END FROM property_units u JOIN properties prop ON u.property_id = prop.id WHERE 1=1 {units_filter}"
+    ocr_q = text(ocr_q_str)
     occupancy_rate = await session.scalar(ocr_q, base_params) or 0.0
 
     # Revenue Trends (last 12 months including current) - using safe enum-based filters

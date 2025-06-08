@@ -6,50 +6,12 @@ import pytest
 import logging
 import httpx
 import pytest_asyncio
-import time
 import uuid
+from .conftest import assert_api_success, assert_valid_json_response
 
 logger = logging.getLogger(__name__)
 
 # Helper functions for API testing
-
-
-def assert_api_success(response: httpx.Response, expected_status: int = 200):
-    """
-    Asserts that the HTTP response status code matches the expected value.
-    
-    Raises an assertion error if the response status does not match, including the status code and up to 500 characters of the response text for debugging.
-    """
-    assert response.status_code == expected_status, (
-        f"Expected status {expected_status}, got {response.status_code}. "
-        f"Response: {response.text[:500]}"
-    )
-
-
-def assert_valid_json_response(response: httpx.Response, expected_type=None, expected_status=200):
-    """
-    Asserts that an HTTP response contains valid JSON data and matches the expected type.
-    
-    Calls `assert_api_success` to verify the response status code. Attempts to parse the response as JSON and, if `expected_type` is provided, asserts that the parsed data matches the specified type. Fails the test with an error message if the response is not valid JSON.
-    
-    Args:
-        response: The HTTP response to validate.
-        expected_type: Optional type to check against the parsed JSON data.
-        expected_status: The expected HTTP status code (default is 200).
-    
-    Returns:
-        The parsed JSON data from the response.
-    """
-    assert_api_success(response, expected_status)
-    try:
-        data = response.json()
-        if expected_type:
-            assert isinstance(
-                data, expected_type), f"Expected {expected_type}, got {type(data)}"
-        return data
-    except Exception as e:
-        pytest.fail(
-            f"Invalid JSON response: {e}. Response text: {response.text[:500]}")
 
 
 @pytest_asyncio.fixture
@@ -137,7 +99,7 @@ class TestTenantsAPI:
         try:
             delete_response = await api_client.delete(f"/api/tenants/{tenant_id}")
             if delete_response.status_code == 204:
-                logger.info("✅ Immediate cleanup: deleted %s", tenant_id)
+                logger.info(f"✅ Immediate cleanup: deleted {tenant_id}")
             elif delete_response.status_code in [403, 404]:
                 logger.warning(f"⚠️ Expected cleanup issue: {delete_response.status_code}")
             else:

@@ -3,9 +3,10 @@ updating and deleting payment records, plus role-based query helpers and receipt
 import logging
 import functools
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status, Query, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, field_validator
 from sqlalchemy import and_, or_, Select
@@ -31,6 +32,9 @@ from Backend.utils.llm_utils import analyze_payment_receipt_content
 
 from .helpers import (_ensure_id_is_not_none,
                       check_lease_ownership)
+
+# Import the resilient background deletion task from expenses
+from .expenses import _delete_blob_in_background
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -124,7 +128,7 @@ def _check_payment_ownership(payment: Payment, current_user: User) -> bool:
 
 # === API Models for Payments ===
 class PaymentBase(BaseModel): # Not directly used by endpoints, but good for inheritance if needed
-    amount: float
+    amount: Decimal
     payment_date: datetime
     payment_method: str
     status: PaymentStatus
@@ -151,7 +155,7 @@ class PaymentBase(BaseModel): # Not directly used by endpoints, but good for inh
 
 class PaymentCreate(BaseModel):
     lease_id: int
-    amount: float
+    amount: Decimal
     payment_date: datetime | None = None
     payment_method: str | None = PaymentMethod.OTHER.value
     status: PaymentStatus | None = PaymentStatus.PENDING
@@ -161,7 +165,7 @@ class PaymentCreate(BaseModel):
     receipt_url: str | None = None
 
 class PaymentUpdate(BaseModel):
-    amount: float | None = None
+    amount: Decimal | None = None
     payment_date: datetime | None = None
     payment_method: str | None = None
     status: PaymentStatus | None = None
@@ -173,7 +177,7 @@ class PaymentResponse(BaseModel):
     id: int
     lease_id: int
     tenant_id: int | None = None
-    amount: float
+    amount: Decimal
     payment_date: datetime | None = None
     payment_method: PaymentMethod | None = None
     status: PaymentStatus | None = None
@@ -194,8 +198,8 @@ class PaginatedPaymentsResponse(BaseModel):
 
 class PaymentReceiptParseDetails(BaseModel):
     payment_date: str | None = None
-    subtotal_amount: float | None = None
-    total_amount: float | None = None
+    subtotal_amount: Decimal | None = None
+    total_amount: Decimal | None = None
     currency: str | None = None
     payment_method: str | None = None
     description_notes: str | None = None
@@ -346,6 +350,7 @@ async def _check_for_orphaned_payments(session: AsyncSession, current_user: User
                             if lease_obj and lease_obj.property:
                                 user_id = lease_obj.property.user_id
                         except Exception:
+                            logger.exception("Error during tenant property lookup in orphan check")
                             # Don't let individual lookup failures break the overall count
                             pass
                     
@@ -362,6 +367,7 @@ async def _check_for_orphaned_payments(session: AsyncSession, current_user: User
                             if len(property_user_ids) == 1:
                                 user_id = property_user_ids[0]
                         except Exception:
+                            logger.exception("Error during tenant property user lookup in orphan check")
                             # Don't let individual lookup failures break the overall count
                             pass
                     
@@ -897,6 +903,7 @@ async def update_payment(
 @router.delete("/{payment_id}", status_code=status.HTTP_204_NO_CONTENT) # Corresponds to DELETE /accounting/payments/{payment_id}
 async def delete_payment(
     payment_id: int,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> None:
@@ -920,17 +927,12 @@ async def delete_payment(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this payment")
 
     receipt_url_to_delete = payment_to_delete.receipt_url
+    commit_succeeded = False
     try:
         await session.delete(payment_to_delete)
         await session.commit()
+        commit_succeeded = True
         logger.info(f"Payment {payment_id} deleted successfully by user {current_user.id}")
-        if receipt_url_to_delete:
-            logger.info(f"Attempting to delete receipt blob: {receipt_url_to_delete}")
-            try:
-                await delete_blob_by_url(receipt_url_to_delete)
-                logger.info(f"Successfully deleted blob {receipt_url_to_delete} from Azure Storage.")
-            except Exception as blob_del_exc:
-                 logger.warning(f"Could not delete blob {receipt_url_to_delete} from Azure Storage: {blob_del_exc}")
         return None
     except HTTPException:
         raise
@@ -938,6 +940,10 @@ async def delete_payment(
         await session.rollback()
         logger.error("Error deleting payment %s: %s", payment_id, str(e), exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete payment.") from e
+    finally:
+        # Schedule blob deletion to run in the background after the response is sent
+        if commit_succeeded and receipt_url_to_delete:
+            background_tasks.add_task(_delete_blob_in_background, receipt_url_to_delete)
 
 @router.post("/generate-due", response_model=list[PaymentResponse]) # Renamed from /generate-due-payments
 async def generate_due_payments_for_month( # Renamed function
@@ -990,7 +996,7 @@ async def generate_due_payments_for_month( # Renamed function
                 continue
             
             new_payment = Payment(
-                lease_id=lease.id, tenant_id=actual_tenant_id_for_payment, amount=lease.monthly_rent,
+                lease_id=lease.id, tenant_id=actual_tenant_id_for_payment, amount=Decimal(str(lease.monthly_rent)),
                 payment_date=utc_now(), status=PaymentStatus.PENDING,
                 description=f"Monthly rent payment for {tenant_name}",
                 payment_method=PaymentMethod.OTHER

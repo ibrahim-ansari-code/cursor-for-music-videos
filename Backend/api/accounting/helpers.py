@@ -62,7 +62,7 @@ def _ensure_id_is_not_none(
     if entity_id is None:
         logger.error("Critical error: %s ID is None %s.", entity_name, context)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Critical error: {entity_name} ID missing {context}."
         )
     return entity_id

@@ -174,7 +174,7 @@ try:
 
     logger.info("✅ Routers mounted successfully under /api prefix.")
 except Exception as e:
-    logger.exception("❌ Failed to mount routers:")
+    logger.exception("❌ Failed to mount routers: %s", e)
     raise
 
 # Root endpoint (remains on app, not under /api)

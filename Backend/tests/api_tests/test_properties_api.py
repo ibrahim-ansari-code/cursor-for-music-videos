@@ -9,7 +9,6 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 # Third-party imports
-import httpx
 import pytest
 import pytest_asyncio
 

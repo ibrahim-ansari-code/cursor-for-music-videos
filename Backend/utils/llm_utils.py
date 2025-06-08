@@ -23,11 +23,8 @@ logger = logging.getLogger(__name__)
 
 class PaymentReceiptAnalysisError(Exception):
     """Custom exception for errors during payment receipt analysis."""
-    pass
 
 # Load environment variables from .env file
-
-
 def load_env_vars() -> None:
     """Load environment variables from .env file with improved error handling."""
     try:

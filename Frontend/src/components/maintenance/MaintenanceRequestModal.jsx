@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import PropTypes from "prop-types";
 import { v4 as uuidv4 } from "uuid";
 import {
   fetchProperties,
@@ -130,9 +131,23 @@ const MaintenanceRequestModal = ({
   };
 
   const handleFileChange = async (e) => {
-    const files = Array.from(e.target.files);
-    // Assign a unique id to each file
-    const filesWithIds = files.map((file) => ({
+  const files = Array.from(e.target.files);
+  
+  // Validate files before processing
+  const maxFileSize = 10 * 1024 * 1024; // 10MB
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+    
+  const invalidFiles = files.filter(file => 
+    file.size > maxFileSize || !allowedTypes.includes(file.type)
+  );
+    
+  if (invalidFiles.length > 0) {
+    setPhotoUploadError('Some files are too large or have invalid formats');
+    return;
+  }
+
+  // Assign a unique id to each file
+  const filesWithIds = files.map((file) => ({
       id: uuidv4(),
       file,
       name: file.name,
@@ -155,19 +170,23 @@ const MaintenanceRequestModal = ({
       // Wait for all uploads to complete (both successful and failed)
       const results = await Promise.all(uploadPromises);
       // Update progress and collect URLs/errors
-      const newProgress = [...photoUploadProgress];
       const newPhotos = [];
       const errors = [];
-      results.forEach((result) => {
-        if (result.status === "done") {
-          newProgress.push({ id: result.id, status: "done" });
-          newPhotos.push({ id: result.id, url: result.url });
-        } else {
-          newProgress.push({ id: result.id, status: "error" });
-          errors.push(`File: ${result.error}`);
-        }
+      
+      setPhotoUploadProgress((prevProgress) => {
+        const updatedProgress = [...prevProgress];
+        results.forEach((result) => {
+          if (result.status === "done") {
+            updatedProgress.push({ id: result.id, status: "done" });
+            newPhotos.push({ id: result.id, url: result.url });
+          } else {
+            updatedProgress.push({ id: result.id, status: "error" });
+            errors.push(`File: ${result.error}`);
+          }
+        });
+        return updatedProgress;
       });
-      setPhotoUploadProgress(newProgress);
+      
       // Merge new uploads with any existing photos (track by id)
       setFormData((prev) => ({
         ...prev,
@@ -185,15 +204,15 @@ const MaintenanceRequestModal = ({
     }
   };
 
-  // Remove file by unique id
-  const handleRemoveFile = (fileIdOrUrl) => {
-    setSelectedFiles((prev) => prev.filter((f) => f.id !== fileIdOrUrl && f.url !== fileIdOrUrl));
-    setPhotoUploadProgress((prev) => prev.filter((p) => p.id !== fileIdOrUrl));
-    setFormData((prev) => ({
-      ...prev,
-      photos: (prev.photos ?? []).filter((url) => url !== fileIdOrUrl),
-    }));
-  };
+  // Remove file by unique id or photo URL
+  const handleRemoveFile = (identifier) => {
+    setSelectedFiles((prev) => prev.filter((f) => f.id !== identifier && f.url !== identifier));
+    setPhotoUploadProgress((prev) => prev.filter((p) => p.id !== identifier));
+     setFormData((prev) => ({
+       ...prev,
+      photos: (prev.photos ?? []).filter((url) => url !== identifier),
+     }));
+   };
 
   const validateForm = () => {
     const errors = {};
@@ -775,5 +794,35 @@ const MaintenanceRequestModal = ({
     </ModalShell>
   );
 };
+
+MaintenanceRequestModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSubmit: PropTypes.func.isRequired,
+  request: PropTypes.object,
+  isViewing: PropTypes.bool,
+  isSubmitting: PropTypes.bool,
+  // Internal state documentation for maintainers:
+  // selectedFiles: array of { id: string, file: object, name: string, size: number, lastModified: number, url?: string }
+  // photoUploadProgress: array of { id: string, status: string }
+};
+
+/**
+ * Internal state shapes for documentation:
+ *
+ * selectedFiles: PropTypes.arrayOf(PropTypes.shape({
+ *   id: PropTypes.string.isRequired,
+ *   file: PropTypes.object.isRequired,
+ *   name: PropTypes.string.isRequired,
+ *   size: PropTypes.number.isRequired,
+ *   lastModified: PropTypes.number.isRequired,
+ *   url: PropTypes.string, // optional, after upload
+ * }))
+ *
+ * photoUploadProgress: PropTypes.arrayOf(PropTypes.shape({
+ *   id: PropTypes.string.isRequired,
+ *   status: PropTypes.string.isRequired,
+ * }))
+ */
 
 export default MaintenanceRequestModal;

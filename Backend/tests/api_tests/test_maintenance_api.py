@@ -1,13 +1,13 @@
-import pytest
 import logging
 from typing import Dict, Any
+import pytest
 
 from .conftest import APITestClient
 
 logger = logging.getLogger(__name__)
 
 
-def maintenance_payload(property_id: int, **kwargs) -> Dict[str, Any]:
+def maintenance_payload(property_id: int, **kwargs) -> dict[str, Any]:
     """
     Generates a dictionary representing a maintenance request payload.
     
@@ -121,7 +121,7 @@ class TestMaintenanceAPI:
         assert summary_data["pending"] > 0
         logger.info("✅ Summary Test Passed")
 
-    async def test_unauthorized_access(self, fresh_api_client: APITestClient, created_property_id: int):
+    async def test_unauthorized_access(self, fresh_api_client: APITestClient):
         """
         Verifies that accessing a maintenance request not owned by the user returns a 404 status.
         

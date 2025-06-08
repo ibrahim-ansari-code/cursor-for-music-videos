@@ -505,31 +505,38 @@ const NewPropertyModal = ({
                   id="address-suggestion-listbox"
                 >
                   {suggestions.length > 0 ? (
-                    suggestions.map((suggestion, index) => (
+                    suggestions.map((suggestion, index) => {
+                      const isHighlighted = highlightedIndex === index;
+                      const suggestionButtonClass = `w-full text-left px-4 py-2.5 text-sm border-b border-gray-100 last:border-b-0 transition-colors duration-150 focus:outline-none ${
+                        isHighlighted 
+                          ? "bg-blue-500 text-white" 
+                          : "text-gray-700 hover:bg-blue-500 hover:text-white"
+                      }`;
+
+                      return (
                       <button
                         key={suggestion.id || index}
                         id={`suggestion-option-${index}`}
                         type="button"
                         onClick={() => handleSuggestionClick(suggestion)}
                         onKeyDown={(e) => handleSuggestionKeyDown(e, suggestion)}
-                        className={`w-full text-left px-4 py-2.5 text-sm border-b border-gray-100 last:border-b-0 transition-colors duration-150 focus:outline-none
-                          ${highlightedIndex === index ? "bg-blue-500 text-white" : "text-gray-700 hover:bg-blue-500 hover:text-white"}
-                        `}
+                        className={suggestionButtonClass}
                         role="option"
-                        aria-selected={highlightedIndex === index}
-                        tabIndex={highlightedIndex === index ? 0 : -1}
-                        style={highlightedIndex === index ? { fontWeight: "bold" } : {}}
+                        aria-selected={isHighlighted}
+                        tabIndex={isHighlighted ? 0 : -1}
+                        style={isHighlighted ? { fontWeight: "bold" } : {}}
                       >
                         <div className="font-medium">
                           {suggestion.address.freeformAddress}
                         </div>
-                        <div className={`text-xs ${highlightedIndex === index ? "text-gray-100" : "text-gray-500 hover:text-gray-100"}`}>
+                        <div className={`text-xs ${isHighlighted ? "text-gray-100" : "text-gray-500 hover:text-gray-100"}`}>
                           {suggestion.address.municipality},{" "}
                           {suggestion.address.countrySubdivisionName},{" "}
                           {suggestion.address.countryCode}
                         </div>
                       </button>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="px-4 py-2.5 text-sm text-gray-500">
                       No suggestions found

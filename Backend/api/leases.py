@@ -597,9 +597,6 @@ async def update_lease(
         session.add(lease)  # Add the modified object to the session
         await session.commit()
         # Refresh to get any DB-generated changes and updated relationships
-        await session.refresh(lease)
-
-        # Refresh with relations for response consistency, similar to create_lease
         await session.refresh(lease, attribute_names=['tenant', 'property', 'unit'])
 
         logger.info("Lease updated: %s by user %s. Fields updated: %s",

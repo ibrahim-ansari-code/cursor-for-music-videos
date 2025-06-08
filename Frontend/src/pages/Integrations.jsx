@@ -7,25 +7,9 @@ import {
   disconnectQuickBooks,
 } from '../utils/api';
 import { ModalShell, Button } from '../components/ui/SharedModalComponents';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 // --- Reusable Components (Tailored to Brikli's Style) ---
-
-const LoadingSpinner = () => (
-  <div 
-    className="flex justify-center items-center h-full p-8"
-    role="status"
-    aria-live="polite"
-    aria-label="Loading integrations"
-  >
-    <div className="text-center">
-      <div 
-        className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"
-        aria-hidden="true"
-      ></div>
-      <p className="mt-3 text-gray-600" id="loading-text">Loading Integrations...</p>
-    </div>
-  </div>
-);
 
 const ErrorMessage = ({ error, onRetry }) => {
   if (!error) return null;
@@ -321,7 +305,7 @@ const Integrations = () => {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner message="Loading Integrations..." />;
   }
 
   return (

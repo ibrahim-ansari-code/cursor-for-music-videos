@@ -5,6 +5,8 @@ API tests for Accounting operations.
 import pytest
 import logging
 import httpx
+import json
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +25,13 @@ def assert_api_success(response: httpx.Response, expected_status: int = 200) -> 
     )
 
 
-def assert_valid_json_response(response: httpx.Response, expected_type=None):
+def assert_valid_json_response(response: httpx.Response, expected_type: type | tuple[type, ...] | None = None) -> Any:
     """
     Asserts that the HTTP response contains valid JSON and optionally matches an expected type.
     
     Args:
         response: The HTTP response to validate.
-        expected_type: Optional type to check against the parsed JSON data.
+        expected_type: Optional type or tuple of types to check against the parsed JSON data.
     
     Returns:
         The parsed JSON data if validation succeeds.
@@ -44,7 +46,7 @@ def assert_valid_json_response(response: httpx.Response, expected_type=None):
             assert isinstance(
                 data, expected_type), f"Expected {expected_type}, got {type(data)}"
         return data
-    except Exception as e:
+    except json.JSONDecodeError as e:
         pytest.fail(
             f"Invalid JSON response: {e}. Response text: {response.text[:500]}")
 
@@ -159,7 +161,7 @@ class TestAccountingAPI:
         logger.info("Testing GET /api/accounting/insights/occupancy...")
         
         response = await api_client.get("/api/accounting/insights/occupancy")
-        occupancy = assert_valid_json_response(response, (dict, list))
+        assert_valid_json_response(response, (dict, list))
         
         logger.info(f"✅ GET /api/accounting/insights/occupancy successful, status 200")
 

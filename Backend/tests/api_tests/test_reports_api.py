@@ -49,7 +49,11 @@ class TestReportsAPI:
         logger.info("✅ Reports GET operation for %s completed", endpoint)
 
     @pytest.mark.asyncio
-    async def test_report_summary_endpoint(self, api_client: APITestClient, created_landlord_property: int) -> None:
+    async def test_report_summary_endpoint(
+        self,
+        api_client: APITestClient,
+        created_landlord_property: int  # Fixture to ensure data exists for the report
+    ) -> None:
         """
         Tests the GET /api/reports/summary endpoint for correct response structure and error handling.
         

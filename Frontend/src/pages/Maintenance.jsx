@@ -60,8 +60,6 @@ const Maintenance = () => {
       ]);
       if (summaryData) setSummary(summaryData);
       
-      setSummary(summaryData);
-      
       if (resetData || page === 1) {
         setRequests(requestsData.results || requestsData);
       } else {

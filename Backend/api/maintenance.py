@@ -239,7 +239,10 @@ async def list_maintenance_requests(
     Returns:
         A list of maintenance requests matching the specified filters.
     """
-    logger.info(f"User {current_user.id} listing maintenance requests with filters: status={req_status}, priority={priority}, property_id={property_id}, unit_id={unit_id}, tenant_id={tenant_id}, assigned_to={assigned_to}")
+    logger.info(
+        "User %s listing maintenance requests with filters: status=%s, priority=%s, property_id=%s, unit_id=%s, tenant_id=%s, assigned_to=%s",
+        current_user.id, req_status, priority, property_id, unit_id, tenant_id, assigned_to
+    )
 
     query = select(MaintenanceRequest).options(
         selectinload(getattr(MaintenanceRequest, "property")),

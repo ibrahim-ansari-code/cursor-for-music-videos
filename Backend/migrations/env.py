@@ -39,9 +39,17 @@ target_metadata = SQLModel.metadata
 
 # ───────────────────────────────────────────────
 # Ensure project root is in sys.path
-project_root = str(Path(__file__).resolve().parents[1])
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+try:
+    # Assumes env.py is in Backend/migrations/
+    # parents[0] is the 'migrations' dir
+    # parents[1] is the 'Backend' dir
+    # parents[2] is the project root
+    project_root = str(Path(__file__).resolve().parents[2])
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+except IndexError:
+    # Fallback or error if the directory structure is not as expected
+    raise RuntimeError("Could not determine project root from migrations env.py.")
 
 # Import settings and swap driver to psycopg2 for Alembic
 
