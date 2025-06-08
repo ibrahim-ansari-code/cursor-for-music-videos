@@ -29,7 +29,6 @@ def initialize_models():
         print(f"Error configuring SQLAlchemy mappers: {e}")
         raise
 
-initialize_models()
 
 # SQLModel and Enum imports from local model files
 from .user import User

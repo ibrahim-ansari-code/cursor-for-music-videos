@@ -261,8 +261,10 @@ class AuthTestManager:
             logger.info(
                 f"Attempting to refresh token for {email} using saved refresh token...")
             try:
-                session_response = self.supabase.auth.refresh_session(
-                    refresh_token=creds["refresh_token"])
+                session_response = await asyncio.to_thread(
+                    self.supabase.auth.refresh_session,
+                    refresh_token=creds["refresh_token"],
+ )
                 if session_response.session and session_response.user:
                     logger.info(f"Token refreshed successfully for {email}.")
                     updated_creds = {
@@ -357,7 +359,7 @@ class AuthTestManager:
             return False
         logger.info(f"Verifying token with Supabase: {token[:30]}...")
         try:
-            user_response = self.supabase.auth.get_user(token)
+            user_response = await asyncio.to_thread(self.supabase.auth.get_user, token)
             if user_response and user_response.user:
                 logger.info(
                     f"Token VERIFIED for Supabase user: {user_response.user.email} (ID: {user_response.user.id})")

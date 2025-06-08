@@ -50,6 +50,9 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
   const [showReceiptPreview, setShowReceiptPreview] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState("");
   const propertySearchInputRef = useRef(null);
+  
+  // Add AbortController ref for receipt parsing
+  const receiptParseAbortControllerRef = useRef(null);
 
   useEffect(() => {
     const loadProperties = async () => {
@@ -78,6 +81,28 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
     }
   }, [isOpen]);
 
+  // Cleanup function for aborting receipt parsing when modal closes or component unmounts
+  useEffect(() => {
+    return () => {
+      // Abort any ongoing receipt parsing request when component unmounts
+      if (receiptParseAbortControllerRef.current) {
+        receiptParseAbortControllerRef.current.abort();
+        receiptParseAbortControllerRef.current = null;
+      }
+    };
+  }, []);
+
+  // Additional cleanup when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      // Abort any ongoing receipt parsing request when modal closes
+      if (receiptParseAbortControllerRef.current) {
+        receiptParseAbortControllerRef.current.abort();
+        receiptParseAbortControllerRef.current = null;
+      }
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     const subtotal = Number.parseFloat(formData.amount) || 0;
     let totalTax = 0;
@@ -103,6 +128,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleTaxInputChange = (index, e) => {
     const { name, value } = e.target;
+    // Ensure immutable update by creating a completely new array
     const updatedTaxes = formData.taxes.map((tax, i) =>
       i === index ? { ...tax, [name]: value } : tax
     );
@@ -110,6 +136,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const addTaxItem = () => {
+    // Ensure immutable update by creating a new array with spread operator
     setFormData((prev) => ({
       ...prev,
       taxes: [...prev.taxes, { tax_name: "", tax_rate: "" }],
@@ -117,6 +144,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const removeTaxItem = (index) => {
+    // Ensure immutable update by creating a new array with filter
     setFormData((prev) => ({
       ...prev,
       taxes: prev.taxes.filter((_, i) => i !== index),
@@ -126,6 +154,15 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
   const handleReceiptFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Abort any existing receipt parsing request
+      if (receiptParseAbortControllerRef.current) {
+        receiptParseAbortControllerRef.current.abort();
+      }
+
+      // Create new AbortController for this request
+      const abortController = new AbortController();
+      receiptParseAbortControllerRef.current = abortController;
+
       setReceiptFile(file);
       setReceiptParseError(null);
       setIsParsingReceipt(true);
@@ -134,11 +171,19 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
       const formDataForApi = new FormData();
       formDataForApi.append("file", file);
       try {
-        const response = await parseExpenseReceiptAPI(formDataForApi);
+        const response = await parseExpenseReceiptAPI(formDataForApi, {
+          signal: abortController.signal, // Pass abort signal to API call
+        });
+        
+        // Check if request was aborted
+        if (abortController.signal.aborted) {
+          return; // Don't process the response if aborted
+        }
+
         if (response && response.parsed_details) {
           const { parsed_details, receipt_url: parsedReceiptUrl } = response;
           let updatedAmount = formData.amount;
-          let updatedTaxes = formData.taxes;
+          let updatedTaxes = [...formData.taxes]; // Create new array reference
 
           if (
             parsed_details.subtotal_amount !== null &&
@@ -154,6 +199,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
               const taxRate =
                 (totalTaxParsed / parsed_details.subtotal_amount) * 100;
               if (taxRate > 0) {
+                // Create new array with new tax object
                 updatedTaxes = [
                   {
                     tax_name: "Sales Tax (auto)",
@@ -161,20 +207,23 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
                   },
                 ];
               } else {
+                // Create new array with default tax object
                 updatedTaxes = [{ tax_name: "", tax_rate: "" }];
               }
             } else {
+              // Create new array with default tax object
               updatedTaxes = [{ tax_name: "", tax_rate: "" }];
             }
           } else if (parsed_details.total_amount !== null) {
             updatedAmount = parsed_details.total_amount.toString();
+            // Create new array with default tax object
             updatedTaxes = [{ tax_name: "", tax_rate: "" }];
           }
 
           setFormData((prev) => ({
             ...prev,
             amount: updatedAmount,
-            taxes: updatedTaxes,
+            taxes: updatedTaxes, // Assign the new array reference
             expense_date:
               parsed_details.payment_date ||
               prev.expense_date ||
@@ -188,10 +237,22 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
           throw new Error("Invalid response from receipt parser.");
         }
       } catch (err) {
+        // Don't show error if request was aborted (modal closed)
+        if (err.name === 'AbortError' || abortController.signal.aborted) {
+          console.log("Receipt parsing was aborted");
+          return;
+        }
         setReceiptParseError(err.message || "Failed to parse receipt.");
         toast.error(err.message || "Failed to parse receipt.");
       } finally {
-        setIsParsingReceipt(false);
+        // Only update loading state if request wasn't aborted
+        if (!abortController.signal.aborted) {
+          setIsParsingReceipt(false);
+        }
+        // Clear the abort controller reference
+        if (receiptParseAbortControllerRef.current === abortController) {
+          receiptParseAbortControllerRef.current = null;
+        }
       }
     }
   };
@@ -574,12 +635,12 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
                 } else if (lowerUrl.endsWith(".pdf")) {
                   const pdfDisplayUrl = `${url}#view=FitH`;
                   return (
-                    <iframe
-                      src={pdfDisplayUrl}
-                      title="Receipt Preview"
-                      className="w-full h-full border-0"
-                    />
-                  );
+                  <iframe
+                    src={pdfDisplayUrl}
+                    title="Receipt Preview"
+                    className="w-full h-full border-0"
+                    sandbox="allow-same-origin allow-scripts"
+                  />);
                 } else {
                   return (
                     <iframe

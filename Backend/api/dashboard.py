@@ -90,7 +90,6 @@ async def get_dashboard_data(
     Raises:
         HTTPException: If the user does not have ADMIN or LANDLORD privileges.
     """
-    # Convert user_type to uppercase for comparison
     if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -341,7 +340,7 @@ async def get_dashboard_data(
             amount=float(row['amount']),
             due_date=row['due_date'],
             days_overdue=row['days_overdue'],
-            status=row['status']
+            status=PaymentStatus(row['status'])
         ))
 
     return DashboardResponse(

@@ -59,7 +59,9 @@ async def _upload_to_blob(
         '.', '-', '_') else '_' for c in original_filename)
     safe_filename_suffix = safe_filename_suffix[-safe_filename_suffix_limit:]
 
-    blob_name = f"user_{str(user_id)}/{uuid.uuid4()}_{safe_filename_suffix}"
+    # Sanitize user_id to prevent path traversal
+    safe_user_id = str(user_id).replace("/", "_")
+    blob_name = f"user_{safe_user_id}/{uuid.uuid4()}_{safe_filename_suffix}"
 
     container_client = blob_service_client.get_container_client(container_name)
     try:
@@ -82,7 +84,7 @@ async def _upload_to_blob(
 
     try:
         # Reset the stream's pointer to the beginning before uploading
-        await file.seek(0)
+        file.seek(0)  # type: ignore
         # Pass the underlying file-like object (UploadFile.file) for streaming
         await blob_client.upload_blob(
             data=file.file,
@@ -90,7 +92,7 @@ async def _upload_to_blob(
             content_settings=blob_content_settings,
         )
         # FastAPI's UploadFile exposes a synchronous close()
-        await file.close()
+        file.close()  # type: ignore
         logger.info("Successfully uploaded %s to %s/%s",
                     default_filename_prefix, container_name, blob_name)
     except Exception as e:

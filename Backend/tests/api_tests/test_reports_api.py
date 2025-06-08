@@ -18,48 +18,35 @@ class TestReportsAPI:
     """Test suite for Reports API endpoints"""
 
     @pytest.mark.asyncio
-    async def test_reports_get_operations(self, api_client: APITestClient) -> None:
+    @pytest.mark.parametrize("endpoint", [
+        "/api/reports/summary",
+        "/api/reports/revenue",      # This might not exist
+        "/api/reports/occupancy",    # This might not exist
+        "/api/reports/maintenance"   # This might not exist
+    ])
+    async def test_reports_get_operations(self, api_client: APITestClient, endpoint: str) -> None:
         """
-        Tests multiple GET endpoints under /api/reports to verify their availability and response format.
-        
-        Sends asynchronous GET requests to several reports endpoints and accepts both HTTP 200 (valid response) and 404 (endpoint not implemented) as valid outcomes. Asserts that a 200 response contains valid JSON data in either dictionary or list form. Logs and handles unexpected status codes and HTTP errors.
+        Tests a single GET endpoint under /api/reports to verify its availability and response format.
+        Accepts both HTTP 200 (valid response) and 404 (endpoint not implemented) as valid outcomes. Asserts that a 200 response contains valid JSON data in either dictionary or list form. Logs and handles unexpected status codes and HTTP errors.
         """
-        logger.info("Testing reports GET operations...")
-
-        # Test basic reports endpoints that should be available
-        # Note: The reports router is mounted at /api/reports (api prefix + reports prefix)
-        report_endpoints = [
-            "/api/reports/summary",
-            "/api/reports/revenue",      # This might not exist
-            "/api/reports/occupancy",    # This might not exist
-            "/api/reports/maintenance"   # This might not exist
-        ]
-
-        for endpoint in report_endpoints:
-            try:
-                logger.info("Testing GET %s...", endpoint)
-                response = await api_client.get(endpoint)
-
-                # Accept both 200 (success) and 404 (not implemented yet)
-                if response.status_code == 200:
-                    # Removed data assignment
-                    assert_valid_json_response(response, (dict, list))
-                    logger.info("✅ GET %s successful, returned data", endpoint)
-                elif response.status_code == 404:
-                    logger.info(
-                        "⚠️ GET %s returned 404 (not implemented)", endpoint)
-                else:
-                    logger.warning(
-                        "⚠️ GET %s returned unexpected status: %s", endpoint, response.status_code)
-
-            except httpx.HTTPError as e:  # Catch specific httpx errors
-                logger.exception(
-                    "⚠️ GET %s failed with HTTPError: %s", endpoint, e)
-            except Exception as e:  # Catch any other unexpected errors
-                logger.exception(
-                    "⚠️ GET %s failed with an unexpected error: %s", endpoint, e)
-
-        logger.info("✅ Reports GET operations testing completed")
+        logger.info("Testing GET %s...", endpoint)
+        try:
+            response = await api_client.get(endpoint)
+            # Accept both 200 (success) and 404 (not implemented yet)
+            if response.status_code == 200:
+                assert_valid_json_response(response, (dict, list))
+                logger.info("✅ GET %s successful, returned data", endpoint)
+            elif response.status_code == 404:
+                logger.info("⚠️ GET %s returned 404 (not implemented)", endpoint)
+            else:
+                logger.warning("⚠️ GET %s returned unexpected status: %s", endpoint, response.status_code)
+        except httpx.HTTPError as e:
+            logger.exception("❌ GET %s failed with HTTPError: %s", endpoint, e)
+            pytest.fail(f"GET {endpoint} raised HTTPError: {e}")  # fail fast
+        except Exception as e:
+            logger.exception("❌ GET %s failed with unexpected error: %s", endpoint, e)
+            pytest.fail(f"GET {endpoint} raised unexpected error: {e}")
+        logger.info("✅ Reports GET operation for %s completed", endpoint)
 
     @pytest.mark.asyncio
     async def test_report_summary_endpoint(self, api_client: APITestClient, created_landlord_property: int) -> None:

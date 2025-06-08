@@ -89,7 +89,7 @@ class LeaseDocument(SQLModel, table=True):
     uploaded_by_id: PythonUUID | None = Field(
         default=None,
         sa_column=Column(PG_UUID(as_uuid=True), ForeignKey(
-            "users.id", ondelete="SET NULL"))
+            "users.id", ondelete="SET NULL"), index=True)
     )
 
     # Relationships

@@ -11,7 +11,8 @@ const FilePreviewModal = ({
   }
 
   const isImage = (url) => {
-    const extension = url.split(".").pop()?.toLowerCase();
+    const cleanUrl = url.split(/[?#]/)[0];      // drop ?query and #hash
+    const extension = cleanUrl.split(".").pop()?.toLowerCase();
     return ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"].includes(
       extension
     );
@@ -36,8 +37,8 @@ const FilePreviewModal = ({
           title={fileName}
           className="w-full h-full border-0"
           allowFullScreen
-          // sandbox="allow-scripts allow-same-origin" // Consider sandbox for security if files are from untrusted sources
-        >
+          sandbox="allow-same-origin allow-downloads"
+         >
           Your browser does not support iframes. You can{" "}
           <a href={fileUrl} target="_blank" rel="noopener noreferrer">
             download the file

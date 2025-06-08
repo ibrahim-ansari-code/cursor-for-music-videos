@@ -159,8 +159,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
         if (response?.parsed_details) {
           const { parsed_details, receipt_url: parsedReceiptUrl } = response;
           setCurrentReceiptUrl(parsedReceiptUrl); // Set new receipt URL immediately
-          // Optionally update form fields based on parsed data, if desired for edit modal
-          // For now, primary focus is updating the receipt URL
+          setFormData((prev) => ({ ...prev, receipt_url: parsedReceiptUrl })); // Keep formData in sync
           toast.success(
             response.message || "New receipt parsed and ready to save."
           );
@@ -428,13 +427,14 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
             Error: {receiptParseError}
           </p>
         )}
-        {formData.receipt_url && !isParsingReceipt && (
+        {currentReceiptUrl && !isParsingReceipt && (
           <div className="mt-2">
             <Button
               type="button"
               variant="secondary"
               onClick={() => setShowReceiptPreview(!showReceiptPreview)}
               className="text-sm py-1.5"
+              disabled={isParsingReceipt}
             >
               {showReceiptPreview ? (
                 <>
@@ -451,7 +451,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
           </div>
         )}
         <AnimatePresence>
-          {showReceiptPreview && formData.receipt_url && (
+          {showReceiptPreview && currentReceiptUrl && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "24rem" }}
@@ -460,7 +460,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
               className="mt-3 border rounded-lg overflow-hidden shadow bg-gray-50"
             >
               {(() => {
-                const url = formData.receipt_url;
+                const url = currentReceiptUrl;
                 const lowerUrl = url.toLowerCase();
                 if (
                   lowerUrl.endsWith(".png") ||

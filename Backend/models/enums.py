@@ -32,17 +32,35 @@ class MaintenancePriority(str, Enum):
     - MEDIUM: Important issues requiring attention but not immediate action
     - HIGH: Critical issues requiring immediate attention to prevent damage or safety concerns
     """
-    LOW = "Low"
-    MEDIUM = "Medium"
-    HIGH = "High"
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            try:
+                return cls(value.upper())
+            except ValueError:
+                pass
+        return super()._missing_(value)
 
 
 class MaintenanceStatus(str, Enum):
     """
     Defines status states for maintenance requests throughout their lifecycle.
     """
-    PENDING = "Pending"
-    IN_PROGRESS = "In Progress"
-    SCHEDULED = "Scheduled"
-    COMPLETED = "Completed"
-    CANCELLED = "Cancelled"
+    PENDING = "PENDING"
+    IN_PROGRESS = "IN_PROGRESS"
+    SCHEDULED = "SCHEDULED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            try:
+                return cls(value.upper())
+            except ValueError:
+                pass
+        return super()._missing_(value)

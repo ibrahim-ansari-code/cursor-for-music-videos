@@ -47,8 +47,10 @@ class TestLeasesAPI:
             specific_response = await api_client.get(f"/api/leases/{lease_id}")
             lease_detail = assert_valid_json_response(specific_response, dict)
 
-            # Verify lease detail contains expected fields
+# Verify lease detail contains expected fields
             assert lease_detail["id"] == lease_id
+            assert isinstance(lease_detail["tenant_id"], (int, type(None)))
+            assert isinstance(lease_detail["property_id"], (int, type(None)))
             assert "tenant_id" in lease_detail
             assert "property_id" in lease_detail
             assert "start_date" in lease_detail

@@ -5,6 +5,9 @@ from datetime import date, datetime, UTC
 from typing import Any
 from enum import Enum
 
+# Compile regex pattern once at module level for performance
+_TABLE_ALIAS_PATTERN = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -68,7 +71,7 @@ def _build_safe_ownership_filter(filter_type: FilterType, table_alias: str = "pr
     
     # Validate table_alias to prevent SQL injection - only allow letters, digits, underscores
     # Must start with letter only (a-z or A-Z), followed by letters, digits, or underscores
-    if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]*$', table_alias):
+    if not _TABLE_ALIAS_PATTERN.match(table_alias):
         raise ValueError(f"Invalid table alias '{table_alias}'. Must contain only letters, digits, and underscores, starting with a letter.")
     
     pattern = _OWNERSHIP_FILTER_PATTERNS[filter_type]
@@ -248,7 +251,7 @@ async def get_occupancy_rates(
         total = row['total_units'] or 0
         occupied = row['occupied_units'] or 0
         vacant = total - occupied
-        rate = (occupied / total * 100) if total > 0 else 0.0
+        rate = round((occupied / total * 100), 2) if total > 0 else 0.0
         response_list.append(
             OccupancyResponse(
                 property_id=row['property_id'], property_name=row['property_name'],

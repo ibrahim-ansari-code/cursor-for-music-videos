@@ -45,5 +45,5 @@ class Invoice(SQLModel, table=True):
         sa_column=Column(DateTime(timezone=True), nullable=False)
     )
 
-    property: Optional["Property"] = Relationship()
-    tenant: Optional["Tenant"] = Relationship() 
+    property: Optional["Property"] = Relationship(back_populates="invoices")
+    tenant: Optional["Tenant"] = Relationship(back_populates="invoices") 

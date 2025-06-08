@@ -5,6 +5,7 @@ import {
   getQuickBooksStatus,
   disconnectQuickBooks,
 } from '../utils/api';
+import { ModalShell, Button } from '../components/ui/SharedModalComponents';
 
 // --- Reusable Components (Tailored to Brikli's Style) ---
 
@@ -183,12 +184,54 @@ const PlaceholderCard = () => (
   </section>
 );
 
+const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirmText = "Confirm", cancelText = "Cancel", variant = "danger" }) => {
+  if (!isOpen) return null;
+
+  const footerContent = (
+    <>
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={onClose}
+        aria-label={cancelText}
+      >
+        {cancelText}
+      </Button>
+      <Button
+        type="button"
+        variant={variant}
+        onClick={onConfirm}
+        aria-label={confirmText}
+      >
+        {confirmText}
+      </Button>
+    </>
+  );
+
+  return (
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title={title}
+      footerContent={footerContent}
+      maxWidth="max-w-md"
+    >
+      <div className="py-4">
+        <p className="text-gray-700 leading-relaxed">
+          {message}
+        </p>
+      </div>
+    </ModalShell>
+  );
+};
+
 // --- Main Page Component ---
 const Integrations = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [quickBooksStatus, setQuickBooksStatus] = useState({ connected: false });
   const [actionLoading, setActionLoading] = useState(false);
+  const [showConfirmDisconnect, setShowConfirmDisconnect] = useState(false);
 
   useEffect(() => {
     fetchQuickBooksStatus();
@@ -238,11 +281,13 @@ const Integrations = () => {
     }
   };
 
-  const handleDisconnect = async () => {
-    if (!window.confirm('Are you sure you want to disconnect from QuickBooks? This will stop syncing your accounting data.')) {
-      return;
-    }
+  const handleDisconnect = () => {
+    setShowConfirmDisconnect(true);
+  };
 
+  const handleConfirmDisconnect = async () => {
+    setShowConfirmDisconnect(false);
+    
     try {
       setActionLoading(true);
       setError(null);
@@ -257,6 +302,10 @@ const Integrations = () => {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleCancelDisconnect = () => {
+    setShowConfirmDisconnect(false);
   };
 
   if (loading) {
@@ -285,6 +334,18 @@ const Integrations = () => {
 
           <PlaceholderCard />
         </div>
+
+        {/* Confirmation Modal for Disconnect */}
+        <ConfirmationModal
+          isOpen={showConfirmDisconnect}
+          onClose={handleCancelDisconnect}
+          onConfirm={handleConfirmDisconnect}
+          title="Disconnect from QuickBooks"
+          message="Are you sure you want to disconnect from QuickBooks? This will stop syncing your accounting data and you'll need to reconnect to resume synchronization."
+          confirmText="Disconnect"
+          cancelText="Cancel"
+          variant="danger"
+        />
       </div>
     </main>
   );

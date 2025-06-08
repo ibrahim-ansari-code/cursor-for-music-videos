@@ -189,8 +189,7 @@ def validate_apideck_config() -> None:
         )
     logger.info("Apideck configuration validated successfully")
 
-# Call validation at module import time - fail fast if incomplete
-validate_apideck_config()
+# Do NOT raise on import – lazily validate inside route handlers
 
 # === API Models for QuickBooks Integration ===
 

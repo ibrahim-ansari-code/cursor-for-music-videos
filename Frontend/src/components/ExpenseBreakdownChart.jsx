@@ -34,6 +34,18 @@ const ExpenseBreakdownChart = ({ expenses = [] }) => {
     (label, i) => `${label} ${percentages[i]}%`
   );
 
+  // Memoize formatted values for tooltips
+  const formattedValues = React.useMemo(
+    () =>
+      data.map((value) =>
+        Number(value).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })
+      ),
+    [data]
+  );
+
   const chartData = {
     labels: labelsWithPercentages,
     datasets: [
@@ -78,11 +90,8 @@ const ExpenseBreakdownChart = ({ expenses = [] }) => {
           label: (context) => {
             const categoryLabel =
               context.chart.data.labels[context.dataIndex].split(" ")[0];
-            const value = context.raw;
-            return `${categoryLabel}: $${Number(value).toLocaleString(
-              undefined,
-              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-            )}`;
+            const formatted = formattedValues[context.dataIndex];
+            return `${categoryLabel}: ${formatted}`;
           },
         },
       },

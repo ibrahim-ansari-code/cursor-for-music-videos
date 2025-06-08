@@ -137,10 +137,10 @@ def _calculate_expense_taxes(
 
     if expense_data.taxes is not None:
         for tax_item_data in expense_data.taxes:
-            if tax_item_data.tax_rate <= 0:
+            if tax_item_data.tax_rate < 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid tax rate for '{tax_item_data.tax_name}': {tax_item_data.tax_rate}%. Tax rate must be greater than zero (positive value required)."
+                    detail=f"Invalid tax rate for '{tax_item_data.tax_name}': {tax_item_data.tax_rate}%. Tax rate must not be negative."
                 )
             item_tax_amount = (current_subtotal * tax_item_data.tax_rate) / Decimal("100")
             calculated_total_tax_amount += item_tax_amount
@@ -224,8 +224,8 @@ async def _update_expense_basic_fields(
         blob_to_delete = await _handle_receipt_url_update(db_expense, update_payload["receipt_url"], old_receipt_url)
     
     if "subtotal_amount" in update_payload and update_payload["subtotal_amount"] is not None:
-        new_subtotal = Decimal(str(update_payload["subtotal_amount"])).quantize(Decimal('0.01'))
-        current_subtotal = Decimal(str(db_expense.subtotal_amount)).quantize(Decimal('0.01'))
+        new_subtotal = Decimal(update_payload["subtotal_amount"]).quantize(Decimal('0.01'))
+        current_subtotal = Decimal(db_expense.subtotal_amount).quantize(Decimal('0.01'))
         
         # Use direct inequality comparison after quantizing both Decimals
         if current_subtotal != new_subtotal:

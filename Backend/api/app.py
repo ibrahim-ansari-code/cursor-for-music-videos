@@ -88,7 +88,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         form_fields = {}
         file_fields = {}
         try:
-            for key, value in exc.body.items():
+            for key, value in exc.body.multi_items():
                 if isinstance(value, UploadFile):
                     file_fields[key] = value.filename if value.filename is not None else "[FileUploadWithoutName]"
                 elif isinstance(value, str):  # Standard form fields

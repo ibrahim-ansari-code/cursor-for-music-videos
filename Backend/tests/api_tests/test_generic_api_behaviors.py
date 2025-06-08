@@ -130,9 +130,8 @@ class TestGenericAPIBehaviors:
         # Test unsupported methods on a known endpoint
         endpoint = "/api/accounting/payments"
 
-        # Manually create a PATCH request (assuming this endpoint doesn't support PATCH)
-        headers = api_client._get_headers()
-        patch_response = await api_client.client.patch(f"{api_client.base_url}{endpoint}", headers=headers)
+        # Test unsupported PATCH method using the public API client method
+        patch_response = await api_client.patch(endpoint)
 
         # Should return 405 Method Not Allowed or 404 (depends on framework routing)
         assert patch_response.status_code in [
@@ -148,18 +147,15 @@ class TestGenericAPIBehaviors:
         """
         logger.info("Testing malformed JSON payload handling...")
 
-        # Create a request with malformed JSON
-        headers = api_client._get_headers()
-        headers["Content-Type"] = "application/json"
-
-        # Send malformed JSON to a POST endpoint
+        # Send malformed JSON to a POST endpoint using a custom request method
         malformed_json = '{"invalid": json, missing quotes}'
 
-        # Use httpx client directly to send raw malformed JSON
-        response = await api_client.client.post(
-            f"{api_client.base_url}/api/accounting/payments",
-            headers=headers,
-            content=malformed_json
+        # Use the public method to send raw malformed JSON with custom content
+        response = await api_client.request(
+            method="POST",
+            endpoint="/api/accounting/payments",
+            content=malformed_json,
+            content_type="application/json"
         )
 
         # Should return 400 or 422 for malformed JSON (422 is also acceptable for validation errors)

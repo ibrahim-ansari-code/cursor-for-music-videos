@@ -45,7 +45,12 @@ class User(SQLModel, table=True):
     # Define tenant_details relationship directly
     tenant_details: Optional["Tenant"] = Relationship(back_populates="user")
     maintenance_requests: list["MaintenanceRequest"] = Relationship(
-        back_populates="user")
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
 
     # Integration connections (QuickBooks, Xero, etc.)
-    integrations: list["Integration"] = Relationship(back_populates="user")
+    integrations: list["Integration"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )

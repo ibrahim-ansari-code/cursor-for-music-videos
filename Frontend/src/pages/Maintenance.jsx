@@ -22,8 +22,8 @@ const Maintenance = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20); // Items per page
-  const [totalItems, setTotalItems] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0); // Accurate total from API
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRequest, setEditingRequest] = useState(null);
@@ -42,7 +42,13 @@ const Maintenance = () => {
       
       // Add status filter if not "All Requests"
       if (statusFilter !== "All Requests") {
-        params.req_status = statusFilter;
+        // map UI label ➜ API enum
+        const map = {
+          "Pending": "pending",
+          "In Progress": "in_progress",
+          "Completed": "completed",
+        };
+        params.req_status = map[statusFilter] ?? statusFilter;
       }
       
       const [summaryData, requestsData] = await Promise.all([
@@ -53,23 +59,14 @@ const Maintenance = () => {
       setSummary(summaryData);
       
       if (resetData || page === 1) {
-        setRequests(requestsData);
+        setRequests(requestsData.results || requestsData);
       } else {
         // For pagination, append new data (if implementing "load more" behavior)
-        setRequests(prev => [...prev, ...requestsData]);
+        setRequests(prev => [...prev, ...(requestsData.results || requestsData)]);
       }
-      
       // Update pagination state
-      setHasMore(requestsData.length === pageSize);
-      setTotalItems(prev => {
-        if (resetData || page === 1) {
-          // For first page or when filtering, we can't determine total from this response alone
-          // We'll estimate based on the current response
-          return requestsData.length === pageSize ? pageSize * 2 : requestsData.length;
-        }
-        return prev + requestsData.length;
-      });
-      
+      setHasMore((requestsData.results || requestsData).length === pageSize);
+      setTotalCount(requestsData.total ?? (requestsData.results ? requestsData.results.length : requestsData.length));
     } catch (err) {
       setError(err.message || "Failed to fetch maintenance data.");
     } finally {
@@ -80,12 +77,6 @@ const Maintenance = () => {
   useEffect(() => {
     fetchData(1, true);
   }, [statusFilter]); // Refetch when status filter changes
-
-  useEffect(() => {
-    if (currentPage === 1) {
-      fetchData(1, true);
-    }
-  }, []); // Initial load
 
   const handleModalSubmit = async (formData) => {
     setIsSubmitting(true);
@@ -287,13 +278,15 @@ const Maintenance = () => {
             <div className="mt-6 flex items-center justify-between">
               <div className="text-sm text-gray-700">
                 Showing page {currentPage} ({requests.length} items)
+                {typeof totalCount === "number" && totalCount > 0 && (
+                  <span className="ml-2">of {totalCount} total</span>
+                )}
                 {statusFilter !== "All Requests" && (
                   <span className="ml-2 text-blue-600">
                     Filtered by: {statusFilter}
                   </span>
                 )}
               </div>
-              
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
@@ -302,11 +295,9 @@ const Maintenance = () => {
                 >
                   Previous
                 </button>
-                
                 <span className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md">
                   Page {currentPage}
                 </span>
-                
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={!hasMore || loading}
@@ -314,7 +305,6 @@ const Maintenance = () => {
                 >
                   Next
                 </button>
-                
                 {hasMore && (
                   <button
                     onClick={handleLoadMore}

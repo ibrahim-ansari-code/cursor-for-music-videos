@@ -107,6 +107,8 @@ const NewPropertyModal = ({
   // const [isSubmittingUnits, setIsSubmittingUnits] = useState(false); // Unit submission is part of main submit now
 
   const suggestionsRef = useRef(null);
+  const latestQueryRef = useRef("");
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   // modalRef is now managed by ModalShell
 
   useEffect(() => {
@@ -191,16 +193,24 @@ const NewPropertyModal = ({
 
   const debouncedFetch = useCallback(
     debounce(async (query) => {
+      latestQueryRef.current = query;
       setIsSuggestionLoading(true);
       try {
         const results = await fetchAddressSuggestions(query);
-        setSuggestions(results);
-        setShowSuggestions(results.length > 0);
+        // Only update if this is still the latest query
+        if (latestQueryRef.current === query) {
+          setSuggestions(results);
+          setShowSuggestions(results.length > 0);
+        }
       } catch (fetchError) {
+        if (latestQueryRef.current === query) {
+          setSuggestions([]);
+        }
         console.error("Error in debounced fetch:", fetchError);
-        setSuggestions([]);
       } finally {
-        setIsSuggestionLoading(false);
+        if (latestQueryRef.current === query) {
+          setIsSuggestionLoading(false);
+        }
       }
     }, 350),
     []
@@ -429,6 +439,9 @@ const NewPropertyModal = ({
               placeholder="Enter street address (e.g., 123 Main St)"
               required
               autoComplete="off"
+              aria-autocomplete="list"
+              aria-controls="address-suggestion-listbox"
+              aria-activedescendant={highlightedIndex >= 0 ? `suggestion-option-${highlightedIndex}` : undefined}
             />
             {isSuggestionLoading && (
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -465,18 +478,20 @@ const NewPropertyModal = ({
                   ref={suggestionsRef}
                   className="absolute z-40 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
                   role="listbox"
+                  id="address-suggestion-listbox"
                 >
                   {suggestions.length > 0 ? (
                     suggestions.map((suggestion, index) => (
                       <button
                         key={suggestion.id || index}
+                        id={`suggestion-option-${index}`}
                         type="button"
                         onClick={() => handleSuggestionClick(suggestion)}
-                        onKeyDown={(e) =>
-                          handleSuggestionKeyDown(e, suggestion)
-                        }
+                        onKeyDown={(e) => handleSuggestionKeyDown(e, suggestion)}
                         className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-500 hover:text-white focus:bg-blue-500 focus:text-white focus:outline-none transition-colors duration-150 border-b border-gray-100 last:border-b-0"
                         role="option"
+                        aria-selected={highlightedIndex === index}
+                        tabIndex={-1}
                       >
                         <div className="font-medium">
                           {suggestion.address.freeformAddress}

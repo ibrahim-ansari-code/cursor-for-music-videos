@@ -14,22 +14,7 @@ import {
 } from "./ui/SharedModalComponents";
 import { AnimatePresence, motion } from "framer-motion";
 
-const PAYMENT_METHODS = [
-  "Credit Card",
-  "Bank Transfer",
-  "Cash",
-  "Check",
-  "Other",
-];
-
-const PAYMENT_STATUSES = [
-  "Pending",
-  "Paid",
-  "Partial",
-  "Overdue",
-  "Cancelled",
-  "Refunded",
-];
+import { PAYMENT_METHODS, PAYMENT_STATUSES } from "../utils/constants";
 
 const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
   const initialFormData = {
@@ -82,6 +67,11 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
   const handleReceiptFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
+      // File size validation (10MB max)
+      if (file.size > 10 * 1024 * 1024) {
+        setReceiptParseError("File is too large. Maximum allowed size is 10MB.");
+        return;
+      }
       setReceiptParseError(null);
       setIsParsingReceipt(true);
       // No need to clear formData.receipt_url here, let it hold the old one until successful parse
@@ -328,7 +318,26 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
               className="mt-3 border rounded-lg overflow-hidden shadow bg-gray-50"
             >
               {(() => {
+                // URL validation function
+                function isValidUrl(url) {
+                  try {
+                    const parsed = new URL(url);
+                    // Only allow http(s) protocols
+                    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+                    // Optionally restrict domains here
+                    // Example: only allow URLs from your own domain
+                    // if (!parsed.hostname.endsWith("yourdomain.com")) return false;
+                    return true;
+                  } catch {
+                    return false;
+                  }
+                }
                 const url = formData.receipt_url;
+                if (!isValidUrl(url)) {
+                  return (
+                    <div className="p-4 text-red-600">Invalid or unsafe receipt URL. Preview not available.</div>
+                  );
+                }
                 const lowerUrl = url.toLowerCase();
                 if (
                   lowerUrl.endsWith(".png") ||
@@ -345,12 +354,13 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
                   );
                 } else if (lowerUrl.endsWith(".pdf")) {
                   // Try to hint the PDF viewer to fit the content
-                  const pdfDisplayUrl = `${url}#view=FitH`; // Fit Height. Alternatives: FitW (Fit Width), page-fit
+                  const pdfDisplayUrl = `${url}#view=FitH`;
                   return (
                     <iframe
                       src={pdfDisplayUrl}
                       title="Receipt Preview"
                       className="w-full h-full border-0"
+                      sandbox="allow-scripts allow-same-origin"
                     />
                   );
                 } else {
@@ -359,6 +369,7 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
                       src={url}
                       title="Receipt Preview"
                       className="w-full h-full border-0"
+                      sandbox="allow-scripts allow-same-origin"
                     />
                   );
                 }

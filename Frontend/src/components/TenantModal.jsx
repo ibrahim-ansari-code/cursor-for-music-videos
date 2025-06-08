@@ -1,13 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { createTenant } from "../utils/api";
-import { AnimatePresence } from "framer-motion"; // motion is now in ModalShell
-import {
-  ModalShell,
-  Label,
-  Input,
-  Button,
-  ErrorMessage,
-} from "./ui/SharedModalComponents";
+import { ModalShell, Label, Input, Button } from "./ui/SharedModalComponents";
 
 const TenantModal = ({
   isOpen,
@@ -73,8 +66,6 @@ const TenantModal = ({
       ...prev,
       [name]: true,
     }));
-    // Optional: validate on blur
-    // validateField(name, formData[name]);
   };
 
   const handleChange = (e) => {

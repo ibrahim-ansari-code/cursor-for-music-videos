@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
+import { toast } from "react-toastify";
+import * as Sentry from "@sentry/react";
 import {
   fetchLeases,
   uploadLeaseDocument,
@@ -113,6 +115,22 @@ const Leases = () => {
                   `Failed to fetch documents for lease ${lease.id}:`,
                   err
                 );
+                
+                // Report document fetch failure to monitoring service
+                Sentry.captureException(err, {
+                  tags: {
+                    feature: 'lease_documents',
+                    operation: 'fetch_documents'
+                  },
+                  extra: {
+                    leaseId: lease.id,
+                    tenantId: lease.tenant_id,
+                    propertyId: lease.property_id,
+                    leaseStatus: lease.status
+                  },
+                  level: 'warning' // Non-critical since we return partial results
+                });
+                
                 return { ...lease, documents: [], file_url: null };
               }
             })
@@ -247,7 +265,9 @@ const Leases = () => {
         "[handlePreviewDocument] Document or file_path is missing:",
         document
       );
-      setError("Cannot preview document: file path is missing.");
+      const errorMessage = "Cannot preview document: file path is missing.";
+      setError(errorMessage);
+      toast.error(errorMessage);
       setOpenDocumentDropdown(null);
       return;
     }

@@ -45,38 +45,41 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
       };
       setFormData(formattedLease);
 
-      // Fetch related details for display
-      if (lease.property_id) {
-        fetchProperties({ id: lease.property_id })
-          .then((props) => {
-            if (props && props.length > 0) setPropertyDetails(props[0]);
-            else if (lease.property) setPropertyDetails(lease.property); // Fallback to already loaded data
-          })
-          .catch((err) => console.error("Failed to fetch property", err));
-      }
-      if (lease.unit_id && lease.property_id) {
-        // Assuming fetchPropertyUnits might not be ideal for a single unit if not available,
-        // we rely on lease.unit if present or would need a fetchUnit.
-        // For now, use pre-loaded data if available.
-        if (lease.unit) {
-          setUnitDetails(lease.unit);
-        } else {
-          fetchUnitById(lease.unit_id)
-            .then(setUnitDetails)
-            .catch((err) => {
-              console.error("Failed to fetch unit details:", err);
-              setUnitDetails(null); // Set to null or some error state
-            });
-        }
-      }
-      if (lease.tenant_id) {
-        fetchTenants({ id: lease.tenant_id })
-          .then((tenants) => {
-            if (tenants && tenants.length > 0) setTenantDetails(tenants[0]);
-            else if (lease.tenant) setTenantDetails(lease.tenant); // Fallback
-          })
-          .catch((err) => console.error("Failed to fetch tenant", err));
-      }
+      // Fetch related details for display in parallel
+      const propertyPromise = lease.property_id
+        ? fetchProperties({ id: lease.property_id })
+        : Promise.resolve(null);
+      const unitPromise = lease.unit_id && !lease.unit
+        ? fetchUnitById(lease.unit_id)
+        : Promise.resolve(lease.unit || null);
+      const tenantPromise = lease.tenant_id
+        ? fetchTenants({ id: lease.tenant_id })
+        : Promise.resolve(null);
+
+      Promise.all([propertyPromise, unitPromise, tenantPromise])
+        .then(([props, unit, tenants]) => {
+          // Property
+          if (props && props.length > 0) setPropertyDetails(props[0]);
+          else if (lease.property) setPropertyDetails(lease.property);
+          else setPropertyDetails(null);
+
+          // Unit
+          if (unit && unit.name) setUnitDetails(unit);
+          else if (lease.unit) setUnitDetails(lease.unit);
+          else setUnitDetails({ name: "N/A" });
+
+          // Tenant
+          if (tenants && tenants.length > 0) setTenantDetails(tenants[0]);
+          else if (lease.tenant) setTenantDetails(lease.tenant);
+          else setTenantDetails(null);
+        })
+        .catch((err) => {
+          console.error("Failed to fetch lease details in parallel", err);
+          // Fallbacks
+          if (lease.property) setPropertyDetails(lease.property);
+          if (lease.unit) setUnitDetails(lease.unit);
+          if (lease.tenant) setTenantDetails(lease.tenant);
+        });
     }
   }, [lease]);
 
@@ -88,7 +91,7 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
         type === "checkbox"
           ? checked
           : type === "number"
-          ? Number.parseFloat(value) || ""
+          ? (value === "" ? "" : Number.parseFloat(value) || 0)
           : value,
     }));
   };
@@ -114,9 +117,10 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
     // For now, sending null for empty/cleared fields is fine with `exclude_unset=True` on backend.
 
     try {
-      const updatedLease = await updateLease(lease.id, updateData);
-      onLeaseUpdated(updatedLease); // Callback to refresh list and close
-      onClose();
+const updatedLease = await updateLease(lease.id, updateData);
+  onClose();
+ // Call onLeaseUpdated after closing to avoid race conditions
+ onLeaseUpdated(updatedLease);
     } catch (err) {
       setError(err.message || "Failed to update lease. Please try again.");
       console.error("Update lease error:", err);

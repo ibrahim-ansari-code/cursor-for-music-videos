@@ -124,6 +124,16 @@ async def check_lease_ownership(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"Lease with ID {lease_id} not found")
     
+    # Verify that the lease has an associated property
+    if not lease.property:
+        logger.error(
+            "Data integrity error: Lease %s exists but has no associated property (property_id: %s)",
+            lease_id, lease.property_id
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Data integrity error: Lease {lease_id} has no associated property"
+        )
     
     if not current_user.is_admin and lease.property.user_id != current_user.id:
         logger.warning(

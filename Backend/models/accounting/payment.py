@@ -67,11 +67,11 @@ class Payment(SQLModel, table=True):
 
     created_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=False), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False)
     )
     updated_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=False), nullable=False, onupdate=utc_now)
+        sa_column=Column(DateTime(timezone=True), nullable=False, onupdate=utc_now)
     )
 
     lease: "Lease" = Relationship(back_populates="payments")

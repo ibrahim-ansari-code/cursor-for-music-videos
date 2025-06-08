@@ -91,10 +91,11 @@ def run_pytest_with_json_report(plugin_status: Optional[Dict[str, bool]] = None)
             if process.stdout:
                 for line in iter(process.stdout.readline, ''):
                     if line:
-                        print(line.rstrip())  # Print without extra newlines
+                        print(line.rstrip(), flush=True)  # Print without extra newlines and flush immediately
                     
             # Wait for process to complete
-            return_code = process.wait()
+            # Bail out after 5 min to prevent hung runs
+            return_code = process.wait(timeout=300)
         
         # Parse JSON report for detailed summary if JSON plugin is available
         if plugin_status.get("json", False) and os.path.exists(json_report_path):
@@ -382,33 +383,37 @@ def check_dependencies():
         logger.error("❌ pytest is not installed. Run: poetry install")
         return plugin_status
     
-    # Check for required pytest plugins
+    # Check for required pytest plugins using import checks
     try:
-        result = subprocess.run([sys.executable, "-m", "pytest", "--help"], 
-                              capture_output=True, text=True)
-        
-        # Check each plugin and update status
-        plugin_status["json"] = "--json-report" in result.stdout
-        plugin_status["xdist"] = "-n" in result.stdout
-        plugin_status["asyncio"] = "--asyncio-mode" in result.stdout
-        
-        missing_features = []
-        if not plugin_status["json"]:
-            missing_features.append("pytest-json-report (structured reporting)")
-        if not plugin_status["xdist"]:
-            missing_features.append("pytest-xdist (parallel execution)")
-        if not plugin_status["asyncio"]:
-            missing_features.append("pytest-asyncio (async support)")
-            
-        if missing_features:
-            logger.warning("⚠️ Missing optional pytest plugins:")
-            for feature in missing_features:
-                logger.warning(f"  - {feature}")
-            logger.info("Run 'poetry install' to install all dependencies")
-            logger.info("Continuing with basic functionality...")
-    except Exception as e:
-        logger.warning(f"⚠️ Could not check for pytest plugins: {e}")
-        # All plugins remain False
+        import pytest_xdist
+        plugin_status["xdist"] = True
+    except ModuleNotFoundError:
+        plugin_status["xdist"] = False
+    try:
+        import pytest_jsonreport
+        plugin_status["json"] = True
+    except ModuleNotFoundError:
+        plugin_status["json"] = False
+    try:
+        import pytest_asyncio
+        plugin_status["asyncio"] = True
+    except ModuleNotFoundError:
+        plugin_status["asyncio"] = False
+
+    missing_features = []
+    if not plugin_status["json"]:
+        missing_features.append("pytest-json-report (structured reporting)")
+    if not plugin_status["xdist"]:
+        missing_features.append("pytest-xdist (parallel execution)")
+    if not plugin_status["asyncio"]:
+        missing_features.append("pytest-asyncio (async support)")
+
+    if missing_features:
+        logger.warning("⚠️ Missing optional pytest plugins:")
+        for feature in missing_features:
+            logger.warning(f"  - {feature}")
+        logger.info("Run 'poetry install' to install all dependencies")
+        logger.info("Continuing with basic functionality...")
     
     return plugin_status
 

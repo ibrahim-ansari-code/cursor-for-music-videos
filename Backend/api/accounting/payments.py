@@ -283,6 +283,7 @@ async def _check_for_orphaned_payments(session: AsyncSession, current_user: User
     Checks for payments that reference a lease but have missing or broken lease or property relationships.
     
     This function identifies "orphaned" payments—those with a lease_id but lacking a valid lease or property association. Payments without a lease_id are not considered orphaned. Returns a report indicating whether orphaned payments exist, the total count, the number of affected users, and up to 10 orphaned payment IDs. Handles both single-user and global scans based on the `run_for_all_users` flag. Logs warnings or errors if orphaned payments are found.
+    """
     try:
         # Define base conditions for orphaned payments
         conditions = [

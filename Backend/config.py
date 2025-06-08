@@ -53,7 +53,6 @@ class Settings(BaseSettings):
         """
         allowed_environments = {"sandbox", "production"}
         if v not in allowed_environments:
-            # Use logical order (development progression) for error messaging
             raise ValueError(
                 f"Invalid APIDECK_ENVIRONMENT: '{v}'. Must be one of: 'sandbox', 'production'."
             )

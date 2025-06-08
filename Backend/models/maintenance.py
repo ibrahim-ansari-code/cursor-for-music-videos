@@ -45,6 +45,17 @@ class MaintenanceRequest(SQLModel, table=True):
         default=None, sa_column=Column(Numeric(10, 2), nullable=True))
     photos: Optional[List[str]] = Field(
         default=None, sa_column=Column(JSON, nullable=True))
+
+    @staticmethod
+    def validate_photos(value):
+        if value is None:
+            return value
+        if not isinstance(value, list):
+            raise ValueError("photos must be a list of URL strings")
+        for item in value:
+            if not isinstance(item, str):
+                raise ValueError("Each photo must be a string URL")
+        return value
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(
         TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(

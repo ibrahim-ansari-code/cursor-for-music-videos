@@ -137,51 +137,32 @@ const MaintenanceRequestModal = ({
     
     try {
       // Create upload promises for all files simultaneously
-      const uploadPromises = files.map((file, index) => 
-        uploadMaintenancePhoto(file)
-          .then(url => {
-            // Update progress for this specific file on success
-            setPhotoUploadProgress(prev => {
-              const next = [...prev];
-              next[index] = "done";
-              return next;
-            });
-            return { success: true, url, index };
-          })
-          .catch(err => {
-            // Update progress for this specific file on error
-            setPhotoUploadProgress(prev => {
-              const next = [...prev];
-              next[index] = "error";
-              return next;
-            });
-            return { success: false, error: err.message || "Failed to upload photo", index };
-          })
-      );
-      
+      const uploadPromises = files.map((file) => uploadMaintenancePhoto(file));
       // Wait for all uploads to complete (both successful and failed)
-      const results = await Promise.all(uploadPromises);
-      
-      // Extract successful URLs and collect errors
+      const results = await Promise.allSettled(uploadPromises);
+      // Update progress and collect URLs/errors
+      const progress = [];
       const successfulUrls = [];
       const errors = [];
-      
-      results.forEach(result => {
-        if (result.success) {
-          successfulUrls.push(result.url);
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          progress[index] = "done";
+          successfulUrls.push(result.value);
         } else {
-          errors.push(`File ${result.index + 1}: ${result.error}`);
+          progress[index] = "error";
+          errors.push(`File ${index + 1}: ${result.reason?.message || result.reason || "Failed to upload photo"}`);
         }
       });
-      
-      // Set the successful URLs
-      setFormData(prev => ({ ...prev, photos: successfulUrls }));
-      
+      setPhotoUploadProgress(progress);
+      // Merge new uploads with any existing photos
+      setFormData(prev => ({
+        ...prev,
+        photos: [...(prev.photos ?? []), ...successfulUrls],
+      }));
       // Show errors if any occurred
       if (errors.length > 0) {
         setPhotoUploadError(`Upload errors: ${errors.join(', ')}`);
       }
-      
     } catch (error) {
       // Handle unexpected errors
       setPhotoUploadError(error.message || "Unexpected error during upload");
@@ -192,6 +173,7 @@ const MaintenanceRequestModal = ({
 
   const handleRemoveFile = (idx) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
+    setPhotoUploadProgress((prev) => prev.filter((_, i) => i !== idx));
     setFormData((prev) => ({
       ...prev,
       photos: (prev.photos ?? []).filter((_, i) => i !== idx),

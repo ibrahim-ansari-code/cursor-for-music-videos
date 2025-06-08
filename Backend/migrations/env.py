@@ -39,7 +39,9 @@ target_metadata = SQLModel.metadata
 
 # ───────────────────────────────────────────────
 # Ensure project root is in sys.path
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+project_root = str(Path(__file__).resolve().parents[1])
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 # Import settings and swap driver to psycopg2 for Alembic
 

@@ -17,7 +17,9 @@ const StatusBadge = ({ status }) => {
   };
 
   // Normalize status value to handle different cases
-  const normalizedStatus = status || "";
+  const normalizedStatus = (status || "")
+    .replace(/[-\s]/g, "_")   // unify separators
+    .toUpperCase();
   const style = statusStyles[normalizedStatus] || statusStyles[normalizedStatus.toUpperCase()] || "bg-gray-100 text-gray-800";
 
   return (

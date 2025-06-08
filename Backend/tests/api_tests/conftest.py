@@ -201,6 +201,34 @@ class APITestClient:
         """
         return await self.client.delete(f"{self.base_url}{endpoint}", headers=self._get_headers(), **kwargs)
 
+    async def request(self, method: str, endpoint: str, content: str | None = None, content_type: str = "application/json", **kwargs) -> httpx.Response:
+        """
+        Sends an authenticated HTTP request with arbitrary method and custom content.
+        
+        This method provides flexibility for testing edge cases like malformed JSON,
+        unsupported HTTP methods, or custom content types without accessing private methods.
+        
+        Args:
+            method: The HTTP method (GET, POST, PATCH, PUT, DELETE, etc.)
+            endpoint: The API endpoint path, relative to the base URL.
+            content: Raw content to send in the request body.
+            content_type: Content-Type header value.
+        
+        Returns:
+            The HTTP response object from the request.
+        """
+        headers = self._get_headers()
+        if content is not None:
+            headers["Content-Type"] = content_type
+        
+        return await self.client.request(
+            method=method.upper(),
+            url=f"{self.base_url}{endpoint}", 
+            headers=headers,
+            content=content,
+            **kwargs
+        )
+
 
 @pytest.fixture(scope="function")
 async def api_client():

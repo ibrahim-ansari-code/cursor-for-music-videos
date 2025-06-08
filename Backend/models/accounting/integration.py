@@ -3,7 +3,7 @@ from datetime import datetime, UTC
 from typing import TYPE_CHECKING, Optional, Union, ClassVar
 from uuid import UUID
 
-from sqlalchemy import DateTime, String, Column, JSON, UniqueConstraint, Index, CheckConstraint, text, Enum as SAEnum
+from sqlalchemy import DateTime, String, Column, JSONB, UniqueConstraint, Index, CheckConstraint, text, Enum as SAEnum
 from sqlmodel import Field, Relationship, SQLModel
 from pydantic import field_validator
 
@@ -39,12 +39,12 @@ class Integration(SQLModel, table=True):
     user_id: UUID = Field(foreign_key="users.id", nullable=False)
     
     # Integration details
-    integration_type: IntegrationType = Field(sa_column=Column(SAEnum(IntegrationType, values_callable=lambda x: [e.value for e in x]), nullable=False))
+    integration_type: IntegrationType = Field(sa_column=Column(SAEnum(IntegrationType, name="integration_type_enum"), nullable=False))
     status: IntegrationStatus = Field(default=IntegrationStatus.DISCONNECTED, sa_column=Column(SAEnum(IntegrationStatus, values_callable=lambda x: [e.value for e in x]), nullable=False))
     
     # Apideck specific fields
     apideck_consumer_id: str | None = Field(default=None, sa_column=Column(String, nullable=True))
-    apideck_service_id: str | None = Field(default=None, sa_column=Column(String, nullable=True))  # e.g., "quickbooks"
+    apideck_service_id: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     
     # Connection metadata
     connected_at: datetime | None = Field(
@@ -57,7 +57,7 @@ class Integration(SQLModel, table=True):
     )
     
     # Store any additional connection metadata as JSON
-    connection_metadata: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    connection_metadata: dict | None = Field(default=None, sa_column=Column(JSONB, nullable=True))
     
     # Error tracking
     last_error: str | None = Field(default=None, sa_column=Column(String(255), nullable=True))

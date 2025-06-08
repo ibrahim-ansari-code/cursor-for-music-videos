@@ -911,8 +911,9 @@ const ConfirmLeaseModal = ({
               <Button type="button" variant="secondary" onClick={onClose}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
+<Button
+  type="button"
+  onClick={handleCreateLease}
                 variant="primary"
                 disabled={
                   isLoading ||

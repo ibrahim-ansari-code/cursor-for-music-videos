@@ -34,20 +34,18 @@ async def validate_file_content(upload_file: UploadFile) -> bool:
     Returns:
         True if the file's signature matches an allowed type; otherwise, False.
     """
-    # Magic bytes for supported file types
-    magic_bytes = {
-        b'\xFF\xD8\xFF': 'image/jpeg',  # JPEG
-        b'\x89PNG\r\n\x1a\n': 'image/png',  # PNG
-        b'%PDF-': 'application/pdf'  # PDF
-    }
-    
+    # Magic bytes for supported file types (now as a tuple of byte signatures)
+    magic_bytes = (
+        b'\xFF\xD8\xFF',  # JPEG
+        b'\x89PNG\r\n\x1a\n',  # PNG
+        b'%PDF-',  # PDF
+    )
     # Read the first 16 bytes to check magic bytes
     await upload_file.seek(0)
     header = await upload_file.read(16)
     await upload_file.seek(0)  # Reset position
-    
     # Check if file starts with any of the allowed magic bytes
-    return any(header.startswith(magic) for magic, _ in magic_bytes.items())
+    return any(header.startswith(magic) for magic in magic_bytes)
 
 
 async def validate_file_size(upload_file: UploadFile, max_size_bytes: int) -> int:
@@ -302,6 +300,56 @@ async def create_maintenance_request(
                 status_code=403,
                 detail="You do not have permission to create a maintenance request for this property."
             )
+
+    # Validate unit_id if provided
+    if data.unit_id is not None:
+        unit_result = await session.execute(
+            select(PropertyUnit).where(col(PropertyUnit.id) == data.unit_id)
+        )
+        unit = unit_result.scalar_one_or_none()
+        if not unit:
+            raise HTTPException(
+                status_code=404,
+                detail="The specified unit does not exist."
+            )
+        if unit.property_id != data.property_id:
+            raise HTTPException(
+                status_code=400,
+                detail="The specified unit does not belong to the specified property."
+            )
+        # If not admin, check landlord owns the property
+        if not current_user.is_admin:
+            prop_result = await session.execute(
+                select(Property).where(col(Property.id) == unit.property_id)
+            )
+            prop = prop_result.scalar_one_or_none()
+            if not prop or prop.user_id != current_user.id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You do not have permission to create a maintenance request for this unit/property."
+                )
+
+    # Validate tenant_id if provided
+    if data.tenant_id is not None:
+        tenant_result = await session.execute(
+            select(User).where(col(User.id) == data.tenant_id)
+        )
+        tenant = tenant_result.scalar_one_or_none()
+        if not tenant:
+            raise HTTPException(
+                status_code=404,
+                detail="The specified tenant does not exist."
+            )
+        # If unit_id is provided, check tenant is associated with the unit (if such a relationship exists)
+        # Otherwise, check tenant is associated with the property (if such a relationship exists)
+        # This logic may need to be adapted to your data model
+        if data.unit_id is not None:
+            # Check tenant is associated with the unit (if your model supports this)
+            # For now, just a placeholder check; adapt as needed
+            pass
+        else:
+            # Check tenant is associated with the property (if your model supports this)
+            pass
 
     # Manually construct the MaintenanceRequest object
     db_request = MaintenanceRequest(

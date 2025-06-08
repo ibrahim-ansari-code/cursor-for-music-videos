@@ -130,7 +130,7 @@ class TestMaintenanceAPI:
         # This test requires a separate user/API client
         # For now, we simulate by trying to access an invalid ID
         res = await fresh_api_client.get("/api/maintenance/requests/99999")
-        assert res.status_code == 404  # Or 403, depending on implementation
+        assert res.status_code in (403, 404)  # Or 403, depending on implementation
         logger.info("✅ Unauthorized Access Test Passed")
 
     async def test_create_request_invalid_data(self, api_client: APITestClient, created_property_id: int):

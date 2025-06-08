@@ -171,7 +171,11 @@ const apiRequest = async (endpoint, options = {}) => {
   }
 
   // Do NOT set Content-Type for FormData; browser handles it.
-  if (!(options.body instanceof FormData)) {
+  if (
+    options.method &&
+    options.method.toUpperCase() !== "GET" &&
+    !(options.body instanceof FormData)
+  ) {
     requestHeaders["Content-Type"] = "application/json";
   }
 
@@ -181,8 +185,16 @@ const apiRequest = async (endpoint, options = {}) => {
   };
 
   // Debug logging for request data
-  if (endpoint.includes("/accounting/payments") && options.method === "POST") {
-    console.log("Payment request data:", JSON.parse(options.body));
+  if (
+    endpoint.includes("/accounting/payments") &&
+    options.method === "POST" &&
+    typeof options.body === "string"
+  ) {
+    try {
+      console.log("Payment request data:", JSON.parse(options.body));
+    } catch {
+      console.log("Payment request data: <non-JSON body>");
+    }
   }
 
   try {
@@ -194,7 +206,7 @@ const apiRequest = async (endpoint, options = {}) => {
 
     // For debugging: Log the raw response for payment creation
     if (
-      (endpoint.includes("/accounting/parse-payment-receipt") ||
+      (endpoint.includes("/accounting/payments/parse-receipt") ||
         endpoint.includes("/accounting/payments")) &&
       options.method === "POST"
     ) {
@@ -1265,10 +1277,11 @@ export const parsePaymentReceiptAPI = async (fileFormData) => {
 };
 
 // New/Updated Expense API functions
-export const parseExpenseReceiptAPI = async (fileFormData) => {
+export const parseExpenseReceiptAPI = async (fileFormData, options = {}) => {
   return apiRequest("/accounting/expenses/parse-receipt", {
     method: "POST",
     body: fileFormData,
+    ...options, // Spread additional options like signal for AbortController
   });
 };
 

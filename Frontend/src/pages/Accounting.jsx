@@ -25,6 +25,16 @@ import ExpenseBreakdownChart from "../components/ExpenseBreakdownChart";
 import IncomeByPropertyCard from "../components/IncomeByPropertyCard";
 import EditExpenseModal from "../components/EditExpenseModal";
 
+// Reusable loading spinner row for tables
+const LoadingRow = ({ colSpan, loadingText }) => (
+  <tr>
+    <td colSpan={colSpan} className="px-6 py-12 text-center text-sm text-gray-500">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2" />
+      {loadingText}
+    </td>
+  </tr>
+);
+
 const Accounting = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
@@ -840,15 +850,7 @@ const handleNextPage = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {loading && activeTab === "payments" ? (
-                    <tr>
-                      <td
-                        colSpan="6"
-                        className="px-6 py-12 text-center text-sm text-gray-500"
-                      >
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2" />
-                        Loading payments...
-                      </td>
-                    </tr>
+                    <LoadingRow colSpan={6} loadingText="Loading payments..." />
                   ) : payments.length > 0 ? (
                     payments.map((payment) => (
                       <tr key={payment.id} className="hover:bg-gray-50">
@@ -1130,15 +1132,7 @@ const handleNextPage = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {loading && activeTab === "expenses" ? (
-                    <tr>
-                      <td
-                        colSpan="5"
-                        className="px-6 py-12 text-center text-sm text-gray-500"
-                      >
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2" />
-                        Loading expenses...
-                      </td>
-                    </tr>
+                    <LoadingRow colSpan={5} loadingText="Loading expenses..." />
                   ) : expenses.length > 0 ? (
                     expenses.map((expense) => (
                       <tr key={expense.id} className="hover:bg-gray-50">

@@ -213,7 +213,7 @@ def _extract_json_from_markdown(content: str) -> str:
         return json_match.group(1).strip()
 
     # Fallback: try to extract JSON object directly
-    json_pattern_direct = r'({[\s\S]*})'
+    json_pattern_direct = r'({(?:[^{}]|(?R))*})'
     json_match_direct = re.search(json_pattern_direct, content)
 
     if json_match_direct:
@@ -295,9 +295,9 @@ def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[
 
         llm_response_content = response.choices[0].message.content
         if llm_response_content is None:
-            error_msg = "No content in LLM response for payment receipt: %s."
-            logger.error(error_msg, filename)
-            raise ValueError(error_msg % filename)
+            error_msg = f"No content in LLM response for payment receipt: {filename}."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
         logger.debug(
             "LLM raw response for receipt (%s): %s...", filename, llm_response_content[:200])
@@ -316,12 +316,11 @@ def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[
                 logger.debug(
                     "Successfully parsed JSON after markdown extraction.")
             except (json.JSONDecodeError, ValueError) as json_err:
-                error_msg = "Failed to parse JSON from LLM response for %s: %s"
-                logger.exception(error_msg, filename, json_err)
+                error_msg = f"Failed to parse JSON from LLM response for {filename}: {json_err}"
+                logger.exception(error_msg)
                 logger.exception("LLM response content: %s",
                                  llm_response_content)
-                raise ValueError(error_msg %
-                                 (filename, json_err)) from json_err
+                raise ValueError(error_msg) from json_err
 
         parsed_data['raw_text_preview'] = raw_text_preview
 
@@ -440,9 +439,9 @@ def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[
 
         llm_response_content = response.choices[0].message.content
         if llm_response_content is None:
-            error_msg = "No content in LLM response for expense receipt: %s."
-            logger.error(error_msg, filename)
-            raise ValueError(error_msg % filename)
+            error_msg = f"No content in LLM response for expense receipt: {filename}."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
         logger.debug(
             "LLM raw response for expense receipt (%s): %s...", filename, llm_response_content[:200])
@@ -461,12 +460,11 @@ def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[
                 logger.debug(
                     "Successfully parsed JSON after markdown extraction.")
             except (json.JSONDecodeError, ValueError) as json_err:
-                error_msg = "Failed to parse JSON from LLM response for expense %s: %s"
-                logger.exception(error_msg, filename, json_err)
+                error_msg = f"Failed to parse JSON from LLM response for expense {filename}: {json_err}"
+                logger.exception(error_msg)
                 logger.exception("LLM response content: %s",
                                  llm_response_content)
-                raise ValueError(error_msg %
-                                 (filename, json_err)) from json_err
+                raise ValueError(error_msg) from json_err
 
         parsed_data['raw_text_preview'] = raw_text_preview
 

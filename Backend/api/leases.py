@@ -583,7 +583,10 @@ async def update_lease(
             lease_id,
         )
         # Ensure status is not accidentally updated
-        del lease_data_dict['status']
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="`status` cannot be updated here. Use POST /leases/{lease_id}/status."
+        )
 
     for key, value in lease_data_dict.items():
         setattr(lease, key, value)

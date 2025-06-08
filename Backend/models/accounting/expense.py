@@ -17,8 +17,14 @@ class ExpenseTaxDetail(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     tax_name: str = Field(sa_column=Column(String, nullable=False))
-    tax_rate: Decimal = Field(sa_column=Column(Numeric(5, 2), nullable=False))
-    tax_amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    tax_rate: Decimal = Field(
+        sa_column=Column(Numeric(5, 2), nullable=False),
+        ge=0, le=100, description="Tax rate as percentage (0-100)"
+    )
+    tax_amount: Decimal = Field(
+        sa_column=Column(Numeric(12, 2), nullable=False),
+        ge=0, description="Tax amount must be non-negative"
+    )
 
     expense_id: Optional[int] = Field(default=None, foreign_key="expenses.id")
     expense: "Expense" = Relationship(back_populates="taxes")
@@ -43,9 +49,19 @@ class Expense(SQLModel, table=True):
         sa_column=Column(DateTime(timezone=True), nullable=False)
     )
     receipt_url: str | None = None
-    subtotal_amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
-    total_tax_amount: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(12, 2), nullable=False))
-    total_amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    subtotal_amount: Decimal = Field(
+        sa_column=Column(Numeric(12, 2), nullable=False),
+        ge=0, description="Subtotal must be non-negative"
+    )
+    total_tax_amount: Decimal = Field(
+        default=Decimal("0.00"),
+        sa_column=Column(Numeric(12, 2), nullable=False),
+        ge=0, description="Total tax must be non-negative"
+    )
+    total_amount: Decimal = Field(
+        sa_column=Column(Numeric(12, 2), nullable=False),
+        ge=0, description="Total amount must be non-negative"
+    )
 
     property_id: int = Field(foreign_key="properties.id")
 

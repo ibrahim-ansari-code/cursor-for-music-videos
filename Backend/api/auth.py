@@ -54,7 +54,7 @@ def touch_updated_at(obj: HasUpdatedAt) -> None:
 
 
 class UserResponse(BaseModel):
-    id: PythonUUID
+    id: str
     email: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -139,28 +139,17 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        try:
-            # Convert to UUID to match the DB column type and avoid varchar/uuid operator errors
-            local_user_uuid = uuid.UUID(str(actual_user_from_supabase.id))
-        except ValueError:
-            logger.error("Supabase user ID '%s' is not a valid UUID", actual_user_from_supabase.id)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Supabase user ID is not a valid UUID",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
         # Use session.get which handles primary-key lookup and proper typing
-        db_user = await session.get(User, local_user_uuid)
+        db_user = await session.get(User, actual_user_from_supabase.id)
 
         # Fallback to explicit select if session.get returned None (e.g., composite PK future changes)
         if db_user is None:
-            result = await session.execute(select(User).where(col(User.id) == local_user_uuid))
+            result = await session.execute(select(User).where(col(User.id) == actual_user_from_supabase.id))
             db_user = result.scalar_one_or_none()
 
         if not db_user:
             logger.warning(
-                "User with Supabase ID %s not found in local database.", local_user_uuid)
+                "User with Supabase ID %s not found in local database.", actual_user_from_supabase.id)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User authenticated with Supabase but not found in local application database.",
@@ -232,7 +221,9 @@ async def upload_user_avatar(
     """
     Uploads a new avatar image for the specified user.
     
-    Only the user themselves or an admin can upload an avatar. The image is stored in Azure Blob Storage, and the user's profile is updated with the new avatar URL.
+    Only the user themselves or an admin can upload an avatar. 
+    The image is stored in Azure Blob Storage, and the user's profile 
+    is updated with the new avatar URL.
     
     Args:
         user_id: The ID of the user whose avatar is being updated.

@@ -7,6 +7,7 @@ import logging
 import httpx
 import pytest_asyncio
 import time
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +63,9 @@ async def created_tenant(api_client, created_landlord_property: int):
     property_id = created_landlord_property
 
     tenant_data = {
-        "first_name": "TestFixture",
-        "last_name": "TenantTest",
-        "email": f"test_fixture_{int(time.time())}_{property_id}@example.com",
-        "phone": "+1-555-0001",
+         "first_name": "TestFixture",
+         "last_name": "TenantTest",
+        "email": f"test_fixture_{uuid.uuid4()}@example.com",
         "status": "Active",
         "current_property_id": property_id
     }
@@ -136,14 +136,8 @@ class TestTenantsAPI:
         # Immediate cleanup
         try:
             delete_response = await api_client.delete(f"/api/tenants/{tenant_id}")
-            if delete_response.status_code == 204:
-                logger.info(f"✅ Immediate cleanup: deleted tenant {tenant_id}")
-            # No longer expect 403 for this cleanup if property association is correct
-            else:
-                logger.error(
-                    f"❌ Cleanup failed for tenant {tenant_id}: DELETE returned {delete_response.status_code} - {delete_response.text[:200]}")
-                pytest.fail(
-                    f"Cleanup for tenant {tenant_id} failed with status {delete_response.status_code}")
+            assert_api_success(delete_response, expected_status=204)
+            logger.info("✅ Immediate cleanup: deleted %s", tenant_id)
         except Exception as e:
             logger.error(f"❌ Cleanup exception for tenant {tenant_id}: {e}")
             pytest.fail(f"Cleanup exception for tenant {tenant_id}: {e}")
