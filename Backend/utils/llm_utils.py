@@ -2,8 +2,11 @@ import json
 import logging
 import os
 import regex as re
+import threading
 from typing import Any, Dict, List
 import base64  # Added for image processing
+import asyncio
+from decimal import Decimal, InvalidOperation
 
 import fitz  # Added for PDF parsing
 from dotenv import find_dotenv, load_dotenv
@@ -114,23 +117,28 @@ def get_azure_client() -> AzureOpenAI:
 
 
 # Global client variable for lazy initialization
-client = None
+CLIENT: AzureOpenAI | None = None
+CLIENT_LOCK = threading.Lock()
 
 
 def get_client() -> AzureOpenAI:
     """
-    Returns a lazily initialized Azure OpenAI client instance.
+    Returns a lazily initialized, thread-safe Azure OpenAI client instance.
     
-    Initializes the client on first use to avoid import-time errors from missing environment variables. Subsequent calls return the cached client. Raises an exception if initialization fails.
+    Initializes the client on first use to avoid import-time errors from missing environment variables. Uses a lock to ensure thread safety during initialization. Subsequent calls return the cached client. Raises an exception if initialization fails.
     """
-    global client
-    if client is None:
-        try:
-            client = get_azure_client()
-        except Exception:
-            logger.exception("Failed to initialize Azure OpenAI client")
-            raise
-    return client
+    global CLIENT
+    # First check without a lock for performance
+    if CLIENT is None:
+        with CLIENT_LOCK:
+            # Double-check inside the lock to prevent race conditions
+            if CLIENT is None:
+                try:
+                    CLIENT = get_azure_client()
+                except Exception:
+                    logger.exception("Failed to initialize Azure OpenAI client")
+                    raise
+    return CLIENT
 
 
 SYSTEM_PROMPT_PAYMENT_RECEIPT = """
@@ -220,7 +228,7 @@ def _extract_json_from_markdown(content: str) -> str:
     return content.strip()
 
 
-def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[str, Any]:
+async def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[str, Any]:
     """
     Analyzes a payment receipt file (PDF or image) and extracts structured payment details using Azure OpenAI GPT-4o with vision capabilities.
     
@@ -324,19 +332,21 @@ def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[
         # Basic validation and defaulting to ensure correct types
         parsed_data['payment_date'] = str(parsed_data.get('payment_date', ""))
         try:
-            parsed_data['subtotal_amount'] = float(
-                parsed_data.get('subtotal_amount', 0.0) or 0.0)
-        except (ValueError, TypeError):
+            # Parse as Decimal to avoid float precision issues
+            amount_str = str(parsed_data.get('subtotal_amount', '0.0') or '0.0')
+            parsed_data['subtotal_amount'] = Decimal(amount_str)
+        except (InvalidOperation, TypeError):
             logger.warning(
-                "Could not parse subtotal_amount '%s' as float. Defaulting to 0.0.", parsed_data.get('subtotal_amount'))
-            parsed_data['subtotal_amount'] = 0.0
+                "Could not parse subtotal_amount '%s' as Decimal. Defaulting to 0.0.", parsed_data.get('subtotal_amount'))
+            parsed_data['subtotal_amount'] = Decimal('0.0')
         try:
-            parsed_data['total_amount'] = float(
-                parsed_data.get('total_amount', 0.0) or 0.0)
-        except (ValueError, TypeError):
+            # Parse as Decimal to avoid float precision issues
+            amount_str = str(parsed_data.get('total_amount', '0.0') or '0.0')
+            parsed_data['total_amount'] = Decimal(amount_str)
+        except (InvalidOperation, TypeError):
             logger.warning(
-                "Could not parse total_amount '%s' as float. Defaulting to 0.0.", parsed_data.get('total_amount'))
-            parsed_data['total_amount'] = 0.0
+                "Could not parse total_amount '%s' as Decimal. Defaulting to 0.0.", parsed_data.get('total_amount'))
+            parsed_data['total_amount'] = Decimal('0.0')
         parsed_data['currency'] = str(parsed_data.get('currency', ""))
         parsed_data['payment_method'] = str(
             parsed_data.get('payment_method', ""))
@@ -362,7 +372,7 @@ def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[
     return parsed_data
 
 
-def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[str, Any]:
+async def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[str, Any]:
     """
     Analyzes an expense receipt file (PDF or image) and extracts structured data using Azure OpenAI GPT-4o with vision capabilities.
     
@@ -468,19 +478,21 @@ def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[
         # Basic validation and defaulting to ensure correct types
         parsed_data['payment_date'] = str(parsed_data.get('payment_date', ""))
         try:
-            parsed_data['subtotal_amount'] = float(
-                parsed_data.get('subtotal_amount', 0.0) or 0.0)
-        except (ValueError, TypeError):
+            # Parse as Decimal to avoid float precision issues
+            amount_str = str(parsed_data.get('subtotal_amount', '0.0') or '0.0')
+            parsed_data['subtotal_amount'] = Decimal(amount_str)
+        except (InvalidOperation, TypeError):
             logger.warning(
-                "Could not parse subtotal_amount '%s' as float. Defaulting to 0.0.", parsed_data.get('subtotal_amount'))
-            parsed_data['subtotal_amount'] = 0.0
+                "Could not parse subtotal_amount '%s' as Decimal. Defaulting to 0.0.", parsed_data.get('subtotal_amount'))
+            parsed_data['subtotal_amount'] = Decimal('0.0')
         try:
-            parsed_data['total_amount'] = float(
-                parsed_data.get('total_amount', 0.0) or 0.0)
-        except (ValueError, TypeError):
+            # Parse as Decimal to avoid float precision issues
+            amount_str = str(parsed_data.get('total_amount', '0.0') or '0.0')
+            parsed_data['total_amount'] = Decimal(amount_str)
+        except (InvalidOperation, TypeError):
             logger.warning(
-                "Could not parse total_amount '%s' as float. Defaulting to 0.0.", parsed_data.get('total_amount'))
-            parsed_data['total_amount'] = 0.0
+                "Could not parse total_amount '%s' as Decimal. Defaulting to 0.0.", parsed_data.get('total_amount'))
+            parsed_data['total_amount'] = Decimal('0.0')
         parsed_data['currency'] = str(parsed_data.get('currency', ""))
         parsed_data['payment_method'] = str(
             parsed_data.get('payment_method', ""))
@@ -506,7 +518,7 @@ def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[
     return parsed_data
 
 
-def analyze_lease_text(text: str) -> Dict[str, Any]:
+async def analyze_lease_text(text: str) -> Dict[str, Any]:
     """
     Analyzes lease agreement text and extracts structured lease information using Azure OpenAI GPT-4o.
     

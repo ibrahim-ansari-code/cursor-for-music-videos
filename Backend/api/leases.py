@@ -849,7 +849,7 @@ async def analyze_lease(
                     status_code=400, detail="Could not decode file content.")
 
         logger.debug(f"File content preview: {text_content[:100]}...")
-        analysis_result = analyze_lease_text(text_content)
+        analysis_result = await analyze_lease_text(text_content)
         logger.info("Lease analysis completed successfully")
         logger.debug(f"Analysis result: {analysis_result}")
 
@@ -939,7 +939,7 @@ async def parse_lease(
 
         logger.info(
             f"Sending lease text for analysis (first 100 chars): {text[:100]!r}")
-        raw_parsed_data = analyze_lease_text(text)
+        raw_parsed_data = await analyze_lease_text(text)
         logger.info(
             f"Raw LLM parsed data:\n{json.dumps(raw_parsed_data, indent=2)}")
 

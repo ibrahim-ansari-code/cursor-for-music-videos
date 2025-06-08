@@ -46,21 +46,23 @@ class TestGenericAPIBehaviors:
         response = await api_client.get("/api/accounting/payments")
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
 
-        payments = response.json()
-        if payments and len(payments) > 0:
+        paginated_response = response.json()
+        payments = paginated_response.get("items", [])
+        
+        if payments:
             payment = payments[0]
             # Check for common datetime fields
             datetime_fields = ['created_at',
                                'updated_at', 'payment_date', 'due_date']
             for field in datetime_fields:
-                if field in payment:
+                if field in payment and payment[field]:
                     # Validate ISO format
                     try:
                         datetime.fromisoformat(
                             payment[field].replace('Z', '+00:00'))
                         logger.info(
                             f"   ✅ {field} is properly formatted: {payment[field]}")
-                    except ValueError:
+                    except (ValueError, TypeError):
                         pytest.fail(
                             f"Invalid datetime format for {field}: {payment[field]}")
 

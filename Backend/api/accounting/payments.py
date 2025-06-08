@@ -1,13 +1,11 @@
 """Payments API router – endpoints and helper utilities for creating, retrieving,
 updating and deleting payment records, plus role-based query helpers and receipt parsing."""
 import logging
-import functools
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status, Query, BackgroundTasks
-from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, field_validator
 from sqlalchemy import and_, or_, Select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +26,7 @@ from Backend.utils.datetime_utils import (create_audit_datetime,
                                           date_to_utc_range, utc_now,
                                           validate_business_datetime)
 from Backend.utils.llm_utils import analyze_payment_receipt_content
-from Backend.utils.blob_tasks import _delete_blob_in_background
+from Backend.utils.blob_tasks import delete_blob_in_background
 
 from .helpers import (_ensure_id_is_not_none,
                       check_lease_ownership)
@@ -246,7 +244,7 @@ def _apply_common_payment_filters(query: Select, lease_id: int | None, payment_s
         filters.append(col(Payment.payment_date) <= end_datetime)
     
     if filters:
-        query = query.where(and_(*filters))
+        return query.where(and_(*filters))
     
     return query
 
@@ -524,6 +522,15 @@ async def parse_payment_receipt(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to parse payment receipts."
         )
+
+    # File size validation (e.g., 10 MB limit)
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    if file.size and file.size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size exceeds the limit of {MAX_FILE_SIZE / 1024 / 1024} MB."
+        )
+
     allowed_content_types = ["application/pdf", "image/jpeg", "image/png", "image/jpg"]
     if file.content_type not in allowed_content_types:
         raise HTTPException(
@@ -532,14 +539,19 @@ async def parse_payment_receipt(
         )
     try:
         file_content = await file.read()
+        if len(file_content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File content size exceeds the {MAX_FILE_SIZE / 1024 / 1024} MB limit."
+            )
         await file.seek(0)
         receipt_url = await upload_payment_receipt_to_blob(file, current_user.id)
-        func_to_run = functools.partial(
-            analyze_payment_receipt_content,
+        
+        parsed_data_dict: dict[str, Any] = await analyze_payment_receipt_content(
             file_content=file_content,
             filename=file.filename if file.filename is not None else "uploaded_receipt"
         )
-        parsed_data_dict = await run_in_threadpool(func_to_run)
+        
         parsed_details = PaymentReceiptParseDetails(**parsed_data_dict)
         return PaymentReceiptParseResponse(
             receipt_url=receipt_url,
@@ -933,7 +945,6 @@ async def delete_payment(
         await session.commit()
         commit_succeeded = True
         logger.info("Payment %s deleted successfully by user %s", payment_id, current_user.id)
-        return None
     except HTTPException:
         raise
     except Exception as e:
@@ -943,7 +954,7 @@ async def delete_payment(
     finally:
         # Schedule blob deletion to run in the background after the response is sent
         if commit_succeeded and receipt_url_to_delete:
-            background_tasks.add_task(_delete_blob_in_background, receipt_url_to_delete)
+            background_tasks.add_task(delete_blob_in_background, receipt_url_to_delete)
 
 @router.post("/generate-due", response_model=list[PaymentResponse]) # Renamed from /generate-due-payments
 async def generate_due_payments_for_month( # Renamed function

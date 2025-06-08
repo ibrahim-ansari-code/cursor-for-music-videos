@@ -548,6 +548,8 @@ const ConfirmLeaseModal = ({
           src={pdfDisplayUrl}
           title="Lease Document Preview"
           className="w-full h-full border-0"
+          sandbox="allow-same-origin"
+          referrerPolicy="no-referrer"
         />
       );
     } else {
@@ -557,6 +559,8 @@ const ConfirmLeaseModal = ({
           src={url}
           title="Lease Document Preview"
           className="w-full h-full border-0"
+          sandbox="allow-same-origin"
+          referrerPolicy="no-referrer"
         />
       );
     }

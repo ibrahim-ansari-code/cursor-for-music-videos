@@ -16,6 +16,8 @@ const LoadingSpinner = ({
     ? "flex justify-center items-center h-full p-8"
     : "p-4";
 
+  const spinnerSizeClass = sizeClasses[size] || sizeClasses.large;
+
   return (
     <div 
       className={containerClasses}
@@ -26,7 +28,7 @@ const LoadingSpinner = ({
     >
       <div className={center ? "text-center" : ""}>
         <div 
-          className={`animate-spin rounded-full border-b-2 border-blue-500 mx-auto ${sizeClasses[size]}`}
+          className={`animate-spin rounded-full border-b-2 border-blue-500 mx-auto ${spinnerSizeClass}`}
           aria-hidden="true"
         />
         <p className="mt-3 text-gray-600" id="loading-text">

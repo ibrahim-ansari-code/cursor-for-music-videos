@@ -2,7 +2,7 @@ import logging
 from typing import Any
 import pytest
 
-from .conftest import APITestClient
+from .conftest import APITestClient, created_property_id
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ def maintenance_payload(property_id: int, **kwargs) -> dict[str, Any]:
         "issue_title": "Broken Pipe",
         "description": "A pipe is leaking in the basement.",
         "property_id": property_id,
-        "priority": "Medium",
+        "priority": "MEDIUM",
     }
     data.update(kwargs)
     return data
@@ -38,7 +38,18 @@ class TestMaintenanceAPI:
         Creates a maintenance request for the specified property and verifies the response data. Then retrieves the created request by its ID and asserts the returned data matches the created request.
         """
         payload = maintenance_payload(created_property_id)
-        create_res = await api_client.post("/api/maintenance/requests", json_data=payload)
+        logger.info(f"Sending maintenance request payload: {payload}")
+        create_res = await api_client.post("/api/maintenance/requests", json=payload)
+        
+        if create_res.status_code != 201:
+            logger.error(f"Failed to create maintenance request. Status: {create_res.status_code}")
+            logger.error(f"Response body: {create_res.text}")
+            try:
+                error_json = create_res.json()
+                logger.error(f"Error JSON: {error_json}")
+            except:
+                pass
+        
         assert create_res.status_code == 201
         created_data = create_res.json()
         request_id = created_data["id"]
@@ -58,16 +69,16 @@ class TestMaintenanceAPI:
         Creates a maintenance request, updates its status and priority, and asserts that the changes are persisted.
         """
         payload = maintenance_payload(created_property_id)
-        create_res = await api_client.post("/api/maintenance/requests", json_data=payload)
+        create_res = await api_client.post("/api/maintenance/requests", json=payload)
         request_id = create_res.json()["id"]
 
-        update_payload = {"status": "In Progress", "priority": "High"}
-        update_res = await api_client.put(f"/api/maintenance/requests/{request_id}", json_data=update_payload)
+        update_payload = {"status": "IN_PROGRESS", "priority": "HIGH"}
+        update_res = await api_client.put(f"/api/maintenance/requests/{request_id}", json=update_payload)
         assert update_res.status_code == 200
         updated_data = update_res.json()
 
-        assert updated_data["status"] == "In Progress"
-        assert updated_data["priority"] == "High"
+        assert updated_data["status"] == "IN_PROGRESS"
+        assert updated_data["priority"] == "HIGH"
         logger.info("✅ Update Test Passed")
 
     async def test_list_and_filter_requests(self, api_client: APITestClient, created_property_id: int):
@@ -77,15 +88,15 @@ class TestMaintenanceAPI:
         Creates maintenance requests with varying priorities and verifies that filtering by a specific priority returns only matching requests.
         """
         # Create requests with different statuses
-        await api_client.post("/api/maintenance/requests", json_data=maintenance_payload(created_property_id, priority="Low"))
-        await api_client.post("/api/maintenance/requests", json_data=maintenance_payload(created_property_id, status="Completed", priority="High"))
+        await api_client.post("/api/maintenance/requests", json=maintenance_payload(created_property_id, priority="LOW"))
+        await api_client.post("/api/maintenance/requests", json=maintenance_payload(created_property_id, status="COMPLETED", priority="HIGH"))
 
         # Filter by priority
-        filter_res = await api_client.get("/api/maintenance/requests?priority=High")
+        filter_res = await api_client.get("/api/maintenance/requests?priority=HIGH")
         assert filter_res.status_code == 200
         filtered_data = filter_res.json()
         assert len(filtered_data) >= 1
-        assert all(req["priority"] == "High" for req in filtered_data)
+        assert all(req["priority"] == "HIGH" for req in filtered_data)
         logger.info("✅ List and Filter Test Passed")
 
     async def test_delete_request(self, api_client: APITestClient, created_property_id: int):
@@ -95,7 +106,7 @@ class TestMaintenanceAPI:
         Creates a maintenance request, deletes it, and asserts that subsequent retrieval returns a 404 status.
         """
         payload = maintenance_payload(created_property_id)
-        create_res = await api_client.post("/api/maintenance/requests", json_data=payload)
+        create_res = await api_client.post("/api/maintenance/requests", json=payload)
         request_id = create_res.json()["id"]
 
         delete_res = await api_client.delete(f"/api/maintenance/requests/{request_id}")
@@ -111,7 +122,7 @@ class TestMaintenanceAPI:
         
         Creates a pending maintenance request, retrieves the summary, and verifies that the total and pending request counts are greater than zero.
         """
-        await api_client.post("/api/maintenance/requests", json_data=maintenance_payload(created_property_id, status="Pending"))
+        await api_client.post("/api/maintenance/requests", json=maintenance_payload(created_property_id, status="PENDING"))
 
         summary_res = await api_client.get("/api/maintenance/summary")
         assert summary_res.status_code == 200
@@ -141,7 +152,7 @@ class TestMaintenanceAPI:
         """
         payload = maintenance_payload(
             created_property_id, priority="InvalidPriority")
-        response = await api_client.post("/api/maintenance/requests", json_data=payload)
+        response = await api_client.post("/api/maintenance/requests", json=payload)
         assert response.status_code == 422  # Unprocessable Entity
         logger.info("✅ Invalid Data Test Passed")
 
@@ -161,7 +172,7 @@ class TestMaintenanceAPI:
         """
         # 1. Create a request on a property owned by the user
         payload = maintenance_payload(created_property_id)
-        create_res = await api_client.post("/api/maintenance/requests", json_data=payload)
+        create_res = await api_client.post("/api/maintenance/requests", json=payload)
         assert create_res.status_code == 201
         request_id = create_res.json()["id"]
 

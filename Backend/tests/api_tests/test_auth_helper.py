@@ -264,15 +264,21 @@ class AuthTestManager:
                 session_response = await asyncio.to_thread(
                     self.supabase.auth.refresh_session,
                     refresh_token=creds["refresh_token"],
- )
+                )
                 if session_response.session and session_response.user:
                     logger.info(f"Token refreshed successfully for {email}.")
+                    
+                    # Also sync the user to the backend on refresh
+                    user_id = str(session_response.user.id)
+                    if email:
+                        await self._sync_user_to_backend_if_needed(user_id, email, user_type=PRIMARY_TEST_USER_TYPE)
+                    
                     updated_creds = {
                         "email": email,
                         "TEST_USER_EMAIL": email,
                         "access_token": session_response.session.access_token,
                         "refresh_token": session_response.session.refresh_token,
-                        "user_id": str(session_response.user.id),
+                        "user_id": user_id,
                         "expires_at": session_response.session.expires_at
                     }
                     self._save_credentials(updated_creds)

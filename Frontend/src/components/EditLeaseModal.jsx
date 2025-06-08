@@ -68,7 +68,7 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
           else setPropertyDetails(null);
 
           // Unit
-          if (unit && unit.name) setUnitDetails(unit);
+          if (unit?.name) setUnitDetails(unit);
           else if (lease.unit) setUnitDetails(lease.unit);
           else setUnitDetails({ name: "N/A" });
 

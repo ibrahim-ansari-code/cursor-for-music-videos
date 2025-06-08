@@ -54,7 +54,7 @@ def touch_updated_at(obj: HasUpdatedAt) -> None:
 
 
 class UserResponse(BaseModel):
-    id: str
+    id: PythonUUID
     email: str
     first_name: str | None = None
     last_name: str | None = None

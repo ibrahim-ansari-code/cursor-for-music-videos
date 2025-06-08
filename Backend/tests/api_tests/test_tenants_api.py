@@ -7,7 +7,8 @@ import logging
 import httpx
 import pytest_asyncio
 import uuid
-from .conftest import assert_api_success, assert_valid_json_response
+from .conftest import assert_api_success, assert_valid_json_response, assert_api_error
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ async def created_tenant(api_client, created_landlord_property: int):
     }
 
     # Create tenant
-    response = await api_client.post("/api/tenants/", json_data=tenant_data)
+    response = await api_client.post("/api/tenants/", json=tenant_data)
     tenant = assert_valid_json_response(response, dict, expected_status=201)
 
     yield tenant
@@ -80,33 +81,15 @@ class TestTenantsAPI:
             "current_property_id": property_id  # Associate with landlord-owned property
         }
 
-        response = await api_client.post("/api/tenants/", json_data=tenant_data)
-        tenant = assert_valid_json_response(
-            response, dict, expected_status=201)
+        response = await api_client.post("/api/tenants/", json=tenant_data)
+        assert_api_success(response, 201)
+        data = response.json()
+        assert data["email"] == tenant_data["email"]
 
-        tenant_id = tenant["id"]
-
-        assert tenant["first_name"] == tenant_data["first_name"]
-        assert tenant["last_name"] == tenant_data["last_name"]
-        assert tenant["email"] == tenant_data["email"]
-        assert "id" in tenant
-        assert tenant.get("current_property_id") == property_id
-
-        logger.info(
-            f"✅ POST /api/tenants/ successful, created tenant ID: {tenant_id} associated with prop: {property_id}")
-
-        # Immediate cleanup
-        try:
-            delete_response = await api_client.delete(f"/api/tenants/{tenant_id}")
-            if delete_response.status_code == 204:
-                logger.info(f"✅ Immediate cleanup: deleted {tenant_id}")
-            elif delete_response.status_code in [403, 404]:
-                logger.warning(f"⚠️ Expected cleanup issue: {delete_response.status_code}")
-            else:
-                assert_api_success(delete_response, expected_status=204)
-        except Exception as e:
-            logger.error(f"❌ Cleanup exception for tenant {tenant_id}: {e}")
-            pytest.fail(f"Cleanup exception for tenant {tenant_id}: {e}")
+        # Cleanup
+        tenant_id = data["id"]
+        delete_response = await api_client.delete(f"/api/tenants/{tenant_id}")
+        assert_api_success(delete_response, (200, 204))
 
     @pytest.mark.asyncio
     async def test_get_all_tenants(self, api_client):
@@ -160,7 +143,7 @@ class TestTenantsAPI:
             "phone": "+1-555-9999"
         }
 
-        update_response = await api_client.patch(f"/api/tenants/{tenant_id}", json_data=update_data)
+        update_response = await api_client.patch(f"/api/tenants/{tenant_id}", json=update_data)
 
         # Expect 200 OK as tenant should be accessible for update
         updated_tenant = assert_valid_json_response(
@@ -183,26 +166,21 @@ class TestTenantsAPI:
         tenant_data = {
             "first_name": "DeleteTest",
             "last_name": "Tenant",
-            "email": f"delete_test_{id(self)}_{property_id}@example.com",
+            "email": f"deletetest.{int(time.time())}@example.com",
             "phone": "+1-555-0789",
             "status": "Active",
             "current_property_id": property_id  # Associate with landlord-owned property
         }
 
-        create_response = await api_client.post("/api/tenants/", json_data=tenant_data)
-        tenant = assert_valid_json_response(
-            create_response, dict, expected_status=201)
-        tenant_id = tenant["id"]
+        create_response = await api_client.post("/api/tenants/", json=tenant_data)
+        assert_api_success(create_response, 201)
+        tenant_id = create_response.json()["id"]
 
         delete_response = await api_client.delete(f"/api/tenants/{tenant_id}")
+        assert_api_success(delete_response, (200, 204))
 
-        # Expect 204 No Content as tenant should be deletable
-        assert_api_success(delete_response, expected_status=204)
-        logger.info(f"✅ DELETE /api/tenants/{tenant_id} successful")
-
-        # Verify tenant is no longer accessible (expect 403 due to RLS)
         get_response = await api_client.get(f"/api/tenants/{tenant_id}")
-        assert get_response.status_code == 403, f"GETting deleted tenant should return 403 (Forbidden by RLS), got {get_response.status_code}"
+        assert_api_error(get_response, 404)
 
     # TODO: Add more tenant tests:
     # - Test tenant creation with invalid data (validation errors)

@@ -37,7 +37,7 @@ async def created_property(api_client: APITestClient) -> AsyncGenerator[dict[str
     }
 
     # Create property
-    response = await api_client.post("/api/properties/", json_data=property_data)
+    response = await api_client.post("/api/properties/", json=property_data)
     property_obj = assert_valid_json_response(
         response, dict, expected_status=201)
 
@@ -83,7 +83,7 @@ class TestPropertiesAPI:
             "description": "A test property for pytest"
         }
 
-        response = await api_client.post("/api/properties/", json_data=property_data)
+        response = await api_client.post("/api/properties/", json=property_data)
         property_obj = assert_valid_json_response(
             response, dict, expected_status=201)
 
@@ -168,7 +168,7 @@ class TestPropertiesAPI:
             "description": "Updated description via test"
         }
 
-        update_response = await api_client.put(f"/api/properties/{property_id}", json_data=update_data)
+        update_response = await api_client.put(f"/api/properties/{property_id}", json=update_data)
         updated_property = assert_valid_json_response(update_response, dict)
 
         # Verify updates were applied
@@ -198,7 +198,7 @@ class TestPropertiesAPI:
             "description": "A test property for deletion"
         }
 
-        create_response = await api_client.post("/api/properties/", json_data=property_data)
+        create_response = await api_client.post("/api/properties/", json=property_data)
         property_obj = assert_valid_json_response(
             create_response, dict, expected_status=201)
         property_id = property_obj["id"]

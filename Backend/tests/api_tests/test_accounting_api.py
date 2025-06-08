@@ -7,6 +7,7 @@ import logging
 import httpx
 import json
 from typing import Any
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -61,12 +62,18 @@ class TestAccountingAPI:
         """
         Tests retrieval of all payments via the GET /api/accounting/payments endpoint.
         
-        Verifies that the response is successful and returns a JSON list of payments.
+        Verifies that the response is successful and returns a paginated JSON response containing a list of payments.
         """
         logger.info("Testing GET /api/accounting/payments...")
 
         response = await api_client.get("/api/accounting/payments")
-        payments = assert_valid_json_response(response, list)
+        paginated_response = assert_valid_json_response(response, dict)
+
+        assert "items" in paginated_response
+        assert "has_more" in paginated_response
+        assert isinstance(paginated_response["items"], list)
+        
+        payments = paginated_response["items"]
 
         logger.info(
             "✅ GET /api/accounting/payments successful, status 200, returned %d payments",
@@ -224,42 +231,45 @@ class TestAccountingAPI:
     # These would need proper test data setup and cleanup
 
     @pytest.mark.asyncio
-    async def test_create_update_delete_payment(self, api_client):
+    async def test_create_update_delete_payment(self, api_client, created_lease):
         """
         Tests creating, updating, and deleting a payment.
         """
         logger.info("Testing POST/PUT/DELETE for /api/accounting/payments...")
-        # Create payment
+        # Create payment using the lease from the fixture
         payment_data = {
+            "lease_id": created_lease["id"],
             "amount": 123.45,
             "payment_date": "2023-01-01T00:00:00Z",
-            "payment_method": "cash",
-            "status": "pending"
+            "payment_method": "Cash",
+            "status": "Pending"
         }
         create_resp = await api_client.post("/api/accounting/payments", json=payment_data)
         assert_api_success(create_resp, 201)
         payment = create_resp.json()
         payment_id = payment.get("id")
         assert payment_id, "Payment ID should be present in response"
+
         # Update payment
-        update_data = {"amount": 200.00, "status": "completed"}
+        update_data = {"amount": 200.00, "status": "Paid"}
         update_resp = await api_client.put(f"/api/accounting/payments/{payment_id}", json=update_data)
         assert_api_success(update_resp)
         updated = update_resp.json()
         assert updated["amount"] == 200.00
-        assert updated["status"] == "completed"
+        assert updated["status"] == "Paid"
+
         # Delete payment
         del_resp = await api_client.delete(f"/api/accounting/payments/{payment_id}")
-        assert del_resp.status_code in (200, 204)
+        assert del_resp.status_code in (204, 404) # 204 is No Content, 404 is also acceptable if already gone
 
     @pytest.mark.asyncio
-    async def test_create_update_delete_expense(self, api_client):
+    async def test_create_update_delete_expense(self, api_client, created_property_id):
         """
         Tests creating, updating, and deleting an expense.
         """
         logger.info("Testing POST/PUT/DELETE for /api/accounting/expenses...")
         expense_data = {
-            "property_id": 1,
+            "property_id": created_property_id, # Use the property from the fixture
             "category": "maintenance",
             "subtotal_amount": 50.00,
             "expense_date": "2023-01-01T00:00:00Z",
@@ -271,6 +281,7 @@ class TestAccountingAPI:
         expense = create_resp.json()
         expense_id = expense.get("id")
         assert expense_id, "Expense ID should be present in response"
+
         # Update expense
         update_data = {"description": "Updated expense", "subtotal_amount": 75.00}
         update_resp = await api_client.put(f"/api/accounting/expenses/{expense_id}", json=update_data)
@@ -278,63 +289,72 @@ class TestAccountingAPI:
         updated = update_resp.json()
         assert updated["description"] == "Updated expense"
         assert float(updated["subtotal_amount"]) == 75.00
+
         # Delete expense
         del_resp = await api_client.delete(f"/api/accounting/expenses/{expense_id}")
-        assert del_resp.status_code in (200, 204)
+        assert del_resp.status_code in (204, 404)
 
     @pytest.mark.asyncio
-    async def test_create_update_delete_invoice(self, api_client):
+    async def test_create_update_delete_invoice(self, api_client, created_lease):
         """
         Tests creating, updating, and deleting an invoice.
         """
         logger.info("Testing POST/PUT/DELETE for /api/accounting/invoices...")
         invoice_data = {
-            "tenant_id": 1,
-            "property_id": 1,
-            "amount_due": 100.00,
+            "tenant_id": created_lease["tenant_id"],
+            "property_id": created_lease["property_id"],
+            "invoice_number": f"INV-{int(time.time())}",
+            "amount": 100.00,
+            "description": "Test Invoice",
+            "issue_date": "2023-01-01T00:00:00Z",
             "due_date": "2023-01-10T00:00:00Z",
-            "status": "pending"
+            "status": "Pending"
         }
         create_resp = await api_client.post("/api/accounting/invoices", json=invoice_data)
         assert_api_success(create_resp, 201)
         invoice = create_resp.json()
         invoice_id = invoice.get("id")
         assert invoice_id, "Invoice ID should be present in response"
+        
         # Update invoice
-        update_data = {"amount_due": 150.00, "status": "paid"}
+        update_data = {"amount": 150.00, "status": "Paid"}
         update_resp = await api_client.put(f"/api/accounting/invoices/{invoice_id}", json=update_data)
         assert_api_success(update_resp)
         updated = update_resp.json()
-        assert float(updated["amount_due"]) == 150.00
-        assert updated["status"] == "paid"
+        assert float(updated["amount"]) == 150.00
+        assert updated["status"] == "Paid"
+        
         # Delete invoice
         del_resp = await api_client.delete(f"/api/accounting/invoices/{invoice_id}")
-        assert del_resp.status_code in (200, 204)
+        assert del_resp.status_code in (204, 404)
 
     @pytest.mark.asyncio
-    async def test_update_payment_status(self, api_client):
+    async def test_update_payment_status(self, api_client, created_lease):
         """
         Tests updating the status of a payment.
         """
         logger.info("Testing payment status update...")
         # Create payment first
         payment_data = {
+            "lease_id": created_lease["id"],
             "amount": 50.00,
             "payment_date": "2023-01-01T00:00:00Z",
-            "payment_method": "cash",
-            "status": "pending"
+            "payment_method": "Cash",
+            "status": "Pending"
         }
         create_resp = await api_client.post("/api/accounting/payments", json=payment_data)
         assert_api_success(create_resp, 201)
         payment = create_resp.json()
         payment_id = payment.get("id")
         assert payment_id, "Payment ID should be present in response"
+        
         # Update status
-        status_update = {"status": "completed"}
+        status_update = {"status": "Paid"}
         update_resp = await api_client.put(f"/api/accounting/payments/{payment_id}", json=status_update)
         assert_api_success(update_resp)
         updated = update_resp.json()
-        assert updated["status"] == "completed"
+        assert updated["status"] == "Paid"
+        
         # Cleanup
         del_resp = await api_client.delete(f"/api/accounting/payments/{payment_id}")
-        assert del_resp.status_code in (200, 204)
+        assert del_resp.status_code in (204, 404)

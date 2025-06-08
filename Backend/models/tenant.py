@@ -3,7 +3,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID as PythonUUID
 
-from sqlalchemy import Column, ForeignKey, Integer
+from sqlalchemy import Column, DateTime, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from Backend.models.user import User
     from Backend.models.maintenance import MaintenanceRequest
     from Backend.models.accounting.payment import Payment
+    from Backend.models.accounting.invoice import Invoice
 
 
 class TenantStatus(str, Enum):
@@ -52,8 +53,14 @@ class Tenant(SQLModel, table=True):
     phone: str | None = None
     email: str | None = None
     status: TenantStatus = Field(default=TenantStatus.ACTIVE, index=True)
-    created_at: datetime = Field(default_factory=create_audit_datetime)
-    updated_at: datetime = Field(default_factory=create_audit_datetime)
+    created_at: datetime = Field(
+        default_factory=create_audit_datetime,
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    updated_at: datetime = Field(
+        default_factory=create_audit_datetime,
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
     current_property_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey(
@@ -84,6 +91,10 @@ class Tenant(SQLModel, table=True):
         sa_relationship_kwargs={"lazy": "selectin"}
     )
     payments: list["Payment"] = Relationship(
-    back_populates="tenant",
-    sa_relationship_kwargs={"lazy": "selectin"}
-)
+        back_populates="tenant",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
+    invoices: list["Invoice"] = Relationship(
+        back_populates="tenant",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )

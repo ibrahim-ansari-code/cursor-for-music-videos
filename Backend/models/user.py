@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID as PythonUUID
 
-from sqlalchemy import Column, String
+from sqlalchemy import Column, String, DateTime
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -36,8 +36,14 @@ class User(SQLModel, table=True):
     profile_image_url: str | None = None
     is_active: bool = Field(default=True)
     is_admin: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=create_audit_datetime)
-    updated_at: datetime = Field(default_factory=create_audit_datetime)
+    created_at: datetime = Field(
+        default_factory=create_audit_datetime,
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    updated_at: datetime = Field(
+        default_factory=create_audit_datetime,
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
     is_email_verified: bool = Field(default=False)
 
     properties: list["Property"] = Relationship(back_populates="owner")

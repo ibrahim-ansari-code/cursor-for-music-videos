@@ -38,8 +38,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
     taxes: [{ tax_name: "", tax_rate: "" }],
   };
   const [formData, setFormData] = useState(initialFormData);
-  const [calculatedTotalTaxAmount, setCalculatedTotalTaxAmount] = useState(0);
-  const [calculatedTotalAmount, setCalculatedTotalAmount] = useState(0);
+
   const [properties, setProperties] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -184,9 +183,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
         setReceiptParseError(err.message || "Failed to parse new receipt.");
         toast.error(err.message || "Failed to parse new receipt.");
       } finally {
-        if (!abortController.signal.aborted) {
-          setIsParsingReceipt(false);
-        }
+        setIsParsingReceipt(false);
       }
     }
   };
@@ -498,7 +495,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
                       src={pdfDisplayUrl}
                       title="Receipt Preview"
                       className="w-full h-full border-0"
-                      sandbox="allow-scripts allow-same-origin"
+                      sandbox="allow-same-origin"
                       referrerPolicy="no-referrer"
                     />
                   );
@@ -508,7 +505,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
                       src={url}
                       title="Receipt Preview"
                       className="w-full h-full border-0"
-                      sandbox="allow-scripts allow-same-origin"
+                      sandbox="allow-same-origin"
                       referrerPolicy="no-referrer"
                     />
                   );

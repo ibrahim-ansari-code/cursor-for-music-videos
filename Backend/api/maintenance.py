@@ -16,6 +16,7 @@ from Backend.models.enums import MaintenancePriority, MaintenanceStatus, UserTyp
 from Backend.models.maintenance import MaintenanceRequest
 from Backend.models.property import Property, PropertyUnit
 from Backend.models.user import User
+from Backend.models.tenant import Tenant
 from Backend.utils.azure_blob import upload_maintenance_photo_to_blob
 
 logger = logging.getLogger(__name__)
@@ -291,101 +292,113 @@ async def create_maintenance_request(
     logger.info(
         f"User {current_user.id} creating maintenance request for property {data.property_id}")
 
-    # Check property ownership unless admin
-    if not current_user.is_admin:
-        result = await session.execute(
-            select(Property).where(col(Property.id) == data.property_id)
-        )
-        prop = result.scalar_one_or_none()
-        if not prop or prop.user_id != current_user.id:
-            raise HTTPException(
-                status_code=403,
-                detail="You do not have permission to create a maintenance request for this property."
-            )
-
-    # Validate unit_id if provided
-    if data.unit_id is not None:
-        unit_result = await session.execute(
-            select(PropertyUnit).where(col(PropertyUnit.id) == data.unit_id)
-        )
-        unit = unit_result.scalar_one_or_none()
-        if not unit:
-            raise HTTPException(
-                status_code=404,
-                detail="The specified unit does not exist."
-            )
-        if unit.property_id != data.property_id:
-            raise HTTPException(
-                status_code=400,
-                detail="The specified unit does not belong to the specified property."
-            )
-        # If not admin, check landlord owns the property
+    try:
+        # Check property ownership unless admin
         if not current_user.is_admin:
-            prop_result = await session.execute(
-                select(Property).where(col(Property.id) == unit.property_id)
+            result = await session.execute(
+                select(Property).where(col(Property.id) == data.property_id)
             )
-            prop = prop_result.scalar_one_or_none()
+            prop = result.scalar_one_or_none()
             if not prop or prop.user_id != current_user.id:
                 raise HTTPException(
                     status_code=403,
-                    detail="You do not have permission to create a maintenance request for this unit/property."
+                    detail="You do not have permission to create a maintenance request for this property."
                 )
 
-    # Validate tenant_id if provided
-    if data.tenant_id is not None:
-        tenant_result = await session.execute(
-            select(User).where(col(User.id) == data.tenant_id)
-        )
-        tenant = tenant_result.scalar_one_or_none()
-        if not tenant:
-            raise HTTPException(
-                status_code=404,
-                detail="The specified tenant does not exist."
-            )
-        # If unit_id is provided, check tenant is associated with the unit (if such a relationship exists)
-        # Otherwise, check tenant is associated with the property (if such a relationship exists)
-        # This logic may need to be adapted to your data model
+        # Validate unit_id if provided
         if data.unit_id is not None:
-            # Check tenant is associated with the unit (if your model supports this)
-            # For now, just a placeholder check; adapt as needed
-            pass
-        else:
-            # Check tenant is associated with the property (if your model supports this)
-            pass
+            unit_result = await session.execute(
+                select(PropertyUnit).where(col(PropertyUnit.id) == data.unit_id)
+            )
+            unit = unit_result.scalar_one_or_none()
+            if not unit:
+                raise HTTPException(
+                    status_code=404,
+                    detail="The specified unit does not exist."
+                )
+            if unit.property_id != data.property_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="The specified unit does not belong to the specified property."
+                )
+            # If not admin, check landlord owns the property
+            if not current_user.is_admin:
+                prop_result = await session.execute(
+                    select(Property).where(col(Property.id) == unit.property_id)
+                )
+                prop = prop_result.scalar_one_or_none()
+                if not prop or prop.user_id != current_user.id:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="You do not have permission to create a maintenance request for this unit/property."
+                    )
 
-    # Manually construct the MaintenanceRequest object
-    db_request = MaintenanceRequest(
-        issue_title=data.issue_title,
-        description=data.description,
-        property_id=data.property_id,
-        unit_id=data.unit_id,
-        tenant_id=data.tenant_id,
-        user_id=current_user.id,  # Associate with the current user
-        priority=data.priority,
-        status=MaintenanceStatus.PENDING,
-        request_date=datetime.utcnow(),
-        scheduled_date=data.scheduled_date,
-        estimated_cost=data.estimated_cost,
-        actual_cost=data.actual_cost,
-        photos=data.photos,
-        assigned_to=data.assigned_to
-    )
+        # Validate tenant_id if provided
+        if data.tenant_id is not None:
+            tenant_result = await session.execute(
+                select(Tenant).where(col(Tenant.id) == data.tenant_id)
+            )
+            tenant = tenant_result.scalar_one_or_none()
+            if not tenant:
+                raise HTTPException(
+                    status_code=404,
+                    detail="The specified tenant does not exist."
+                )
+            # If unit_id is provided, check tenant is associated with the unit (if such a relationship exists)
+            # Otherwise, check tenant is associated with the property (if such a relationship exists)
+            # This logic may need to be adapted to your data model
+            if data.unit_id is not None:
+                # Check tenant is associated with the unit (if your model supports this)
+                # For now, just a placeholder check; adapt as needed
+                pass
+            else:
+                # Check tenant is associated with the property (if your model supports this)
+                pass
 
-    session.add(db_request)
-    await session.commit()
-    await session.refresh(db_request)
-
-    # Eagerly load relationships before returning
-    result = await session.execute(
-        select(MaintenanceRequest)
-        .options(
-            selectinload(getattr(MaintenanceRequest, "property")),
-            selectinload(getattr(MaintenanceRequest, "unit")),
-            selectinload(getattr(MaintenanceRequest, "tenant"))
+        # Manually construct the MaintenanceRequest object
+        db_request = MaintenanceRequest(
+            issue_title=data.issue_title,
+            description=data.description,
+            property_id=data.property_id,
+            unit_id=data.unit_id,
+            tenant_id=data.tenant_id,
+            user_id=current_user.id,  # Associate with the current user
+            priority=data.priority,
+            status=MaintenanceStatus.PENDING,
+            # request_date will be set by the model's default_factory
+            scheduled_date=data.scheduled_date,
+            estimated_cost=data.estimated_cost,
+            actual_cost=data.actual_cost,
+            photos=data.photos,
+            assigned_to=data.assigned_to
         )
-        .where(col(MaintenanceRequest.id) == db_request.id)
-    )
-    return result.unique().scalar_one()
+
+        session.add(db_request)
+        await session.commit()
+        await session.refresh(db_request)
+
+        # Eagerly load relationships before returning
+        result = await session.execute(
+            select(MaintenanceRequest)
+            .options(
+                selectinload(getattr(MaintenanceRequest, "property")),
+                selectinload(getattr(MaintenanceRequest, "unit")),
+                selectinload(getattr(MaintenanceRequest, "tenant"))
+            )
+            .where(col(MaintenanceRequest.id) == db_request.id)
+        )
+        return result.unique().scalar_one()
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as they are
+        raise
+    except Exception as e:
+        logger.exception(f"Unexpected error creating maintenance request: {e}")
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create maintenance request: {str(e)}"
+        )
 
 
 @router.get("/requests/{request_id}", response_model=MaintenanceRequestResponse)

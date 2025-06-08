@@ -8,7 +8,7 @@ from Backend.utils.azure_blob import delete_blob_by_url
 
 logger = logging.getLogger(__name__)
 
-async def _delete_blob_in_background(blob_url: str | None) -> None:
+async def delete_blob_in_background(blob_url: str | None) -> None:
     """
     Asynchronously deletes a blob from storage by URL with up to three retry attempts.
     
@@ -23,21 +23,25 @@ async def _delete_blob_in_background(blob_url: str | None) -> None:
 
     for attempt in range(MAX_RETRIES):
         try:
-            # Now calling the async function directly
-            await delete_blob_by_url(blob_url)
-            logger.info("Successfully deleted old blob %s on attempt %d", blob_url, attempt + 1)
-            return  # Exit successfully
-        except Exception as e:
+            # The retry loop now checks the return value of delete_blob_by_url.
+            # If it returns False, the loop continues to the next attempt.
+            if await delete_blob_by_url(blob_url):
+                logger.info("Successfully deleted blob %s on attempt %d.", blob_url, attempt + 1)
+                return  # Exit successfully
+            
+            logger.warning("Attempt %d/%d to delete blob %s failed.", 
+                         attempt + 1, MAX_RETRIES, blob_url)
+
+        except Exception:
             logger.warning(
-                "Failed to delete blob %s on attempt %d/%d. Retrying in %d seconds...",
-                blob_url,
-                attempt + 1,
-                MAX_RETRIES,
-                RETRY_DELAY_SECONDS,
-                exc_info=True
+                "Exception on attempt %d/%d to delete blob %s.",
+                attempt + 1, MAX_RETRIES, blob_url, exc_info=True
             )
-            if attempt < MAX_RETRIES - 1:
-                await asyncio.sleep(RETRY_DELAY_SECONDS)
-            else:
-                logger.error("Failed to delete blob %s after %d attempts.", blob_url, MAX_RETRIES)
-                raise e # Re-raise the exception on the final attempt 
+            if attempt >= MAX_RETRIES - 1:
+                logger.exception("Failed to delete blob %s after final attempt.", blob_url)
+                raise
+
+        if attempt < MAX_RETRIES - 1:
+            await asyncio.sleep(RETRY_DELAY_SECONDS)
+
+    logger.error("Failed to delete blob %s after %d attempts.", blob_url, MAX_RETRIES)

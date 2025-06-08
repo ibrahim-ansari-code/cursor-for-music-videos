@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from Backend.models.lease import Lease
     from Backend.models.tenant import Tenant
     from Backend.models.maintenance import MaintenanceRequest
+    from Backend.models.accounting.invoice import Invoice
 
 
 class PropertyType(str, Enum):
@@ -68,12 +69,12 @@ class Property(SQLModel, table=True):
     # Timestamps - Using datetime utilities
     created_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=False), nullable=True),
+        sa_column=Column(DateTime(timezone=True), nullable=True),
         description="Creation timestamp"
     )
     updated_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=False), nullable=True),
+        sa_column=Column(DateTime(timezone=True), nullable=True),
         description="Last update timestamp"
     )
 
@@ -104,6 +105,11 @@ class Property(SQLModel, table=True):
 
     # Relationship to maintenance requests (One-to-many)
     maintenance_requests: list["MaintenanceRequest"] = Relationship(
+        back_populates="property",
+        sa_relationship_kwargs={'cascade': 'all, delete-orphan'}
+    )
+
+    invoices: list["Invoice"] = Relationship(
         back_populates="property",
         sa_relationship_kwargs={'cascade': 'all, delete-orphan'}
     )

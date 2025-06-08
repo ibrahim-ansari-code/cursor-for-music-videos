@@ -1,19 +1,9 @@
 import logging
-import functools
-import time
-import asyncio
 from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
-
-def quantize_2dp(value: Decimal) -> Decimal:
-    """
-    Quantize a Decimal value to two decimal places using ROUND_HALF_UP.
-    """
-    return value.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
-from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,14 +16,19 @@ from Backend.models.accounting.expense import Expense, ExpenseTaxDetail
 from Backend.models.enums import UserType
 from Backend.models.property import Property
 from Backend.models.user import User
-from Backend.utils.azure_blob import (delete_blob_by_url,
-                                      upload_expense_receipt_to_blob)
+from Backend.utils.azure_blob import upload_expense_receipt_to_blob
 from Backend.utils.datetime_utils import (create_audit_datetime,
                                           date_to_utc_range, validate_business_datetime)
 from Backend.utils.llm_utils import analyze_expense_receipt_content
-from Backend.utils.blob_tasks import _delete_blob_in_background
+from Backend.utils.blob_tasks import delete_blob_in_background as _delete_blob_in_background
 
 from .helpers import check_property_ownership
+
+def quantize_2dp(value: Decimal) -> Decimal:
+    """
+    Quantize a Decimal value to two decimal places using ROUND_HALF_UP.
+    """
+    return value.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -147,7 +142,7 @@ def _calculate_expense_taxes(
             if not (0 <= tax_item_data.tax_rate <= 100):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid tax rate for '{tax_item_data.tax_name}': {tax_item_data.tax_rate}%. Tax rate must be between 0 and 100."
+                    detail="Tax rate must be between 0 and 100."
                 )
             item_tax_amount = (current_subtotal * tax_item_data.tax_rate) / Decimal("100")
             calculated_total_tax_amount += item_tax_amount
@@ -231,7 +226,7 @@ async def _update_expense_basic_fields(
         blob_to_delete = await _handle_receipt_url_update(db_expense, update_payload["receipt_url"], old_receipt_url)
     
     if "subtotal_amount" in update_payload and update_payload["subtotal_amount"] is not None:
-        new_subtotal = quantize_2dp(Decimal(str(update_payload["subtotal_amount"])))
+        new_subtotal = quantize_2dp(update_payload["subtotal_amount"])
         current_subtotal = quantize_2dp(Decimal(str(db_expense.subtotal_amount)))  
         
         # Use direct inequality comparison after quantizing both Decimals
@@ -285,12 +280,22 @@ async def parse_expense_receipt(
         # Ensure current_user.id is UUID for blob path consistency if _convert_to_uuid was used in original
         # user_id_for_blob = _convert_to_uuid(current_user.id, "blob path user ID") # current_user.id is already UUID
         receipt_url = await upload_expense_receipt_to_blob(file, current_user.id) 
-        func_to_run = functools.partial(
-            analyze_expense_receipt_content,
+
+        parsed_data_dict: dict[str, Any] = await analyze_expense_receipt_content(
             file_content=file_content,
             filename=file.filename if file.filename is not None else "uploaded_expense_receipt"
         )
-        parsed_data_dict = await run_in_threadpool(func_to_run)
+        
+        # Ensure required fields for ExpenseReceiptParseDetails are present.
+        # The LLM can sometimes fail to find all fields, so we provide safe defaults.
+        subtotal = parsed_data_dict.get('subtotal_amount', 0.0)
+        total = parsed_data_dict.get('total_amount', 0.0)
+        
+        # Calculate total_tax_amount if it's missing, ensuring it's not negative.
+        parsed_data_dict.setdefault('total_tax_amount', max(0, float(total) - float(subtotal)))
+        # Ensure total_amount has a default if missing.
+        parsed_data_dict.setdefault('total_amount', total)
+
         parsed_details = ExpenseReceiptParseDetails(**parsed_data_dict)
         return ExpenseReceiptParseResponse(
             receipt_url=receipt_url,
@@ -478,7 +483,7 @@ async def update_expense(
     finally:
         # Only delete blob if commit definitively succeeded
         if commit_succeeded and blob_to_delete:
-            background_tasks.add_task(_delete_blob_in_background, blob_to_delete)
+            background_tasks.add_task(_delete_blob_with_error_handling, blob_to_delete)
 
 @router.delete("/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_expense(
@@ -513,4 +518,18 @@ async def delete_expense(
     finally:
         # Only delete blob if commit definitively succeeded
         if commit_succeeded and receipt_url_to_delete:
-            background_tasks.add_task(_delete_blob_in_background, receipt_url_to_delete) 
+            background_tasks.add_task(_delete_blob_with_error_handling, receipt_url_to_delete)
+
+async def _delete_blob_with_error_handling(blob_url: str):
+    """
+    Wrapper for delete_blob_in_background that catches and logs exceptions.
+    This ensures that background task failures are monitored.
+    """
+    try:
+        await _delete_blob_in_background(blob_url)
+    except Exception as e:
+        logger.exception(
+            "Background task to delete blob %s failed: %s", blob_url, e
+        )
+        # In a real application, you might emit a metric here, e.g.:
+        # metrics.increment("background_blob_deletion_failures") 

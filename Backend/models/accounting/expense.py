@@ -78,4 +78,4 @@ class Expense(SQLModel, table=True):
     taxes: list["ExpenseTaxDetail"] = Relationship(
         back_populates="expense",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
-    ) 
+    )
