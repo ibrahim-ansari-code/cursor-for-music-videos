@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, UTC
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, ClassVar
 from uuid import UUID
 
 from sqlalchemy import DateTime, String, Column, JSON, UniqueConstraint, Index, CheckConstraint, text, Enum as SAEnum
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class Integration(SQLModel, table=True):
     """Model for storing user integration connections (QuickBooks, Xero, etc.)"""
     
-    MAX_ERROR_COUNT = 100
+    MAX_ERROR_COUNT: ClassVar[int] = 100
 
     __tablename__ = "integrations"  # type: ignore
     
