@@ -23,18 +23,18 @@ from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.property import Property
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
-from Backend.utils.azure_blob import (delete_blob_by_url,
-                                      upload_payment_receipt_to_blob)
+from Backend.utils.azure_blob import upload_payment_receipt_to_blob
 from Backend.utils.datetime_utils import (create_audit_datetime,
                                           date_to_utc_range, utc_now,
                                           validate_business_datetime)
 from Backend.utils.llm_utils import analyze_payment_receipt_content
+from Backend.utils.blob_tasks import _delete_blob_in_background
 
 from .helpers import (_ensure_id_is_not_none,
                       check_lease_ownership)
 
 # Import the resilient background deletion task from expenses
-from .expenses import _delete_blob_in_background
+from .expenses import quantize_2dp
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -130,7 +130,7 @@ def _check_payment_ownership(payment: Payment, current_user: User) -> bool:
 class PaymentBase(BaseModel): # Not directly used by endpoints, but good for inheritance if needed
     amount: Decimal
     payment_date: datetime
-    payment_method: str
+    payment_method: PaymentMethod
     status: PaymentStatus
     transaction_reference: str | None = None
     description: str | None = None
@@ -157,7 +157,7 @@ class PaymentCreate(BaseModel):
     lease_id: int
     amount: Decimal
     payment_date: datetime | None = None
-    payment_method: str | None = PaymentMethod.OTHER.value
+    payment_method: PaymentMethod | None = PaymentMethod.OTHER
     status: PaymentStatus | None = PaymentStatus.PENDING
     transaction_reference: str | None = None
     description: str | None = None
@@ -167,7 +167,7 @@ class PaymentCreate(BaseModel):
 class PaymentUpdate(BaseModel):
     amount: Decimal | None = None
     payment_date: datetime | None = None
-    payment_method: str | None = None
+    payment_method: PaymentMethod | None = None
     status: PaymentStatus | None = None
     transaction_reference: str | None = None
     description: str | None = None
@@ -932,7 +932,7 @@ async def delete_payment(
         await session.delete(payment_to_delete)
         await session.commit()
         commit_succeeded = True
-        logger.info(f"Payment {payment_id} deleted successfully by user {current_user.id}")
+        logger.info("Payment %s deleted successfully by user %s", payment_id, current_user.id)
         return None
     except HTTPException:
         raise
@@ -996,7 +996,7 @@ async def generate_due_payments_for_month( # Renamed function
                 continue
             
             new_payment = Payment(
-                lease_id=lease.id, tenant_id=actual_tenant_id_for_payment, amount=Decimal(str(lease.monthly_rent)),
+                lease_id=lease.id, tenant_id=actual_tenant_id_for_payment, amount=quantize_2dp(Decimal(str(lease.monthly_rent))),
                 payment_date=utc_now(), status=PaymentStatus.PENDING,
                 description=f"Monthly rent payment for {tenant_name}",
                 payment_method=PaymentMethod.OTHER

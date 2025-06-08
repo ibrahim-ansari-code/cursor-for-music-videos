@@ -127,8 +127,8 @@ def get_client() -> AzureOpenAI:
     if client is None:
         try:
             client = get_azure_client()
-        except Exception as e:
-            logger.error("Failed to initialize Azure OpenAI client: %s", str(e))
+        except Exception:
+            logger.exception("Failed to initialize Azure OpenAI client")
             raise
     return client
 
@@ -229,7 +229,7 @@ def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[
     Returns:
         A dictionary containing extracted payment receipt fields such as payment date, subtotal, total amount, currency, payment method, description notes, and a raw text preview.
     """
-    client = get_client()  # Lazy load the client
+    azure_client = get_client()  # Use a different name for the local client
 
     file_extension = os.path.splitext(filename)[1].lower()
 
@@ -281,7 +281,7 @@ def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[
     try:
         logger.info(
             "Starting payment receipt analysis for: %s (type: %s)", filename, file_extension)
-        response = client.chat.completions.create(
+        response = azure_client.chat.completions.create(
             model=os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
             messages=messages,
             temperature=0.1,
@@ -357,9 +357,9 @@ def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[
             "Unexpected error analyzing payment receipt %s: %s", filename, e)
         raise PaymentReceiptAnalysisError(
             f"Failed to analyze payment receipt {filename}: {e}") from e
-    else:
-        logger.info("Payment receipt analysis completed for: %s", filename)
-        return parsed_data
+    
+    logger.info("Payment receipt analysis completed for: %s", filename)
+    return parsed_data
 
 
 def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[str, Any]:
@@ -372,7 +372,7 @@ def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[
         ValueError: If the file type is unsupported, text extraction fails, or the LLM response cannot be parsed as valid JSON.
         PaymentReceiptAnalysisError: If an unexpected error occurs during analysis.
     """
-    client = get_client()  # Lazy load the client
+    azure_client = get_client()  # Use a different name for the local client
 
     file_extension = os.path.splitext(filename)[1].lower()
 
@@ -425,7 +425,7 @@ def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[
     try:
         logger.info(
             "Starting expense receipt analysis for: %s (type: %s)", filename, file_extension)
-        response = client.chat.completions.create(
+        response = azure_client.chat.completions.create(
             model=os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
             messages=messages,
             temperature=0.1,
@@ -501,9 +501,9 @@ def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[
             "Unexpected error analyzing expense receipt %s: %s", filename, e)
         raise PaymentReceiptAnalysisError(
             f"Failed to analyze expense receipt {filename}: {e}") from e
-    else:
-        logger.info("Expense receipt analysis completed for: %s", filename)
-        return parsed_data
+    
+    logger.info("Expense receipt analysis completed for: %s", filename)
+    return parsed_data
 
 
 def analyze_lease_text(text: str) -> Dict[str, Any]:
@@ -523,7 +523,7 @@ def analyze_lease_text(text: str) -> Dict[str, Any]:
         ValueError: If the model response is missing required fields or contains invalid JSON.
         Exception: If analysis fails for any other reason.
     """
-    client = get_client()  # Lazy load the client
+    azure_client = get_client()  # Use a different name for the local client
 
     system_prompt = """
     You are a lease analysis assistant. Analyze the provided lease text and return a single valid JSON object. Do not return any markdown, commentary, or explanation. Your response must **only** contain the JSON, wrapped in triple backticks (```json ... ```).
@@ -628,7 +628,7 @@ def analyze_lease_text(text: str) -> Dict[str, Any]:
 
     try:
         logger.info("Starting lease text analysis")
-        response = client.chat.completions.create(
+        response = azure_client.chat.completions.create(
             model=os.getenv("AZURE_OPENAI_DEPLOYMENT", ""),
             messages=[
                 {"role": "system", "content": system_prompt},

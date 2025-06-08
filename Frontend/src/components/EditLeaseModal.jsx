@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "react-toastify";
 import {
   fetchProperties,
   fetchTenants,
@@ -128,10 +129,16 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
     // For now, sending null for empty/cleared fields is fine with `exclude_unset=True` on backend.
 
     try {
-const updatedLease = await updateLease(lease.id, updateData);
-  onClose();
- // Call onLeaseUpdated after closing to avoid race conditions
- onLeaseUpdated(updatedLease);
+      const updatedLease = await updateLease(lease.id, updateData);
+      onClose();
+      // Call onLeaseUpdated after closing to avoid race conditions
+      try {
+        onLeaseUpdated(updatedLease);
+      } catch (callbackError) {
+        console.error("Error in onLeaseUpdated callback:", callbackError);
+        // Optionally, inform the user that the list might not be up-to-date
+        toast.error("Could not refresh the lease list automatically.");
+      }
     } catch (err) {
       setError(err.message || "Failed to update lease. Please try again.");
       console.error("Update lease error:", err);

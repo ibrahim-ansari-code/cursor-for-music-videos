@@ -12,7 +12,7 @@ import sys
 import subprocess
 import json
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 # Standard Project Root Setup
 _THIS_SCRIPT_ABSPATH = os.path.abspath(__file__)
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 API_TESTS_DIR = os.path.join(_TESTS_DIR, "api_tests")
 BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
-def run_pytest_with_json_report(plugin_status: Optional[Dict[str, bool]] = None) -> bool:
+def run_pytest_with_json_report(plugin_status: Optional[dict[str, bool]] = None) -> bool:
     """
     Runs pytest on the API tests directory with optional JSON reporting and parallel execution.
     

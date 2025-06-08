@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any
+from typing import Any
 import pytest
 
 from .conftest import APITestClient
@@ -173,7 +173,7 @@ class TestMaintenanceAPI:
         # 3. Simulate access to an unauthorized resource (e.g., a request on a property not owned by the user)
         # In a real multi-user test, you'd create a request with another user.
         # Here, we test the boundary by checking a non-existent ID, which is handled by the 404 check before the permission check.
-        unauthorized_res = await api_client.get(f"/api/maintenance/requests/999999")
+        unauthorized_res = await api_client.get("/api/maintenance/requests/999999")
         assert unauthorized_res.status_code == 404
         logger.info(
             "✅ Correctly returns 404 for a non-existent (and thus unauthorized) resource.")

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import {
   updateExpenseAPI,
@@ -47,6 +47,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
   const [receiptParseError, setReceiptParseError] = useState(null);
   const [currentReceiptUrl, setCurrentReceiptUrl] = useState(null);
   const [showReceiptPreview, setShowReceiptPreview] = useState(false);
+  const receiptParseAbortControllerRef = useRef(null);
 
   useEffect(() => {
     if (isOpen && expenseData) {
@@ -103,19 +104,21 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
     }
   }, [isOpen, expenseData]);
 
-  useEffect(() => {
+  const { totalTax, totalAmount } = useMemo(() => {
     const subtotal = Number.parseFloat(formData.amount) || 0;
-    let totalTax = 0;
+    let newTotalTax = 0;
     if (subtotal > 0) {
       formData.taxes.forEach((tax) => {
         const rate = Number.parseFloat(tax.tax_rate);
         if (tax.tax_name && !isNaN(rate) && rate > 0) {
-          totalTax += (subtotal * rate) / 100;
+          newTotalTax += (subtotal * rate) / 100;
         }
       });
     }
-    setCalculatedTotalTaxAmount(totalTax);
-    setCalculatedTotalAmount(subtotal + totalTax);
+    return {
+      totalTax: newTotalTax,
+      totalAmount: subtotal + newTotalTax,
+    };
   }, [formData.amount, formData.taxes]);
 
   const handleInputChange = (e) => {
@@ -150,12 +153,19 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
     if (file) {
       setReceiptParseError(null);
       setIsParsingReceipt(true);
-      // setCurrentReceiptUrl(null); // Keep existing URL until new one is confirmed
-      // setShowReceiptPreview(false);
+
+      // Abort previous request if it exists
+      if (receiptParseAbortControllerRef.current) {
+        receiptParseAbortControllerRef.current.abort();
+      }
+
+      const abortController = new AbortController();
+      receiptParseAbortControllerRef.current = abortController;
+      
       const formDataForApi = new FormData();
       formDataForApi.append("file", file);
       try {
-        const response = await parseExpenseReceiptAPI(formDataForApi);
+        const response = await parseExpenseReceiptAPI(formDataForApi, { signal: abortController.signal });
         if (response?.parsed_details) {
           const { parsed_details, receipt_url: parsedReceiptUrl } = response;
           setCurrentReceiptUrl(parsedReceiptUrl); // Set new receipt URL immediately
@@ -167,10 +177,16 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
           throw new Error("Invalid response from receipt parser.");
         }
       } catch (err) {
+        if (err.name === 'AbortError') {
+          console.log('Receipt parse request was cancelled');
+          return;
+        }
         setReceiptParseError(err.message || "Failed to parse new receipt.");
         toast.error(err.message || "Failed to parse new receipt.");
       } finally {
-        setIsParsingReceipt(false);
+        if (!abortController.signal.aborted) {
+          setIsParsingReceipt(false);
+        }
       }
     }
   };
@@ -364,7 +380,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
           </div>
           <Input
             type="text"
-            value={calculatedTotalTaxAmount.toFixed(2)}
+            value={totalTax.toFixed(2)}
             readOnly
             className="bg-gray-100 pl-7"
           />
@@ -378,7 +394,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
           </div>
           <Input
             type="text"
-            value={calculatedTotalAmount.toFixed(2)}
+            value={totalAmount.toFixed(2)}
             readOnly
             className="bg-gray-100 pl-7"
           />
@@ -482,6 +498,8 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
                       src={pdfDisplayUrl}
                       title="Receipt Preview"
                       className="w-full h-full border-0"
+                      sandbox="allow-scripts allow-same-origin"
+                      referrerPolicy="no-referrer"
                     />
                   );
                 } else {
@@ -490,7 +508,8 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
                       src={url}
                       title="Receipt Preview"
                       className="w-full h-full border-0"
-                      sandbox="allow-same-origin"
+                      sandbox="allow-scripts allow-same-origin"
+                      referrerPolicy="no-referrer"
                     />
                   );
                 }

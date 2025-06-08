@@ -627,11 +627,11 @@ const ConfirmLeaseModal = ({
                     >
                       {showLeasePreview ? (
                         <>
-                          <i className="fas fa-eye-slash mr-2"></i>Hide Document
+                          <i className="fas fa-eye-slash mr-2" />Hide Document
                         </>
                       ) : (
                         <>
-                          <i className="fas fa-eye mr-2"></i>Show Document
+                          <i className="fas fa-eye mr-2" />Show Document
                         </>
                       )}
                     </Button>

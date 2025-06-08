@@ -22,6 +22,7 @@ const LoadingSpinner = ({
       role="status"
       aria-live="polite"
       aria-label={`Loading: ${message}`}
+      aria-describedby="loading-text"
     >
       <div className={center ? "text-center" : ""}>
         <div 

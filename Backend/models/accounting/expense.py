@@ -26,7 +26,7 @@ class ExpenseTaxDetail(SQLModel, table=True):
         ge=0, description="Tax amount must be non-negative"
     )
 
-    expense_id: Optional[int] = Field(default=None, foreign_key="expenses.id")
+    expense_id: Optional[int] = Field(default=None, foreign_key="expenses.id", index=True)
     expense: "Expense" = Relationship(back_populates="taxes")
 
     created_at: datetime = Field(
@@ -63,7 +63,7 @@ class Expense(SQLModel, table=True):
         ge=0, description="Total amount must be non-negative"
     )
 
-    property_id: int = Field(foreign_key="properties.id")
+    property_id: int = Field(foreign_key="properties.id", index=True)
 
     created_at: datetime = Field(
         default_factory=create_audit_datetime,

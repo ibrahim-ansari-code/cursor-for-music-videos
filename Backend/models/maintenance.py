@@ -30,7 +30,7 @@ class MaintenanceRequest(SQLModel, table=True):
         Integer, ForeignKey("tenants.id", ondelete="SET NULL")))
     user_id: PythonUUID | None = Field(default=None, sa_column=Column(
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")))
-    request_date: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(
+    request_date: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(
         TIMESTAMP(timezone=True), nullable=False))
     priority: MaintenancePriority = Field(
         sa_column=Column(PgEnum(MaintenancePriority, name="maintenance_priority", create_constraint=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False))
@@ -46,9 +46,9 @@ class MaintenanceRequest(SQLModel, table=True):
     photos: list[str] | None = Field(
         default=None, sa_column=Column(JSON, nullable=True))
 
-    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(
          TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")))
-    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(
          TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP"), onupdate=sa.func.now()))
     assigned_to: str | None = Field(
          default=None, sa_column=Column(String, nullable=True))

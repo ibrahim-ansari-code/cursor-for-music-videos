@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Annotated, Optional
+from typing import Annotated
 from uuid import UUID as PythonUUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status

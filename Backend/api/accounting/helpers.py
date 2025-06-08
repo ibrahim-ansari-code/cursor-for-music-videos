@@ -55,9 +55,10 @@ def _ensure_id_is_not_none(
     context: str,
 ) -> IDType:
     """
-    Ensures that the provided entity ID is not None, raising HTTP 500 if missing.
+    Ensures that the provided entity ID is not None, raising HTTP 400 if missing.
     
-    Logs a critical error and aborts the request with an HTTP 500 error if the entity ID is None in the specified context. Returns the entity ID if present.
+    Logs a critical error and aborts the request with an HTTP 400 error if the entity ID is None in the specified context. 
+    Returns the entity ID if present.
     """
     if entity_id is None:
         logger.error("Critical error: %s ID is None %s.", entity_name, context)
