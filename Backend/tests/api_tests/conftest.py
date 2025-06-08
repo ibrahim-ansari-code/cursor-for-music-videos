@@ -50,10 +50,10 @@ class APITestClient:
 
     def __init__(self, base_url: str):
         """
-        Initializes an asynchronous API test client with the specified base URL.
-
+        Initializes the APITestClient with a base URL for API requests.
+        
         Args:
-            base_url: The root URL for all API requests made by this client.
+            base_url: The root URL to which all API requests will be sent.
         """
         self.base_url = base_url
         self.client = httpx.AsyncClient(timeout=30.0)
@@ -63,22 +63,22 @@ class APITestClient:
 
     async def __aenter__(self):
         """
-        Authenticates the API client and returns itself for use in asynchronous context managers.
+        Authenticates the API client and returns itself for use in an async context manager.
         """
         await self._authenticate()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """
-        Closes the underlying HTTP client when exiting the async context.
+        Closes the HTTP client when exiting the asynchronous context manager.
         """
         await self.client.aclose()
 
     async def _authenticate(self):
         """
         Attempts to authenticate the API client by acquiring a JWT token.
-
-        Tries to obtain a fresh token using an async helper, then falls back to an environment variable, and finally to a local token file. Logs the outcome and sets the token for use in authenticated requests.
+        
+        Tries to obtain a token using a helper function, then falls back to an environment variable, and finally to a local token file. Sets the token for use in authenticated requests and logs the outcome. If no token is found, logs a critical error.
         """
         logger.info(
             "APITestClient: Attempting to acquire authentication token...")
@@ -129,10 +129,9 @@ class APITestClient:
 
     def _get_headers(self) -> dict[str, str]:
         """
-        Constructs HTTP headers for API requests, including authorization if a token is present.
-
-        Returns:
-            A dictionary of HTTP headers with 'Content-Type' set to 'application/json' and, if available, an 'Authorization' header containing the bearer token.
+        Returns HTTP headers for API requests, including authorization if a token is set.
+        
+        The headers always include 'Content-Type: application/json' and add an 'Authorization' header with the bearer token if available.
         """
         headers = {"Content-Type": "application/json"}
         if self.auth_token:
@@ -142,49 +141,49 @@ class APITestClient:
     async def get(self, endpoint: str, **kwargs) -> httpx.Response:
         """
         Sends an authenticated asynchronous GET request to the specified API endpoint.
-
+        
         Args:
-                endpoint: The API endpoint path, relative to the base URL.
-
+            endpoint: The API endpoint path, relative to the base URL.
+        
         Returns:
-                The HTTP response from the API.
+            The HTTP response object from the API.
         """
         return await self.client.get(f"{self.base_url}{endpoint}", headers=self._get_headers(), **kwargs)
 
     async def post(self, endpoint: str, json_data: dict[str, Any] | None = None, **kwargs) -> httpx.Response:
         """
         Sends an authenticated asynchronous POST request to the specified API endpoint.
-
+        
         Args:
-                endpoint: The API endpoint path to append to the base URL.
-                json_data: Optional JSON-serializable dictionary to include in the request body.
-
+            endpoint: The API endpoint path relative to the base URL.
+            json_data: Optional dictionary to include as JSON in the request body.
+        
         Returns:
-                The HTTP response object from the POST request.
+            The HTTP response from the POST request.
         """
         return await self.client.post(f"{self.base_url}{endpoint}", json=json_data, headers=self._get_headers(), **kwargs)
 
     async def put(self, endpoint: str, json_data: dict[str, Any] | None = None, **kwargs) -> httpx.Response:
         """
         Sends an authenticated HTTP PUT request to the specified API endpoint.
-
+        
         Args:
-                endpoint: The API endpoint path, appended to the base URL.
-                json_data: Optional JSON-serializable dictionary to include in the request body.
-
+            endpoint: Relative path of the API endpoint.
+            json_data: Optional dictionary to include as JSON in the request body.
+        
         Returns:
-                The HTTP response from the API.
+            The HTTP response object from the API.
         """
         return await self.client.put(f"{self.base_url}{endpoint}", json=json_data, headers=self._get_headers(), **kwargs)
 
     async def patch(self, endpoint: str, json_data: dict[str, Any] | None = None, **kwargs) -> httpx.Response:
         """
-        Sends an authenticated HTTP PATCH request to the specified API endpoint.
-
+        Sends an authenticated HTTP PATCH request to a specified API endpoint.
+        
         Args:
-            endpoint: The API endpoint path to patch, relative to the base URL.
-            json_data: Optional JSON-serializable dictionary to include in the request body.
-
+            endpoint: The API endpoint path, relative to the base URL.
+            json_data: Optional dictionary to include as JSON in the request body.
+        
         Returns:
             The HTTP response from the API.
         """
@@ -193,12 +192,12 @@ class APITestClient:
     async def delete(self, endpoint: str, **kwargs) -> httpx.Response:
         """
         Sends an authenticated HTTP DELETE request to the specified API endpoint.
-
+        
         Args:
             endpoint: The API endpoint path, relative to the base URL.
-
+        
         Returns:
-            The HTTP response from the DELETE request.
+            The HTTP response object resulting from the DELETE request.
         """
         return await self.client.delete(f"{self.base_url}{endpoint}", headers=self._get_headers(), **kwargs)
 
@@ -206,11 +205,9 @@ class APITestClient:
 @pytest.fixture(scope="function")
 async def api_client():
     """
-    Provides a function-scoped pytest fixture yielding an authenticated async API client.
+    Yields an authenticated asynchronous API client for use in tests.
     
-    Authentication is cached per session for improved performance via the auth helper.
-    If authentication fails or no token is present, the test is skipped. Use this for most tests.
-    For tests requiring isolation, use fresh_api_client instead.
+    This function-scoped pytest fixture provides an API client with a valid JWT token, verifying authentication before yielding. If authentication fails or no token is available, the test is skipped. Authentication is cached per session for efficiency. For isolated authentication, use the `fresh_api_client` fixture.
     """
     async with APITestClient(BASE_URL) as client:
         # Verify authentication works
@@ -237,10 +234,9 @@ async def api_client():
 @pytest.fixture(scope="function")
 async def fresh_api_client():
     """
-    Provides a function-scoped authenticated API client fixture for isolated tests.
-
-    Yields:
-        An instance of APITestClient authenticated with a JWT token, or skips the test if authentication is unavailable.
+    Yields a fresh, function-scoped authenticated API client for isolated tests.
+    
+    Skips the test if authentication cannot be established.
     """
     async with APITestClient(BASE_URL) as client:
         if not client.auth_token:
@@ -251,9 +247,9 @@ async def fresh_api_client():
 @pytest.fixture(scope="function")
 async def created_landlord_property(api_client: APITestClient):
     """
-    Creates a test property owned by the authenticated user and yields its ID.
-
-    This fixture posts a new property to the API for the current test user, yields the created property's ID for use in tests, and ensures the property is deleted after the test completes. If the user is not authenticated or property creation fails, the test is skipped.
+    Creates a test property for the authenticated user and yields its ID.
+    
+    Posts a new property to the API as the current user, yields the created property's ID for use in tests, and ensures the property is deleted after the test completes. Skips the test if the user is not authenticated or property creation fails.
     """
     if not api_client.current_user or not api_client.current_user.get("id"):
         pytest.skip(
@@ -312,7 +308,11 @@ async def created_landlord_property(api_client: APITestClient):
 
 @pytest.fixture(autouse=True)
 def configure_logging():
-    """Auto-used fixture to configure logging for each test"""
+    """
+    Configures logging with a consistent format and INFO level before each test.
+    
+    This fixture is automatically used to ensure all test logs have timestamps and standardized formatting.
+    """
     # This runs before each test to ensure consistent logging
     logging.basicConfig(
         level=logging.INFO,
@@ -328,9 +328,9 @@ pytestmark = [
 
 def pytest_configure(config):
     """
-    Registers custom pytest markers for authentication, slow tests, and integration tests.
-
-    This hook adds the 'auth', 'slow', and 'integration' markers to the pytest configuration, enabling their use in test files.
+    Registers custom pytest markers for authentication, slow, and integration tests.
+    
+    Adds the 'auth', 'slow', and 'integration' markers to the pytest configuration, allowing these markers to be used in test files for categorizing tests.
     """
     # Add custom markers
     config.addinivalue_line(
@@ -342,9 +342,9 @@ def pytest_configure(config):
 
 def pytest_collection_modifyitems(config, items):
     """
-    Automatically adds the 'auth' marker to tests that use API client fixtures.
-
-    This ensures that any test using the 'api_client' or 'fresh_api_client' fixture is marked as requiring authentication.
+    Automatically adds the 'auth' marker to tests using API client fixtures.
+    
+    Tests that use the 'api_client' or 'fresh_api_client' fixture are marked as requiring authentication.
     """
     # Add auth marker to all tests by default (since API tests require auth)
     for item in items:
@@ -354,7 +354,11 @@ def pytest_collection_modifyitems(config, items):
 
 # Helper functions for tests
 def assert_api_success(response: httpx.Response, expected_status: int = 200):
-    """Helper to assert API response success"""
+    """
+    Asserts that the API response status code matches the expected value.
+    
+    Raises an assertion error if the response status code does not equal the expected status.
+    """
     assert response.status_code == expected_status, (
         f"Expected status {expected_status}, got {response.status_code}. "
         f"Response: {response.text[:500]}"
@@ -364,19 +368,11 @@ def assert_api_success(response: httpx.Response, expected_status: int = 200):
 def assert_valid_json_response(response: httpx.Response, expected_type=None, expected_status=200):
     """
     Asserts that an HTTP response has the expected status and contains valid JSON.
-
-    If `expected_type` is provided, also asserts that the parsed JSON matches the specified type.
-
-    Args:
-        response: The HTTP response to validate.
-        expected_type: Optional type to check the parsed JSON against.
-        expected_status: Expected HTTP status code (default is 200).
-
+    
+    If `expected_type` is provided, also asserts that the parsed JSON matches the specified type. Fails the test if the response is not valid JSON or does not match the expected type.
+    
     Returns:
-        The parsed JSON data.
-
-    Raises:
-        Fails the test if the response is not valid JSON or does not match the expected type.
+        The parsed JSON data from the response.
     """
     assert_api_success(response, expected_status)
     try:
@@ -393,8 +389,8 @@ def assert_valid_json_response(response: httpx.Response, expected_type=None, exp
 async def cleanup_test_data(api_client: APITestClient):
     """
     Asynchronously deletes test tenants and properties created during testing.
-
-    Identifies and removes tenants and properties whose names or emails match test patterns, skipping protected accounts. Logs the outcome of each deletion attempt.
+    
+    Identifies and removes tenants and properties whose names or emails match test patterns, while skipping protected accounts. Logs the outcome of each deletion attempt and handles network or request errors gracefully.
     """
     logger.info("🧹 Starting test data cleanup...")
 
@@ -469,10 +465,9 @@ async def cleanup_test_data(api_client: APITestClient):
 @pytest.fixture(scope="session")
 def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
     """
-    Creates and yields a new asyncio event loop for the test session.
-
-    On Windows platforms, sets a compatible event loop policy for improved stability.
-    Closes the event loop after the session completes.
+    Provides a session-scoped asyncio event loop for pytest.
+    
+    On Windows, sets a compatible event loop policy for stability. Closes the event loop after the test session.
     """
     # Set Windows-compatible event loop policy for better stability
     if sys.platform.startswith('win'):
@@ -488,7 +483,10 @@ def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
 @pytest.fixture
 async def created_property_id(api_client: APITestClient) -> AsyncGenerator[int, None]:
     """
-    Creates a test property and yields its ID, ensuring it's deleted after.
+    Creates a test property and yields its ID, deleting the property after the test.
+    
+    Yields:
+        The ID of the created test property.
     """
     property_data = {
         "name": f"Test Property {int(time.time())}",
@@ -513,11 +511,10 @@ async def created_property_id(api_client: APITestClient) -> AsyncGenerator[int, 
 @pytest.fixture
 async def created_property(api_client: APITestClient) -> AsyncGenerator[dict[str, Any], None]:
     """
-    Asynchronously creates a test property for use in API tests and ensures
-    its deletion after the test completes.
-
+    Creates a test property asynchronously for use in API tests and deletes it after the test.
+    
     Yields:
-        The created property object as a dictionary.
+        A dictionary representing the created property.
     """
     property_data = {
         "name": f"Test Fixture Property {int(time.time())}",

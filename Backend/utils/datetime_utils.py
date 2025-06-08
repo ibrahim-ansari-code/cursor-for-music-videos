@@ -16,13 +16,9 @@ from fastapi import HTTPException, status
 
 def ensure_utc_aware(dt: datetime | None) -> datetime | None:
     """
-    Ensures a datetime is timezone-aware in UTC.
-
-    Args:
-        dt: Input datetime (can be naive or timezone-aware)
-
-    Returns:
-        UTC timezone-aware datetime, or None if input was None
+    Converts a datetime to a UTC timezone-aware datetime.
+    
+    If the input is naive, it is assumed to be in UTC and the UTC timezone is set. If the input is already timezone-aware, it is converted to UTC. Returns None if the input is None.
     """
     if dt is None:
         return None
@@ -47,24 +43,23 @@ def utc_now() -> datetime:
 
 def naive_utc_now() -> datetime:
     """
-    Returns current datetime as naive UTC (for audit fields).
-
-    Returns:
-        Current UTC datetime (naive - no timezone info)
+    Returns the current UTC datetime as a naive datetime object.
+    
+    This function provides the current time in UTC without any timezone information attached.
     """
     return datetime.now(UTC).replace(tzinfo=None)
 
 
 def date_to_utc_range(start_date: date, end_date: date) -> tuple[datetime, datetime]:
     """
-    Converts date range to UTC timezone-aware datetime range for business date queries.
-
+    Converts a date range into a tuple of UTC timezone-aware datetimes representing the full span of each day.
+    
     Args:
-        start_date: Start date (inclusive)
-        end_date: End date (inclusive)
-
+        start_date: The inclusive start date of the range.
+        end_date: The inclusive end date of the range.
+    
     Returns:
-        Tuple of (start_datetime_utc, end_datetime_utc) as timezone-aware datetimes
+        A tuple containing the UTC-aware datetime at the start of start_date and the end of end_date.
     """
     start_datetime = datetime.combine(start_date, time.min, tzinfo=UTC)
     end_datetime = datetime.combine(end_date, time.max, tzinfo=UTC)
@@ -73,14 +68,9 @@ def date_to_utc_range(start_date: date, end_date: date) -> tuple[datetime, datet
 
 def date_to_naive_range(start_date: date, end_date: date) -> tuple[datetime, datetime]:
     """
-    Converts date range to naive datetime range for audit date queries.
-
-    Args:
-        start_date: Start date (inclusive)
-        end_date: End date (inclusive)
-
-    Returns:
-        Tuple of (start_datetime, end_datetime) as naive datetimes
+    Converts a date range into a tuple of naive datetimes representing the full span of each day.
+    
+    The returned tuple contains the earliest possible time on the start date and the latest possible time on the end date, both as naive (timezone-unaware) datetime objects.
     """
     start_datetime = datetime.combine(start_date, time.min)
     end_datetime = datetime.combine(end_date, time.max)
@@ -105,24 +95,20 @@ def validate_business_datetime(dt: datetime) -> datetime:
 
 def create_audit_datetime() -> datetime:
     """
-    Creates a timezone-aware UTC datetime for audit fields.
-
+    Creates and returns a timezone-aware UTC datetime for audit purposes.
+    
     Returns:
-        Timezone-aware UTC datetime for audit trail
+        A datetime object representing the current time in UTC with timezone awareness.
     """
     return utc_now()
 
 
 def validate_date_range(start_date: date | None, end_date: date | None) -> None:
     """
-    Validates that the start_date is not after the end_date.
-
-    Args:
-        start_date: The start of the date range.
-        end_date: The end of the date range.
-
+    Checks that the start date is not after the end date, raising an HTTP 400 error if invalid.
+    
     Raises:
-        HTTPException: 400 if the date range is invalid.
+        HTTPException: If start_date is after end_date, with status 400.
     """
     if start_date and end_date and start_date > end_date:
         raise HTTPException(

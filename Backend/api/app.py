@@ -76,6 +76,11 @@ app.add_middleware(
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Handles FastAPI request validation errors by returning a JSON response with error details and a sanitized, serializable representation of the request body.
+    
+    If the request body is FormData, separates form fields and file uploads for safe logging and response content, avoiding exposure of file contents. Logs the validation error with a summary of the request body.
+    """
     body_representation = exc.body  # Default to original body
 
     if isinstance(exc.body, FormData):

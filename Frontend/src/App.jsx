@@ -34,6 +34,16 @@ import LoadingSpinner from "./components/LoadingSpinner";
 // Auth Context
 export const AuthContext = createContext(null);
 
+/**
+ * Main application component that manages authentication state, session persistence, and protected routing.
+ *
+ * Initializes authentication state using Supabase, fetches user profile from the backend, and provides authentication context to the app. Handles login, logout, and session changes, and conditionally renders routes based on authentication status.
+ *
+ * @returns {JSX.Element} The root component of the authenticated single-page application.
+ *
+ * @remark
+ * If authentication or user profile fetching fails, the user is signed out and local authentication data is cleared.
+ */
 function App() {
   console.log(`[App] Effective VITE_API_URL: ${import.meta.env.VITE_API_URL}`);
   const [user, setUser] = useState(null);

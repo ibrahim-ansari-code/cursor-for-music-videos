@@ -49,25 +49,19 @@ _OWNERSHIP_FILTER_PATTERNS = {
 
 def _build_safe_ownership_filter(filter_type: FilterType, table_alias: str = "prop") -> str:
     """
-    Returns a validated ownership filter fragment to prevent SQL injection.
+    Constructs a validated SQL ownership filter fragment using a specified filter type and table alias.
     
-    SECURITY NOTE:
-    The f-string interpolation used with these filters is safe because:
-    1. `_build_safe_ownership_filter` validates all inputs against enum types
-       and a strict regex for table aliases, preventing arbitrary string injection.
-    2. Only predefined filter patterns with proper parameterization (:param_name) are used.
-    3. All actual user-provided data values are passed through SQLAlchemy's
-       parameter binding, which handles proper escaping.
-
+    Ensures the filter type is a valid FilterType enum member and the table alias matches strict naming rules to prevent SQL injection. Returns a safe SQL fragment with the table alias substituted.
+    
     Args:
-        filter_type: One of the predefined FilterType enum values
-        table_alias: The table alias to use in the filter (default: "prop")
-        
+        filter_type: The ownership filter type to apply.
+        table_alias: The SQL table alias to use in the filter (must start with a letter and contain only letters, digits, or underscores).
+    
     Returns:
-        A safe SQL filter fragment with the appropriate table alias
-        
+        A SQL filter fragment string with the specified table alias.
+    
     Raises:
-        ValueError: If filter_type is not a valid FilterType enum member or table_alias is invalid
+        ValueError: If the filter type is invalid or the table alias does not meet naming requirements.
     """
     if not isinstance(filter_type, FilterType):
         raise ValueError(f"Invalid filter type '{filter_type}'. Must be a FilterType enum member.")
@@ -151,17 +145,17 @@ ORDER BY ms.period_start
 @functools.lru_cache(maxsize=64)
 def _build_safe_sql_query(base_query: str, payments_filter: str, expenses_filter: str) -> TextClause:
     """
-    Build a safe SQL query using SQLAlchemy text() with filter substitution.
+    Constructs a SQLAlchemy TextClause by injecting validated filter fragments into a base SQL query template.
     
-    Cached to avoid repeated string formatting for frequently accessed routes.
+    The resulting query is safe for execution, as filter fragments must be pre-validated to prevent SQL injection. This function is cached to optimize performance for frequently used query patterns.
     
     Args:
-        base_query: The base SQL query template with {payments_filter} and {expenses_filter} placeholders
-        payments_filter: Safe filter string for payments
-        expenses_filter: Safe filter string for expenses
-        
+        base_query: SQL query template containing `{payments_filter}` and `{expenses_filter}` placeholders.
+        payments_filter: Pre-validated SQL fragment for filtering payments.
+        expenses_filter: Pre-validated SQL fragment for filtering expenses.
+    
     Returns:
-        SQLAlchemy text() object with safe query
+        A SQLAlchemy TextClause object representing the formatted query.
     """
     return text(base_query.format(
         payments_filter=payments_filter,
@@ -203,6 +197,11 @@ async def get_occupancy_rates(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> list[OccupancyResponse]:
+    """
+    Retrieves occupancy rates for properties accessible to the current user.
+    
+    Returns a list of occupancy statistics per property, including total, occupied, and vacant units, as well as occupancy rate. Results are filtered based on user role (admin or landlord) and, if provided, a specific property ID.
+    """
     if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
@@ -264,6 +263,19 @@ async def get_revenue_trends(
     property_id: int | None = None, session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> list[RevenueTrendResponse]:
+    """
+    Retrieves revenue, expenses, and net income trends for properties, grouped by month or year.
+    
+    Only users with ADMIN or LANDLORD roles can access this endpoint. The trends can be filtered by a specific property and year. Results are grouped by month for monthly trends or by year for yearly trends, and include revenue, expenses, and calculated net income for each period.
+    
+    Args:
+        period_type: The aggregation period for trends (monthly or yearly).
+        year: The target year for monthly trends or the end year for yearly trends. Defaults to the current year if not provided.
+        property_id: Optional property ID to filter results to a specific property.
+    
+    Returns:
+        A list of RevenueTrendResponse objects, each representing revenue, expenses, and net income for a period.
+    """
     if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
@@ -332,6 +344,14 @@ async def get_accounting_overview(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> AccountingOverviewResponse:
+    """
+    Retrieves a comprehensive accounting overview for the current user.
+    
+    Returns aggregated financial and occupancy metrics for the current month and year-to-date, including revenue, expenses, net income, occupancy rate, outstanding payments, average rent, and revenue trends for the last 12 months. Only accessible to admin and landlord users.
+    
+    Returns:
+        An AccountingOverviewResponse containing all aggregated metrics and revenue trends.
+    """
     if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 

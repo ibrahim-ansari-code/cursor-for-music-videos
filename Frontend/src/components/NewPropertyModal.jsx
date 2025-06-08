@@ -17,6 +17,16 @@ import { toast } from "react-toastify"; // Using react-toastify for success mess
 // --- Helper Function for Azure Maps API ---
 const AZURE_MAPS_API_KEY = import.meta.env.VITE_AZURE_MAPS_KEY;
 
+/**
+ * Fetches address suggestions from the Azure Maps API based on a query string.
+ *
+ * Returns up to 5 address suggestions for Canadian addresses matching the input query. If the query is less than 3 characters, the API key is missing, or an error occurs, an empty array is returned.
+ *
+ * @param {string} query - The address search input.
+ * @returns {Promise<Array>} A promise that resolves to an array of address suggestion objects.
+ *
+ * @remark Logs errors to the console if the API key is missing or if the API request fails.
+ */
 async function fetchAddressSuggestions(query) {
   if (!query || query.length < 3) return [];
   if (!AZURE_MAPS_API_KEY) {
@@ -41,7 +51,15 @@ async function fetchAddressSuggestions(query) {
   }
 }
 
-// --- Helper Function for Unit Generation ---
+/**
+ * Generates an array of unit objects for an apartment complex based on the number of floors and units per floor.
+ *
+ * Each unit is named by concatenating the floor number with a zero-padded unit number (e.g., "101", "102").
+ *
+ * @param {number|string} numFloors - The total number of floors in the building.
+ * @param {number|string} unitsPerFloor - The number of units on each floor.
+ * @returns {Array<{name: string, floor: number}>} An array of unit objects, or an empty array if inputs are invalid or non-positive.
+ */
 function generateUnits(numFloors, unitsPerFloor) {
   const units = [];
   const floors = parseInt(numFloors, 10);
@@ -231,6 +249,11 @@ const NewPropertyModal = ({
   };
 
   useEffect(() => {
+    /**
+     * Hides the address suggestions dropdown when a click occurs outside of it.
+     *
+     * @param {MouseEvent} event - The mouse event triggered by the user's click.
+     */
     function handleClickOutsideSuggestions(event) {
       if (
         suggestionsRef.current &&

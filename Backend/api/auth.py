@@ -229,7 +229,18 @@ async def upload_user_avatar(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    """Upload user avatar"""
+    """
+    Uploads a new avatar image for the specified user.
+    
+    Only the user themselves or an admin can upload an avatar. The image is stored in Azure Blob Storage, and the user's profile is updated with the new avatar URL.
+    
+    Args:
+        user_id: The ID of the user whose avatar is being updated.
+        file: The image file to upload.
+    
+    Returns:
+        An object containing the URL of the uploaded avatar image.
+    """
     if current_user.id != user_id and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

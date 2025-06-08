@@ -45,7 +45,19 @@ class ApideckOperation(Enum):
     # CUSTOMERS_LIST = "customers_list"
 
 async def _handle_company_info_operation(client: Apideck, service_id: str) -> AccountingCompanyInfoOneResponse:
-    """Handler for company info operation"""
+    """
+    Retrieves company information from the accounting service using the Apideck client.
+    
+    Args:
+        client: The Apideck client instance configured for the target consumer.
+        service_id: The identifier of the accounting service (e.g., "quickbooks").
+    
+    Returns:
+        The response containing company information from the accounting provider.
+    
+    Raises:
+        asyncio.TimeoutError: If the operation does not complete within 30 seconds.
+    """
     return await asyncio.wait_for(
         asyncio.to_thread(
             client.accounting.company_info.get,
@@ -71,10 +83,9 @@ rate_limit_lock = asyncio.Lock()
 
 async def check_rate_limit(user_id: str) -> bool:
     """
-    Check if user has exceeded rate limit for connection requests
-    Uses TTL cache to automatically remove stale entries and prevent memory leaks.
-    Note: This implementation is only suitable for single-process deployments.
-    For distributed systems, implement Redis-based rate limiting.
+    Checks whether a user has exceeded the allowed number of connection requests within the rate limit window.
+    
+    Uses an in-memory TTL cache to track recent request timestamps per user. Returns True if the user is under the rate limit and the request can proceed; otherwise, returns False. Not suitable for distributed deployments.
     """
     async with rate_limit_lock:
         now = datetime.now(timezone.utc)
@@ -104,6 +115,13 @@ class SimpleCircuitBreaker:
     """Simple circuit breaker for external API calls - thread-safe for async use"""
     
     def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 60) -> None:
+        """
+        Initializes a SimpleCircuitBreaker with configurable failure threshold and recovery timeout.
+        
+        Args:
+            failure_threshold: Number of consecutive failures before opening the circuit.
+            recovery_timeout: Time in seconds to wait before attempting to close the circuit after opening.
+        """
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.failure_count = 0
@@ -112,7 +130,12 @@ class SimpleCircuitBreaker:
         self._lock = asyncio.Lock()  # Protect shared state
     
     async def can_execute(self) -> bool:
-        """Check if circuit allows execution"""
+        """
+        Determines whether the circuit breaker permits execution of an operation.
+        
+        Returns:
+            True if the circuit is closed or half-open, or if the recovery timeout has elapsed in the open state; otherwise, False.
+        """
         async with self._lock:
             if self.state == "CLOSED":
                 return True
@@ -126,13 +149,21 @@ class SimpleCircuitBreaker:
                 return True
     
     async def record_success(self) -> None:
-        """Record successful call"""
+        """
+        Resets the circuit breaker after a successful call.
+        
+        Sets the failure count to zero and changes the circuit breaker state to CLOSED.
+        """
         async with self._lock:
             self.failure_count = 0
             self.state = "CLOSED"
     
     async def record_failure(self) -> None:
-        """Record failed call"""
+        """
+        Records a failed call and updates the circuit breaker state.
+        
+        Increments the failure count and updates the last failure timestamp. If the failure threshold is reached or exceeded, transitions the circuit breaker to the OPEN state.
+        """
         async with self._lock:
             self.failure_count += 1
             self.last_failure_time = datetime.now(timezone.utc)
@@ -145,7 +176,12 @@ apideck_circuit_breaker = SimpleCircuitBreaker()
 
 # === Startup Validation ===
 def validate_apideck_config() -> None:
-    """Validate Apideck configuration at startup - fail fast if incomplete"""
+    """
+    Validates that required Apideck configuration variables are set at startup.
+    
+    Raises:
+        ValueError: If either APIDECK_API_KEY or APIDECK_APP_ID is missing from the environment.
+    """
     if not settings.APIDECK_API_KEY or not settings.APIDECK_APP_ID:
         raise ValueError(
             "Apideck configuration is incomplete. Both APIDECK_API_KEY and APIDECK_APP_ID "
@@ -183,7 +219,12 @@ class QuickBooksDisconnectResponse(BaseModel):
 # === Helper Functions ===
 
 def get_apideck_client(consumer_id: str) -> Apideck:
-    """Create an Apideck client instance for the given consumer"""
+    """
+    Creates and returns an Apideck client instance configured for the specified consumer.
+    
+    Raises:
+        RuntimeError: If Apideck API credentials are not set in the environment.
+    """
     # Guard clause to ensure credentials are configured
     if not settings.APIDECK_API_KEY or not settings.APIDECK_APP_ID:
         raise RuntimeError(
@@ -203,7 +244,11 @@ async def get_or_create_integration(
     integration_type: IntegrationType = IntegrationType.QUICKBOOKS,
     service_id: str = APIDECK_SERVICE_ID
 ) -> Integration:
-    """Get existing integration or create a new one"""
+    """
+    Retrieves an existing integration for the user and type, or creates a new one if none exists.
+    
+    If no integration is found, a new Integration record is created with a generated Apideck consumer ID, the specified service ID, and a disconnected status. The new integration is committed to the database and returned.
+    """
     integration = await session.scalar(
         select(Integration).where(
             Integration.user_id == user.id,
@@ -233,7 +278,17 @@ async def get_user_integration(
     session: AsyncSession, 
     integration_type: IntegrationType = IntegrationType.QUICKBOOKS
 ) -> Integration | None:
-    """Get user's integration using clean ORM pattern"""
+    """
+    Retrieves the integration record for a user and specified integration type.
+    
+    Args:
+        user: The user whose integration is being queried.
+        session: The asynchronous database session.
+        integration_type: The type of integration to retrieve. Defaults to QuickBooks.
+    
+    Returns:
+        The Integration instance if found, otherwise None.
+    """
     return await session.scalar(
         select(Integration).where(
             Integration.user_id == user.id,
@@ -242,7 +297,22 @@ async def get_user_integration(
     )
 
 async def call_apideck_with_circuit_breaker(client: Apideck, service_id: str, operation: str) -> Any:
-    """Call Apideck API with circuit breaker protection"""
+    """
+    Executes an Apideck API operation with circuit breaker protection.
+    
+    Checks the circuit breaker state before invoking the specified operation handler. On failure or timeout, records the failure and raises an appropriate HTTPException. On success, records the success and returns the operation result.
+    
+    Args:
+        client: The Apideck client instance.
+        service_id: The Apideck service identifier.
+        operation: The operation name to execute.
+    
+    Returns:
+        The result of the executed Apideck operation.
+    
+    Raises:
+        HTTPException: If the circuit breaker is open, the operation is unsupported, or the Apideck API call fails.
+    """
     if not await apideck_circuit_breaker.can_execute():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -312,8 +382,9 @@ async def connect_to_quickbooks(
     session: AsyncSession = Depends(get_session)
 ) -> QuickBooksConnectionResponse:
     """
-    Initiates QuickBooks connection by generating Apideck Vault URL
-    Rate limited to 5 requests per hour per user
+    Initiates the QuickBooks connection process by generating a user-specific Apideck Vault URL.
+    
+    Checks the user's rate limit before proceeding. If allowed, retrieves or creates an integration record and constructs a secure redirect URL for the Apideck Vault connection flow. Returns a response indicating that user action is required to complete the connection.
     """
     # Check rate limit
     if not await check_rate_limit(str(current_user.id)):
@@ -361,7 +432,12 @@ async def get_quickbooks_connection_status(
     session: AsyncSession = Depends(get_session)
 ) -> QuickBooksStatusResponse:
     """
-    Checks the current QuickBooks connection status via Apideck
+    Retrieves the current QuickBooks integration status for the authenticated user.
+    
+    Checks the user's QuickBooks integration record and verifies the connection by querying Apideck for company information. Updates and returns the integration status, connection timestamps, and consumer ID. If no integration exists or the connection cannot be verified, returns a disconnected status.
+     
+    Returns:
+        QuickBooksStatusResponse: The current connection status and related metadata.
     """
     try:
         integration = await get_user_integration(current_user, session, IntegrationType.QUICKBOOKS)
@@ -463,7 +539,9 @@ async def disconnect_from_quickbooks(
     session: AsyncSession = Depends(get_session)
 ) -> QuickBooksDisconnectResponse:
     """
-    Disconnects QuickBooks integration
+    Disconnects the current user's QuickBooks integration.
+    
+    If an integration exists, updates its status to disconnected and clears relevant timestamps. Returns a success message upon completion. Raises a 404 error if no integration is found, or a 500 error on unexpected failures.
     """
     try:
         # Clean ORM query
@@ -503,7 +581,15 @@ async def disconnect_from_quickbooks(
 
 async def _sync_expense_to_quickbooks(user: User, session: AsyncSession, expense_data: dict[str, Any]) -> dict[str, Any]:
     """
-    Internal function to sync an expense from our system to QuickBooks via Apideck
+    Synchronizes an expense record to QuickBooks via Apideck for a connected user.
+    
+    Attempts to map and send the provided expense data to QuickBooks using the Apideck API. Validates that the user has an active QuickBooks integration and a valid consumer ID before proceeding. Currently, the actual sync implementation is pending; the function updates the integration's last sync timestamp and returns a placeholder success message.
+    
+    Raises:
+        HTTPException: If the user does not have a QuickBooks integration, the integration is not connected, the consumer ID is missing, or if an error occurs during the sync process. Apideck-specific errors are mapped to appropriate HTTP status codes.
+    
+    Returns:
+        dict: A dictionary indicating the success status, a message, and a placeholder for the QuickBooks expense ID.
     """
     try:
         # Get existing integration - don't create a new one during sync attempts
@@ -628,7 +714,9 @@ async def _sync_expense_to_quickbooks(user: User, session: AsyncSession, expense
 # Placeholder for QBO API interaction functions via Apideck
 async def _get_qbo_company_info_via_apideck(user: User, session: AsyncSession) -> None:
     """
-    Internal function to fetch company info from QBO via Apideck.
+    Fetches company information from QuickBooks Online via the Apideck API for the given user.
+    
+    Intended for internal use to retrieve and map company details from QuickBooks through an active Apideck integration. Not yet implemented.
     """
     # 1. Ensure user has an active Apideck session/connection for QuickBooks.
     # 2. Call Apideck's API to get company info (or equivalent).
@@ -647,7 +735,9 @@ async def _get_qbo_company_info_via_apideck(user: User, session: AsyncSession) -
 
 async def _create_qbo_expense_via_apideck(user: User, session: AsyncSession, expense_data: dict[str, Any]) -> None:
     """
-    Internal function to create an expense in QBO via Apideck.
+    Creates an expense in QuickBooks Online for the specified user via the Apideck API.
+    
+    This internal function assumes the user has an active QuickBooks integration and is responsible for mapping the provided expense data to the Apideck accounting API format before submitting the creation request.
     """
     # 1. Ensure user has an active Apideck session/connection for QuickBooks.
     # 2. Map expense_data from your system's format to Apideck's accounting API format for expenses.

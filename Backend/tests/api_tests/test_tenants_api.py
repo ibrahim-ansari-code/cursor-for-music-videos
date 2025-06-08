@@ -14,7 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 def assert_api_success(response: httpx.Response, expected_status: int = 200):
-    """Helper to assert API response success"""
+    """
+    Asserts that the HTTP response status code matches the expected value.
+    
+    Raises an assertion error if the response status does not match, including the status code and up to 500 characters of the response text for debugging.
+    """
     assert response.status_code == expected_status, (
         f"Expected status {expected_status}, got {response.status_code}. "
         f"Response: {response.text[:500]}"
@@ -22,7 +26,19 @@ def assert_api_success(response: httpx.Response, expected_status: int = 200):
 
 
 def assert_valid_json_response(response: httpx.Response, expected_type=None, expected_status=200):
-    """Helper to assert valid JSON response"""
+    """
+    Asserts that an HTTP response contains valid JSON data and matches the expected type.
+    
+    Calls `assert_api_success` to verify the response status code. Attempts to parse the response as JSON and, if `expected_type` is provided, asserts that the parsed data matches the specified type. Fails the test with an error message if the response is not valid JSON.
+    
+    Args:
+        response: The HTTP response to validate.
+        expected_type: Optional type to check against the parsed JSON data.
+        expected_status: The expected HTTP status code (default is 200).
+    
+    Returns:
+        The parsed JSON data from the response.
+    """
     assert_api_success(response, expected_status)
     try:
         data = response.json()
@@ -37,7 +53,12 @@ def assert_valid_json_response(response: httpx.Response, expected_type=None, exp
 
 @pytest_asyncio.fixture
 async def created_tenant(api_client, created_landlord_property: int):
-    """Fixture that creates a test tenant associated with a landlord-owned property and ensures cleanup"""
+    """
+    Asynchronously creates a test tenant linked to a landlord-owned property for use in tests, and ensures the tenant is deleted after the test completes.
+    
+    Yields:
+        The created tenant as a dictionary.
+    """
     property_id = created_landlord_property
 
     tenant_data = {
@@ -80,7 +101,11 @@ class TestTenantsAPI:
 
     @pytest.mark.asyncio
     async def test_create_tenant(self, api_client, created_landlord_property: int):
-        """Test POST /api/tenants/ with proper cleanup and property association"""
+        """
+        Tests tenant creation via POST /api/tenants/ with association to a landlord-owned property.
+        
+        Creates a tenant using the provided API client and verifies that the response contains the correct tenant data and property association. Immediately deletes the created tenant to ensure test isolation, failing the test if cleanup is unsuccessful.
+        """
         logger.info("Testing POST /api/tenants/...")
         property_id = created_landlord_property
 
@@ -125,7 +150,11 @@ class TestTenantsAPI:
 
     @pytest.mark.asyncio
     async def test_get_all_tenants(self, api_client):
-        """Test GET /api/tenants/ (read-only, no cleanup needed)"""
+        """
+        Tests retrieval of all tenants via the GET /api/tenants/ endpoint.
+        
+        Asserts that the response status is 200 and the returned data is a list of tenants.
+        """
         logger.info("Testing GET /api/tenants/...")
 
         response = await api_client.get("/api/tenants/")
@@ -136,7 +165,11 @@ class TestTenantsAPI:
 
     @pytest.mark.asyncio
     async def test_get_specific_tenant(self, created_tenant, api_client):
-        """Test GET /api/tenants/{id} using fixture for guaranteed cleanup"""
+        """
+        Tests retrieval of a specific tenant by ID using the created_tenant fixture.
+        
+        Verifies that the GET /api/tenants/{id} endpoint returns status 200 and that the returned tenant data matches the fixture.
+        """
         logger.info("Testing GET /api/tenants/{id}...")
 
         tenant_id = created_tenant["id"]
@@ -153,7 +186,11 @@ class TestTenantsAPI:
 
     @pytest.mark.asyncio
     async def test_update_tenant(self, created_tenant, api_client):
-        """Test PATCH /api/tenants/{id} using fixture for guaranteed cleanup"""
+        """
+        Tests updating a tenant's information via PATCH /api/tenants/{id}.
+        
+        Uses a fixture-created tenant to ensure cleanup. Verifies that the tenant's first name and phone number are updated correctly and that the tenant ID remains unchanged.
+        """
         logger.info("Testing PATCH /api/tenants/{id}...")
 
         tenant_id = created_tenant["id"]
@@ -175,7 +212,11 @@ class TestTenantsAPI:
 
     @pytest.mark.asyncio
     async def test_delete_tenant(self, api_client, created_landlord_property: int):
-        """Test DELETE /api/tenants/{id} with property association"""
+        """
+        Tests deletion of a tenant associated with a landlord-owned property and verifies access is forbidden after deletion.
+        
+        Creates a tenant linked to a specific property, deletes the tenant via the API, asserts successful deletion with status 204, and confirms that subsequent retrieval attempts return a 403 Forbidden status due to row-level security.
+        """
         logger.info("Testing DELETE /api/tenants/{id}...")
         property_id = created_landlord_property
 

@@ -19,8 +19,16 @@ logger = logging.getLogger(__name__)
 
 def _convert_to_uuid(user_id: PythonUUID | str | None, context: str = "user ID") -> PythonUUID:
     """
-    Converts a user ID to UUID format, handling both UUID and string inputs.
-    Returns a PythonUUID object.
+    Converts a user ID to a UUID object, accepting either a UUID or string input.
+    
+    Raises an HTTP 400 exception if the input is None or not a valid UUID format.
+    
+    Args:
+        user_id: The user identifier to convert. Must be a UUID or a string representation of a UUID.
+        context: Optional context string for error messages.
+    
+    Returns:
+        The user ID as a UUID object.
     """
     if user_id is None:
         logger.error("Cannot convert None to UUID for %s", context)
@@ -47,10 +55,9 @@ def _ensure_id_is_not_none(
     context: str,
 ) -> IDType:
     """
-    Raises an HTTP 500 error if the provided entity ID is None.
-
-    Logs a critical error and aborts the request if a required entity ID is missing in the given context.
-    Returns the entity_id if it's not None.
+    Ensures that the provided entity ID is not None, raising HTTP 500 if missing.
+    
+    Logs a critical error and aborts the request with an HTTP 500 error if the entity ID is None in the specified context. Returns the entity ID if present.
     """
     if entity_id is None:
         logger.error("Critical error: %s ID is None %s.", entity_name, context)
@@ -67,12 +74,12 @@ async def check_property_ownership(
     current_user: User
 ) -> Property:
     """
-    Verifies that a property exists and that the current user is authorized to access it.
-
-    Raises a 404 error if the property does not exist, or a 403 error if the user is not the owner and not an admin.
-
+    Checks if a property exists and if the current user is authorized to access it.
+    
+    Raises a 404 error if the property does not exist, or a 403 error if the user is neither the owner nor an admin.
+    
     Returns:
-        The Property object if access is permitted.
+        The Property object if the user is authorized.
     """
     prop_query = select(Property).where(col(Property.id) == property_id)
     prop_result = await session.execute(prop_query)
@@ -96,19 +103,19 @@ async def check_lease_ownership(
     current_user: User
 ) -> Lease:
     """
-    Checks that a lease exists and is owned by the current user or the user is an admin.
-
+    Verifies that a lease exists and that the current user is authorized to access it.
+    
+    Checks if the lease with the given ID exists and ensures the current user is either an admin or the owner of the property associated with the lease. Raises an HTTP 404 error if the lease does not exist, or HTTP 403 if the user lacks authorization.
+    
     Args:
-        lease_id: The ID of the lease to check ownership for
-        session: Database session for executing queries
-        current_user: The current authenticated user
-
+        lease_id: The ID of the lease to verify.
+        current_user: The user requesting access.
+    
     Returns:
-        The Lease object if ownership or admin rights are confirmed
-
+        The Lease object if the user is authorized to access it.
+    
     Raises:
-        HTTPException: 404 if the lease does not exist, 403 if the user is not 
-            authorized to access the lease
+        HTTPException: If the lease is not found or the user is not authorized.
     """
     lease_query = select(Lease).options(selectinload(getattr(Lease, "property"))).where(col(Lease.id) == lease_id)
     lease_result = await session.execute(lease_query)

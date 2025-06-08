@@ -18,7 +18,17 @@ class TestLeasesAPI:
 
     @pytest.mark.asyncio
     async def test_lease_get_operations(self, api_client):
-        """Test GET /api/leases/ operations"""
+        """
+        Performs integration tests for lease-related GET API endpoints.
+        
+        This test verifies the following operations:
+        - Listing all leases.
+        - Retrieving a specific lease by ID and validating its fields.
+        - Fetching documents associated with a lease.
+        - Filtering leases by status.
+        
+        Assertions ensure that each API response returns the expected JSON structure and data types.
+        """
         logger.info("Testing GET /api/leases/...")
 
         # Test basic lease listing

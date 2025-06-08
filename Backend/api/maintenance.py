@@ -26,8 +26,13 @@ logger = logging.getLogger(__name__)
 
 async def validate_file_content(upload_file: UploadFile) -> bool:
     """
-    Validate file content by checking magic bytes/file signatures.
-    Returns True if the file content matches an allowed file type.
+    Checks whether the uploaded file's content matches allowed file types (JPEG, PNG, or PDF) by inspecting its magic bytes.
+    
+    Args:
+        upload_file: The file to validate.
+    
+    Returns:
+        True if the file's signature matches an allowed type; otherwise, False.
     """
     # Magic bytes for supported file types
     magic_bytes = {
@@ -47,9 +52,16 @@ async def validate_file_content(upload_file: UploadFile) -> bool:
 
 async def validate_file_size(upload_file: UploadFile, max_size_bytes: int) -> int:
     """
-    Validate file size by reading the file in chunks.
-    Returns the actual file size in bytes.
-    Raises HTTPException if file exceeds max_size_bytes.
+    Asynchronously validates that an uploaded file does not exceed a specified size limit.
+    
+    Reads the file in chunks to efficiently calculate its size. Raises an HTTP 413 error if the file exceeds the maximum allowed size.
+    
+    Args:
+        upload_file: The file to validate.
+        max_size_bytes: The maximum allowed file size in bytes.
+    
+    Returns:
+        The actual size of the file in bytes.
     """
     await upload_file.seek(0)
     
@@ -158,7 +170,11 @@ class MaintenanceSummaryResponse(BaseModel):
 
 
 async def check_permission(request: MaintenanceRequest, user: User, session: AsyncSession) -> None:
-    """Check if the user has permission to access/modify the maintenance request."""
+    """
+    Verifies that the user has permission to access or modify a maintenance request.
+    
+    Raises an HTTP 403 error if the user is not an admin and does not own the property associated with the request. Raises HTTP 404 if the property is not found, or HTTP 500 if the property relationship cannot be loaded.
+    """
     # Only property owner or admin can access
     if user.is_admin:
         return
@@ -218,6 +234,14 @@ async def list_maintenance_requests(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
+    """
+    Retrieves a list of maintenance requests with optional filtering and pagination.
+    
+    Filters maintenance requests by status, priority, property, unit, tenant, or assigned user. Non-admin users only see requests for properties they own. Supports pagination via limit and offset.
+    
+    Returns:
+        A list of maintenance requests matching the specified filters.
+    """
     logger.info(f"User {current_user.id} listing maintenance requests with filters: status={req_status}, priority={priority}, property_id={property_id}, unit_id={unit_id}, tenant_id={tenant_id}, assigned_to={assigned_to}")
 
     query = select(MaintenanceRequest).options(
@@ -259,6 +283,11 @@ async def create_maintenance_request(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
+    """
+    Creates a new maintenance request for a property.
+    
+    Validates that the current user has permission to create a request for the specified property unless the user is an admin. Associates the request with the current user, sets its status to pending, and saves it to the database. Returns the created maintenance request with related property, unit, and tenant information loaded.
+    """
     logger.info(
         f"User {current_user.id} creating maintenance request for property {data.property_id}")
 
@@ -315,6 +344,15 @@ async def get_maintenance_request(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
+    """
+    Retrieves a maintenance request by its ID after verifying user permissions.
+    
+    Raises:
+        HTTPException: If the maintenance request is not found or the user lacks permission.
+    
+    Returns:
+        The maintenance request with related property information loaded.
+    """
     result = await session.execute(
         select(MaintenanceRequest)
         .options(selectinload(getattr(MaintenanceRequest, "property")))
@@ -337,6 +375,18 @@ async def update_maintenance_request(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
+    """
+    Updates an existing maintenance request with new data, validating property and unit ownership.
+    
+    Checks user permissions and ensures that any changes to property or unit associations are authorized and consistent. Validates that the specified unit belongs to the specified property when either is updated. Commits changes and returns the updated maintenance request with related entities loaded.
+    
+    Args:
+        request_id: The ID of the maintenance request to update.
+        data: The fields to update in the maintenance request.
+    
+    Returns:
+        The updated maintenance request with related property, unit, and tenant information.
+    """
     result = await session.execute(
         select(MaintenanceRequest)
         .options(selectinload(getattr(MaintenanceRequest, "property")))
@@ -451,6 +501,11 @@ async def delete_maintenance_request(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
+    """
+    Deletes a maintenance request by its ID after verifying user permissions.
+    
+    Raises a 404 error if the maintenance request does not exist or a 403 error if the user lacks permission to delete it.
+    """
     result = await session.execute(
         select(MaintenanceRequest)
         .options(selectinload(getattr(MaintenanceRequest, "property")))
@@ -476,7 +531,12 @@ async def get_maintenance_summary(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Get a summary of maintenance requests by status.
+    Returns a summary of maintenance requests grouped by status for the current user.
+    
+    If the user is not an admin, only requests for properties owned by the user are included. The summary contains counts for each status and the total number of requests.
+     
+    Returns:
+        A dictionary with counts of maintenance requests by status and a total count.
     """
     logger.info(f"User {current_user.id} requesting maintenance summary")
 
@@ -512,8 +572,9 @@ async def upload_maintenance_photo(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Upload a maintenance photo (image or PDF) to Azure Blob Storage and return its public URL.
-    Only landlords and admins are allowed.
+    Uploads a maintenance photo (JPEG, PNG, or PDF) to Azure Blob Storage and returns its public URL.
+    
+    Only users with landlord or admin roles are authorized to upload. Validates the file type by inspecting its magic bytes and enforces a maximum file size of 10 MB. Returns a dictionary containing the public URL of the uploaded photo.
     """
     if current_user.user_type not in [UserType.LANDLORD, UserType.ADMIN]:
         raise HTTPException(

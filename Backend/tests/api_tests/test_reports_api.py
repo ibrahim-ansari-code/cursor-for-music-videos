@@ -19,7 +19,11 @@ class TestReportsAPI:
 
     @pytest.mark.asyncio
     async def test_reports_get_operations(self, api_client: APITestClient) -> None:
-        """Test various GET operations for reports endpoints"""
+        """
+        Tests multiple GET endpoints under /api/reports to verify their availability and response format.
+        
+        Sends asynchronous GET requests to several reports endpoints and accepts both HTTP 200 (valid response) and 404 (endpoint not implemented) as valid outcomes. Asserts that a 200 response contains valid JSON data in either dictionary or list form. Logs and handles unexpected status codes and HTTP errors.
+        """
         logger.info("Testing reports GET operations...")
 
         # Test basic reports endpoints that should be available
@@ -59,7 +63,11 @@ class TestReportsAPI:
 
     @pytest.mark.asyncio
     async def test_report_summary_endpoint(self, api_client: APITestClient, created_landlord_property: int) -> None:
-        """Test GET /api/reports/summary - expecting success if data exists or graceful handling"""
+        """
+        Tests the GET /api/reports/summary endpoint for correct response structure and error handling.
+        
+        Ensures that when relevant data exists, the endpoint returns a JSON object containing the expected summary keys and nested fields. Handles cases where the endpoint returns 404 (no data), 400, or 422 (invalid data state) by skipping the test with an appropriate message. Fails the test for any other unexpected status codes.
+        """
         logger.info("Testing GET /api/reports/summary...")
 
         # Ensure a property exists for the landlord, so the summary isn't empty due to no properties

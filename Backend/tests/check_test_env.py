@@ -28,7 +28,14 @@ else:
 
 
 def check_env() -> bool:
-    """Check if all required environment variables are set"""
+    """
+    Checks for the presence of all required environment variables needed to run the API test suite.
+    
+    Prints the status of each required and optional environment variable, masking sensitive values for security. If any required variables are missing, lists them and advises updating the `.env` file. If all are present, provides instructions for running the test suite.
+    
+    Returns:
+        True if all required environment variables are set, False otherwise.
+    """
 
     print("🔍 Checking Test Environment Configuration")
     print("=" * 50)

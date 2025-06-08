@@ -12,7 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 def assert_api_success(response: httpx.Response, expected_status: int = 200) -> None:
-    """Helper to assert API response success"""
+    """
+    Asserts that the API response status code matches the expected value.
+    
+    Raises an assertion error with a snippet of the response body if the status code does not match.
+    """
     assert response.status_code == expected_status, (
         f"Expected status {expected_status}, got {response.status_code}. "
         f"Response: {response.text[:500]}"
@@ -20,7 +24,19 @@ def assert_api_success(response: httpx.Response, expected_status: int = 200) -> 
 
 
 def assert_valid_json_response(response: httpx.Response, expected_type=None):
-    """Helper to assert valid JSON response"""
+    """
+    Asserts that the HTTP response contains valid JSON and optionally matches an expected type.
+    
+    Args:
+        response: The HTTP response to validate.
+        expected_type: Optional type to check against the parsed JSON data.
+    
+    Returns:
+        The parsed JSON data if validation succeeds.
+    
+    Raises:
+        Fails the test if the response is not valid JSON or does not match the expected type.
+    """
     assert_api_success(response)
     try:
         data = response.json()
@@ -40,7 +56,11 @@ class TestAccountingAPI:
 
     @pytest.mark.asyncio
     async def test_get_payments(self, api_client):
-        """Test GET /api/accounting/payments"""
+        """
+        Tests retrieval of all payments via the GET /api/accounting/payments endpoint.
+        
+        Verifies that the response is successful and returns a JSON list of payments.
+        """
         logger.info("Testing GET /api/accounting/payments...")
 
         response = await api_client.get("/api/accounting/payments")
@@ -52,7 +72,11 @@ class TestAccountingAPI:
 
     @pytest.mark.asyncio
     async def test_get_expenses(self, api_client):
-        """Test GET /api/accounting/expenses"""
+        """
+        Tests retrieval of expenses from the accounting API.
+        
+        Sends a GET request to the /api/accounting/expenses endpoint and verifies that the response is a JSON list of expenses.
+        """
         logger.info("Testing GET /api/accounting/expenses...")
 
         response = await api_client.get("/api/accounting/expenses")
@@ -64,7 +88,11 @@ class TestAccountingAPI:
 
     @pytest.mark.asyncio
     async def test_get_outstanding_payments(self, api_client):
-        """Test GET /api/accounting/payments/outstanding"""
+        """
+        Tests retrieval of outstanding payments via the accounting API.
+        
+        Sends a GET request to the `/api/accounting/payments/outstanding` endpoint and asserts that the response is a JSON list.
+        """
         logger.info("Testing GET /api/accounting/payments/outstanding...")
         
         response = await api_client.get("/api/accounting/payments/outstanding")
@@ -74,7 +102,11 @@ class TestAccountingAPI:
 
     @pytest.mark.asyncio
     async def test_get_invoices(self, api_client):
-        """Test GET /api/accounting/invoices"""
+        """
+        Tests retrieval of invoices from the accounting API.
+        
+        Sends a GET request to the /api/accounting/invoices endpoint and asserts that the response is a JSON list.
+        """
         logger.info("Testing GET /api/accounting/invoices...")
 
         response = await api_client.get("/api/accounting/invoices")
@@ -86,7 +118,11 @@ class TestAccountingAPI:
 
     @pytest.mark.asyncio
     async def test_get_accounting_overview(self, api_client):
-        """Test GET /api/accounting/insights/overview"""
+        """
+        Tests that the accounting overview endpoint returns a JSON object with expected financial summary fields.
+        
+        Verifies that the response contains the keys: "monthly_revenue", "monthly_expenses", "monthly_net_income", and "average_rent".
+        """
         logger.info("Testing GET /api/accounting/insights/overview...")
         
         response = await api_client.get("/api/accounting/insights/overview")
@@ -103,7 +139,9 @@ class TestAccountingAPI:
     @pytest.mark.slow
     @pytest.mark.asyncio
     async def test_generate_due_payments(self, api_client):
-        """Test POST /api/accounting/payments/generate-due"""
+        """
+        Tests that the POST /api/accounting/payments/generate-due endpoint successfully generates due payments.
+        """
         logger.info("Testing POST /api/accounting/payments/generate-due...")
         
         response = await api_client.post("/api/accounting/payments/generate-due")
@@ -113,7 +151,11 @@ class TestAccountingAPI:
 
     @pytest.mark.asyncio
     async def test_get_occupancy_rates(self, api_client):
-        """Test GET /api/accounting/insights/occupancy"""
+        """
+        Tests retrieval of occupancy rates from the accounting insights API.
+        
+        Sends a GET request to the `/api/accounting/insights/occupancy` endpoint and asserts that the response is a valid JSON object or list.
+        """
         logger.info("Testing GET /api/accounting/insights/occupancy...")
         
         response = await api_client.get("/api/accounting/insights/occupancy")
@@ -162,7 +204,9 @@ class TestAccountingAPI:
 
     @pytest.mark.asyncio
     async def test_invalid_endpoint_returns_404(self, api_client):
-        """Test that invalid accounting endpoints return 404"""
+        """
+        Verifies that a request to a nonexistent accounting API endpoint returns a 404 status code.
+        """
         logger.info("Testing invalid accounting endpoint...")
         
         response = await api_client.get("/api/accounting/insights/nonexistent")
