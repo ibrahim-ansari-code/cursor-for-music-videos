@@ -72,7 +72,12 @@ def validate_env_vars() -> None:
 
 
 def get_azure_client() -> AzureOpenAI:
-    """Initialize and return an Azure OpenAI client with validated credentials."""
+    """
+    Initializes and returns an Azure OpenAI client using validated environment credentials.
+    
+    Loads and validates required environment variables before creating the client. Raises an
+    OSError if any required variable is missing, or propagates other exceptions on failure.
+    """
     try:
         # Load environment variables
         load_env_vars()
@@ -117,8 +122,9 @@ client = None
 
 def get_client() -> AzureOpenAI:
     """
-    Get the Azure OpenAI client, initializing it lazily on first use.
-    This prevents import-time failures due to missing environment variables.
+    Returns a lazily initialized Azure OpenAI client instance.
+    
+    Initializes the client on first use to avoid import-time errors from missing environment variables. Subsequent calls return the cached client. Raises an exception if initialization fails.
     """
     global client
     if client is None:
@@ -195,19 +201,9 @@ Be strict. Never include trailing commas, extra markdown, or introductory text. 
 
 def _extract_json_from_markdown(content: str) -> str:
     """
-    Helper function to extract JSON from markdown-wrapped content.
-
-    Handles cases where Azure returns JSON wrapped in markdown code blocks
-    despite using response_format={"type": "json_object"}.
-
-    Args:
-        content: The raw response content that may contain markdown
-
-    Returns:
-        The cleaned JSON string
-
-    Raises:
-        ValueError: If no valid JSON can be extracted
+    Extracts a JSON string from content that may be wrapped in markdown code blocks.
+    
+    Attempts to find and return JSON enclosed in triple backticks (optionally labeled as `json`) or as a direct JSON object within the content. If no such pattern is found, returns the stripped original content.
     """
     # Try to extract from markdown code blocks first
     json_pattern = r'```(?:json)?\s*([\s\S]*?)\s*```'
@@ -229,9 +225,12 @@ def _extract_json_from_markdown(content: str) -> str:
 
 def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[str, Any]:
     """
-    Analyzes content from a payment receipt file (PDF or image) using Azure OpenAI GPT-4o with vision.
-    For PDFs, text is extracted and sent. For images, the image is base64 encoded and sent.
-    This is a synchronous function.
+    Analyzes a payment receipt file (PDF or image) and extracts structured payment details using Azure OpenAI GPT-4o with vision capabilities.
+    
+    For PDF files, extracts text content and submits it to the model. For image files, encodes the image as a base64 data URL for vision analysis. The function parses the model's JSON response, validates and coerces key fields, and includes a preview of the processed content. Raises a ValueError for unsupported file types, extraction failures, or invalid responses, and a PaymentReceiptAnalysisError for unexpected errors.
+    
+    Returns:
+        A dictionary containing extracted payment receipt fields such as payment date, subtotal, total amount, currency, payment method, description notes, and a raw text preview.
     """
     client = get_client()  # Lazy load the client
 
@@ -369,9 +368,13 @@ def analyze_payment_receipt_content(file_content: bytes, filename: str) -> Dict[
 
 def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[str, Any]:
     """
-    Analyzes content from an expense receipt file (PDF or image) using Azure OpenAI GPT-4o with vision.
-    For PDFs, text is extracted and sent. For images, the image is base64 encoded and sent.
-    This is a synchronous function specifically designed for expense receipt parsing.
+    Analyzes an expense receipt file (PDF or image) and extracts structured data using Azure OpenAI GPT-4o with vision capabilities.
+    
+    For PDF files, extracts text content and analyzes it. For image files, encodes the image as base64 and submits it for analysis. Returns a dictionary containing extracted fields such as payment date, subtotal, total amount, currency, payment method, description notes, and a preview of the raw text or image processed.
+    
+    Raises:
+        ValueError: If the file type is unsupported, text extraction fails, or the LLM response cannot be parsed as valid JSON.
+        PaymentReceiptAnalysisError: If an unexpected error occurs during analysis.
     """
     client = get_client()  # Lazy load the client
 
@@ -509,29 +512,20 @@ def analyze_expense_receipt_content(file_content: bytes, filename: str) -> Dict[
 
 
 def analyze_lease_text(text: str) -> Dict[str, Any]:
-    """Analyzes lease agreement text using Azure OpenAI GPT-4o.
-
-    This function sends lease text to an Azure OpenAI model with a
-    strict schema prompt. It extracts, parses, and validates the
-    resulting JSON response for required fields. It returns a
-    dictionary of extracted lease information.
-
-    The function raises an error if the client is not initialized,
-    the model's response is invalid, required fields are missing, or
-    if parsing fails.
-
+    """
+    Analyzes lease agreement text and extracts structured lease information using Azure OpenAI GPT-4o.
+    
+    Sends the provided lease text to the Azure OpenAI model with a strict schema prompt, parses the JSON response, and ensures required fields are present, applying default values where necessary. Returns a dictionary containing the extracted lease details. Raises an error if the model response is invalid, required fields are missing, or parsing fails.
+    
     Args:
-        text (str): The lease agreement text to analyze.
-
+        text: The lease agreement text to analyze.
+    
     Returns:
-        Dict[str, Any]: A dictionary containing structured lease fields
-            extracted from the text.
-
+        A dictionary with structured lease fields extracted from the text.
+    
     Raises:
-        OSError: If the Azure OpenAI client is not
-            initialized.
-        ValueError: If the model response is missing required
-            fields or contains invalid JSON.
+        OSError: If the Azure OpenAI client is not initialized.
+        ValueError: If the model response is missing required fields or contains invalid JSON.
         Exception: If analysis fails for any other reason.
     """
     client = get_client()  # Lazy load the client

@@ -22,7 +22,11 @@ class TestAuthAPI:
 
     @pytest.mark.asyncio
     async def test_auth_me_endpoint(self, api_client: APITestClient) -> None:
-        """Test /api/auth/me endpoint with JWT"""
+        """
+        Tests the /api/auth/me endpoint to verify authenticated user identity.
+        
+        Sends a GET request to /api/auth/me using an authenticated API client and asserts that the response contains the expected user identification fields. If the authenticated user is known, verifies that the returned user ID and email match the authenticated user's details.
+        """
         logger.info("Testing /api/auth/me endpoint...")
 
         # The api_client fixture in conftest.py handles token acquisition

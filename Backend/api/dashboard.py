@@ -76,19 +76,19 @@ async def get_dashboard_data(
     current_user: User = Depends(get_current_user)
 ) -> DashboardResponse:
     """
-    Retrieves summarized dashboard data for real estate management, including occupancy rates, revenue trends, and outstanding payments.
-
-    Only users with ADMIN or LANDLORD roles are authorized to access this endpoint. The response aggregates property, unit, and financial metrics, optionally filtered by property and time period (week, month, quarter, or year). Returns a structured summary with occupancy statistics, revenue and expense trends for the past 12 months, and up to five pending or overdue payments.
-
+    Retrieves aggregated dashboard data for real estate management, including property statistics, occupancy rates, financial summaries, revenue trends, and outstanding payments.
+    
+    Only users with ADMIN or LANDLORD roles can access this endpoint. The response includes summary metrics, occupancy details, revenue and expense trends for the past 12 months, and up to five pending or overdue payments. Data can be filtered by property and time period ("week", "month", "quarter", or "year").
+    
     Args:
-        property_id: If provided, restricts data to a specific property.
-        time_period: Time range for summary calculations; one of "week", "month", "quarter", or "year".
-
+        property_id: Optional; filters dashboard data to a specific property.
+        time_period: Time range for summary calculations; accepts "week", "month", "quarter", or "year".
+    
     Returns:
-        DashboardResponse: An object containing summary metrics, occupancy data, revenue trends, and a list of payments due.
-
+        DashboardResponse containing summary metrics, occupancy data, revenue trends, and a list of payments due.
+    
     Raises:
-        HTTPException: If the user is not authorized to access dashboard data.
+        HTTPException: If the user does not have ADMIN or LANDLORD privileges.
     """
     # Convert user_type to uppercase for comparison
     if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:

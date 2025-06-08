@@ -42,11 +42,14 @@ class Settings(BaseSettings):
     @field_validator('APIDECK_ENVIRONMENT')
     @classmethod
     def validate_apideck_environment(cls, v: str) -> str:
-        """Validate APIDECK_ENVIRONMENT against allowed values.
+        """
+        Validates that the APIDECK_ENVIRONMENT value is either 'sandbox' or 'production'.
         
-        Allowed values:
-        - 'sandbox': Development/testing environment
-        - 'production': Live production environment
+        Raises:
+            ValueError: If the provided value is not 'sandbox' or 'production'.
+        
+        Returns:
+            The validated APIDECK_ENVIRONMENT value.
         """
         allowed_environments = {"sandbox", "production"}
         if v not in allowed_environments:
@@ -57,7 +60,11 @@ class Settings(BaseSettings):
         return v
 
     def model_post_init(self, __context) -> None:
-        """Warns if Apideck settings are missing."""
+        """
+        Emits a runtime warning if Apideck API credentials are not configured.
+        
+        A warning is issued if either `APIDECK_API_KEY` or `APIDECK_APP_ID` is missing, indicating that accounting integrations such as QuickBooks will be unavailable until both are set.
+        """
         # Validate Apideck configuration (warning - optional feature)
         if not self.APIDECK_API_KEY or not self.APIDECK_APP_ID:
             warnings.warn(

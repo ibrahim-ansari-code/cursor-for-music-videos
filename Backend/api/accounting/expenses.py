@@ -105,7 +105,11 @@ class ExpenseReceiptParseResponse(BaseModel):
 async def _handle_receipt_url_update(
     db_expense: Expense, new_receipt_url: str | None, old_receipt_url: str | None
 ) -> str | None:
-    """Updates the expense receipt URL and returns the old URL if it needs to be deleted."""
+    """
+    Updates the receipt URL of an expense if it has changed.
+    
+    If the receipt URL is updated, returns the previous URL for potential deletion; otherwise, returns None.
+    """
     if new_receipt_url != old_receipt_url:
         db_expense.receipt_url = new_receipt_url
         return old_receipt_url if old_receipt_url else None
@@ -115,6 +119,19 @@ def _calculate_expense_taxes(
     expense_data: ExpenseCreate | ExpenseUpdate, # Can be used for both create and update
     current_subtotal: Decimal,
 ) -> tuple[list[ExpenseTaxDetailCreate], Decimal]:
+    """
+    Validates and calculates tax details and total tax amount for an expense.
+    
+    Args:
+    	expense_data: The expense creation or update data containing tax information.
+    	current_subtotal: The subtotal amount to use for tax calculations.
+    
+    Returns:
+    	A tuple containing a list of tax detail DTOs and the total tax amount, rounded to two decimal places.
+    
+    Raises:
+    	HTTPException: If any tax rate is not a positive value.
+    """
     new_tax_details_dto: list[ExpenseTaxDetailCreate] = []
     calculated_total_tax_amount = Decimal("0.00")
 
@@ -131,6 +148,18 @@ def _calculate_expense_taxes(
     return new_tax_details_dto, calculated_total_tax_amount.quantize(Decimal('0.01'))
 
 def _create_expense_tax_orm_list(tax_details_dto: list[ExpenseTaxDetailCreate], subtotal: Decimal) -> list[ExpenseTaxDetail]:
+    """
+    Converts a list of tax detail DTOs into ORM ExpenseTaxDetail objects with calculated tax amounts.
+    
+    Each tax amount is computed as a percentage of the provided subtotal and rounded to two decimal places.
+    
+    Args:
+        tax_details_dto: List of tax detail data transfer objects containing tax name and rate.
+        subtotal: The subtotal amount to use for tax calculations.
+    
+    Returns:
+        A list of ExpenseTaxDetail ORM objects with calculated tax amounts.
+    """
     result = []
     for tax_item in tax_details_dto:
         # Do not manually set expense_id - let SQLAlchemy relationship handle it
@@ -143,6 +172,16 @@ def _create_expense_tax_orm_list(tax_details_dto: list[ExpenseTaxDetailCreate], 
     return result
 
 def _recalculate_orm_taxes(existing_taxes: list[ExpenseTaxDetail], new_subtotal: Decimal) -> Decimal:
+    """
+    Recalculates and updates tax amounts for existing tax details based on a new subtotal.
+    
+    Args:
+    	existing_taxes: List of ExpenseTaxDetail ORM objects to update.
+    	new_subtotal: The updated subtotal amount to use for tax calculations.
+    
+    Returns:
+    	The total recalculated tax amount as a Decimal, rounded to two decimal places.
+    """
     calculated_total_tax_amount = Decimal("0.00")
     for existing_tax_detail in existing_taxes:
         tax_amount = ((new_subtotal * existing_tax_detail.tax_rate) / Decimal("100")).quantize(Decimal('0.01'))
@@ -156,7 +195,14 @@ async def _update_expense_basic_fields(
     session: AsyncSession, 
     current_user: User
 ) -> tuple[bool, str | None]:
-    """Updates basic expense fields and returns (subtotal_updated, blob_to_delete)."""
+    """
+    Updates the basic fields of an expense ORM object from the provided payload.
+    
+    Validates property ownership if the property ID is changed, updates fields such as category, description, expense date, receipt URL, and subtotal. Returns a tuple indicating whether the subtotal was updated and the URL of any old receipt blob to be deleted.
+     
+    Returns:
+        A tuple (subtotal_updated, blob_to_delete), where subtotal_updated is True if the subtotal was changed, and blob_to_delete is the URL of the old receipt blob if it should be deleted.
+    """
     old_receipt_url = db_expense.receipt_url
     blob_to_delete = None
     subtotal_updated = False
@@ -193,7 +239,11 @@ async def _update_expense_taxes(
     expense_data: ExpenseUpdate, 
     subtotal_updated: bool
 ) -> None:
-    """Updates expense taxes, either from new tax data or by recalculating existing taxes."""
+    """
+    Updates the tax details and total amounts for an expense based on new tax data or a changed subtotal.
+    
+    If new tax data is provided, replaces existing tax details and recalculates total tax and total amount. If only the subtotal has changed, recalculates tax amounts for existing taxes. Updates the total tax and total amount fields on the expense.
+    """
     current_subtotal = Decimal(str(db_expense.subtotal_amount))
     if expense_data.taxes is not None:
         if db_expense.id is None:
@@ -209,7 +259,11 @@ async def _update_expense_taxes(
     db_expense.total_amount = (current_subtotal + Decimal(str(db_expense.total_tax_amount))).quantize(Decimal('0.01'))
 
 async def _delete_blob_in_background(blob_url: str | None) -> None:
-    """Deletes a blob from storage if the URL is provided. Runs as a background task with retries."""
+    """
+    Asynchronously deletes a blob from storage by URL with up to three retry attempts.
+    
+    If the blob URL is not provided, the function exits immediately. Retries deletion up to three times with a delay between attempts if failures occur.
+    """
     if not blob_url:
         return
 
@@ -243,6 +297,11 @@ async def parse_expense_receipt(
     file: Annotated[UploadFile, File()],
     current_user: Annotated[User, Depends(get_current_user)]
 ) -> ExpenseReceiptParseResponse:
+    """
+    Parses an uploaded expense receipt file and extracts structured expense details.
+    
+    Validates the user's authorization and the file type, uploads the receipt to blob storage, and analyzes its content to extract expense information such as date, tax, and total amounts. Returns the receipt URL and parsed details. Raises HTTP errors for unauthorized access, unsupported file types, validation failures, external service issues, or unexpected errors.
+    """
     if current_user.user_type not in [UserType.LANDLORD, UserType.ADMIN]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized.")
     allowed_content_types = ["application/pdf", "image/jpeg", "image/png", "image/jpg"]
@@ -282,6 +341,14 @@ async def create_expense(
     session: AsyncSession = Depends(get_session), 
     current_user: User = Depends(get_current_user)
 ) -> ExpenseResponse:
+    """
+    Creates a new expense record with associated tax details.
+    
+    Validates user authorization and property ownership, calculates taxes and totals, and persists the expense and its tax details in the database. Returns the created expense as a response model.
+    
+    Raises:
+        HTTPException: If the user is not authorized, does not own the property, or if an error occurs during creation.
+    """
     if current_user.user_type not in [UserType.LANDLORD, UserType.ADMIN]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     await check_property_ownership(expense_data.property_id, session, current_user)
@@ -317,6 +384,20 @@ async def get_expenses(
     start_date: date | None = None, end_date: date | None = None,
     session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)
 ) -> list[ExpenseResponse]:
+    """
+    Retrieves a list of expenses filtered by property, category, and date range.
+    
+    Only landlords and admins are authorized to access this endpoint. Landlords can view expenses for their own properties, while admins can view all expenses or filter by property. Results are ordered by expense date in descending order.
+    
+    Args:
+        property_id: Optional property ID to filter expenses.
+        category: Optional category substring to filter expenses.
+        start_date: Optional start date to filter expenses from.
+        end_date: Optional end date to filter expenses to.
+    
+    Returns:
+        A list of expense responses matching the provided filters.
+    """
     if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
@@ -347,6 +428,14 @@ async def get_expenses(
 async def get_expense_by_id(
     expense_id: int, session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)
 ) -> ExpenseResponse:
+    """
+    Retrieves a single expense by its ID with related property and tax details.
+    
+    Raises a 404 error if the expense does not exist, or a 403 error if the user is not authorized to access the expense.
+    
+    Returns:
+        The expense data including associated property and tax information.
+    """
     if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
@@ -365,6 +454,21 @@ async def update_expense(
     background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)
 ) -> ExpenseResponse:
+    """
+    Updates an existing expense by ID with new data, including taxes and receipt information.
+    
+    Performs authorization and property ownership checks, updates basic fields and tax details, recalculates totals as needed, and updates the modification timestamp. If the receipt file is changed, schedules background deletion of the old receipt blob after a successful commit.
+    
+    Args:
+        expense_id: The ID of the expense to update.
+        expense_data: The fields to update for the expense.
+    
+    Returns:
+        The updated expense as a response model.
+    
+    Raises:
+        HTTPException: If the expense is not found, the user is unauthorized, or the update fails.
+    """
     if current_user.user_type not in [UserType.LANDLORD, UserType.ADMIN]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
@@ -409,6 +513,11 @@ async def delete_expense(
     expense_id: int, background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)
 ) -> None:
+    """
+    Deletes an expense by ID after verifying user authorization and property ownership.
+    
+    Raises a 404 error if the expense does not exist or a 403 error if the user is not authorized. Upon successful deletion, schedules background removal of the associated receipt file from blob storage.
+    """
     if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 

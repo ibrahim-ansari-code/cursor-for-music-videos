@@ -15,7 +15,12 @@ from . import reports
 
 # Initialize models to resolve circular dependencies if needed
 def initialize_models():
-    """Configure mappers after all models are imported."""
+    """
+    Configures SQLAlchemy mappers after all models have been imported.
+    
+    This function ensures that all model relationships and mappings are properly set up,
+    resolving any circular dependencies before the ORM is used.
+    """
     try:
         from sqlalchemy.orm import configure_mappers
         configure_mappers()

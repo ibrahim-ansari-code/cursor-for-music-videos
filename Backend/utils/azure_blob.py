@@ -33,7 +33,21 @@ async def _upload_to_blob(
     default_filename_prefix: str,
     safe_filename_suffix_limit: int
 ) -> str:
-    """Internal helper to upload a file to Azure Blob Storage."""
+    """
+    Uploads a file asynchronously to a specified Azure Blob Storage container and returns its public URL.
+    
+    The file is saved with a unique name based on the user ID and a sanitized version of the original filename, truncated to a specified length. The function ensures the target container exists, streams the file directly to Azure Blob Storage, and applies the appropriate content type. Raises a ConnectionError if the Blob Storage client is not initialized, and propagates exceptions encountered during container creation or upload.
+    
+    Args:
+        file: The file to upload.
+        user_id: The UUID of the user associated with the file.
+        container_name: The name of the Azure Blob Storage container.
+        default_filename_prefix: Prefix to use if the original filename is missing.
+        safe_filename_suffix_limit: Maximum length for the sanitized filename suffix.
+    
+    Returns:
+        The public URL of the uploaded blob.
+    """
     if not blob_service_client:
         raise ConnectionError(
             "Azure Blob Storage client is not initialized. Check connection string.")
@@ -265,16 +279,9 @@ setattr(upload_maintenance_photo_to_blob, '__annotations__', {
 
 async def delete_blob_by_url(blob_url: str) -> bool:
     """
-    Deletes a blob from Azure Blob Storage given its full public URL.
-
-    Parses the container and blob name from the URL based on the configured
-    AZURE_BLOB_PUBLIC_URL. Handles cases where the blob might not exist.
-
-    Args:
-        blob_url: The full public URL of the blob to delete.
-
-    Returns:
-        True if the blob was deleted or did not exist, False if an error occurred.
+    Deletes a blob from Azure Blob Storage using its public URL.
+    
+    Parses the container and blob name from the provided URL based on the configured public base URL. Returns True if the blob was deleted or did not exist, and False if an error occurred or the URL is invalid.
     """
     if not blob_service_client or not settings.AZURE_BLOB_PUBLIC_URL:
         logger.error(

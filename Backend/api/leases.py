@@ -367,9 +367,9 @@ async def create_lease(
 ):
     """
     Creates a new lease after validating property ownership, tenant existence, and unit association.
-
+    
     If the user is a landlord, verifies they own the specified property. Ensures the tenant exists and, if a unit is specified, that it belongs to the property. Optionally creates a lease document record if a file URL is provided. If the lease is created with ACTIVE status, applies side effects to update the tenant's current property and the unit's rental status. Commits all changes and returns the created lease object.
-
+    
     Raises:
         HTTPException: If the property, tenant, or unit is invalid, or if a database error occurs.
     """
@@ -565,9 +565,9 @@ async def update_lease(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Updates general terms of an existing lease, excluding status changes.
-
-    Checks user permissions before applying updates to lease fields such as dates, rent, deposit, and related information. Ignores any attempt to modify the lease status, which must be changed via the dedicated status endpoint. Commits changes to the database and returns the updated lease. Rolls back and raises an HTTP 500 error if the update fails.
+    Updates general lease fields for an existing lease, excluding status changes.
+    
+    Checks user permissions and applies updates to lease attributes such as dates, rent, deposit, and related information. Any attempt to modify the lease status is ignored; status changes must be performed via the dedicated status endpoint. Commits changes to the database and returns the updated lease. Rolls back and raises an HTTP 500 error if the update fails.
     """
     lease = await check_lease_permission(lease_id, session, current_user, action="update")
 

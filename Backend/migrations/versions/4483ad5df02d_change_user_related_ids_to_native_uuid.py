@@ -242,7 +242,11 @@ USERS_ID_SEQUENCE_NAME = "users_id_seq"
 
 
 def upgrade() -> None:
-    """Upgrade schema: Assumes RLS policies are manually dropped before running."""
+    """
+    Upgrades the database schema by converting user-related ID columns from string to native UUID types and recreating associated RLS policies.
+    
+    This migration drops and recreates foreign key constraints and alters relevant columns in multiple tables to use UUID types instead of varchar. It also recreates all affected Row-Level Security (RLS) policies with updated UUID-aware expressions. Manual dropping of existing RLS policies is required before running this upgrade.
+    """
     # IMPORTANT: Manually drop policies via Supabase SQL editor BEFORE running this upgrade:
     # DROP POLICY IF EXISTS "Users manage their own record" ON public.users;
     # Policies on properties:
@@ -389,7 +393,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Downgrade schema: Assumes RLS policies are manually dropped before running."""
+    """
+    Reverts user-related ID columns and associated RLS policies from UUID types back to varchar.
+    
+    This function downgrades the database schema by converting all previously migrated user-related UUID columns to their original varchar(36) types, restoring the default sequence for the `users.id` column, and recreating all affected foreign key constraints and Row-Level Security (RLS) policies using varchar-based definitions. Assumes all relevant RLS policies have been manually dropped prior to execution.
+    """
     # IMPORTANT: Manually drop policies via Supabase SQL editor BEFORE running this downgrade
 
     for fk_name, table_name, _, _, _, _ in FK_CONSTRAINTS_TO_DROP_AND_RECREATE:

@@ -37,6 +37,17 @@ router = APIRouter()
 
 # === Helper Functions for Payments ===
 async def get_month_payments(session: AsyncSession, lease_id: int, month_date: date) -> bool:
+    """
+    Checks if any payment exists for a given lease within the specified month.
+    
+    Args:
+        session: Async database session.
+        lease_id: The ID of the lease to check payments for.
+        month_date: A date within the month to check.
+    
+    Returns:
+        True if at least one payment exists for the lease in the specified month, otherwise False.
+    """
     month_start = month_date.replace(day=1)
     if month_start.month == 12:
         month_end = month_start.replace(year=month_start.year + 1, month=1, day=1)
@@ -54,7 +65,12 @@ async def get_month_payments(session: AsyncSession, lease_id: int, month_date: d
     return result.scalar_one_or_none() is not None
 
 def _get_payment_method_enum(payment_method_value: PaymentMethod | str | None) -> PaymentMethod:
-    """Convert a payment method string or enum to PaymentMethod enum, defaulting to OTHER if invalid."""
+    """
+    Converts a string or enum value to a PaymentMethod enum, defaulting to OTHER if input is None or invalid.
+    
+    Raises:
+        HTTPException: If the input cannot be converted to a valid PaymentMethod.
+    """
     if isinstance(payment_method_value, PaymentMethod):
         return payment_method_value
     if not payment_method_value:
@@ -76,7 +92,11 @@ def _get_payment_method_enum(payment_method_value: PaymentMethod | str | None) -
         ) from e
 
 def _get_tenant_display_name(tenant: Tenant | None) -> str:
-    """Generate a formatted display name for a tenant."""
+    """
+    Returns a formatted display name for a tenant, using their full name if available, or a fallback identifier if not.
+    
+    If the tenant is None, returns "Unknown Tenant". If the tenant has a first name, returns "FirstName LastName". Otherwise, returns "Tenant #<id>".
+    """
     if not tenant:
         return "Unknown Tenant"
     if tenant.first_name:
@@ -84,19 +104,13 @@ def _get_tenant_display_name(tenant: Tenant | None) -> str:
     return f"Tenant #{tenant.id}"
 
 def _check_payment_ownership(payment: Payment, current_user: User) -> bool:
-    """Check if the current user has ownership rights to modify the payment.
+    """
+    Determines whether the current user has permission to modify the specified payment.
     
-    Args:
-        payment: The payment object to check ownership for
-        current_user: The current authenticated user
-        
+    Admin users are always granted access. For non-admin users, access is allowed only if the user owns the property associated with the payment's lease and all related entities exist.
+    
     Returns:
-        bool: True if user can modify the payment, False otherwise
-        
-    Notes:
-        - Admin users always have access
-        - Non-admin users must own the property associated with the payment's lease
-        - All relationships (payment -> lease -> property) must exist for non-admin access
+        True if the user can modify the payment; otherwise, False.
     """
     if current_user.is_admin:
         return True
@@ -122,6 +136,15 @@ class PaymentBase(BaseModel): # Not directly used by endpoints, but good for inh
     @field_validator('transaction_reference', 'description', mode='before')
     @staticmethod
     def empty_str_to_none(v: str | None) -> str | None:
+        """
+        Converts an empty string to None.
+        
+        Args:
+            v: The input string or None.
+        
+        Returns:
+            None if the input is an empty string; otherwise, returns the original value.
+        """
         if v == "":
             return None
         return v
@@ -186,7 +209,9 @@ class PaymentReceiptParseResponse(BaseModel):
 # === Payment Query Helper Functions ===
 
 def _build_payment_base_query() -> Select:
-    """Build the base query for payment retrieval with necessary relationships."""
+    """
+    Constructs a SQLAlchemy select query for payments with eager loading of related lease, property, and tenant entities.
+    """
     return select(Payment).options(
         selectinload(getattr(Payment, "lease")).options(
             selectinload(getattr(Lease, "property")),
@@ -196,12 +221,11 @@ def _build_payment_base_query() -> Select:
 
 def _apply_common_payment_filters(query: Select, lease_id: int | None, payment_status: PaymentStatus | None, 
                                 start_date: date | None, end_date: date | None) -> Select:
-    """Apply common payment filters that are used regardless of user type.
-    
-    Note: All date filters are converted to UTC using date_to_utc_range() before comparison
-    with the payment_date column to ensure consistent timezone handling across different
-    user timezones and database storage formats.
     """
+                                Applies lease, status, and date range filters to a payment query.
+                                
+                                All date filters are converted to UTC using `date_to_utc_range` to ensure consistent timezone handling when filtering by payment date.
+                                """
     filters = []
     
     if lease_id:
@@ -224,7 +248,12 @@ def _apply_common_payment_filters(query: Select, lease_id: int | None, payment_s
 
 async def _apply_tenant_payment_filters(query: Select, tenant_id: int | None, property_id: int | None, 
                                        current_user: User, session: AsyncSession) -> Select:
-    """Apply payment filters for tenant users. Raises HTTPException for authorization failures."""
+    """
+                                       Applies tenant-specific filters to a payment query, restricting results to payments belonging to the current user's tenant profile.
+                                       
+                                       Raises:
+                                           HTTPException: If the user lacks a tenant profile, attempts to access another tenant's payments, or tries to filter by property.
+                                       """
     tenant_query = select(Tenant).where(col(Tenant.user_id) == current_user.id)
     user_tenant = await session.scalar(tenant_query)
     
@@ -250,11 +279,10 @@ async def _apply_tenant_payment_filters(query: Select, tenant_id: int | None, pr
     return query
 
 async def _check_for_orphaned_payments(session: AsyncSession, current_user: User, run_for_all_users: bool = False) -> dict:
-    """Monitor for orphaned payments that have lease_id but lack proper lease relationships.
-    
-    Note: Payments without lease_id are legitimate (non-lease related payments) and are not considered orphaned.
-    This function only checks for payments that reference a lease_id but have broken relationships.
     """
+    Checks for payments that reference a lease but have missing or broken lease or property relationships.
+    
+    This function identifies "orphaned" payments—those with a lease_id but lacking a valid lease or property association. Payments without a lease_id are not considered orphaned. Returns a report indicating whether orphaned payments exist, the total count, the number of affected users, and up to 10 orphaned payment IDs. Handles both single-user and global scans based on the `run_for_all_users` flag. Logs warnings or errors if orphaned payments are found.
     try:
         # Define base conditions for orphaned payments
         conditions = [
@@ -390,7 +418,11 @@ async def _check_for_orphaned_payments(session: AsyncSession, current_user: User
     }
 
 def _apply_landlord_payment_filters(query: Select, property_id: int | None, tenant_id: int | None, current_user: User) -> Select:
-    """Apply payment filters for landlord users. Returns the filtered query."""
+    """
+    Filters a payment query to include only payments for leases owned by the landlord.
+    
+    Payments are restricted to those associated with properties owned by the current user. Optionally filters by property and tenant if specified. Orphaned payments lacking valid lease or property relationships are excluded.
+    """
     # NOTE: Using inner joins here to enforce data integrity - this excludes payments
     # with missing lease or property relationships, which helps identify data inconsistencies.
     # Trade-off: orphaned payments (without proper lease/property links) won't appear in results,
@@ -418,7 +450,12 @@ def _apply_landlord_payment_filters(query: Select, property_id: int | None, tena
     return query
 
 def _apply_admin_payment_filters(query: Select, property_id: int | None, tenant_id: int | None) -> tuple[Select, bool]:
-    """Apply payment filters for admin users. Returns (query, should_continue)."""
+    """
+    Applies property and tenant filters to a payment query for admin users.
+    
+    Returns:
+        A tuple containing the modified query and a boolean flag indicating whether to continue processing.
+    """
     filters = []
     
     if property_id:
@@ -434,7 +471,12 @@ def _apply_admin_payment_filters(query: Select, property_id: int | None, tenant_
     return query, True
 
 def _build_payment_response_from_orm(payment_orm: Payment) -> PaymentResponse | None:
-    """Build a PaymentResponse object from a Payment ORM instance."""
+    """
+    Constructs a PaymentResponse object from a Payment ORM instance, including tenant and property display names.
+    
+    Returns:
+        A PaymentResponse with populated fields, or None if the payment has no ID.
+    """
     if payment_orm.id is None:
         return None
     
@@ -465,6 +507,11 @@ async def parse_payment_receipt(
     file: Annotated[UploadFile, File()],
     current_user: Annotated[User, Depends(get_current_user)]
 ) -> PaymentReceiptParseResponse:
+    """
+    Parses an uploaded payment receipt file and extracts structured payment details.
+    
+    Only landlords and admins are authorized to use this endpoint. Accepts PDF, JPG, or PNG files, uploads the receipt to cloud storage, and uses an external utility to extract payment information such as date, amount, and method. Returns the receipt URL and parsed details. Raises HTTP errors for unauthorized access, unsupported file types, invalid data, or external service failures.
+    """
     if current_user.user_type not in [UserType.LANDLORD, UserType.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -508,6 +555,17 @@ async def create_payment(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> PaymentResponse:
+    """
+    Creates a new payment record for a specified lease.
+    
+    Only landlords and admins can create payments. Validates lease ownership, sets the payment date to the provided value or the current UTC time, and assigns the tenant from the lease. Commits the new payment to the database and returns the created payment details.
+    
+    Raises:
+        HTTPException: If the user is a tenant, lease ownership is invalid, or a database error occurs.
+        
+    Returns:
+        The created payment as a PaymentResponse.
+    """
     if current_user.user_type == UserType.TENANT:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenants cannot directly create payment records.")
     lease = await check_lease_ownership(payment.lease_id, session, current_user)
@@ -564,6 +622,24 @@ async def get_payments(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> PaginatedPaymentsResponse:
+    """
+    Retrieves a paginated list of payments filtered by user role and query parameters.
+    
+    Applies role-based access control and filters by lease, property, tenant, payment status, and date range. Returns payments ordered by payment date in descending order, with pagination support. Only authorized users can access relevant payments; unauthorized users receive an empty result.
+     
+    Args:
+        lease_id: Filter payments by lease ID.
+        property_id: Filter payments by property ID.
+        tenant_id: Filter payments by tenant ID.
+        payment_status: Filter payments by payment status.
+        start_date: Filter payments with payment dates on or after this date.
+        end_date: Filter payments with payment dates on or before this date.
+        limit: Maximum number of payments to return (default 100, max 500).
+        offset: Number of payments to skip for pagination.
+    
+    Returns:
+        PaginatedPaymentsResponse: Contains a list of payment responses and a flag indicating if more results are available.
+    """
     try:
         query = _build_payment_base_query()
         query = _apply_common_payment_filters(query, lease_id, payment_status, start_date, end_date)
@@ -603,6 +679,11 @@ async def run_orphaned_payments_check(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> Any:
+    """
+    Runs an integrity check to identify orphaned payments with missing lease or property records.
+    
+    Only accessible to admin users. Returns a summary report indicating whether orphaned payments exist and details about affected records. Raises HTTP 403 if the user is not an admin and HTTP 500 on internal errors.
+    """
     logger.info("Admin user %s initiated orphaned payments integrity check", current_user.id)
     """
     (Admin-Only)
@@ -643,6 +724,11 @@ async def get_outstanding_payments_for_month( # Renamed function
     current_user: User = Depends(get_current_user)
 ) -> list[PaymentResponse]:
     # Validate and cap the limit parameter to prevent excessive data retrieval
+    """
+    Retrieves outstanding payments for the current month, filtered by user role.
+    
+    Returns a list of payments with status PENDING or OVERDUE for the current month, limited to a maximum of 500 records. Tenants receive only their payments, landlords receive payments for their properties, and other users receive an empty list. Response headers indicate if the requested limit was adjusted.
+    """
     original_limit = limit
     limit = max(1, min(limit, 500))
     
@@ -698,6 +784,14 @@ async def get_payment(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> PaymentResponse:
+    """
+    Retrieves a payment by its ID with related lease, property, and tenant details.
+    
+    Enforces role-based access control: tenants can access only their own payments, landlords only payments for their properties, and admins have unrestricted access. Raises HTTP 404 if the payment does not exist, HTTP 403 if access is unauthorized, and HTTP 500 if payment data integrity is compromised.
+    
+    Returns:
+        PaymentResponse: The payment details including related lease, property, and tenant information.
+    """
     query = select(Payment).options(
         selectinload(getattr(Payment, "lease")).options(
             selectinload(getattr(Lease, "property")),
@@ -733,6 +827,21 @@ async def update_payment(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> PaymentResponse:
+    """
+    Updates an existing payment record with new data.
+    
+    Only landlords and admins can update payments. Validates user authorization and payment ownership, applies provided updates, and refreshes related entities before returning the updated payment response.
+    
+    Args:
+        payment_id: The ID of the payment to update.
+        payment_data: The fields to update in the payment record.
+    
+    Returns:
+        The updated payment as a PaymentResponse.
+    
+    Raises:
+        HTTPException: If the payment is not found, the user is unauthorized, or an error occurs during the update.
+    """
     if current_user.user_type == UserType.TENANT:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenants cannot update payment records.")
 
@@ -790,6 +899,12 @@ async def delete_payment(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> None:
+    """
+    Deletes a payment record by its ID after verifying user authorization.
+    
+    Raises:
+        HTTPException: If the payment does not exist, the user is not authorized, or a deletion error occurs.
+    """
     query = select(Payment).options(
         selectinload(getattr(Payment, "lease")).options(
             selectinload(getattr(Lease, "property"))
@@ -828,6 +943,11 @@ async def generate_due_payments_for_month( # Renamed function
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> list[PaymentResponse]:
+    """
+    Generates due payments for the current month for all active leases without existing payments.
+    
+    Only accessible to landlords and admins. For each active lease owned by the user (or all leases for admins), creates a pending payment for the current month's rent if one does not already exist. Returns a list of created payment responses. Raises HTTP 403 if unauthorized and HTTP 500 on processing errors.
+    """
     if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 

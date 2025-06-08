@@ -18,7 +18,9 @@ class TestGenericAPIBehaviors:
     @pytest.mark.asyncio
     # No auth needed, but api_client can be used
     async def test_health_check(self, api_client):
-        """Test general API health/connectivity"""
+        """
+        Verifies that the API health check endpoint is reachable and returns a 200 OK status.
+        """
         logger.info("Testing API health check...")
 
         # Use a basic endpoint to test API availability
@@ -30,7 +32,13 @@ class TestGenericAPIBehaviors:
 
     @pytest.mark.asyncio
     async def test_datetime_validation_in_response(self, api_client):
-        """Test that API returns properly formatted datetime fields"""
+        """
+        Verifies that datetime fields in the API response are properly formatted in ISO 8601.
+        
+        Sends a GET request to the payments endpoint and checks that any present datetime fields
+        ('created_at', 'updated_at', 'payment_date', 'due_date') in the first payment object
+        are valid ISO 8601 strings. Fails the test if any field is not properly formatted.
+        """
         logger.info("Testing datetime format validation...")
 
         # Use an endpoint that returns datetime fields
@@ -59,7 +67,11 @@ class TestGenericAPIBehaviors:
 
     @pytest.mark.asyncio
     async def test_datetime_query_param_edge_cases(self, api_client):
-        """Test edge cases for datetime query parameters"""
+        """
+        Verifies that the API accepts various valid datetime formats as query parameters without returning a 400 Bad Request error.
+        
+        Tests multiple datetime representations for `start_date` and `end_date` parameters on the payments endpoint to ensure proper handling of edge cases.
+        """
         logger.info("Testing datetime query parameter edge cases...")
 
         # Test various datetime formats in query params
@@ -79,7 +91,11 @@ class TestGenericAPIBehaviors:
 
     @pytest.mark.asyncio
     async def test_timezone_string_handling_in_query(self, api_client):
-        """Test timezone handling in query parameters"""
+        """
+        Verifies that the API correctly handles timezone-aware datetime strings in query parameters.
+        
+        Sends GET requests to the payments endpoint with various timezone-aware datetime strings as the `start_date` parameter, asserting that the API responds with either 200 OK or 400 Bad Request to indicate acceptance or rejection of each format.
+        """
         logger.info("Testing timezone handling in query parameters...")
 
         # Test timezone-aware datetime strings
@@ -104,7 +120,11 @@ class TestGenericAPIBehaviors:
 
     @pytest.mark.asyncio
     async def test_method_not_allowed(self, api_client):
-        """Test that unsupported HTTP methods return 405"""
+        """
+        Verifies that sending an unsupported HTTP method to an endpoint returns 405 or 404.
+        
+        Sends a PATCH request to the payments endpoint and asserts that the response status code indicates the method is not allowed or the endpoint is not found.
+        """
         logger.info("Testing HTTP method not allowed...")
 
         # Test unsupported methods on a known endpoint
@@ -123,7 +143,9 @@ class TestGenericAPIBehaviors:
 
     @pytest.mark.asyncio
     async def test_malformed_json_payload(self, api_client):
-        """Test handling of malformed JSON in request body"""
+        """
+        Tests that the API returns a 400 or 422 status code when receiving a malformed JSON payload in a POST request to the payments endpoint.
+        """
         logger.info("Testing malformed JSON payload handling...")
 
         # Create a request with malformed JSON
@@ -149,7 +171,9 @@ class TestGenericAPIBehaviors:
 
     @pytest.mark.asyncio
     async def test_nonexistent_endpoint_returns_404(self, api_client):
-        """Test that nonexistent endpoints return 404"""
+        """
+        Verifies that a request to a nonexistent API endpoint returns a 404 status code.
+        """
         logger.info("Testing nonexistent endpoint...")
 
         response = await api_client.get("/api/nonexistent/endpoint/12345")

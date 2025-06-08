@@ -270,6 +270,11 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
 
   // Close dropdown when clicking outside
   useEffect(() => {
+    /**
+     * Closes the property search dropdown when a click occurs outside the input container.
+     *
+     * @param {MouseEvent} event - The mouse event triggered by the user's click.
+     */
     function handleClickOutside(event) {
       if (
         propertySearchInputRef.current &&

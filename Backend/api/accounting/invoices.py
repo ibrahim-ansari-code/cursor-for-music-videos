@@ -59,8 +59,9 @@ class InvoiceResponse(InvoiceBase):
 # === Helper Functions for Invoices ===
 async def _infer_property_for_invoice(tenant: Tenant, current_user: User) -> int | None:
     """
-    Infers the property ID for an invoice based on the tenant's current property or leases.
-    Enforces that `tenant.current_property` and `tenant.leases` are eagerly loaded to prevent N+1 queries.
+    Attempts to determine the property ID associated with a tenant for invoice creation.
+    
+    Checks the tenant's current property and active leases, ensuring relationships are eagerly loaded to prevent inefficient queries. Returns the property ID if accessible by the current user (admin or property owner). Raises an HTTP 500 error if inference fails due to internal issues.
     """
     try:
         # Check if required relationships are eagerly loaded to prevent N+1 queries
@@ -117,7 +118,12 @@ async def _infer_property_for_invoice(tenant: Tenant, current_user: User) -> int
 async def _apply_tenant_invoice_filters(
     filters: list, tenant_id: int | None, property_id: int | None, current_user: User, session: AsyncSession
 ):
-    """Applies invoice filters for a tenant user."""
+    """
+    Applies invoice query filters to restrict results to the current tenant user.
+    
+    Raises:
+        HTTPException: If the user is not a tenant, attempts to access another tenant's invoices, or tries to filter by property.
+    """
     tenant_query = select(Tenant).where(col(Tenant.user_id) == current_user.id)
     user_tenant = await session.scalar(tenant_query)
     
@@ -135,7 +141,15 @@ async def _apply_tenant_invoice_filters(
 async def _apply_landlord_invoice_filters(
     filters: list, property_id: int | None, tenant_id: int | None, current_user: User, session: AsyncSession
 ) -> bool:
-    """Applies invoice filters for a landlord user. Returns False if landlord has no properties."""
+    """
+    Applies invoice filters to restrict results to those associated with properties owned by the landlord.
+    
+    Returns:
+        True if the landlord owns properties and filters are applied; False if the landlord owns no properties.
+        
+    Raises:
+        HTTPException: If a property_id is provided but the landlord does not own the specified property.
+    """
     # Check if landlord has any properties at all (lightweight check)
     has_properties_query = select(Property.id).where(col(Property.user_id) == current_user.id).limit(1)
     has_properties = await session.scalar(has_properties_query)
@@ -179,7 +193,11 @@ async def _apply_landlord_invoice_filters(
     return True
 
 def _apply_admin_invoice_filters(filters: list, property_id: int | None, tenant_id: int | None):
-    """Applies invoice filters for an admin user."""
+    """
+    Appends tenant and property filters to the invoice query for admin users.
+    
+    If tenant_id or property_id are provided, corresponding filters are added to the filters list.
+    """
     if tenant_id:
         filters.append(col(Invoice.tenant_id) == tenant_id)
     if property_id:
@@ -194,6 +212,17 @@ async def create_invoice(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> InvoiceResponse:
+    """
+    Creates a new invoice for a property or tenant.
+    
+    Allows admin and landlord users to create an invoice, requiring either a property ID or tenant ID. If only a tenant ID is provided, attempts to infer the associated property. Validates property ownership, ensures due date is not before issue date, and persists the invoice to the database. Returns the created invoice details.
+    
+    Raises:
+        HTTPException: If the user is unauthorized, required fields are missing, property ownership is invalid, date validation fails, or invoice creation encounters an error.
+        
+    Returns:
+        The created invoice as an InvoiceResponse.
+    """
     if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to create invoices")
 
@@ -281,6 +310,24 @@ async def get_invoices(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> list[InvoiceResponse]:
+    """
+    Retrieves a list of invoices filtered by user role, tenant, property, payment status, and date range.
+    
+    Validates and applies filters based on the current user's role:
+    - Tenants can only view their own invoices.
+    - Landlords can view invoices for properties or tenants they own.
+    - Admins can view all invoices with optional tenant and property filters.
+    
+    Args:
+        tenant_id: Optional tenant ID to filter invoices.
+        property_id: Optional property ID to filter invoices.
+        payment_status_filter: Optional payment status to filter invoices.
+        start_date: Optional start date to filter invoices by issue date.
+        end_date: Optional end date to filter invoices by issue date.
+    
+    Returns:
+        A list of invoices matching the applied filters.
+    """
     validate_date_range(start_date, end_date)
 
     query = (

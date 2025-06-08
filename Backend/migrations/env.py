@@ -68,7 +68,11 @@ logger = logging.getLogger("alembic.env")
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode."""
+    """
+    Runs Alembic migrations in offline mode using the configured database URL.
+    
+    Configures the Alembic context for offline migration generation, emitting SQL statements to the output without requiring a live database connection.
+    """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -83,12 +87,8 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """
     Runs Alembic migrations in online mode using a synchronous database connection.
-
-    Establishes a connection to the database, configures the Alembic context
-    with the current SQLModel metadata, and executes migrations within a
-    transaction block. This approach ensures that all migrations are applied
-    atomically, except for operations that require manual intervention (such as
-    Row-Level Security policy changes).
+    
+    Establishes a database connection, configures the Alembic context with SQLModel metadata, and executes migrations within a transaction block to ensure atomic application of changes. Operations requiring non-transactional execution, such as certain Row-Level Security policy changes, must be handled manually or via migration script directives.
     """
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),

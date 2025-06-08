@@ -57,6 +57,12 @@ class AuthTestManager:
     """Helper class for managing test authentication. Renamed to avoid pytest collection."""
 
     def __init__(self):
+        """
+        Initializes the AuthTestManager by loading Supabase and backend configuration, determining the primary test user email, and preparing authentication and HTTP clients.
+        
+        Raises:
+            ValueError: If required environment variables or the primary test user email cannot be determined.
+        """
         self.supabase_url = os.getenv("SUPABASE_URL")
         self.supabase_anon_key = os.getenv("SUPABASE_ANON_KEY")
         self.backend_url = "http://localhost:8000"  # Hardcoded
@@ -96,13 +102,26 @@ class AuthTestManager:
         self.http_client = httpx.AsyncClient(timeout=30.0)
 
     async def __aenter__(self):
+        """
+        Enters the asynchronous context manager for the AuthTestManager instance.
+        
+        Returns:
+            The AuthTestManager instance itself for use within an async context.
+        """
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """
+        Closes the asynchronous HTTP client when exiting the context manager.
+        """
         await self.http_client.aclose()
 
     def _save_credentials(self, creds: Dict[str, Any]):
-        """Saves credentials to file and updates the standalone access token file."""
+        """
+        Saves user credentials to a file, excluding the password, and writes the access token to a separate file with restricted permissions.
+        
+        If an access token is present, it is saved to a standalone file with permissions set to 600 for security.
+        """
         try:
             # Create a copy of creds to avoid modifying the original dict in memory
             creds_to_save = creds.copy()
@@ -134,7 +153,12 @@ class AuthTestManager:
             logger.error(f"Error saving credentials: {str(e)}")
 
     def _load_credentials(self) -> Optional[Dict[str, Any]]:
-        """Loads credentials from file."""
+        """
+        Loads stored credentials from the credentials file.
+        
+        Returns:
+            A dictionary containing the credentials if the file exists and is valid, or None if the file is missing or an error occurs during loading.
+        """
         if not os.path.exists(self.credentials_file_path):
             return None
         try:
@@ -146,7 +170,15 @@ class AuthTestManager:
             return None
 
     def _get_primary_user_email_from_creds(self) -> str:
-        """Loads the primary test user email from the credentials file."""
+        """
+        Retrieves the primary test user email from the credentials file.
+        
+        Raises:
+            ValueError: If the credentials file is missing, invalid, or does not contain the test user email.
+        
+        Returns:
+            The primary test user email as a string.
+        """
         creds = self._load_credentials()
         if not creds:
             raise ValueError(
@@ -162,7 +194,11 @@ class AuthTestManager:
         first_name: str = "Test", last_name: str = "User05",  # Consistent with primary user
         user_type: str = PRIMARY_TEST_USER_TYPE
     ) -> bool:
-        """Syncs Supabase user to backend if not already present or to update."""
+        """
+        Synchronizes a Supabase user with the backend system.
+        
+        Attempts to create or update the user in the backend by sending user details to the backend's sync endpoint. Returns True if the operation succeeds or if the user already exists (HTTP 409), otherwise returns False.
+        """
         logger.info(
             f"Attempting to sync Supabase user {email} (ID: {supabase_user_id}) to backend...")
         try:
@@ -201,7 +237,17 @@ class AuthTestManager:
         self,
         prompt_for_password_if_needed: bool = False
     ) -> Optional[Dict[str, Any]]:
-        """Gets a JWT for the primary test user, prioritizing refresh, then sign-in."""
+        """
+        Obtains a JWT for the primary test user by attempting to refresh the session or signing in.
+        
+        If a valid refresh token is available, tries to refresh the session using Supabase Auth. If refreshing fails or no refresh token exists, attempts to sign in with the user's password, which may be sourced from credentials, environment variables, or interactively prompted if allowed. On successful authentication, synchronizes the user with the backend and saves updated credentials.
+        
+        Args:
+            prompt_for_password_if_needed: If True, prompts for the user's password interactively if not found in credentials or environment variables.
+        
+        Returns:
+            A dictionary containing updated credentials and tokens if authentication succeeds, or None if all attempts fail.
+        """
         email = self.primary_user_email
         creds = self._load_credentials()
 
@@ -298,7 +344,15 @@ class AuthTestManager:
             return None
 
     async def verify_token_with_supabase(self, token: Optional[str]) -> bool:
-        """Verifies if the given access token is valid with Supabase."""
+        """
+        Checks whether the provided access token is valid by querying Supabase for the associated user.
+        
+        Args:
+            token: The access token to verify.
+        
+        Returns:
+            True if the token is valid and corresponds to a Supabase user, False otherwise.
+        """
         if not token:
             return False
         logger.info(f"Verifying token with Supabase: {token[:30]}...")
@@ -319,7 +373,17 @@ class AuthTestManager:
 
 
 async def get_primary_user_jwt(prompt_for_password: bool = False) -> Optional[str]:
-    """Gets or refreshes JWT for the primary test user."""
+    """
+    Obtains a valid JWT access token for the primary test user, refreshing or prompting for credentials as needed.
+    
+    Attempts to retrieve or refresh the JWT using stored credentials. If necessary and allowed, prompts for the user's password. Verifies the token with Supabase before returning it. If verification fails, clears invalid tokens from the credentials file.
+    
+    Args:
+        prompt_for_password: If True, prompts interactively for the user's password if required.
+    
+    Returns:
+        The valid JWT access token as a string, or None if unable to obtain or verify the token.
+    """
     async with AuthTestManager() as auth_manager:
         credentials = await auth_manager.get_or_refresh_jwt(
             prompt_for_password_if_needed=prompt_for_password
@@ -351,6 +415,11 @@ if __name__ == "__main__":
                         format='%(asctime)s - %(levelname)s - %(message)s')
 
     async def main_cli():
+        """
+        Runs the CLI workflow to obtain or refresh the primary test user's JWT.
+        
+        Prompts for the user's password if needed, attempts to retrieve or refresh the JWT, saves credentials and token files, sets the environment variable, and prints status messages indicating success or failure.
+        """
         auth_manager_instance = AuthTestManager()
         print(
             f"Attempting to get/refresh JWT for primary test user: {auth_manager_instance.primary_user_email}")

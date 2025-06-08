@@ -36,7 +36,11 @@ API_TESTS_DIR = os.path.join(_TESTS_DIR, "api_tests")
 BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 def run_pytest_with_json_report(plugin_status: Optional[Dict[str, bool]] = None) -> bool:
-    """Run pytest with JSON reporting for structured output parsing"""
+    """
+    Runs pytest on the API tests directory with optional JSON reporting and parallel execution.
+    
+    If the required plugins are available, enables parallel test execution and generates a JSON report for structured output parsing. Streams pytest output in real time. After completion, prints a detailed summary from the JSON report if available; otherwise, prints a basic summary. Returns True if all tests pass (exit code 0), otherwise False.
+    """
     
     if plugin_status is None:
         plugin_status = check_dependencies()
@@ -119,7 +123,11 @@ def run_pytest_with_json_report(plugin_status: Optional[Dict[str, bool]] = None)
 
 
 def print_detailed_summary(report_data):
-    """Print detailed summary from pytest JSON report"""
+    """
+    Prints a detailed summary of pytest results from a JSON report.
+    
+    Displays per-API and overall statistics, including counts of passed, failed, skipped, and errored tests, as well as pass rates and durations. If detailed test data is unavailable, falls back to summary statistics. Individual test outcomes are shown with icons and durations or reasons for failure/skip.
+    """
 
     summary = report_data.get('summary', {})
     tests = report_data.get('tests', [])
@@ -277,7 +285,11 @@ def print_detailed_summary(report_data):
 
 
 def extract_test_name(nodeid):
-    """Extract readable test name from pytest nodeid"""
+    """
+    Extracts a human-readable test name from a pytest node ID.
+    
+    Converts the last component of the node ID to a title-cased string with underscores replaced by spaces and the 'test_' prefix removed.
+    """
     if '::' in nodeid:
         parts = nodeid.split('::')
         if len(parts) >= 3:
@@ -289,7 +301,11 @@ def extract_test_name(nodeid):
 
 
 def get_failure_reason(test):
-    """Extract failure reason from test data"""
+    """
+    Extracts a concise failure reason from a test's call data.
+    
+    Returns a relevant assertion or error message from the test's failure output, or a default message if unavailable.
+    """
     call_data = test.get('call', {})
     if 'longrepr' in call_data:
         # Get the first line of the failure message
@@ -304,7 +320,11 @@ def get_failure_reason(test):
 
 
 def get_skip_reason(test):
-    """Extract skip reason from test data"""
+    """
+    Extracts the skip reason from a test's setup or call data.
+    
+    If a specific skip reason is found in the 'longrepr' field containing 'SKIPPED', returns the extracted reason text. Otherwise, returns "Skipped".
+    """
     setup_data = test.get('setup', {})
     call_data = test.get('call', {})
 
@@ -322,7 +342,11 @@ def get_skip_reason(test):
 
 
 def print_basic_summary(return_code):
-    """Print basic summary when JSON report is not available"""
+    """
+    Prints a basic summary of test results based on the pytest exit code.
+    
+    Displays a simple success or failure message and the pytest exit code when a JSON report is not available.
+    """
     print("\n" + "=" * 60)
     print("📊 BASIC TEST SUMMARY")
     print("=" * 60)
@@ -338,8 +362,10 @@ def print_basic_summary(return_code):
 
 def check_dependencies():
     """
-    Check if required dependencies are available.
-    Returns a dictionary with plugin availability flags.
+    Checks for the presence of pytest and optional plugins required for enhanced test execution.
+    
+    Returns:
+        A dictionary indicating the availability of pytest and the plugins `pytest-xdist`, `pytest-json-report`, and `pytest-asyncio`.
     """
     plugin_status = {
         "pytest": False,
@@ -387,7 +413,12 @@ def check_dependencies():
     return plugin_status
 
 def main():
-    """Main entry point"""
+    """
+    Runs the API test suite, handling environment validation, dependency checks, and test execution.
+    
+    Returns:
+        True if all tests pass, False otherwise.
+    """
 
     # Configure logging
     logging.basicConfig(

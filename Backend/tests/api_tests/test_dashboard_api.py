@@ -18,7 +18,11 @@ class TestDashboardAPI:
 
     @pytest.mark.asyncio
     async def test_dashboard_get_operations(self, api_client: APITestClient) -> None:
-        """Test GET /api/dashboard endpoint."""
+        """
+        Tests that the GET /api/dashboard endpoint returns a valid JSON response with required sections.
+        
+        Asserts that the response is a dictionary containing the keys: "summary", "occupancy", "revenue", and "payments_due".
+        """
         logger.info("Testing GET /api/dashboard...")
 
         # api_client fixture from conftest.py handles authentication and initial checks.

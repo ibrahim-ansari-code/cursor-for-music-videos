@@ -140,15 +140,15 @@ async def get_report_summary(
     current_user: User = Depends(get_current_user)
 ) -> ReportResponse:
     """
-    Generates a comprehensive financial summary report for properties accessible to the current user over a specified date range.
-
-    The report includes monthly income and expense charts, summary statistics (such as total monthly revenue and average rent), a financial table with property-level details, and income by property for the last month in the range. Only properties the user has access to are included. Raises HTTP errors for invalid date ranges or inaccessible properties.
-
+    Generates a financial summary report for properties accessible to the current user over a specified date range.
+    
+    The report includes monthly income and expense charts, summary statistics (total monthly revenue and average rent), a financial table with property-level details, and income by property for the last month in the range. Only properties the user can access are included. Raises HTTP errors for invalid date ranges or inaccessible properties.
+    
     Args:
-        report_type: The type of report to generate (default is "Financial Summary").
-        date_range: The date range for the report (e.g., "Current Month", "Last Month", "YTD").
+        report_type: Optional report type (default is "Financial Summary").
+        date_range: Optional date range for the report (e.g., "Current Month", "Last Month", "YTD").
         property_ids: Optional list of property IDs to filter the report.
-
+    
     Returns:
         A structured report response containing chart data, summary statistics, financial table rows, and income by property.
     """

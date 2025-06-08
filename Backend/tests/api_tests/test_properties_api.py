@@ -22,11 +22,10 @@ logger = logging.getLogger(__name__)
 @pytest_asyncio.fixture
 async def created_property(api_client: APITestClient) -> AsyncGenerator[dict[str, Any], None]:
     """
-    Asynchronously creates a test property for use in API tests and ensures
-    its deletion after the test completes.
-
+    Asynchronously creates a test property for use in API tests and ensures its deletion after the test completes.
+    
     Yields:
-        The created property object as a dictionary.
+        A dictionary representing the created property.
     """
     property_data = {
         "name": f"Test Fixture Property {int(time.time())}",
@@ -69,11 +68,9 @@ class TestPropertiesAPI:
     @pytest.mark.asyncio
     async def test_create_property(self, api_client: APITestClient) -> None:
         """
-        Tests property creation via POST /api/properties/ and verifies the response.
-
-        Sends a request to create a new property with test data, asserts the
-        response contains the expected fields and values, and immediately deletes
-        the created property to maintain test isolation.
+        Creates a new property via the API and verifies the response fields and values.
+        
+        Sends a POST request to create a property with test data, asserts the response contains the expected fields, and deletes the created property to maintain test isolation.
         """
         logger.info("Testing POST /api/properties/...")
 
@@ -118,10 +115,9 @@ class TestPropertiesAPI:
     @pytest.mark.asyncio
     async def test_get_all_properties(self, api_client: APITestClient) -> None:
         """
-        Tests retrieval of all properties via the GET /api/properties/ endpoint.
-
-        Sends a GET request to fetch all properties and asserts that the response
-        is a valid JSON list.
+        Tests retrieving all properties from the API.
+        
+        Sends a GET request to the /api/properties/ endpoint and asserts that the response is a valid JSON list of properties.
         """
         logger.info("Testing GET /api/properties/...")
 
@@ -134,10 +130,9 @@ class TestPropertiesAPI:
     @pytest.mark.asyncio
     async def test_get_specific_property(self, created_property: dict[str, Any], api_client: APITestClient) -> None:
         """
-        Tests retrieval of a specific property using its ID.
-
-        Uses a fixture to ensure the property exists, sends a GET request to
-        fetch it, and verifies the response contains the expected property data.
+        Retrieves a specific property by ID and verifies the response matches the expected data.
+        
+        Uses a fixture to ensure the property exists, sends a GET request to fetch it, and asserts that the returned property data matches the fixture.
         """
         logger.info("Testing GET /api/properties/{id}...")
 
@@ -160,10 +155,9 @@ class TestPropertiesAPI:
     @pytest.mark.asyncio
     async def test_update_property(self, created_property: dict[str, Any], api_client: APITestClient) -> None:
         """
-        Tests updating a property via PUT /api/properties/{id} using a fixture property.
-
-        Verifies that the property's name and description are updated as expected
-        and that the property ID remains unchanged.
+        Updates an existing property and verifies that the name and description are changed while the property ID remains the same.
+        
+        Uses a fixture property to perform the update and asserts that the response reflects the intended modifications.
         """
         logger.info("Testing PUT /api/properties/{id}...")
 
@@ -188,10 +182,9 @@ class TestPropertiesAPI:
     @pytest.mark.asyncio
     async def test_delete_property(self, api_client: APITestClient) -> None:
         """
-        Tests that a property can be created and successfully deleted via the API.
-
-        Creates a new property, deletes it using the DELETE endpoint, and verifies
-        that subsequent retrieval attempts return a 404 status, confirming deletion.
+        Tests deletion of a property via the API.
+        
+        Creates a new property, deletes it using the DELETE endpoint, and verifies that subsequent retrieval returns a 404 status code to confirm successful deletion.
         """
         logger.info("Testing DELETE /api/properties/{id}...")
 

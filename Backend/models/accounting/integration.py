@@ -89,8 +89,9 @@ class Integration(SQLModel, table=True):
     @field_validator('error_count', mode='before')
     def validate_error_count(cls, v: Optional[Union[int, str]]) -> int:
         """
-        Cap error_count at 100 and reset to 0 if it exceeds the limit.
-        Uses mode='before' to handle raw input before type casting.
+        Validates and sanitizes the error_count value for the Integration model.
+        
+        Ensures the input is an integer between 0 and MAX_ERROR_COUNT (inclusive). Non-numeric or None values are reset to 0, and values exceeding the maximum are capped at MAX_ERROR_COUNT.
         """
         # Handle None or non-numeric values
         if v is None:

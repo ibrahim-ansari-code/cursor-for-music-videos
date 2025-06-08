@@ -8,7 +8,16 @@ logger = logging.getLogger(__name__)
 
 
 def maintenance_payload(property_id: int, **kwargs) -> Dict[str, Any]:
-    """Helper to create a maintenance request payload."""
+    """
+    Generates a dictionary representing a maintenance request payload.
+    
+    Args:
+        property_id: The ID of the property for which the maintenance request is created.
+        **kwargs: Additional fields to override or add to the default payload.
+    
+    Returns:
+        A dictionary containing the maintenance request data, with defaults that can be overridden by extra keyword arguments.
+    """
     data = {
         "issue_title": "Broken Pipe",
         "description": "A pipe is leaking in the basement.",
@@ -23,7 +32,11 @@ def maintenance_payload(property_id: int, **kwargs) -> Dict[str, Any]:
 @pytest.mark.auth
 class TestMaintenanceAPI:
     async def test_create_and_get_request(self, api_client: APITestClient, created_property_id: int):
-        """Test creating and retrieving a maintenance request."""
+        """
+        Tests the creation and retrieval of a maintenance request via the API.
+        
+        Creates a maintenance request for the specified property and verifies the response data. Then retrieves the created request by its ID and asserts the returned data matches the created request.
+        """
         payload = maintenance_payload(created_property_id)
         create_res = await api_client.post("/api/maintenance/requests", json_data=payload)
         assert create_res.status_code == 201
@@ -39,7 +52,11 @@ class TestMaintenanceAPI:
         logger.info("✅ Create and Get Test Passed")
 
     async def test_update_request(self, api_client: APITestClient, created_property_id: int):
-        """Test updating a maintenance request."""
+        """
+        Tests updating an existing maintenance request and verifies that the updated fields are correctly reflected in the response.
+        
+        Creates a maintenance request, updates its status and priority, and asserts that the changes are persisted.
+        """
         payload = maintenance_payload(created_property_id)
         create_res = await api_client.post("/api/maintenance/requests", json_data=payload)
         request_id = create_res.json()["id"]
@@ -54,7 +71,11 @@ class TestMaintenanceAPI:
         logger.info("✅ Update Test Passed")
 
     async def test_list_and_filter_requests(self, api_client: APITestClient, created_property_id: int):
-        """Test listing and filtering maintenance requests."""
+        """
+        Tests that maintenance requests can be listed and filtered by priority.
+        
+        Creates maintenance requests with varying priorities and verifies that filtering by a specific priority returns only matching requests.
+        """
         # Create requests with different statuses
         await api_client.post("/api/maintenance/requests", json_data=maintenance_payload(created_property_id, priority="Low"))
         await api_client.post("/api/maintenance/requests", json_data=maintenance_payload(created_property_id, status="Completed", priority="High"))
@@ -68,7 +89,11 @@ class TestMaintenanceAPI:
         logger.info("✅ List and Filter Test Passed")
 
     async def test_delete_request(self, api_client: APITestClient, created_property_id: int):
-        """Test deleting a maintenance request."""
+        """
+        Tests deletion of a maintenance request and verifies it cannot be retrieved afterward.
+        
+        Creates a maintenance request, deletes it, and asserts that subsequent retrieval returns a 404 status.
+        """
         payload = maintenance_payload(created_property_id)
         create_res = await api_client.post("/api/maintenance/requests", json_data=payload)
         request_id = create_res.json()["id"]
@@ -81,7 +106,11 @@ class TestMaintenanceAPI:
         logger.info("✅ Delete Test Passed")
 
     async def test_get_summary(self, api_client: APITestClient, created_property_id: int):
-        """Test the maintenance summary endpoint."""
+        """
+        Tests retrieval of the maintenance requests summary endpoint.
+        
+        Creates a pending maintenance request, retrieves the summary, and verifies that the total and pending request counts are greater than zero.
+        """
         await api_client.post("/api/maintenance/requests", json_data=maintenance_payload(created_property_id, status="Pending"))
 
         summary_res = await api_client.get("/api/maintenance/summary")
@@ -93,7 +122,11 @@ class TestMaintenanceAPI:
         logger.info("✅ Summary Test Passed")
 
     async def test_unauthorized_access(self, fresh_api_client: APITestClient, created_property_id: int):
-        """Test that a user cannot access requests for a property they do not own."""
+        """
+        Verifies that accessing a maintenance request not owned by the user returns a 404 status.
+        
+        This test simulates unauthorized access by attempting to retrieve a maintenance request with an ID presumed not to belong to the authenticated user.
+        """
         # This test requires a separate user/API client
         # For now, we simulate by trying to access an invalid ID
         res = await fresh_api_client.get("/api/maintenance/requests/99999")
@@ -101,7 +134,11 @@ class TestMaintenanceAPI:
         logger.info("✅ Unauthorized Access Test Passed")
 
     async def test_create_request_invalid_data(self, api_client: APITestClient, created_property_id: int):
-        """Test creating a request with invalid data (e.g., bad priority)."""
+        """
+        Tests that creating a maintenance request with invalid data returns a 422 status code.
+        
+        Attempts to create a maintenance request using an invalid priority value and verifies that the API responds with an Unprocessable Entity error.
+        """
         payload = maintenance_payload(
             created_property_id, priority="InvalidPriority")
         response = await api_client.post("/api/maintenance/requests", json_data=payload)
@@ -109,14 +146,18 @@ class TestMaintenanceAPI:
         logger.info("✅ Invalid Data Test Passed")
 
     async def test_get_non_existent_request(self, api_client: APITestClient):
-        """Test retrieving a maintenance request that does not exist."""
+        """
+        Tests that retrieving a non-existent maintenance request returns a 404 status code.
+        """
         response = await api_client.get("/api/maintenance/requests/999999")
         assert response.status_code == 404
         logger.info("✅ Not Found Test Passed")
 
     async def test_permission_logic(self, api_client: APITestClient, created_property_id: int):
         """
-        Tests permission logic by confirming access to owned resources and denial for un-owned.
+        Verifies that users can access their own maintenance requests and are denied access to requests they do not own.
+        
+        Creates a maintenance request for the authenticated user and confirms successful retrieval. Attempts to access a non-existent request to simulate unauthorized access and expects a 404 response.
         """
         # 1. Create a request on a property owned by the user
         payload = maintenance_payload(created_property_id)
