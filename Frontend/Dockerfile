@@ -1,34 +1,47 @@
-# build stage
-FROM node:18-alpine AS builder
+# Builder stage - Creates the production build of the React app
+FROM node:20-alpine AS builder
+
+# ----- Build-time env vars from Porter env group -----
+ARG VITE_API_URL
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ARG VITE_SITE_URL
+ARG VITE_AZURE_MAPS_KEY
+
+ENV \
+  VITE_API_URL=$VITE_API_URL \
+  VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
+  VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY \
+  VITE_SITE_URL=$VITE_SITE_URL \
+  VITE_AZURE_MAPS_KEY=$VITE_AZURE_MAPS_KEY
+
+# Set working directory inside the container
 WORKDIR /app
+
+# Copy package.json and package-lock.json for dependency installation
+# This is done separately to leverage Docker layer caching
 COPY package*.json ./
+
+# Install all dependencies (including devDependencies needed for build)
 RUN npm ci
+
+# Copy all source code and configuration files
 COPY . .
+
+# Build the React app for production (creates /dist folder)
 RUN npm run build
 
-# production stage
-FROM nginx:stable-alpine
+# Production stage - Uses Nginx to serve the static files
+FROM nginx:stable-alpine AS production
 
-# Switch to non-root user for security
-USER root
-COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
+# Copy custom nginx config for React Router support and optimizations
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Set proper ownership and permissions for nginx user
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
-    chmod -R 755 /usr/share/nginx/html && \
-    chown -R nginx:nginx /var/cache/nginx && \
-    chown -R nginx:nginx /var/log/nginx && \
-    chown -R nginx:nginx /etc/nginx/conf.d && \
-    touch /var/run/nginx.pid && \
-    chown -R nginx:nginx /var/run/nginx.pid
+# Copy the built application from the builder stage to nginx html directory
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Switch to nginx user
-USER nginx
+# Expose port 4173 to align with Porter container port
+EXPOSE 4173
 
-# Add health check to verify nginx server health
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
-
-EXPOSE 80
+# Nginx runs in the foreground by default
 CMD ["nginx", "-g", "daemon off;"]

@@ -1,7 +1,7 @@
 // API utility functions for interacting with the backend
 
-// Validate and store the API base URL
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+// Sanitize the base URL: strip any trailing slash to avoid duplicate slashes when concatenating
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 
 if (!API_BASE_URL) {
   console.error("CRITICAL: VITE_API_URL environment variable is not defined!");
