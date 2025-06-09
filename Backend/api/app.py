@@ -26,7 +26,7 @@ app.add_middleware(
         "https://127.0.0.1:5173",
         "http://app.brikli.com",
         "https://app.brikli.com",
-        "https://brikli.azurewebsites.net",
+        "http://api.brikli.com",
         "https://brikli-api-8919-151e4fdf-aa5gqdc5.onporter.run",
         "https://brikli-api-8919-7953fd68-fofj7ysk.onporter.run"
     ],
@@ -63,6 +63,7 @@ app.add_middleware(
     allowed_hosts=[
         "app.brikli.com",
         "brikli.com",
+        "api.brikli.com",
         "brikli.azurewebsites.net",
         "localhost",
         "brikli-api-8919-7953fd68-fofj7ysk.onporter.run",
