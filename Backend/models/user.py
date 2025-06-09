@@ -27,7 +27,7 @@ class User(SQLModel, table=True):
     first_name: str | None = None
     last_name: str | None = None
     # <-- force String instead of Enum
-    user_type: str = Field(sa_column=Column(String))
+    user_type: str = Field(default="LANDLORD", sa_column=Column(String))
     phone: str | None = None
     address: str | None = None
     city: str | None = None
