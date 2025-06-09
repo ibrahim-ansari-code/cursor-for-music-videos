@@ -253,7 +253,7 @@ async def _analyze_receipt_content(
     if file_extension == '.pdf':
         try:
             pdf_document = fitz.open(stream=file_content, filetype="pdf")
-            extracted_text = "".join(page.get_text("text")  # type: ignore[attr-defined]
+            extracted_text = "".join(page.get_text("text")  # type: ignore[method-undefined]
                                      for page in pdf_document)
             pdf_document.close()
             logger.info("Extracted text from PDF for %s: %s", receipt_type, filename)

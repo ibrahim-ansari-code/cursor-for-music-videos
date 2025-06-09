@@ -2,9 +2,10 @@
 API tests for generic behaviors and utility endpoints.
 """
 
-import pytest
 import logging
 from datetime import datetime
+
+import pytest
 
 # Import helper functions from conftest.py explicitly for clarity
 from .conftest import APITestClient
@@ -55,16 +56,17 @@ class TestGenericAPIBehaviors:
             datetime_fields = ['created_at',
                                'updated_at', 'payment_date', 'due_date']
             for field in datetime_fields:
-                if field in payment and payment[field]:
+                field_value = payment.get(field)
+                if field_value:
                     # Validate ISO format
                     try:
                         datetime.fromisoformat(
-                            payment[field].replace('Z', '+00:00'))
+                            field_value.replace('Z', '+00:00'))
                         logger.info(
-                            f"   ✅ {field} is properly formatted: {payment[field]}")
+                            f"   ✅ {field} is properly formatted: {field_value}")
                     except (ValueError, TypeError):
                         pytest.fail(
-                            f"Invalid datetime format for {field}: {payment[field]}")
+                            f"Invalid datetime format for {field}: {field_value}")
 
         logger.info(f"✅ Datetime validation successful")
 

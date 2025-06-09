@@ -2,7 +2,7 @@
 import builtins
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional, ClassVar
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import DateTime, String, Column, Numeric
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -78,11 +78,7 @@ class Expense(SQLModel, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
 
-    @builtins.property
+    @hybrid_property
     def total_amount(self) -> Decimal:
         """Computed property that returns subtotal_amount + total_tax_amount."""
         return Decimal(str(self.subtotal_amount)) + Decimal(str(self.total_tax_amount))
-
-    total_amount_hybrid: ClassVar = hybrid_property(
-        lambda self: self.subtotal_amount + self.total_tax_amount
-    )
