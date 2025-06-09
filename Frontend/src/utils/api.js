@@ -344,6 +344,12 @@ export const updateLease = async (leaseId, leaseData) => {
   });
 };
 
+export const deleteLease = async (leaseId) => {
+  return apiRequest(`/leases/${leaseId}`, {
+    method: "DELETE",
+  });
+};
+
 export const validateLease = async (leaseId) => {
   return apiRequest(`/leases/${leaseId}/validate`, {
     method: "POST",

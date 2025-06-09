@@ -41,15 +41,34 @@ const LoginForm = () => {
       }
     } catch (err) {
       console.error("Login error in LoginForm:", err);
-      if (err.status === 401) {
-        setError(err.data?.detail || "Invalid email or password.");
+      
+      // Handle Supabase-specific error messages
+      let errorMessage = "Login failed. Please try again.";
+      
+      if (err.message) {
+        // Common Supabase auth error messages and their user-friendly versions
+        const errorMap = {
+          "Invalid login credentials": "Invalid email or password.",
+          "Email not confirmed": "Please confirm your email before logging in.",
+          "User already registered": "This email is already registered.",
+          "Invalid email or password": "Invalid email or password.",
+          "missing_email": "Please enter your email address.",
+          "missing_password": "Please enter your password.",
+        };
+        
+        // Check if we have a mapped error message
+        const mappedError = Object.entries(errorMap).find(([key]) => 
+          err.message.toLowerCase().includes(key.toLowerCase())
+        );
+        
+        errorMessage = mappedError ? mappedError[1] : err.message;
+      } else if (err.status === 401) {
+        errorMessage = "Invalid email or password.";
       } else if (err.status === 400) {
-        setError(err.data?.detail || "Missing fields or invalid request.");
-      } else if (err.message) {
-        setError(err.message);
-      } else {
-        setError("Login failed. An unexpected error occurred.");
+        errorMessage = "Please check your email and password.";
       }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -65,12 +84,6 @@ const LoginForm = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full">
         <GoogleSignInButton setLoading={setLoading} setError={setError} />
-
-        {error && (
-          <div className="text-sm text-red-600 mt-2 mb-4 text-center">
-            {error}
-          </div>
-        )}
 
         <div className="relative my-4">
           <div
@@ -130,7 +143,24 @@ const LoginForm = () => {
           {error && (
             <div className="rounded-md bg-red-50 p-4">
               <div className="flex">
-                <div className="text-sm text-red-700">{error}</div>
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-red-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
               </div>
             </div>
           )}

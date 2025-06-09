@@ -16,6 +16,7 @@ from Backend.models.accounting.payment import Payment
 from Backend.models.accounting.common import PaymentStatus
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.user import User
+from Backend.models.property import Property
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -199,8 +200,12 @@ async def get_rent_tracker(
                     month_start, month_end)
 
         # Get all active leases with related tenant and property information
-        query = select(Lease).where(
+        # IMPORTANT: Filter by current user's properties to prevent data leakage
+        query = select(Lease).join(
+            Property, col(Lease.property_id) == col(Property.id)
+        ).where(
             and_(
+                col(Property.user_id) == current_user.id,  # Filter by current user's properties
                 col(Lease.start_date) <= month_end,
                 or_(col(Lease.end_date) >= month_start,
                     col(Lease.end_date).is_(None)),

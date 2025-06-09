@@ -5,7 +5,15 @@ from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DateTime, Enum as PgEnum, Float, String, Column, Numeric
+from sqlalchemy import (
+    DateTime,
+    Enum as PgEnum,
+    String,
+    Column,
+    Numeric,
+    ForeignKey,
+    Integer,
+)
 from sqlmodel import Field, Relationship, SQLModel
 
 from Backend.utils.datetime_utils import create_audit_datetime, utc_now
@@ -60,7 +68,10 @@ class Payment(SQLModel, table=True):
         sa_column=Column(String, nullable=True)
     )
 
-    lease_id: int = Field(foreign_key="leases.id")
+    lease_id: int | None = Field(
+        default=None,
+        sa_column=Column(Integer, ForeignKey("leases.id", ondelete="SET NULL")),
+    )
     tenant_id: int | None = Field(
         default=None,
         foreign_key="tenants.id"

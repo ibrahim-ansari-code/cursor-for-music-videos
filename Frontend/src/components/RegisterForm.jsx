@@ -71,7 +71,36 @@ const RegisterForm = () => {
       const { data, error } = await supabase.auth.signUp(userData);
 
       if (error) {
-        setError("Registration failed. Please try again.");
+        // Handle specific Supabase error messages
+        let errorMessage = "Registration failed. Please try again.";
+        
+        if (error.message) {
+          // Common Supabase registration error messages
+          const errorMap = {
+            "Password should be at least": "Your password is too weak. Supabase requires stronger passwords for security. Please ensure your password has at least 6 characters and includes a mix of uppercase, lowercase, numbers, and special characters.",
+            "User already registered": "An account with this email already exists. Please sign in instead.",
+            "Invalid email": "Please enter a valid email address.",
+            "Weak password": "Your password is too weak. Please use a stronger password with a mix of character types.",
+            "Password must contain": "Your password doesn't meet all security requirements. Please check the requirements below.",
+            "email address invalid": "Please enter a valid email address.",
+            "duplicate key value": "An account with this email already exists.",
+            "Password is too weak": "Your password doesn't meet Supabase's security requirements. Please use a stronger password.",
+          };
+          
+          // Check if we have a mapped error message
+          const mappedError = Object.entries(errorMap).find(([key]) => 
+            error.message.toLowerCase().includes(key.toLowerCase())
+          );
+          
+          errorMessage = mappedError ? mappedError[1] : error.message;
+          
+          // If it's a password error, keep the password field focused
+          if (error.message.toLowerCase().includes("password")) {
+            setIsPasswordFocused(true);
+          }
+        }
+        
+        setError(errorMessage);
         console.error("Supabase SignUp error:", error);
         setLoading(false);
         return;
@@ -79,73 +108,32 @@ const RegisterForm = () => {
 
       if (data.user) {
         // Supabase registration successful
-        // Now, call backend to sync user to local DB
-        // This is a new endpoint you'll need to create on your backend.
-        try {
-          const syncResponse = await fetch(
-            `${import.meta.env.VITE_API_URL}/api/auth/sync-user`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                // If your sync endpoint requires auth (e.g. an admin/service key for this action),
-                // you'd add it here. However, this specific sync is for a new user.
-                // Alternatively, this could be a Supabase function triggered by new auth.users row.
-              },
-              body: JSON.stringify({
-                supabase_user_id: data.user.id,
-                email: data.user.email,
-                first_name: firstName,
-                last_name: lastName,
-                phone: phone || null,
-                user_type: "LANDLORD",
-                // Include any other fields your backend /sync-user expects or that your local User model needs
-              }),
-            }
-          );
-
-          const syncData = await syncResponse.json();
-
-          if (!syncResponse.ok) {
-            // Handle error from your /sync-user endpoint
-            console.error("Error syncing user to local DB:", syncData);
-            // Decide on user experience: inform them verification email sent but profile sync failed?
-            // Or treat as full registration failure for now?
-            setError("Registration failed. User may already exist.");
-            // Potentially, you might want to delete the Supabase user if local sync fails critically.
-            // await supabase.auth.admin.deleteUser(data.user.id) // Requires admin privileges on Supabase client
-            setLoading(false);
-            return;
-          }
-
-          // User synced to local DB successfully
-          setRegistrationSuccess(true);
-          // Clear the form
-          setFirstName("");
-          setLastName("");
-          setPhone("");
-          setEmail(""); // Keep email for resend verification if needed, or clear too
-          setPassword("");
-        } catch (syncError) {
-          console.error("Error calling /sync-user endpoint:", syncError);
-          setError("Registration failed. Please contact support.");
-          // Potentially, delete Supabase user.
-          setLoading(false);
-          return;
-        }
+        // The webhook will automatically sync the user to our backend
+        setRegistrationSuccess(true);
+        // Clear the form
+        setFirstName("");
+        setLastName("");
+        setPhone("");
+        setEmail("");
+        setPassword("");
       } else {
         // Should not happen if error is not thrown, but as a fallback
         setError("Registration failed. No user data. Please contact support.");
       }
     } catch (err) {
-      // This catch is for errors not caught by supabase.auth.signUp's own error object
-      // err is the error object thrown by handleResponse (via apiRegister)
-      // It should have a .message property, and .data for JSON error details
+      // This catch is for unexpected errors during the registration process
+      console.error("Registration error:", err);
+      
       let displayError = "Registration failed. Please try again.";
-      if (err.message) {
+      
+      // Check if it's a network error
+      if (err.message && err.message.includes("fetch")) {
+        displayError = "Network error. Please check your connection and try again.";
+      } else if (err.message) {
         displayError = err.message;
       }
-
+      
+      // Handle validation errors from backend
       if (err.data && err.data.detail) {
         if (Array.isArray(err.data.detail)) {
           // For RequestValidationError (FastAPI Pydantic errors)
@@ -165,8 +153,8 @@ const RegisterForm = () => {
           displayError = err.data.detail;
         }
       }
+      
       setError(displayError);
-      console.error("Registration error:", err);
     } finally {
       setLoading(false);
     }
@@ -185,7 +173,7 @@ const RegisterForm = () => {
     const pass = e.target.value;
     setPassword(pass);
     setPasswordRequirements({
-      length: pass.length >= 8,
+      length: pass.length >= 6,
       uppercase: /[A-Z]/.test(pass),
       lowercase: /[a-z]/.test(pass),
       digits: /[0-9]/.test(pass),
@@ -456,7 +444,7 @@ const RegisterForm = () => {
                       color: passwordRequirements.length ? "green" : "red",
                     }}
                   >
-                    At least 8 characters
+                    At least 6 characters
                   </li>
                   <li
                     style={{
@@ -494,7 +482,24 @@ const RegisterForm = () => {
           {error && (
             <div className="rounded-md bg-red-50 p-4">
               <div className="flex">
-                <div className="text-sm text-red-700">{error}</div>
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-red-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
               </div>
             </div>
           )}

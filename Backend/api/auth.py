@@ -4,9 +4,9 @@ from datetime import datetime
 from typing import Optional, Protocol
 from uuid import UUID as PythonUUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlmodel import col
@@ -17,6 +17,7 @@ from Backend.models.user import User
 from Backend.utils.azure_blob import upload_avatar_to_blob
 from Backend.utils.datetime_utils import create_audit_datetime
 from Backend.utils.supabase import get_supabase_client
+from Backend.config import settings
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -100,6 +101,15 @@ class UserSyncRequest(BaseModel):
     phone: str | None = None
     # Assuming UserType enum strings like "LANDLORD"
     user_type: str | None = None
+
+
+class SupabaseWebhookPayload(BaseModel):
+    """Supabase webhook payload structure"""
+    type: str  # INSERT, UPDATE, DELETE
+    table: str  # table name
+    schema_name: str = Field(alias="schema")  # usually 'auth' for auth.users
+    record: dict | None = None  # The new record (for INSERT/UPDATE)
+    old_record: dict | None = None  # The old record (for UPDATE/DELETE)
 
 
 class UserSyncResponse(UserResponse):  # Reuse existing UserResponse
@@ -254,16 +264,14 @@ async def upload_user_avatar(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Uploads a new avatar image for the specified user.
-
-    Only the user themselves or an admin can upload an avatar. 
-    The image is stored in Azure Blob Storage, and the user's profile 
-    is updated with the new avatar URL.
-
+    Uploads a new avatar image for a user and updates their profile with the image URL.
+    
+    Only the user themselves or an admin can perform this action. The image is stored in Azure Blob Storage, and the user's profile is updated with the new avatar URL.
+    
     Args:
-        user_id: The ID of the user whose avatar is being updated.
+        user_id: The UUID of the user whose avatar is being updated.
         file: The image file to upload.
-
+    
     Returns:
         An object containing the URL of the uploaded avatar image.
     """
@@ -292,16 +300,134 @@ async def upload_user_avatar(
         )
 
 
-@router.post("/sync-user", response_model=UserSyncResponse, status_code=status.HTTP_200_OK)
-async def sync_supabase_user(
-    sync_request: UserSyncRequest,
+@router.post("/webhook/user-sync", status_code=status.HTTP_200_OK)
+async def supabase_webhook_handler(
+    payload: SupabaseWebhookPayload,
+    x_webhook_secret: str = Header(None, alias="X-Webhook-Secret"),
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Synchronize a Supabase user to the local database.
-    If the user exists, it returns the existing user.
-    If not, it creates a new user record.
+    Handles Supabase webhook events for user creation in the `auth.users` table.
+    
+    Validates a custom webhook secret header for authentication. Processes only `INSERT` events for the `auth.users` table, creating a new user in the local database if the user does not already exist. Returns a message indicating the result of the operation.
     """
+    # Verify webhook secret
+    if not settings.SUPABASE_WEBHOOK_SECRET:
+        logger.error("SUPABASE_WEBHOOK_SECRET not configured")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Webhook secret not configured"
+        )
+    
+    if not x_webhook_secret or x_webhook_secret != settings.SUPABASE_WEBHOOK_SECRET:
+        logger.warning("Invalid webhook secret received")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid webhook secret"
+        )
+    
+    # Only process INSERT events for auth.users table
+    if payload.type != "INSERT" or payload.table != "users" or payload.schema_name != "auth":
+        return {"message": "Event ignored"}
+    
+    if not payload.record:
+        return {"message": "No record data"}
+    
+    # Extract user data from webhook payload
+    user_id = payload.record.get("id")
+    email = payload.record.get("email")
+    raw_user_meta_data = payload.record.get("raw_user_meta_data", {})
+    
+    # Handle case where raw_user_meta_data might be a JSON string
+    if isinstance(raw_user_meta_data, str):
+        import json
+        try:
+            raw_user_meta_data = json.loads(raw_user_meta_data)
+        except json.JSONDecodeError:
+            logger.warning("Failed to parse raw_user_meta_data as JSON, using empty dict")
+            raw_user_meta_data = {}
+    
+    if not user_id or not email:
+        logger.error("Missing user_id or email in webhook payload")
+        return {"message": "Invalid user data"}
+    
+    # Convert user_id string to UUID
+    try:
+        uuid_obj = PythonUUID(user_id)
+    except ValueError:
+        logger.error(f"Invalid UUID format for user_id: {user_id}")
+        return {"message": "Invalid user ID format"}
+    
+    # Check if user already exists
+    existing_user = await session.get(User, uuid_obj)
+    if existing_user:
+        logger.info("User %s already exists in local DB", uuid_obj)
+        return {"message": "User already exists"}
+    
+    # Create new user
+    new_user_data = {
+        "id": uuid_obj,  # Use the UUID object, not the string
+        "email": email,
+        "first_name": raw_user_meta_data.get("first_name"),
+        "last_name": raw_user_meta_data.get("last_name"),
+        "phone": raw_user_meta_data.get("phone"),
+        "user_type": "LANDLORD",
+        "is_active": True,
+        "is_admin": False,
+        "is_email_verified": False,
+        "created_at": create_audit_datetime(),
+        "updated_at": create_audit_datetime(),
+        "address": None,
+        "city": None,
+        "province": None,
+        "postal_code": None,
+        "profile_image_url": None
+    }
+    
+    try:
+        db_user = User.model_validate(new_user_data)
+        session.add(db_user)
+        await session.commit()
+        logger.info("Successfully created user %s from webhook", uuid_obj)
+        return {"message": "User created successfully"}
+    except Exception as e:
+        await session.rollback()
+        logger.exception("Error creating user %s from webhook", uuid_obj)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create user"
+        ) from e
+
+
+@router.post("/sync-user", response_model=UserSyncResponse, status_code=status.HTTP_200_OK)
+async def sync_supabase_user(
+    sync_request: UserSyncRequest,
+    webhook_secret: Optional[str] = Header(None, alias="X-Webhook-Secret"),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Synchronizes a Supabase user to the local database, creating the user if not found.
+    
+    If a user with the given Supabase user ID exists, returns the existing user. Otherwise, creates a new user with default values and returns the newly created user. Requires a valid webhook secret if configured; returns a 403 error if the secret is missing or invalid.
+    
+    Returns:
+        The existing or newly created user as a database model instance.
+    
+    Raises:
+        HTTPException: If the webhook secret is invalid or user creation fails.
+    """
+    # Verify webhook secret if configured
+    if settings.SUPABASE_WEBHOOK_SECRET:
+        if not webhook_secret or webhook_secret != settings.SUPABASE_WEBHOOK_SECRET:
+            logger.warning("Invalid webhook secret attempt for sync-user endpoint")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid webhook secret"
+            )
+    else:
+        # If no webhook secret is configured, log a warning
+        logger.warning("sync-user endpoint called without webhook secret configuration - this is insecure!")
+    
     # Check if user already exists by Supabase ID (which is our User.id)
     existing_user = await session.get(User, sync_request.supabase_user_id)
 

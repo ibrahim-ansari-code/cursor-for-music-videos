@@ -199,8 +199,33 @@ const Accounting = () => {
       setError(null);
     } catch (err) {
       console.error("Error loading overview data:", err);
-      setError("Failed to load accounting overview. Please try again.");
-      toast.error("Failed to load accounting overview");
+      // Check if it's a 404 error (no properties found for new users)
+      if (err.status === 404 || (err.data && err.data.detail && err.data.detail.includes("No accessible properties"))) {
+        // For new users with no properties, set default values
+        setOverviewData({
+          monthly_revenue: 0,
+          monthly_expenses: 0,
+          monthly_net_income: 0,
+          ytd_revenue: 0,
+          ytd_expenses: 0,
+          ytd_net_income: 0,
+          occupancy_rate: 0,
+          average_rent: 0,
+          revenue_trends: []
+        });
+        
+        setAccountingData({
+          monthly: { revenue: 0, expenses: 0, netIncome: 0 },
+          ytd: { revenue: 0, expenses: 0, netIncome: 0 },
+          snapshot: { occupancyRate: 0, paidRent: 0, totalRent: 0, avgRent: 0 },
+        });
+        
+        setError(null); // Clear error for new users
+      } else {
+        // Only show error for actual errors, not for new users with no data
+        setError("Failed to load accounting overview. Please try again.");
+        toast.error("Failed to load accounting overview");
+      }
     } finally {
       setLoading(false);
     }
@@ -337,14 +362,19 @@ const Accounting = () => {
 
       const data = await fetchExpenses(params);
 
-      // Fetch property data to get property names
-      const properties = await fetchProperties();
-
-      // Map property IDs to names
-      const propertyMap = properties.reduce((map, property) => {
-        map[property.id] = property.name;
-        return map;
-      }, {});
+      // Try to fetch property data for names, but don't fail if user has no properties
+      let propertyMap = {};
+      try {
+        const properties = await fetchProperties();
+        // Map property IDs to names
+        propertyMap = properties.reduce((map, property) => {
+          map[property.id] = property.name;
+          return map;
+        }, {});
+      } catch (propErr) {
+        console.log("No properties found, using property IDs instead of names");
+        // Continue without property names
+      }
 
       // Enhance expense data with property names
       const enhancedExpenses = data.map((expense) => ({
@@ -393,8 +423,9 @@ const Accounting = () => {
       setIncomeByPropertyData(mappedData);
     } catch (err) {
       console.error("Error loading income by property data:", err);
-      toast.error("Failed to load income by property chart data.");
-      setIncomeByPropertyData([]); // Set to empty on error
+      // Don't show error toast for new users who have no properties yet
+      // Just set empty data silently
+      setIncomeByPropertyData([]);
     }
   };
 

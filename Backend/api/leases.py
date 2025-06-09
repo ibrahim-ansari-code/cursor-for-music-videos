@@ -665,8 +665,8 @@ async def update_lease_status(
 ):
     """
     Updates the status of a lease after verifying user permissions.
-
-    Validates the new status, applies or revokes side effects related to lease activation (such as updating tenant and property unit records), and commits the change. Returns the updated lease object. Raises HTTP 422 if the status is missing or invalid, and HTTP 500 for database errors.
+    
+    Validates the requested status change, applies or revokes side effects on related tenant and property unit records when transitioning to or from ACTIVE status, and commits the update. Returns the updated lease object. Raises HTTP 422 if the status is missing or invalid, and HTTP 500 for database errors.
     """
     logger.info(
         f"Lease status update request: lease ID={lease_id}, user ID={current_user.id}, data: {status_data}")
@@ -709,7 +709,7 @@ async def update_lease_status(
             await _revoke_active_lease_side_effects(lease, session)
 
         await session.commit()
-        await session.refresh(lease)
+        await session.refresh(lease, attribute_names=['tenant', 'property', 'unit'])
 
         logger.info(
             f"Lease status updated successfully: ID {lease_id} status changed from {original_status} to {new_status} by user {current_user.id}")
@@ -916,7 +916,14 @@ async def parse_lease(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Parse a lease PDF (check user can create leases)."""
+    """
+    Parses a lease PDF file, extracting structured lease information using LLM analysis.
+    
+    Checks that the user is an Admin or Landlord before processing. Reads the uploaded PDF, extracts its text, and analyzes it with an external language model utility to identify key lease details such as rent, deposit, dates, tenant name, and unit. Safely parses currency and date fields, returning a structured response. Raises HTTP 400 for empty files, HTTP 403 for unauthorized users, HTTP 422 for parsing errors, and HTTP 500 for unexpected failures.
+    
+    Returns:
+        LeaseAnalysisResponse: Structured lease data extracted from the document.
+    """
     # Check if user is authorized
     user_type = current_user.user_type.upper() if isinstance(
         current_user.user_type, str) else current_user.user_type
@@ -1008,3 +1015,49 @@ async def parse_lease(
         logger.exception("Failed to parse lease document")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Failed to parse lease document: {str(e)}")
+
+
+@router.delete("/{lease_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_lease(
+    lease_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """
+    Deletes a lease by ID after verifying user permissions.
+    
+    If the lease is active, revokes associated side effects (such as updating tenant and property unit records) before deletion. Lease documents are deleted via cascading, and related payments have their lease reference set to NULL if the database schema is configured accordingly.
+    
+    Raises an HTTP 409 error if the lease cannot be deleted due to foreign key constraints, or HTTP 500 for other database errors.
+    """
+    logger.info("Delete request for lease %s by user %s",
+                lease_id, current_user.id)
+    # Use "update" action for permission check as it covers ownership logic for landlords
+    lease = await check_lease_permission(lease_id, session, current_user, action="delete")
+
+    try:
+        # If lease is active, revoke side effects before deleting
+        if lease.status == LeaseStatus.ACTIVE:
+            logger.info(
+                "Lease %s is active, revoking side effects before deletion.", lease_id)
+            await _revoke_active_lease_side_effects(lease, session)
+
+        await session.delete(lease)
+        await session.commit()
+        logger.info(
+            "Lease %s deleted successfully by user %s", lease_id, current_user.id)
+        # No return content needed for 204
+    except Exception as e:
+        await session.rollback()
+        logger.exception("Error deleting lease %s", lease_id)
+        # Check for foreign key violation, which might indicate migrations not applied
+        if "violates foreign key constraint" in str(e).lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot delete lease because it is still referenced by other records. "
+                       "Ensure migrations are applied to handle this automatically.",
+            ) from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete lease: {str(e)}",
+        ) from e

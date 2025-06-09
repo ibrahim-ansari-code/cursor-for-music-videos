@@ -30,6 +30,10 @@ class Settings(BaseSettings):
         "AZURE_STORAGE_CONNECTION_STRING", "")
     AZURE_BLOB_PUBLIC_URL: str = os.getenv("AZURE_BLOB_PUBLIC_URL", "")
 
+    # Supabase Webhook Security
+    # This secret is used to secure webhook endpoints. It is required for production.
+    SUPABASE_WEBHOOK_SECRET: str = os.getenv("SUPABASE_WEBHOOK_SECRET", "")
+
     # Apideck Integration Settings (REQUIRED for QuickBooks/Xero integrations)
     # To enable accounting integrations, you must set these environment variables:
     # - APIDECK_API_KEY: Your Apideck API key (get from https://app.apideck.com)
@@ -73,6 +77,14 @@ class Settings(BaseSettings):
                 "Get your credentials from https://app.apideck.com",
                 RuntimeWarning,
                 stacklevel=2
+            )
+        # Validate Supabase webhook secret
+        if not self.SUPABASE_WEBHOOK_SECRET:
+            warnings.warn(
+                "SUPABASE_WEBHOOK_SECRET is not configured. "
+                "Webhook endpoints are not secure. This is not recommended for production.",
+                RuntimeWarning,
+                stacklevel=2,
             )
 
     class Config:

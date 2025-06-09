@@ -5,6 +5,7 @@ import {
   fetchLeases,
   uploadLeaseDocument,
   fetchLeaseDocuments,
+  deleteLease as apiDeleteLease,
 } from "../utils/api";
 import ImportLeaseModal from "../components/ImportLeaseModal";
 import UpdateLeaseStatusModal from "../components/UpdateLeaseStatusModal";
@@ -312,6 +313,33 @@ const Leases = () => {
     loadLeases();
   };
 
+  const handleDeleteLease = async (leaseId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this lease? This action cannot be undone. Associated payment records will be kept but unlinked from this lease."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await apiDeleteLease(leaseId);
+      toast.success("Lease deleted successfully.");
+      loadLeases(); // Refresh the list
+    } catch (err) {
+      console.error("Error deleting lease:", err);
+      const errorMessage =
+        err.data?.detail ||
+        err.message ||
+        "Failed to delete lease. Please try again.";
+      toast.error(errorMessage);
+      Sentry.captureException(err, {
+        tags: { feature: "leases", operation: "delete" },
+        extra: { leaseId },
+      });
+    }
+  };
+
   if (loading && leases.length === 0) {
     return (
       <LoadingSpinner 
@@ -555,6 +583,16 @@ const Leases = () => {
                           title="Update status"
                         >
                           <i className="fas fa-tasks"></i>
+                        </button>
+
+                        {/* Delete button */}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteLease(lease.id)}
+                          className="text-red-600 hover:text-red-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-colors duration-150"
+                          title="Delete lease"
+                        >
+                          <i className="fas fa-trash"></i>
                         </button>
                       </div>
                     </td>
