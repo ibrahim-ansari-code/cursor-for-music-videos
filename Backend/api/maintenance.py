@@ -278,6 +278,59 @@ async def list_maintenance_requests(
     return requests
 
 
+async def _validate_unit_for_maintenance(data: MaintenanceRequestCreate, current_user: User, session: AsyncSession):
+    """Validates unit existence and ownership for a maintenance request."""
+    if data.unit_id is not None:
+        unit_result = await session.execute(
+            select(PropertyUnit).where(col(PropertyUnit.id) == data.unit_id)
+        )
+        unit = unit_result.scalar_one_or_none()
+        if not unit:
+            raise HTTPException(
+                status_code=404,
+                detail="The specified unit does not exist."
+            )
+        if unit.property_id != data.property_id:
+            raise HTTPException(
+                status_code=400,
+                detail="The specified unit does not belong to the specified property."
+            )
+        # If not admin, check landlord owns the property
+        if not current_user.is_admin:
+            prop_result = await session.execute(
+                select(Property).where(col(Property.id) == unit.property_id)
+            )
+            prop = prop_result.scalar_one_or_none()
+            if not prop or prop.user_id != current_user.id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You do not have permission to create a maintenance request for this unit/property."
+                )
+
+async def _validate_tenant_for_maintenance(data: MaintenanceRequestCreate, session: AsyncSession):
+    """Verifies tenant existence and association for a maintenance request."""
+    if data.tenant_id is not None:
+        tenant_result = await session.execute(
+            select(Tenant).where(col(Tenant.id) == data.tenant_id)
+        )
+        tenant = tenant_result.scalar_one_or_none()
+        if not tenant:
+            raise HTTPException(
+                status_code=404,
+                detail="The specified tenant does not exist."
+            )
+        # If unit_id is provided, check tenant is associated with the unit (if such a relationship exists)
+        # Otherwise, check tenant is associated with the property (if such a relationship exists)
+        # This logic may need to be adapted to your data model
+        if data.unit_id is not None:
+            # Check tenant is associated with the unit (if your model supports this)
+            # For now, just a placeholder check; adapt as needed
+            pass
+        else:
+            # Check tenant is associated with the property (if your model supports this)
+            pass
+
+
 @router.post("/requests", response_model=MaintenanceRequestResponse, status_code=status.HTTP_201_CREATED)
 async def create_maintenance_request(
     data: MaintenanceRequestCreate,
@@ -305,55 +358,8 @@ async def create_maintenance_request(
                     detail="You do not have permission to create a maintenance request for this property."
                 )
 
-        # Validate unit_id if provided
-        if data.unit_id is not None:
-            unit_result = await session.execute(
-                select(PropertyUnit).where(col(PropertyUnit.id) == data.unit_id)
-            )
-            unit = unit_result.scalar_one_or_none()
-            if not unit:
-                raise HTTPException(
-                    status_code=404,
-                    detail="The specified unit does not exist."
-                )
-            if unit.property_id != data.property_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail="The specified unit does not belong to the specified property."
-                )
-            # If not admin, check landlord owns the property
-            if not current_user.is_admin:
-                prop_result = await session.execute(
-                    select(Property).where(col(Property.id) == unit.property_id)
-                )
-                prop = prop_result.scalar_one_or_none()
-                if not prop or prop.user_id != current_user.id:
-                    raise HTTPException(
-                        status_code=403,
-                        detail="You do not have permission to create a maintenance request for this unit/property."
-                    )
-
-        # Validate tenant_id if provided
-        if data.tenant_id is not None:
-            tenant_result = await session.execute(
-                select(Tenant).where(col(Tenant.id) == data.tenant_id)
-            )
-            tenant = tenant_result.scalar_one_or_none()
-            if not tenant:
-                raise HTTPException(
-                    status_code=404,
-                    detail="The specified tenant does not exist."
-                )
-            # If unit_id is provided, check tenant is associated with the unit (if such a relationship exists)
-            # Otherwise, check tenant is associated with the property (if such a relationship exists)
-            # This logic may need to be adapted to your data model
-            if data.unit_id is not None:
-                # Check tenant is associated with the unit (if your model supports this)
-                # For now, just a placeholder check; adapt as needed
-                pass
-            else:
-                # Check tenant is associated with the property (if your model supports this)
-                pass
+        await _validate_unit_for_maintenance(data, current_user, session)
+        await _validate_tenant_for_maintenance(data, session)
 
         # Manually construct the MaintenanceRequest object
         db_request = MaintenanceRequest(
@@ -393,12 +399,12 @@ async def create_maintenance_request(
         # Re-raise HTTP exceptions as they are
         raise
     except Exception as e:
-        logger.exception(f"Unexpected error creating maintenance request: {e}")
+        logger.exception("Unexpected error creating maintenance request")
         await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create maintenance request: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/requests/{request_id}", response_model=MaintenanceRequestResponse)
@@ -639,7 +645,8 @@ async def upload_maintenance_photo(
     
     Only users with landlord or admin roles are authorized to upload. Validates the file type by inspecting its magic bytes and enforces a maximum file size of 10 MB. Returns a dictionary containing the public URL of the uploaded photo.
     """
-    if current_user.user_type not in [UserType.LANDLORD, UserType.ADMIN]:
+    authorized_roles = {UserType.LANDLORD, UserType.ADMIN}
+    if current_user.user_type not in authorized_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to upload maintenance photos."

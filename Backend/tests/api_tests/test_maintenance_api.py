@@ -1,8 +1,9 @@
 import logging
+import json
 from typing import Any
 import pytest
 
-from .conftest import APITestClient, created_property_id
+from .conftest import APITestClient
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +48,8 @@ class TestMaintenanceAPI:
             try:
                 error_json = create_res.json()
                 logger.error(f"Error JSON: {error_json}")
-            except:
-                pass
+            except json.JSONDecodeError:
+                logger.error("Could not decode JSON from response body.")
         
         assert create_res.status_code == 201
         created_data = create_res.json()

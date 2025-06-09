@@ -565,7 +565,7 @@ async def parse_payment_receipt(
         logger.exception("Azure Blob Storage connection error for user %s: %s", current_user.id, ce)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="External service is unavailable.") from ce
     except Exception as e:
-        logger.exception("Error parsing payment receipt for user %s: %s", current_user.id, e)
+        logger.exception("Error parsing payment receipt for user %s", current_user.id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to parse payment receipt due to an internal error.") from e
 
 @router.post("", response_model=PaymentResponse) # Corresponds to POST /accounting/payments
@@ -690,7 +690,7 @@ async def get_payments(
         
         return PaginatedPaymentsResponse(items=payment_responses, has_more=has_more)
     except Exception as e:
-        logger.error("Error fetching payments for user %s: %s", current_user.id, str(e), exc_info=True)
+        logger.exception("Error fetching payments for user %s", current_user.id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to fetch payments.") from e
 
 @router.get("/diagnostics/run-integrity-check", status_code=status.HTTP_200_OK, summary="Run Orphaned Payments Integrity Check")
@@ -729,7 +729,7 @@ async def run_orphaned_payments_check(
             "details": report
         }
     except Exception as e:
-        logger.error("Error during integrity check: %s", str(e), exc_info=True)
+        logger.exception("Error during integrity check")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Integrity check failed due to internal error"
@@ -794,7 +794,7 @@ async def get_outstanding_payments_for_month( # Renamed function
                 payment_responses.append(payment_response)
         return payment_responses
     except Exception as e:
-        logger.error("Error fetching outstanding payments for user %s: %s", current_user.id, str(e), exc_info=True)
+        logger.exception("Error fetching outstanding payments for user %s", current_user.id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to fetch outstanding payments.") from e 
 
 @router.get("/{payment_id}", response_model=PaymentResponse) # Corresponds to GET /accounting/payments/{payment_id}
@@ -909,7 +909,7 @@ async def update_payment(
         return payment_response
     except Exception as e:
         await session.rollback()
-        logger.error("Error updating payment %s: %s", payment_id, str(e), exc_info=True)
+        logger.exception("Error updating payment %s", payment_id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update payment.") from e
 
 @router.delete("/{payment_id}", status_code=status.HTTP_204_NO_CONTENT) # Corresponds to DELETE /accounting/payments/{payment_id}
@@ -949,7 +949,7 @@ async def delete_payment(
         raise
     except Exception as e:
         await session.rollback()
-        logger.error("Error deleting payment %s: %s", payment_id, str(e), exc_info=True)
+        logger.exception("Error deleting payment %s", payment_id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete payment.") from e
     finally:
         # Schedule blob deletion to run in the background after the response is sent
@@ -969,7 +969,7 @@ async def generate_due_payments_for_month( # Renamed function
     if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
-    today = datetime.now(utc_now().tzinfo).date() # Ensure today is timezone aware like utc_now()
+    today = utc_now().date() # Ensure today is timezone aware like utc_now()
     current_month = date(today.year, today.month, 1)
     logger.info("Generating payments for %s by user %s", current_month, current_user.id)
 
@@ -1027,12 +1027,12 @@ async def generate_due_payments_for_month( # Renamed function
                 if payment_response:
                     created_payments_responses.append(payment_response)
                 logger.info("Created payment %s for lease %s", new_payment.id, lease.id)
-            except Exception as commit_err:
-                logger.error("Error committing payment for lease %s: %s", lease.id, commit_err, exc_info=True)
+            except Exception:
+                logger.exception("Error committing payment for lease %s", lease.id)
                 await session.rollback()
         
         logger.info("Generated %s payments for user %s", len(created_payments_responses), current_user.id)
         return created_payments_responses
     except Exception as lease_proc_err:
-        logger.error("Error processing leases for payment generation: %s", lease_proc_err, exc_info=True)
+        logger.exception("Error processing leases for payment generation for user %s", current_user.id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to generate due payments.") from lease_proc_err

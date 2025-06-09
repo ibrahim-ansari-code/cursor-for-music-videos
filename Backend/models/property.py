@@ -85,7 +85,7 @@ class Property(SQLModel, table=True):
     # Configure cascade delete for units
     units: list["PropertyUnit"] = Relationship(
         back_populates="property",
-        sa_relationship_kwargs={'cascade': 'all, delete-orphan', }
+        sa_relationship_kwargs={'cascade': 'all, delete-orphan'}
     )
 
     leases: list["Lease"] = Relationship(back_populates="property")

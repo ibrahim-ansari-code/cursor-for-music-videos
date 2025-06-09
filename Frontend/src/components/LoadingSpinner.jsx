@@ -19,7 +19,7 @@ const LoadingSpinner = ({
   const spinnerSizeClass = sizeClasses[size] || sizeClasses.large;
 
   return (
-    <div 
+    <output 
       className={containerClasses}
       role="status"
       aria-live="polite"
@@ -35,7 +35,7 @@ const LoadingSpinner = ({
           {message}
         </p>
       </div>
-    </div>
+    </output>
   );
 };
 

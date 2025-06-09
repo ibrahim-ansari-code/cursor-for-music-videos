@@ -48,6 +48,15 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
   const [showReceiptPreview, setShowReceiptPreview] = useState(false);
   const receiptParseAbortControllerRef = useRef(null);
 
+  // Cleanup effect to abort receipt parsing on unmount
+  useEffect(() => {
+    return () => {
+      if (receiptParseAbortControllerRef.current) {
+        receiptParseAbortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (isOpen && expenseData) {
       // Fetch properties to find the name for the given property_id
@@ -95,8 +104,6 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
       // Reset form if modal is closed (e.g. if not saved)
       setFormData(initialFormData);
       setCurrentReceiptUrl(null);
-      setCalculatedTotalAmount(0);
-      setCalculatedTotalTaxAmount(0);
       setError(null);
       setReceiptParseError(null);
       setShowReceiptPreview(false);
@@ -119,6 +126,14 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
       totalAmount: subtotal + newTotalTax,
     };
   }, [formData.amount, formData.taxes]);
+
+  // Currency formatter for better display
+  const currencyFormatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'CAD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -377,9 +392,10 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
           </div>
           <Input
             type="text"
-            value={totalTax.toFixed(2)}
+            value={currencyFormatter.format(totalTax).replace('$', '')}
             readOnly
             className="bg-gray-100 pl-7"
+            title={`Exact value: $${totalTax}`}
           />
         </div>
       </div>
@@ -391,9 +407,10 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
           </div>
           <Input
             type="text"
-            value={totalAmount.toFixed(2)}
+            value={currencyFormatter.format(totalAmount).replace('$', '')}
             readOnly
             className="bg-gray-100 pl-7"
+            title={`Exact value: $${totalAmount}`}
           />
         </div>
       </div>

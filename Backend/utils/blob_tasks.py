@@ -18,10 +18,10 @@ async def delete_blob_in_background(blob_url: str | None) -> None:
     if not blob_url:
         return
 
-    MAX_RETRIES = 3
-    RETRY_DELAY_SECONDS = 5
+    max_retries = 3
+    retry_delay_seconds = 5
 
-    for attempt in range(MAX_RETRIES):
+    for attempt in range(max_retries):
         try:
             # The retry loop now checks the return value of delete_blob_by_url.
             # If it returns False, the loop continues to the next attempt.
@@ -30,18 +30,18 @@ async def delete_blob_in_background(blob_url: str | None) -> None:
                 return  # Exit successfully
             
             logger.warning("Attempt %d/%d to delete blob %s failed.", 
-                         attempt + 1, MAX_RETRIES, blob_url)
+                         attempt + 1, max_retries, blob_url)
 
         except Exception:
             logger.warning(
                 "Exception on attempt %d/%d to delete blob %s.",
-                attempt + 1, MAX_RETRIES, blob_url, exc_info=True
+                attempt + 1, max_retries, blob_url, exc_info=True
             )
-            if attempt >= MAX_RETRIES - 1:
+            if attempt >= max_retries - 1:
                 logger.exception("Failed to delete blob %s after final attempt.", blob_url)
                 raise
 
-        if attempt < MAX_RETRIES - 1:
-            await asyncio.sleep(RETRY_DELAY_SECONDS)
+        if attempt < max_retries - 1:
+            await asyncio.sleep(retry_delay_seconds)
 
-    logger.error("Failed to delete blob %s after %d attempts.", blob_url, MAX_RETRIES)
+    logger.error("Failed to delete blob %s after %d attempts.", blob_url, max_retries)

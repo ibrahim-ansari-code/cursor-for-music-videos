@@ -113,12 +113,20 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
     setIsLoading(true);
     setError(null);
 
+    // Validate rent_due_day is within allowed range
+    const rentDueDay = Number.parseInt(formData.rent_due_day, 10);
+    if (formData.rent_due_day && (isNaN(rentDueDay) || rentDueDay < MIN_RENT_DUE_DAY || rentDueDay > MAX_RENT_DUE_DAY)) {
+      setError(`Rent due day must be between ${MIN_RENT_DUE_DAY} and ${MAX_RENT_DUE_DAY}.`);
+      setIsLoading(false);
+      return;
+    }
+
     const updateData = {
       start_date: formData.start_date || null,
       end_date: formData.end_date || null,
       monthly_rent: Number.parseFloat(formData.monthly_rent) || null,
       security_deposit: Number.parseFloat(formData.security_deposit) || null,
-      rent_due_day: Number.parseInt(formData.rent_due_day, 10) || null,
+      rent_due_day: rentDueDay || null,
       late_fee_amount: Number.parseFloat(formData.late_fee_amount) || null,
       late_fee_after_days:
         Number.parseInt(formData.late_fee_after_days, 10) || null,

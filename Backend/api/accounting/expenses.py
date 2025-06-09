@@ -254,8 +254,6 @@ async def _update_expense_taxes(
         db_expense.total_tax_amount = calculated_total_tax_amount
     elif subtotal_updated:
         db_expense.total_tax_amount = _recalculate_orm_taxes(db_expense.taxes, current_subtotal)
-    
-    db_expense.total_amount = quantize_2dp(current_subtotal + Decimal(str(db_expense.total_tax_amount)))
 
 # === API Endpoints for Expenses ===
 
@@ -271,11 +269,25 @@ async def parse_expense_receipt(
     """
     if current_user.user_type not in [UserType.LANDLORD, UserType.ADMIN]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized.")
+    
+    # File size validation (e.g., 10 MB limit)
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    if file.size and file.size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size exceeds the limit of {MAX_FILE_SIZE / 1024 / 1024} MB."
+        )
+
     allowed_content_types = ["application/pdf", "image/jpeg", "image/png", "image/jpg"]
     if file.content_type not in allowed_content_types:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file type: {file.content_type}.")
     try:
         file_content = await file.read()
+        if len(file_content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File content size exceeds the {MAX_FILE_SIZE / 1024 / 1024} MB limit."
+            )
         await file.seek(0)
         # Ensure current_user.id is UUID for blob path consistency if _convert_to_uuid was used in original
         # user_id_for_blob = _convert_to_uuid(current_user.id, "blob path user ID") # current_user.id is already UUID
@@ -340,7 +352,7 @@ async def create_expense(
         property_id=expense_data.property_id, category=expense_data.category,
         description=expense_data.description, expense_date=validate_business_datetime(expense_data.expense_date),
         receipt_url=expense_data.receipt_url, subtotal_amount=subtotal,
-        total_tax_amount=calculated_total_tax_amount, total_amount=calculated_total_amount,
+        total_tax_amount=calculated_total_tax_amount,
         taxes=tax_details_to_create_orm
     )
     try:
@@ -520,16 +532,16 @@ async def delete_expense(
         if commit_succeeded and receipt_url_to_delete:
             background_tasks.add_task(_delete_blob_with_error_handling, receipt_url_to_delete)
 
-async def _delete_blob_with_error_handling(blob_url: str):
+async def _delete_blob_with_error_handling(blob_url: str) -> None:
     """
     Wrapper for delete_blob_in_background that catches and logs exceptions.
     This ensures that background task failures are monitored.
     """
     try:
         await _delete_blob_in_background(blob_url)
-    except Exception as e:
+    except Exception:
         logger.exception(
-            "Background task to delete blob %s failed: %s", blob_url, e
+            "Background task to delete blob %s failed.", blob_url
         )
         # In a real application, you might emit a metric here, e.g.:
         # metrics.increment("background_blob_deletion_failures") 

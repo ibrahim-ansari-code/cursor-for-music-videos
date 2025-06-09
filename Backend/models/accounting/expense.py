@@ -1,15 +1,17 @@
 """Expense and ExpenseTaxDetail ORM models"""
+import builtins
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import DateTime, String, Column, Numeric
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlmodel import Field, Relationship, SQLModel
 
 from Backend.utils.datetime_utils import create_audit_datetime
 
 if TYPE_CHECKING:
-    from Backend.models.property import Property
+    from Backend.models.property import Property as PropertyModel
 
 class ExpenseTaxDetail(SQLModel, table=True):
     """Represents a single tax line item associated with an expense."""
@@ -18,7 +20,7 @@ class ExpenseTaxDetail(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     tax_name: str = Field(sa_column=Column(String, nullable=False))
     tax_rate: Decimal = Field(
-        sa_column=Column(Numeric(6, 4), nullable=False),
+        sa_column=Column(Numeric(5, 2), nullable=False),
         ge=0, le=100, description="Tax rate as percentage (0-100)"
     )
     tax_amount: Decimal = Field(
@@ -31,11 +33,11 @@ class ExpenseTaxDetail(SQLModel, table=True):
 
     created_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=True), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     updated_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=True), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False),
     )
 
 class Expense(SQLModel, table=True):
@@ -58,24 +60,30 @@ class Expense(SQLModel, table=True):
         sa_column=Column(Numeric(12, 2), nullable=False),
         ge=0, description="Total tax must be non-negative"
     )
-    total_amount: Decimal = Field(
-        sa_column=Column(Numeric(12, 2), nullable=False),
-        ge=0, description="Total amount must be non-negative"
-    )
 
     property_id: int = Field(foreign_key="properties.id", index=True)
 
     created_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=True), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     updated_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=True), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False),
     )
 
-    property: "Property" = Relationship(back_populates="expenses")
+    property: "PropertyModel" = Relationship(back_populates="expenses")
     taxes: list["ExpenseTaxDetail"] = Relationship(
         back_populates="expense",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
+
+    @builtins.property
+    def total_amount(self) -> Decimal:
+        """Computed property that returns subtotal_amount + total_tax_amount."""
+        return Decimal(str(self.subtotal_amount)) + Decimal(str(self.total_tax_amount))
+
+    @hybrid_property
+    def total_amount_hybrid(self) -> Decimal:
+        """Hybrid property for database queries that returns subtotal_amount + total_tax_amount."""
+        return self.subtotal_amount + self.total_tax_amount

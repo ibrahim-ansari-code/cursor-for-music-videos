@@ -53,8 +53,8 @@ async def created_tenant(api_client, created_landlord_property: int):
         else:
             logger.error(
                 f"❌ Fixture cleanup failed: DELETE returned {delete_response.status_code}")
-    except Exception as e:
-        logger.error(f"❌ Fixture cleanup exception: {e}")
+    except Exception:
+        logger.exception("❌ Fixture cleanup exception:")
 
 
 @pytest.mark.auth

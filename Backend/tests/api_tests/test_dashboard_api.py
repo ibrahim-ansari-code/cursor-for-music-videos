@@ -4,12 +4,9 @@ API tests for Dashboard operations.
 
 import pytest
 import logging
-from datetime import date
 
 # Import helper functions from conftest.py explicitly for clarity
 from .conftest import assert_valid_json_response, APITestClient
-from Backend.api.dashboard import PaymentDue
-from Backend.models.accounting.common import PaymentStatus
 
 logger = logging.getLogger(__name__)
 

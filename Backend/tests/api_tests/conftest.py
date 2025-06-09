@@ -15,7 +15,6 @@ from collections.abc import Iterator, AsyncGenerator
 from typing import Any
 import time
 import aiofiles
-from Backend.models.lease import LeaseStatus
 
 # Standard Project Root Setup
 _THIS_SCRIPT_ABSPATH = os.path.abspath(__file__)
@@ -122,7 +121,7 @@ class APITestClient:
                     logger.info(
                         "✅ Loaded JWT from %s: %s...", token_file_path, self.auth_token[:20])
                     return
-            except OSError as e:
+            except OSError:
                 logger.exception(
                     "⚠️ Error loading token from %s:", token_file_path)
 

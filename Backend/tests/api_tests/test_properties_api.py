@@ -18,47 +18,6 @@ from .conftest import assert_api_success, assert_valid_json_response, APITestCli
 logger = logging.getLogger(__name__)
 
 
-@pytest_asyncio.fixture
-async def created_property(api_client: APITestClient) -> AsyncGenerator[dict[str, Any], None]:
-    """
-    Asynchronously creates a test property for use in API tests and ensures its deletion after the test completes.
-    
-    Yields:
-        A dictionary representing the created property.
-    """
-    property_data = {
-        "name": f"Test Fixture Property {int(time.time())}",
-        "address": "999 Fixture Street",
-        "city": "Test City",
-        "province": "Test Province",
-        "postal_code": "T5T5T5",
-        "property_type": "Apartment",
-        "description": "A test property created by fixture"
-    }
-
-    # Create property
-    response = await api_client.post("/api/properties/", json=property_data)
-    property_obj = assert_valid_json_response(
-        response, dict, expected_status=201)
-
-    yield property_obj
-
-    # Cleanup - this runs after the test regardless of test outcome
-    try:
-        delete_response = await api_client.delete(f"/api/properties/{property_obj['id']}")
-        if delete_response.status_code == 204:
-            logger.info(
-                "✅ Fixture cleanup: deleted property %s", property_obj['id'])
-        elif delete_response.status_code == 404:
-            logger.info(
-                "✅ Fixture cleanup: property %s already deleted", property_obj['id'])
-        else:
-            logger.error(
-                "❌ Fixture cleanup failed: DELETE returned %s", delete_response.status_code)
-    except Exception:
-        logger.exception("❌ Fixture cleanup exception:")
-
-
 @pytest.mark.auth
 @pytest.mark.integration
 class TestPropertiesAPI:
