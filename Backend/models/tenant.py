@@ -70,7 +70,10 @@ class Tenant(SQLModel, table=True):
 
     # --- Relationships Defined Directly ---
 
-    user: Optional["User"] = Relationship(back_populates="tenant_details")
+    user: Optional["User"] = Relationship(
+        back_populates="tenant_details",
+        sa_relationship_kwargs={"foreign_keys": "[Tenant.user_id]"}
+    )
     current_property: Optional["Property"] = Relationship(
         back_populates="current_tenants")
 

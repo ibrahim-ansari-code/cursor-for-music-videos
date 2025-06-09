@@ -675,7 +675,14 @@ const Properties = () => {
       );
 
       if (!response.ok && response.status !== 204) {
-        throw new Error(`Failed to delete property: ${response.status}`);
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          // Ignore if the response is not JSON
+          errorData = { detail: `Request failed with status ${response.status}` };
+        }
+        throw new Error(errorData.detail || "Failed to delete property");
       }
 
       // Update properties list after successful deletion
@@ -702,7 +709,7 @@ const Properties = () => {
       // Show error notification
       setNotification({
         type: "error",
-        message: "Failed to delete property. Please try again.",
+        message: error.message || "Failed to delete property. Please try again.",
       });
 
       // Clear notification after 3 seconds

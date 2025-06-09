@@ -49,7 +49,10 @@ class User(SQLModel, table=True):
     properties: list["Property"] = Relationship(back_populates="owner")
 
     # Define tenant_details relationship directly
-    tenant_details: Optional["Tenant"] = Relationship(back_populates="user")
+    tenant_details: Optional["Tenant"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"foreign_keys": "[Tenant.user_id]"}
+    )
     maintenance_requests: list["MaintenanceRequest"] = Relationship(
         back_populates="user",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
