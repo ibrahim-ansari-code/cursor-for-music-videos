@@ -278,7 +278,7 @@ async def list_maintenance_requests(
     return requests
 
 
-async def _validate_unit_for_maintenance(data: MaintenanceRequestCreate, current_user: User, session: AsyncSession):
+async def _validate_unit_for_maintenance(data: MaintenanceRequestCreate, current_user: User, session: AsyncSession) -> None:
     """Validates unit existence and ownership for a maintenance request."""
     if data.unit_id is not None:
         unit_result = await session.execute(
@@ -307,7 +307,7 @@ async def _validate_unit_for_maintenance(data: MaintenanceRequestCreate, current
                     detail="You do not have permission to create a maintenance request for this unit/property."
                 )
 
-async def _validate_tenant_for_maintenance(data: MaintenanceRequestCreate, session: AsyncSession):
+async def _validate_tenant_for_maintenance(data: MaintenanceRequestCreate, session: AsyncSession) -> None:
     """Verifies tenant existence and association for a maintenance request."""
     if data.tenant_id is not None:
         tenant_result = await session.execute(
