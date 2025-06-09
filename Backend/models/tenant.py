@@ -66,10 +66,14 @@ class Tenant(SQLModel, table=True):
         sa_column=Column(Integer, ForeignKey(
             "properties.id", ondelete="SET NULL"))
     )
+    landlord_id: PythonUUID = Field(foreign_key="users.id")
 
     # --- Relationships Defined Directly ---
 
-    user: Optional["User"] = Relationship(back_populates="tenant_details")
+    user: Optional["User"] = Relationship(
+        back_populates="tenant_details",
+        sa_relationship_kwargs={"foreign_keys": "[Tenant.user_id]"}
+    )
     current_property: Optional["Property"] = Relationship(
         back_populates="current_tenants")
 

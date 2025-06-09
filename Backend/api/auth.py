@@ -161,12 +161,35 @@ async def get_current_user(
 
         if not db_user:
             logger.warning(
-                "User with Supabase ID %s not found in local database.", actual_user_from_supabase.id)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User authenticated with Supabase but not found in local application database.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+                "User with Supabase ID %s not found in local database. Creating user.", actual_user_from_supabase.id)
+            
+            # JIT User Creation
+            user_metadata = actual_user_from_supabase.user_metadata or {}
+            full_name = user_metadata.get("full_name", "")
+            first_name = user_metadata.get("first_name")
+            last_name = user_metadata.get("last_name")
+
+            if not first_name and full_name:
+                parts = full_name.split(" ", 1)
+                first_name = parts[0]
+                last_name = parts[1] if len(parts) > 1 else ""
+
+            new_user_data = {
+                "id": uuid_obj,
+                "email": actual_user_from_supabase.email,
+                "first_name": first_name,
+                "last_name": last_name,
+                "is_email_verified": user_metadata.get("email_verified", False),
+                "user_type": "LANDLORD"
+                # user_type will use the default "UNKNOWN" from the model
+            }
+            
+            db_user = User.model_validate(new_user_data)
+            session.add(db_user)
+            await session.commit()
+            await session.refresh(db_user)
+            logger.info("Successfully created user %s via JIT provisioning.", db_user.id)
+
         return db_user
     except HTTPException as http_exc:  # Re-raise HTTPException to preserve status code and details
         raise http_exc
@@ -301,8 +324,8 @@ async def sync_supabase_user(
         "first_name": sync_request.first_name,
         "last_name": sync_request.last_name,
         "phone": sync_request.phone,
-        # Ensure uppercase or a default
-        "user_type": sync_request.user_type.upper() if sync_request.user_type else "UNKNOWN",
+        # Ensure user_type is always LANDLORD for this portal
+        "user_type": "LANDLORD",
         # Default values based on observed schema and common practice:
         "is_active": True,
         "is_admin": False,  # New users from Supabase signup are not admins by default

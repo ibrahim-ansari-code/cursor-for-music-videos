@@ -27,7 +27,7 @@ class User(SQLModel, table=True):
     first_name: str | None = None
     last_name: str | None = None
     # <-- force String instead of Enum
-    user_type: str = Field(sa_column=Column(String))
+    user_type: str = Field(default="LANDLORD", sa_column=Column(String))
     phone: str | None = None
     address: str | None = None
     city: str | None = None
@@ -49,7 +49,10 @@ class User(SQLModel, table=True):
     properties: list["Property"] = Relationship(back_populates="owner")
 
     # Define tenant_details relationship directly
-    tenant_details: Optional["Tenant"] = Relationship(back_populates="user")
+    tenant_details: Optional["Tenant"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"foreign_keys": "[Tenant.user_id]"}
+    )
     maintenance_requests: list["MaintenanceRequest"] = Relationship(
         back_populates="user",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}

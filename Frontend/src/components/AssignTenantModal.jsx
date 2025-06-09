@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchTenantsByProperty, updateUnit } from "../utils/api";
 import LoadingSpinner from "./LoadingSpinner";
@@ -19,32 +19,30 @@ const AssignTenantModal = ({
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Fetch tenants when the modal opens
+  const loadTenantsForProperty = useCallback(async () => {
+    if (!propertyId) return;
+    setIsLoadingTenants(true);
+    setError("");
+    try {
+      const tenantsData = await fetchTenantsByProperty(propertyId);
+      setTenants(tenantsData || []);
+    } catch (err) {
+      console.error("Error fetching tenants:", err);
+      setError("Failed to load tenants. Please try again.");
+      setTenants([]);
+    } finally {
+      setIsLoadingTenants(false);
+    }
+  }, [propertyId]);
+
   useEffect(() => {
-    if (isOpen && propertyId) {
-      fetchTenants();
+    if (isOpen) {
+      loadTenantsForProperty();
       setMonthlyRent("");
       setSelectedTenant("");
       setError("");
     }
-  }, [isOpen, propertyId]);
-
-  // Fetch tenants for the property
-  const fetchTenants = async () => {
-    try {
-      setIsLoadingTenants(true);
-      setError("");
-      console.log(`Fetching tenants for property ID: ${propertyId}`);
-      const tenantsData = await fetchTenantsByProperty(propertyId);
-      console.log("Tenants fetched:", tenantsData);
-      setTenants(tenantsData);
-    } catch (err) {
-      console.error("Error fetching tenants:", err);
-      setError("Failed to load tenants. Please try again.");
-    } finally {
-      setIsLoadingTenants(false);
-    }
-  };
+  }, [isOpen, loadTenantsForProperty]);
 
   // Handle form input changes
   const handleTenantSelect = (e) => {
@@ -67,6 +65,7 @@ const AssignTenantModal = ({
 
   // Filter tenants based on search term
   const filteredTenants = tenants.filter((tenant) => {
+    if (!tenant || !tenant.id) return false; // Defensive check
     const fullName = `${tenant.first_name} ${tenant.last_name}`.toLowerCase();
     const email = (tenant.email || "").toLowerCase();
     const searchTermLower = searchTerm.toLowerCase();

@@ -58,7 +58,7 @@ const TenantModal = ({
       setTouched({});
       // setSubmitAttempted(false);
     }
-  }, [isOpen, propertyId, unitId, unitName, tenant]); // tenant itself is a dependency
+  }, [isOpen, propertyId, unitId, unitName, JSON.stringify(tenant)]);
 
   const handleBlur = (e) => {
     const { name } = e.target;
