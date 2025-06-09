@@ -386,7 +386,7 @@ const NewPropertyModal = ({
   const isApartmentComplex = formData.property_type === "apartment-complex";
 
   const formContent = (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit} className="space-y-8" id="new-property-form">
       <FormSection
         title="Property Information"
         containerClass="space-y-6"
@@ -739,6 +739,7 @@ const NewPropertyModal = ({
       </Button>
       <Button
         type="submit" // This will be picked up by the form's onSubmit
+        form="new-property-form"
         variant="primary"
         isLoading={parentIsLoading} // Use parentIsLoading
         loadingText={isEditing ? "Updating..." : "Creating..."}

@@ -41,71 +41,27 @@ async def check_tenant_permission(
     current_user: User,
     action: str = "view"
 ) -> Tenant:
-    """Check if the current user has permission to access/modify the tenant."""
-    # Admins can do anything
+    """
+    Checks if the current user has permission to access or modify a tenant.
+    - Admins have full access.
+    - Landlords can only access tenants they own (via tenant.landlord_id).
+    - Raises HTTPException 404 if tenant not found, 403 if not authorized.
+    """
+    tenant = await session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+
     if current_user.is_admin:
-        query = select(Tenant).where(col(Tenant.id) == tenant_id)
-        result = await session.execute(query)
-        tenant = result.scalar_one_or_none()
-        if not tenant:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
         return tenant
 
-    # Tenants can view/update their own linked Tenant profile
-    if current_user.user_type == UserType.TENANT:
-        if tenant_id is not None:
-            query = select(Tenant).where(col(Tenant.id) ==
-                                         tenant_id, col(Tenant.user_id) == current_user.id)
-            result = await session.execute(query)
-            tenant = result.scalar_one_or_none()
-            if tenant and action in ["view", "update"]:
-                return tenant
-        # If tenant_id doesn't match or action not allowed for tenant
-        logger.warning("Tenant %s permission denied for %s tenant %s",
-                       current_user.id, action, tenant_id)
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                            detail=f"Not authorized to {action} this tenant profile")
-
-    # Landlords can view/update/delete tenants associated with their properties via leases
     if current_user.user_type == UserType.LANDLORD:
-        query = (
-            select(Tenant)
-            .join(Lease, col(Tenant.id) == col(Lease.tenant_id))
-            .join(Property, col(Lease.property_id) == col(Property.id))
-            .where(
-                and_(
-                    col(Tenant.id) == tenant_id,
-                    col(Property.user_id) == current_user.id
-                )
-            )
-            .limit(1)  # Check if *any* link exists
-        )
-        result = await session.execute(query)
-        tenant = result.scalar_one_or_none()
-
-        if not tenant:
-            # Alternative check: Is tenant currently in one of landlord's properties?
-            query_current = (
-                select(Tenant)
-                .join(Property, col(Tenant.current_property_id) == col(Property.id))
-                .where(col(Tenant.id) == tenant_id, col(Property.user_id) == current_user.id)
-                .limit(1)
-            )
-            result_current = await session.execute(query_current)
-            tenant = result_current.scalar_one_or_none()
-
-        if tenant:  # If found via lease OR current_property
+        if tenant.landlord_id == current_user.id:
             return tenant
-        else:
-            logger.warning("Landlord %s permission denied for %s tenant %s",
-                           current_user.id, action, tenant_id)
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                                detail=f"Not authorized to {action} this tenant")
 
-    # Default deny
-    logger.error("Unknown user type or permission error for user %s, action %s, tenant %s",
-                 current_user.id, action, tenant_id)
+    # If no permissions match, deny access.
+    logger.warning("User %s permission denied for action '%s' on tenant %s",
+                   current_user.id, action, tenant_id)
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                         detail=f"Not authorized to {action} this tenant")
 
@@ -148,37 +104,17 @@ def _apply_landlord_permissions(current_user: User, property_id: int | None) -> 
         List of SQLAlchemy filter conditions for landlord permissions.
     """
     filters = []
-    landlord_prop_subquery = select(col(Property.id)).where(
-        col(Property.user_id) == current_user.id).scalar_subquery()
+    
+    # The primary filter for a landlord is to only see tenants they own.
+    filters.append(col(Tenant.landlord_id) == current_user.id)
 
-    # Base conditions: linked to landlord's properties or completely unassigned
-    linked_to_landlord_props = or_(
-        col(Lease.property_id).in_(landlord_prop_subquery),
-        col(Tenant.current_property_id).in_(landlord_prop_subquery)
-    )
-
-    # Condition for tenants not assigned to any property and having no leases
-    completely_unassigned = and_(
-        col(Tenant.current_property_id).is_(None),
-        not_(select(col(Lease.id)).where(col(Lease.tenant_id) ==
-             col(Tenant.id)).correlate_except(Lease).exists())
-    )
-
-    general_visibility_filter = or_(
-        linked_to_landlord_props,
-        completely_unassigned
-    )
-
+    # If a specific property_id is provided, add that to the filter.
     if property_id:
-        # If a specific property_id is given, focus only on tenants linked to THAT property
         specific_property_filter = or_(
             col(Lease.property_id) == property_id,
             col(Tenant.current_property_id) == property_id
         )
         filters.append(specific_property_filter)
-    else:
-        # If no specific property_id, apply the general visibility rule
-        filters.append(general_visibility_filter)
 
     return filters
 
@@ -512,6 +448,10 @@ async def create_tenant(
         # Exclude full_name before validating with the Tenant model
         tenant_dict = tenant_data.model_dump(exclude={"full_name"})
         tenant = Tenant.model_validate(tenant_dict)  # Use Pydantic validation
+        
+        # Set the landlord_id from the currently authenticated user
+        tenant.landlord_id = current_user.id
+
         tenant.created_at = create_audit_datetime()
         tenant.updated_at = create_audit_datetime()
 

@@ -66,6 +66,7 @@ class Tenant(SQLModel, table=True):
         sa_column=Column(Integer, ForeignKey(
             "properties.id", ondelete="SET NULL"))
     )
+    landlord_id: PythonUUID = Field(foreign_key="users.id")
 
     # --- Relationships Defined Directly ---
 
