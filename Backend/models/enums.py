@@ -1,11 +1,15 @@
 from enum import Enum
-from typing import Self, Any
+from typing import Self, Any, Optional
 
 
 class UserType(str, Enum):
-    TENANT = "TENANT"
-    LANDLORD = "LANDLORD"
+    """
+    Defines user roles within the system.
+    """
     ADMIN = "ADMIN"
+    LANDLORD = "LANDLORD"
+    TENANT = "TENANT"
+    STAFF = "STAFF"  # For maintenance personnel or other staff
 
     @classmethod
     def _missing_(cls, value: Any) -> Self | None:
@@ -33,16 +37,22 @@ class MaintenancePriority(str, Enum):
     - MEDIUM: Important issues requiring attention but not immediate action
     - HIGH: Critical issues requiring immediate attention to prevent damage or safety concerns
     """
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
 
     @classmethod
-    def _missing_(cls, value: Any) -> Self | None:
+    def _missing_(cls, value: Any) -> Optional["MaintenancePriority"]:
         if isinstance(value, str):
+            # Case-insensitive matching for value
+            lower_value = value.lower()
+            for member in cls:
+                if member.value.lower() == lower_value:
+                    return member
+            # Case-insensitive matching for member name (e.g., "HIGH" maps to MaintenancePriority.HIGH)
             try:
-                return cls(value.upper())
-            except ValueError:
+                return cls[value.upper()]
+            except KeyError:
                 pass
         return super()._missing_(value)
 
@@ -51,17 +61,28 @@ class MaintenanceStatus(str, Enum):
     """
     Defines status states for maintenance requests throughout their lifecycle.
     """
-    PENDING = "PENDING"
-    IN_PROGRESS = "IN_PROGRESS"
-    SCHEDULED = "SCHEDULED"
-    COMPLETED = "COMPLETED"
-    CANCELLED = "CANCELLED"
+    PENDING = "Pending"
+    IN_PROGRESS = "In Progress"
+    SCHEDULED = "Scheduled"
+    COMPLETED = "Completed"
+    CANCELLED = "Cancelled"
 
     @classmethod
-    def _missing_(cls, value: Any) -> Self | None:
+    def _missing_(cls, value: Any) -> Optional["MaintenanceStatus"]:
         if isinstance(value, str):
+            # Case-insensitive matching for value
+            lower_value = value.lower()
+            for member in cls:
+                # Special handling for "In Progress" due to space
+                member_val_lower = member.value.lower().replace(" ", "")
+                input_val_lower = lower_value.replace(" ", "").replace(
+                    "_", "")  # Also handle snake_case input like "in_progress"
+                if member_val_lower == input_val_lower:
+                    return member
+            # Case-insensitive matching for member name
             try:
-                return cls(value.upper())
-            except ValueError:
+                # For names like IN_PROGRESS, client might send "IN_PROGRESS" or "in_progress"
+                return cls[value.upper().replace(" ", "_")]
+            except KeyError:
                 pass
         return super()._missing_(value)

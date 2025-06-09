@@ -1,16 +1,15 @@
 """Expense and ExpenseTaxDetail ORM models"""
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from sqlalchemy import DateTime, String, Column, Numeric
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlmodel import Field, Relationship, SQLModel
 
 from Backend.utils.datetime_utils import create_audit_datetime
+from Backend.models.property import Property
 
-if TYPE_CHECKING:
-    from Backend.models.property import Property as PropertyModel
 
 class ExpenseTaxDetail(SQLModel, table=True):
     """Represents a single tax line item associated with an expense."""
@@ -27,7 +26,8 @@ class ExpenseTaxDetail(SQLModel, table=True):
         ge=0, description="Tax amount must be non-negative"
     )
 
-    expense_id: Optional[int] = Field(default=None, foreign_key="expenses.id", index=True)
+    expense_id: Optional[int] = Field(
+        default=None, foreign_key="expenses.id", index=True)
     expense: "Expense" = Relationship(back_populates="taxes")
 
     created_at: datetime = Field(
@@ -38,6 +38,7 @@ class ExpenseTaxDetail(SQLModel, table=True):
         default_factory=create_audit_datetime,
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
+
 
 class Expense(SQLModel, table=True):
     """Expense model for property-related expenses"""
@@ -77,7 +78,7 @@ class Expense(SQLModel, table=True):
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
 
-    property: "PropertyModel" = Relationship(back_populates="expenses")
+    property: "Property" = Relationship(back_populates="expenses")
     taxes: list["ExpenseTaxDetail"] = Relationship(
         back_populates="expense",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
