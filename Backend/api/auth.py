@@ -143,7 +143,8 @@ async def get_current_user(
         try:
             uuid_obj = PythonUUID(str(actual_user_from_supabase.id))
         except ValueError as e:
-            logger.warning("Supabase ID is not a valid UUID: %s", actual_user_from_supabase.id)
+            logger.warning("Supabase ID is not a valid UUID: %s",
+                           actual_user_from_supabase.id)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials",
@@ -198,7 +199,7 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
 
 @router.put("/users/{user_id}/profile", response_model=UserResponse)
 async def update_user_profile(
-    user_id: str,
+    user_id: PythonUUID,
     profile_update: ProfileUpdateRequest,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
@@ -224,22 +225,22 @@ async def update_user_profile(
 
 @router.post("/users/{user_id}/avatar", response_model=AvatarUploadResponse)
 async def upload_user_avatar(
-    user_id: str,
+    user_id: PythonUUID,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     """
     Uploads a new avatar image for the specified user.
-    
+
     Only the user themselves or an admin can upload an avatar. 
     The image is stored in Azure Blob Storage, and the user's profile 
     is updated with the new avatar URL.
-    
+
     Args:
         user_id: The ID of the user whose avatar is being updated.
         file: The image file to upload.
-    
+
     Returns:
         An object containing the URL of the uploaded avatar image.
     """

@@ -87,4 +87,18 @@ class Expense(SQLModel, table=True):
     @hybrid_property
     def total_amount(self) -> Decimal:
         """Computed property that returns subtotal_amount + total_tax_amount."""
-        return Decimal(str(self.subtotal_amount)) + Decimal(str(self.total_tax_amount))
+        # Ensure subtotal_amount is Decimal, default to 0.00 if None
+        subtotal = self.subtotal_amount if self.subtotal_amount is not None else Decimal(
+            '0.00')
+
+        # Ensure total_tax_amount is Decimal (it has a model default, but defensive check)
+        total_tax = self.total_tax_amount if self.total_tax_amount is not None else Decimal(
+            '0.00')
+
+        return subtotal + total_tax
+
+    @total_amount.expression  # type: ignore
+    # Renamed the SQL expression function
+    def _total_amount_sql_expression(cls):
+        # For SQL expressions, subtotal_amount and total_tax_amount are NOT NULL numeric columns.
+        return cls.subtotal_amount + cls.total_tax_amount

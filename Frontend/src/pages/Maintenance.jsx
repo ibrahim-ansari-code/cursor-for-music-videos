@@ -29,56 +29,69 @@ const Maintenance = () => {
   const [editingRequest, setEditingRequest] = useState(null);
   const [viewingRequest, setViewingRequest] = useState(null);
 
-  const fetchData = useCallback(async (page = currentPage, resetData = false) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Build query parameters for pagination and filtering
-      const params = {
-        limit: pageSize,
-        offset: (page - 1) * pageSize,
-      };
-      
-      // Add status filter if not "All Requests"
-      if (statusFilter !== "All Requests") {
-        // map UI label ➜ API enum
-        const map = {
-          "Pending": "pending",
-          "In Progress": "in_progress",
-          "Completed": "completed",
+  const fetchData = useCallback(
+    async (page = currentPage, resetData = false) => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Build query parameters for pagination and filtering
+        const params = {
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
         };
-        params.req_status = map[statusFilter] ?? statusFilter;
+
+        // Add status filter if not "All Requests"
+        if (statusFilter !== "All Requests") {
+          // map UI label ➜ API enum
+          const map = {
+            Pending: "pending",
+            "In Progress": "in_progress",
+            Completed: "completed",
+          };
+          params.req_status = map[statusFilter] ?? statusFilter;
+        }
+
+        // Fetch summary only on initial load or after mutations.
+        const summaryPromise =
+          resetData || page === 1
+            ? getMaintenanceSummary()
+            : Promise.resolve(null);
+        const [summaryData, requestsData] = await Promise.all([
+          summaryPromise,
+          fetchMaintenanceRequests(params),
+        ]);
+        if (summaryData) setSummary(summaryData);
+
+        if (resetData || page === 1) {
+          setRequests(requestsData.results || requestsData);
+        } else {
+          // For pagination, append new data (if implementing "load more" behavior)
+          setRequests((prev) => [
+            ...prev,
+            ...(requestsData.results || requestsData),
+          ]);
+        }
+        // Update pagination state
+        setHasMore(
+          typeof requestsData.total === "number"
+            ? page * pageSize < requestsData.total
+            : (requestsData.results || requestsData).length === pageSize
+        );
+        setTotalCount(
+          requestsData.total ??
+            (requestsData.results
+              ? requestsData.results.length
+              : requestsData.length)
+        );
+      } catch (err) {
+        setError(err.message || "Failed to fetch maintenance data.");
+      } finally {
+        setLoading(false);
       }
-      
-      // Fetch summary only on initial load or after mutations.
-      const summaryPromise =
-        resetData || page === 1 ? getMaintenanceSummary() : Promise.resolve(null);
-      const [summaryData, requestsData] = await Promise.all([
-        summaryPromise,
-        fetchMaintenanceRequests(params),
-      ]);
-      if (summaryData) setSummary(summaryData);
-      
-      if (resetData || page === 1) {
-        setRequests(requestsData.results || requestsData);
-      } else {
-        // For pagination, append new data (if implementing "load more" behavior)
-        setRequests(prev => [...prev, ...(requestsData.results || requestsData)]);
-      }
-      // Update pagination state
-      setHasMore(
-        typeof requestsData.total === "number"
-          ? page * pageSize < requestsData.total
-          : (requestsData.results || requestsData).length === pageSize
-      );
-      setTotalCount(requestsData.total ?? (requestsData.results ? requestsData.results.length : requestsData.length));
-    } catch (err) {
-      setError(err.message || "Failed to fetch maintenance data.");
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, pageSize, statusFilter]);
+    },
+    [currentPage, pageSize, statusFilter]
+  );
 
   useEffect(() => {
     fetchData(1, true);
@@ -94,9 +107,9 @@ const Maintenance = () => {
           ? Number(formData.property_id)
           : undefined,
         unit_id:
-      formData.unit_id && formData.unit_id !== ""
-        ? Number.parseInt(formData.unit_id, 10)
-        : null,
+          formData.unit_id && formData.unit_id !== ""
+            ? Number.parseInt(formData.unit_id, 10)
+            : null,
         tenant_id: formData.tenant_id
           ? Number.parseInt(formData.tenant_id, 10)
           : null,
@@ -183,21 +196,6 @@ const Maintenance = () => {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Maintenance</h1>
-          <p className="text-gray-500">Maintenance requests and tracking</p>
-        </div>
-        <button
-          type="button"
-          onClick={openModalForNew}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <i className="fas fa-plus mr-2" />
-          New Maintenance Request
-        </button>
-      </div>
-
       {error && (
         <div className="p-4 mb-4 text-center bg-red-100 text-red-700 rounded-lg">
           {error}
@@ -240,33 +238,43 @@ const Maintenance = () => {
       </div>
 
       <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex border-b mb-4">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => handleStatusFilterChange(tab)}
-              className={`px-4 py-2 ${
-                statusFilter === tab
-                  ? "border-b-2 border-blue-600 text-blue-600"
-                  : "text-gray-500"
-              }`}
-            >
-              {tab} (
-              {tab === "All Requests"
-                ? summary?.total_requests ?? 0
-                : tab === "Pending"
-                ? summary?.pending ?? 0
-                : tab === "In Progress"
-                ? summary?.in_progress ?? 0
-                : tab === "Completed"
-                ? summary?.completed ?? 0
-                : 0}
-              )
-            </button>
-          ))}
+        <div className="flex justify-between items-center border-b mb-4">
+          <div>
+            {TABS.map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => handleStatusFilterChange(tab)}
+                className={`px-4 py-2 ${
+                  statusFilter === tab
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-gray-500"
+                }`}
+              >
+                {tab} (
+                {tab === "All Requests"
+                  ? summary?.total_requests ?? 0
+                  : tab === "Pending"
+                  ? summary?.pending ?? 0
+                  : tab === "In Progress"
+                  ? summary?.in_progress ?? 0
+                  : tab === "Completed"
+                  ? summary?.completed ?? 0
+                  : 0}
+                )
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={openModalForNew}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <i className="fas fa-plus mr-2" />
+            New Maintenance Request
+          </button>
         </div>
-        
+
         {loading && currentPage === 1 ? (
           <LoadingSpinner message="Loading requests..." />
         ) : (
@@ -279,7 +287,7 @@ const Maintenance = () => {
               currentPage={currentPage}
               pageSize={pageSize}
             />
-            
+
             {/* Pagination Controls */}
             <div className="mt-6 flex items-center justify-between">
               <div className="text-sm text-gray-700">

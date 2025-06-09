@@ -29,7 +29,10 @@ import LoadingSpinner from "../components/LoadingSpinner";
 // Reusable loading spinner row for tables
 const LoadingRow = ({ colSpan, loadingText }) => (
   <tr>
-    <td colSpan={colSpan} className="px-6 py-12 text-center text-sm text-gray-500">
+    <td
+      colSpan={colSpan}
+      className="px-6 py-12 text-center text-sm text-gray-500"
+    >
       <LoadingSpinner message={loadingText} size="medium" center={false} />
     </td>
   </tr>
@@ -128,7 +131,7 @@ const Accounting = () => {
     if (activeTab === "payments") {
       // When filters change, reset to the first page.
       // The pagination effect will then trigger the data load.
-      setPaymentsPagination(prev => ({ ...prev, currentPage: 0 }));
+      setPaymentsPagination((prev) => ({ ...prev, currentPage: 0 }));
     }
   }, [paymentFilters, activeTab]);
 
@@ -137,8 +140,8 @@ const Accounting = () => {
     if (activeTab === "payments") {
       loadPaymentsData();
     }
-  // The dependency array correctly triggers this effect when either the
-  // page or the active tab changes, ensuring data is loaded when needed.
+    // The dependency array correctly triggers this effect when either the
+    // page or the active tab changes, ensuring data is loaded when needed.
   }, [paymentsPagination.currentPage, activeTab]);
 
   const loadRentTrackerData = async () => {
@@ -251,7 +254,7 @@ const Accounting = () => {
       const data = await fetchPayments(params);
       console.log("Payments received from API:", data);
       setPayments(data.items);
-      setPaymentsPagination(prev => ({ ...prev, hasMore: data.has_more }));
+      setPaymentsPagination((prev) => ({ ...prev, hasMore: data.has_more }));
       setError(null);
     } catch (err) {
       console.error("Error loading payments data:", err);
@@ -493,12 +496,18 @@ const Accounting = () => {
     }
   };
 
-const handleNextPage = () => {
-  setPaymentsPagination(prev => ({ ...prev, currentPage: prev.currentPage + 1 }));
-};
+  const handleNextPage = () => {
+    setPaymentsPagination((prev) => ({
+      ...prev,
+      currentPage: prev.currentPage + 1,
+    }));
+  };
 
   const handlePreviousPage = () => {
-    setPaymentsPagination(prev => ({ ...prev, currentPage: Math.max(0, prev.currentPage - 1) }));
+    setPaymentsPagination((prev) => ({
+      ...prev,
+      currentPage: Math.max(0, prev.currentPage - 1),
+    }));
   };
 
   if (loading && activeTab === "overview") {
@@ -1139,7 +1148,7 @@ const handleNextPage = () => {
                             expense.category.slice(1)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ${expense.total_amount.toFixed(2)}
+                          ${parseFloat(expense.total_amount).toFixed(2)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(expense.expense_date).toLocaleDateString()}
