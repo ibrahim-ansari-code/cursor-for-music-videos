@@ -99,7 +99,7 @@ class MaintenanceRequestCreate(BaseModel):
     scheduled_date: date | None = None
     estimated_cost: float | None = None
     actual_cost: float | None = None
-    photos: List[str] | None = None
+    photos: list[str] | None = None
     assigned_to: str | None = None
 
 
@@ -114,7 +114,7 @@ class MaintenanceRequestUpdate(BaseModel):
     scheduled_date: date | None = None
     estimated_cost: float | None = None
     actual_cost: float | None = None
-    photos: List[str] | None = None
+    photos: list[str] | None = None
     assigned_to: str | None = None
 
 
@@ -147,7 +147,7 @@ class MaintenanceRequestResponse(BaseModel):
     scheduled_date: date | None
     estimated_cost: float | None
     actual_cost: float | None
-    photos: List[str] | None
+    photos: list[str] | None
     created_at: datetime
     updated_at: datetime
     assigned_to: str | None
@@ -206,16 +206,16 @@ async def check_permission(request: MaintenanceRequest, user: User, session: Asy
     # Now check if the user owns the property
     if hasattr(prop, "user_id") and prop.user_id == user.id:
         return
-    else:
-        raise HTTPException(
-            status_code=403,
-            detail="You do not have permission to access this maintenance request."
-        )
+    
+    raise HTTPException(
+        status_code=403,
+        detail="You do not have permission to access this maintenance request."
+    )
 
 # === Endpoints ===
 
 
-@router.get("/requests", response_model=List[MaintenanceRequestResponse])
+@router.get("/requests", response_model=list[MaintenanceRequestResponse])
 async def list_maintenance_requests(
     req_status: MaintenanceStatus | None = Query(
         None, description="Filter by status"),
@@ -231,7 +231,7 @@ async def list_maintenance_requests(
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
-):
+) -> list[MaintenanceRequestResponse]:
     """
     Retrieves a list of maintenance requests with optional filtering and pagination.
     
@@ -275,7 +275,7 @@ async def list_maintenance_requests(
 
     result = await session.execute(query)
     requests = result.unique().scalars().all()
-    return requests
+    return requests  # type: ignore
 
 
 async def _validate_unit_for_maintenance(data: MaintenanceRequestCreate, current_user: User, session: AsyncSession) -> None:
@@ -322,13 +322,14 @@ async def _validate_tenant_for_maintenance(data: MaintenanceRequestCreate, sessi
         # If unit_id is provided, check tenant is associated with the unit (if such a relationship exists)
         # Otherwise, check tenant is associated with the property (if such a relationship exists)
         # This logic may need to be adapted to your data model
-        if data.unit_id is not None:
-            # Check tenant is associated with the unit (if your model supports this)
-            # For now, just a placeholder check; adapt as needed
-            pass
-        else:
-            # Check tenant is associated with the property (if your model supports this)
-            pass
+        # TODO: Implement full tenant-unit/property association validation logic.
+        # This is a placeholder to prevent silent security gaps. This check should
+        # be implemented based on your specific data model to ensure a tenant
+        # can only be associated with units/properties they are linked to.
+        raise HTTPException(
+            status_code=501,
+            detail="Tenant association validation is not yet implemented."
+        )
 
 
 @router.post("/requests", response_model=MaintenanceRequestResponse, status_code=status.HTTP_201_CREATED)

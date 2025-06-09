@@ -537,11 +537,16 @@ async def parse_payment_receipt(
 
     # File size validation (e.g., 10 MB limit)
     MAX_FILE_SIZE = 10 * 1024 * 1024
-    if file.size and file.size > MAX_FILE_SIZE:
+    
+    # Read the file content to determine its size and for later processing
+    file_content = await file.read()
+    if len(file_content) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"File size exceeds the limit of {MAX_FILE_SIZE / 1024 / 1024} MB."
         )
+    # Reset file pointer after reading
+    await file.seek(0)
 
     allowed_content_types = ["application/pdf", "image/jpeg", "image/png", "image/jpg"]
     if file.content_type not in allowed_content_types:
@@ -550,13 +555,6 @@ async def parse_payment_receipt(
             detail=f"Unsupported file type: {file.content_type}. Allowed types are PDF, JPG, PNG."
         )
     try:
-        file_content = await file.read()
-        if len(file_content) > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"File content size exceeds the {MAX_FILE_SIZE / 1024 / 1024} MB limit."
-            )
-        await file.seek(0)
         receipt_url = await upload_payment_receipt_to_blob(file, current_user.id)
         
         parsed_data_dict: dict[str, Any] = await analyze_payment_receipt_content(

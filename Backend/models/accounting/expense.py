@@ -3,8 +3,9 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import DateTime, String, Column, Numeric
+from sqlalchemy import DateTime, String, Column, Numeric, cast
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql.expression import ColumnElement
 from sqlmodel import Field, Relationship, SQLModel
 
 from Backend.utils.datetime_utils import create_audit_datetime
@@ -36,7 +37,7 @@ class ExpenseTaxDetail(SQLModel, table=True):
     )
     updated_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=True), nullable=False),
+        sa_column=Column(DateTime(timezone=True), nullable=False, onupdate=create_audit_datetime),
     )
 
 
@@ -75,30 +76,22 @@ class Expense(SQLModel, table=True):
     )
     updated_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=True), nullable=False),
+        sa_column=Column(DateTime(timezone=True), nullable=False, onupdate=create_audit_datetime),
     )
 
     property: "Property" = Relationship(back_populates="expenses")
     taxes: list["ExpenseTaxDetail"] = Relationship(
         back_populates="expense",
-        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan", "lazy": "selectin"}
     )
 
     @hybrid_property
     def total_amount(self) -> Decimal:
         """Computed property that returns subtotal_amount + total_tax_amount."""
-        # Ensure subtotal_amount is Decimal, default to 0.00 if None
-        subtotal = self.subtotal_amount if self.subtotal_amount is not None else Decimal(
-            '0.00')
-
-        # Ensure total_tax_amount is Decimal (it has a model default, but defensive check)
-        total_tax = self.total_tax_amount if self.total_tax_amount is not None else Decimal(
-            '0.00')
-
-        return subtotal + total_tax
-
-    @total_amount.expression  # type: ignore
-    # Renamed the SQL expression function
-    def _total_amount_sql_expression(cls):
-        # For SQL expressions, subtotal_amount and total_tax_amount are NOT NULL numeric columns.
-        return cls.subtotal_amount + cls.total_tax_amount
+        return self.subtotal_amount + self.total_tax_amount
+    
+    # Set the SQL expression directly to avoid method name collision
+    total_amount = total_amount.expression(
+        lambda cls: cast(cls.subtotal_amount + cls.total_tax_amount, Numeric(12, 2))
+    )
