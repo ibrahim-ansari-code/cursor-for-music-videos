@@ -43,6 +43,8 @@ class Expense(SQLModel, table=True):
     """Expense model for property-related expenses"""
     __tablename__ = "expenses"  # type: ignore
 
+    model_config = {"ignored_types": (hybrid_property,)}
+    
     id: int | None = Field(default=None, primary_key=True)
     category: str
     description: str | None = None
