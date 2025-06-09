@@ -351,7 +351,7 @@ async def get_tenants(
 
         response_data.append(tenant_response)
 
-    return response_data
+    return [TenantResponse.model_validate(t) for t in response_data if t is not None and t.id is not None]
 
 
 @router.get("/{tenant_id}", response_model=TenantResponse)

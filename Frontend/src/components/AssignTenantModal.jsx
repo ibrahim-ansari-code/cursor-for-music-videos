@@ -65,6 +65,7 @@ const AssignTenantModal = ({
 
   // Filter tenants based on search term
   const filteredTenants = tenants.filter((tenant) => {
+    if (!tenant || !tenant.id) return false; // Defensive check
     const fullName = `${tenant.first_name} ${tenant.last_name}`.toLowerCase();
     const email = (tenant.email || "").toLowerCase();
     const searchTermLower = searchTerm.toLowerCase();
