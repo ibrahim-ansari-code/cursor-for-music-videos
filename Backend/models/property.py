@@ -139,11 +139,11 @@ class PropertyUnit(SQLModel, table=True):
         default=None, description="The floor number of the unit")
     created_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=False), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False)
     )
     updated_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=False), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False)
     )
 
     # Relationships

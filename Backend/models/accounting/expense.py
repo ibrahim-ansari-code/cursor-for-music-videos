@@ -1,5 +1,4 @@
 """Expense and ExpenseTaxDetail ORM models"""
-import builtins
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional

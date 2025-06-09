@@ -98,12 +98,9 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
       let processedValue = value;
       if (type === "checkbox") {
         processedValue = checked;
-      } else if (type === "number") {
-        // Retain the raw string if it's empty or not a valid number, otherwise parse it.
-        // Fallback to empty string for incomplete/invalid inputs.
-        const parsed = Number.parseFloat(value);
-        processedValue = value === "" ? "" : (isNaN(parsed) ? value : parsed);
       }
+      // For number inputs, store the raw string value directly
+      // Parsing will be done only during form submission
       return { ...prev, [name]: processedValue };
     });
   };
@@ -121,15 +118,24 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
       return;
     }
 
+    const parseFloatOrNull = (value) => {
+      const parsed = Number.parseFloat(value);
+      return isNaN(parsed) ? null : parsed;
+    };
+    
+    const parseIntOrNull = (value) => {
+      const parsed = Number.parseInt(value, 10);
+      return isNaN(parsed) ? null : parsed;
+    };
+
     const updateData = {
       start_date: formData.start_date || null,
       end_date: formData.end_date || null,
-      monthly_rent: Number.parseFloat(formData.monthly_rent) || null,
-      security_deposit: Number.parseFloat(formData.security_deposit) || null,
+      monthly_rent: parseFloatOrNull(formData.monthly_rent),
+      security_deposit: parseFloatOrNull(formData.security_deposit),
       rent_due_day: rentDueDay || null,
-      late_fee_amount: Number.parseFloat(formData.late_fee_amount) || null,
-      late_fee_after_days:
-        Number.parseInt(formData.late_fee_after_days, 10) || null,
+      late_fee_amount: parseFloatOrNull(formData.late_fee_amount),
+      late_fee_after_days: parseIntOrNull(formData.late_fee_after_days),
       special_terms: formData.special_terms || null,
     };
 

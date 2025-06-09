@@ -39,17 +39,17 @@ class TestMaintenanceAPI:
         Creates a maintenance request for the specified property and verifies the response data. Then retrieves the created request by its ID and asserts the returned data matches the created request.
         """
         payload = maintenance_payload(created_property_id)
-        logger.info(f"Sending maintenance request payload: {payload}")
+        logger.info("Sending maintenance request payload: %s", payload)
         create_res = await api_client.post("/api/maintenance/requests", json=payload)
         
         if create_res.status_code != 201:
-            logger.error(f"Failed to create maintenance request. Status: {create_res.status_code}")
-            logger.error(f"Response body: {create_res.text}")
+            logger.error("Failed to create maintenance request. Status: %s", create_res.status_code)
+            logger.error("Response body: %s", create_res.text)
             try:
                 error_json = create_res.json()
-                logger.error(f"Error JSON: {error_json}")
+                logger.error("Error JSON: %s", error_json)
             except json.JSONDecodeError:
-                logger.error("Could not decode JSON from response body.")
+                logger.exception("Could not decode JSON from response body")
         
         assert create_res.status_code == 201
         created_data = create_res.json()

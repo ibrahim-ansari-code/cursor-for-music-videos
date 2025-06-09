@@ -135,6 +135,12 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
     maximumFractionDigits: 2,
   });
 
+  const decimalFormatter = new Intl.NumberFormat('en-US', {
+    style: 'decimal',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -392,7 +398,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
           </div>
           <Input
             type="text"
-            value={currencyFormatter.format(totalTax).replace('$', '')}
+            value={decimalFormatter.format(totalTax)}
             readOnly
             className="bg-gray-100 pl-7"
             title={`Exact value: $${totalTax}`}
@@ -407,7 +413,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
           </div>
           <Input
             type="text"
-            value={currencyFormatter.format(totalAmount).replace('$', '')}
+            value={decimalFormatter.format(totalAmount)}
             readOnly
             className="bg-gray-100 pl-7"
             title={`Exact value: $${totalAmount}`}

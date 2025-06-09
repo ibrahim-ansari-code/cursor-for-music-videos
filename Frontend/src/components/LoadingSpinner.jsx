@@ -21,7 +21,6 @@ const LoadingSpinner = ({
   return (
     <output 
       className={containerClasses}
-      role="status"
       aria-live="polite"
       aria-label={`Loading: ${message}`}
       aria-describedby="loading-text"

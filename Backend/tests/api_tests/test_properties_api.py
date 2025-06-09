@@ -4,13 +4,10 @@ API tests for Property management operations.
 
 # Standard library imports
 import logging
-import time
-from collections.abc import AsyncGenerator
 from typing import Any
 
 # Third-party imports
 import pytest
-import pytest_asyncio
 
 # Local application/library specific imports
 from .conftest import assert_api_success, assert_valid_json_response, APITestClient

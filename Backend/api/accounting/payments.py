@@ -1,9 +1,10 @@
-"""Payments API router – endpoints and helper utilities for creating, retrieving,
+"""Payments API router - endpoints and helper utilities for creating, retrieving,
 updating and deleting payment records, plus role-based query helpers and receipt parsing."""
 import logging
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, Iterable, Set
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status, Query, BackgroundTasks
 from pydantic import BaseModel, field_validator
@@ -280,6 +281,73 @@ async def _apply_tenant_payment_filters(query: Select, tenant_id: int | None, pr
     query = query.where(col(Payment.tenant_id) == user_tenant.id)
     return query
 
+async def _get_user_id_from_direct_relationship(payment: Payment) -> UUID | None:
+    """Strategy 1: Get user ID from the direct payment -> lease -> property -> user relationship."""
+    if payment.lease and payment.lease.property and payment.lease.property.user_id:
+        return payment.lease.property.user_id
+    return None
+
+async def _get_user_id_from_lease_query(payment: Payment, session: AsyncSession) -> UUID | None:
+    """Strategy 2: If lease relationship is broken, query for the lease directly."""
+    if not payment.lease_id:
+        return None
+    try:
+        lease_query = select(Lease).options(
+            selectinload(getattr(Lease, "property"))
+        ).where(col(Lease.id) == payment.lease_id)
+        lease_result = await session.execute(lease_query)
+        lease_obj = lease_result.scalar_one_or_none()
+        if lease_obj and lease_obj.property:
+            return lease_obj.property.user_id
+    except Exception:
+        logger.exception("Error during direct lease query in orphan check for payment %s", payment.id)
+    return None
+
+async def _get_user_id_from_tenant_query(payment: Payment, session: AsyncSession) -> UUID | None:
+    """Strategy 3: If tenant_id is available, find the user through tenant's other leases."""
+    if not payment.tenant_id:
+        return None
+    try:
+        tenant_property_query = select(Property.user_id).join(
+            Lease, col(Lease.property_id) == col(Property.id)
+        ).where(col(Lease.tenant_id) == payment.tenant_id).distinct()
+        property_user_ids = (await session.execute(tenant_property_query)).scalars().all()
+        if len(property_user_ids) == 1:
+            return property_user_ids[0]
+    except Exception:
+        logger.exception("Error during tenant property user lookup in orphan check for payment %s", payment.id)
+    return None
+
+async def _get_affected_user_ids(payments: Iterable[Payment], session: AsyncSession) -> Set[UUID]:
+    """Aggregates unique user IDs from a list of orphaned payments using multiple strategies."""
+    affected_user_ids: Set[UUID] = set()
+    for payment in payments:
+        user_id = (
+            await _get_user_id_from_direct_relationship(payment) or
+            await _get_user_id_from_lease_query(payment, session) or
+            await _get_user_id_from_tenant_query(payment, session)
+        )
+        if user_id:
+            affected_user_ids.add(user_id)
+    return affected_user_ids
+
+def _log_orphan_report(orphaned_count: int, users_with_orphans_count: int, orphaned_ids_list: list[str], current_user: User | None = None) -> None:
+    """Logs a formatted report about orphaned payments for single-user or global scans."""
+    log_context = f"for user {current_user.id}" if current_user else f"across {users_with_orphans_count} user(s)"
+    
+    logger.warning(
+        "Data integrity alert: Found %d unique orphaned lease-related payment(s) %s. "
+        "Payment IDs: %s. These payments reference lease_id but have broken lease/property relationships "
+        "and will not appear in landlord queries. Consider data cleanup.",
+        orphaned_count, log_context, ", ".join(orphaned_ids_list[:10])
+    )
+    if orphaned_count > 10:
+        logger.error(
+            "Critical data integrity issue: Found %d unique orphaned lease-related payments %s, "
+            "which suggests a systemic data quality problem. Immediate attention required.",
+            orphaned_count, log_context
+        )
+
 async def _check_for_orphaned_payments(session: AsyncSession, current_user: User, run_for_all_users: bool = False) -> dict:
     """
     Checks for payments that reference a lease but have missing or broken lease or property relationships.
@@ -323,85 +391,13 @@ async def _check_for_orphaned_payments(session: AsyncSession, current_user: User
         if orphaned_count > 0:
             orphaned_ids_list = [str(pid) for pid in unique_payment_ids]
             
-            # Calculate actual number of affected users for global scans
-            affected_user_ids = set()
+            users_with_orphans_count = 1
             if run_for_all_users:
-                # Count distinct users affected by orphaned payments using multiple strategies
-                # to handle broken relationships gracefully
-                for payment in payments:
-                    user_id = None
-                    
-                    # Strategy 1: Use direct relationship if available
-                    if payment.lease and payment.lease.property and payment.lease.property.user_id:
-                        user_id = payment.lease.property.user_id
-                    
-                    # Strategy 2: If lease exists but property relationship is broken,
-                    # try to find the property via a separate query
-                    elif payment.lease_id and not user_id:
-                        try:
-                            # Query the lease and property directly using the lease_id
-                            lease_query = select(Lease).options(
-                                selectinload(getattr(Lease, "property"))
-                            ).where(col(Lease.id) == payment.lease_id)
-                            lease_result = await session.execute(lease_query)
-                            lease_obj = lease_result.scalar_one_or_none()
-                            if lease_obj and lease_obj.property:
-                                user_id = lease_obj.property.user_id
-                        except Exception:
-                            logger.exception("Error during tenant property lookup in orphan check")
-                            # Don't let individual lookup failures break the overall count
-                            pass
-                    
-                    # Strategy 3: If we have a tenant_id, try to find the user through tenant relationships
-                    if not user_id and payment.tenant_id:
-                        try:
-                            # Find properties associated with this tenant
-                            tenant_property_query = select(Property.user_id).join(
-                                Lease, col(Lease.property_id) == col(Property.id)
-                            ).where(col(Lease.tenant_id) == payment.tenant_id).distinct()
-                            tenant_property_result = await session.execute(tenant_property_query)
-                            property_user_ids = tenant_property_result.scalars().all()
-                            # If there's exactly one user associated with this tenant, use it
-                            if len(property_user_ids) == 1:
-                                user_id = property_user_ids[0]
-                        except Exception:
-                            logger.exception("Error during tenant property user lookup in orphan check")
-                            # Don't let individual lookup failures break the overall count
-                            pass
-                    
-                    if user_id:
-                        affected_user_ids.add(user_id)
-                
+                affected_user_ids = await _get_affected_user_ids(payments, session)
                 users_with_orphans_count = len(affected_user_ids)
-                
-                # Use appropriate logging for global scans
-                logger.warning(
-                    "Data integrity alert: Found %d unique orphaned lease-related payment(s) across %d user(s). "
-                    "Payment IDs: %s. These payments reference lease_id but have broken lease/property relationships "
-                    "and will not appear in landlord queries. Consider data cleanup.",
-                    orphaned_count, users_with_orphans_count, ", ".join(orphaned_ids_list[:10])
-                )
-                if orphaned_count > 10:
-                    logger.error(
-                        "Critical data integrity issue: Found %d unique orphaned lease-related payments across %d user(s), "
-                        "which suggests a systemic data quality problem. Immediate attention required.",
-                        orphaned_count, users_with_orphans_count
-                    )
+                _log_orphan_report(orphaned_count, users_with_orphans_count, orphaned_ids_list)
             else:
-                # Single-user scan logging
-                users_with_orphans_count = 1
-                logger.warning(
-                    "Data integrity alert: Found %d unique orphaned lease-related payment(s) for user %s. "
-                    "Payment IDs: %s. These payments reference lease_id but have broken lease/property relationships "
-                    "and will not appear in landlord queries. Consider data cleanup.",
-                    orphaned_count, current_user.id, ", ".join(orphaned_ids_list[:10])
-                )
-                if orphaned_count > 10:
-                    logger.error(
-                        "Critical data integrity issue: User %s has %d unique orphaned lease-related payments, "
-                        "which suggests a systemic data quality problem. Immediate attention required.",
-                        current_user.id, orphaned_count
-                    )
+                _log_orphan_report(orphaned_count, users_with_orphans_count, orphaned_ids_list, current_user)
             
             return {
                 "orphaned_payments": True,
@@ -992,7 +988,8 @@ async def generate_due_payments_for_month( # Renamed function
         created_payments_responses = []
 
         for lease in active_leases:
-            if lease.id is None: continue
+            if lease.id is None:
+                continue
             if await get_month_payments(session, lease.id, current_month):
                 logger.info("Payment exists for lease %s, skipping.", lease.id)
                 continue
