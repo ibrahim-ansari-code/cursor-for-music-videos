@@ -35,6 +35,8 @@ from .helpers import (_ensure_id_is_not_none,
 # Import the resilient background deletion task from expenses
 from .expenses import quantize_2dp
 
+import asyncio
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -281,7 +283,7 @@ async def _apply_tenant_payment_filters(query: Select, tenant_id: int | None, pr
     query = query.where(col(Payment.tenant_id) == user_tenant.id)
     return query
 
-async def _get_user_id_from_direct_relationship(payment: Payment) -> UUID | None:
+def _get_user_id_from_direct_relationship(payment: Payment) -> UUID | None:
     """Strategy 1: Get user ID from the direct payment -> lease -> property -> user relationship."""
     if payment.lease and payment.lease.property and payment.lease.property.user_id:
         return payment.lease.property.user_id
@@ -318,35 +320,49 @@ async def _get_user_id_from_tenant_query(payment: Payment, session: AsyncSession
         logger.exception("Error during tenant property user lookup in orphan check for payment %s", payment.id)
     return None
 
-async def _get_affected_user_ids(payments: Iterable[Payment], session: AsyncSession) -> Set[UUID]:
-    """Aggregates unique user IDs from a list of orphaned payments using multiple strategies."""
+async def _get_affected_user_ids_concurrently(payments: Iterable[Payment], session: AsyncSession) -> Set[UUID]:
+    """Aggregates unique user IDs from a list of orphaned payments using multiple strategies, running DB queries concurrently."""
     affected_user_ids: Set[UUID] = set()
+    
+    # First pass: Handle synchronous checks
+    remaining_payments = []
     for payment in payments:
-        user_id = (
-            await _get_user_id_from_direct_relationship(payment) or
-            await _get_user_id_from_lease_query(payment, session) or
-            await _get_user_id_from_tenant_query(payment, session)
-        )
+        user_id = _get_user_id_from_direct_relationship(payment)
         if user_id:
             affected_user_ids.add(user_id)
+        else:
+            remaining_payments.append(payment)
+
+    # Second pass: Create concurrent tasks for DB-bound checks
+    tasks = []
+    for payment in remaining_payments:
+        tasks.append(_get_user_id_from_lease_query(payment, session))
+        tasks.append(_get_user_id_from_tenant_query(payment, session))
+
+    # Run all tasks concurrently and process results
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    for result in results:
+        if isinstance(result, UUID):
+            affected_user_ids.add(result)
+        elif result is not None:
+            logger.error("An unexpected error occurred during concurrent user ID fetching: %s", result)
+
     return affected_user_ids
 
 def _log_orphan_report(orphaned_count: int, users_with_orphans_count: int, orphaned_ids_list: list[str], current_user: User | None = None) -> None:
     """Logs a formatted report about orphaned payments for single-user or global scans."""
     log_context = f"for user {current_user.id}" if current_user else f"across {users_with_orphans_count} user(s)"
     
-    logger.warning(
-        "Data integrity alert: Found %d unique orphaned lease-related payment(s) %s. "
+    log_level = logging.ERROR if orphaned_count > 10 else logging.WARNING
+    message_prefix = "Critical data integrity issue" if log_level == logging.ERROR else "Data integrity alert"
+    
+    logger.log(
+        log_level,
+        "%s: Found %d unique orphaned lease-related payment(s) %s. "
         "Payment IDs: %s. These payments reference lease_id but have broken lease/property relationships "
         "and will not appear in landlord queries. Consider data cleanup.",
-        orphaned_count, log_context, ", ".join(orphaned_ids_list[:10])
+        message_prefix, orphaned_count, log_context, ", ".join(orphaned_ids_list[:10])
     )
-    if orphaned_count > 10:
-        logger.error(
-            "Critical data integrity issue: Found %d unique orphaned lease-related payments %s, "
-            "which suggests a systemic data quality problem. Immediate attention required.",
-            orphaned_count, log_context
-        )
 
 async def _check_for_orphaned_payments(session: AsyncSession, current_user: User, run_for_all_users: bool = False) -> dict:
     """
@@ -390,14 +406,14 @@ async def _check_for_orphaned_payments(session: AsyncSession, current_user: User
         
         if orphaned_count > 0:
             orphaned_ids_list = [str(pid) for pid in unique_payment_ids]
-            
             users_with_orphans_count = 1
+            
             if run_for_all_users:
-                affected_user_ids = await _get_affected_user_ids(payments, session)
+                affected_user_ids = await _get_affected_user_ids_concurrently(payments, session)
                 users_with_orphans_count = len(affected_user_ids)
                 _log_orphan_report(orphaned_count, users_with_orphans_count, orphaned_ids_list)
             else:
-                _log_orphan_report(orphaned_count, users_with_orphans_count, orphaned_ids_list, current_user)
+                _log_orphan_report(orphaned_count, 1, orphaned_ids_list, current_user)
             
             return {
                 "orphaned_payments": True,

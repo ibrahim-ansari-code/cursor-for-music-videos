@@ -91,31 +91,31 @@ router = APIRouter(prefix="/maintenance", tags=["Maintenance"])
 
 class MaintenanceRequestCreate(BaseModel):
     issue_title: str
-    description: Optional[str] = None
+    description: str | None = None
     property_id: int
-    unit_id: Optional[int] = None
-    tenant_id: Optional[int] = None
+    unit_id: int | None = None
+    tenant_id: int | None = None
     priority: MaintenancePriority
-    scheduled_date: Optional[date] = None
-    estimated_cost: Optional[float] = None
-    actual_cost: Optional[float] = None
-    photos: Optional[List[str]] = None
-    assigned_to: Optional[str] = None
+    scheduled_date: date | None = None
+    estimated_cost: float | None = None
+    actual_cost: float | None = None
+    photos: List[str] | None = None
+    assigned_to: str | None = None
 
 
 class MaintenanceRequestUpdate(BaseModel):
-    issue_title: Optional[str] = None
-    description: Optional[str] = None
-    property_id: Optional[int] = None
-    unit_id: Optional[int] = None
-    tenant_id: Optional[int] = None
-    priority: Optional[MaintenancePriority] = None
-    status: Optional[MaintenanceStatus] = None
-    scheduled_date: Optional[date] = None
-    estimated_cost: Optional[float] = None
-    actual_cost: Optional[float] = None
-    photos: Optional[List[str]] = None
-    assigned_to: Optional[str] = None
+    issue_title: str | None = None
+    description: str | None = None
+    property_id: int | None = None
+    unit_id: int | None = None
+    tenant_id: int | None = None
+    priority: MaintenancePriority | None = None
+    status: MaintenanceStatus | None = None
+    scheduled_date: date | None = None
+    estimated_cost: float | None = None
+    actual_cost: float | None = None
+    photos: List[str] | None = None
+    assigned_to: str | None = None
 
 
 class PropertyInfo(BaseModel):
@@ -137,20 +137,20 @@ class TenantInfo(BaseModel):
 class MaintenanceRequestResponse(BaseModel):
     id: int
     issue_title: str
-    description: Optional[str]
-    property: Optional[PropertyInfo]
-    unit: Optional[UnitInfo]
-    tenant: Optional[TenantInfo]
+    description: str | None
+    property: PropertyInfo | None
+    unit: UnitInfo | None
+    tenant: TenantInfo | None
     request_date: datetime
     priority: MaintenancePriority
     status: MaintenanceStatus
-    scheduled_date: Optional[date]
-    estimated_cost: Optional[float]
-    actual_cost: Optional[float]
-    photos: Optional[List[str]]
+    scheduled_date: date | None
+    estimated_cost: float | None
+    actual_cost: float | None
+    photos: List[str] | None
     created_at: datetime
     updated_at: datetime
-    assigned_to: Optional[str]
+    assigned_to: str | None
 
     class Config:
         from_attributes = True
@@ -217,15 +217,15 @@ async def check_permission(request: MaintenanceRequest, user: User, session: Asy
 
 @router.get("/requests", response_model=List[MaintenanceRequestResponse])
 async def list_maintenance_requests(
-    req_status: Optional[MaintenanceStatus] = Query(
+    req_status: MaintenanceStatus | None = Query(
         None, description="Filter by status"),
-    priority: Optional[MaintenancePriority] = Query(
+    priority: MaintenancePriority | None = Query(
         None, description="Filter by priority"),
-    property_id: Optional[int] = Query(
+    property_id: int | None = Query(
         None, description="Filter by property ID"),
-    unit_id: Optional[int] = Query(None, description="Filter by unit ID"),
-    tenant_id: Optional[int] = Query(None, description="Filter by tenant ID"),
-    assigned_to: Optional[str] = Query(
+    unit_id: int | None = Query(None, description="Filter by unit ID"),
+    tenant_id: int | None = Query(None, description="Filter by tenant ID"),
+    assigned_to: str | None = Query(
         None, description="Filter by assigned to"),
     limit: int = Query(50, ge=1, le=100, description="Number of results to return (max 100)"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),

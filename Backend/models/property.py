@@ -69,12 +69,12 @@ class Property(SQLModel, table=True):
     # Timestamps - Using datetime utilities
     created_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=True), nullable=True),
+        sa_column=Column(DateTime(timezone=True), nullable=False),
         description="Creation timestamp"
     )
     updated_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=True), nullable=True),
+        sa_column=Column(DateTime(timezone=True), nullable=False, onupdate=create_audit_datetime),
         description="Last update timestamp"
     )
 
@@ -143,7 +143,7 @@ class PropertyUnit(SQLModel, table=True):
     )
     updated_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=True), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False, onupdate=create_audit_datetime)
     )
 
     # Relationships

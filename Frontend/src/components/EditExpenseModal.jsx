@@ -128,18 +128,16 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
   }, [formData.amount, formData.taxes]);
 
   // Currency formatter for better display
-  const currencyFormatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'CAD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
 
-  const decimalFormatter = new Intl.NumberFormat('en-US', {
-    style: 'decimal',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  const decimalFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat('en-US', {
+        style: 'decimal',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    []
+  );
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
