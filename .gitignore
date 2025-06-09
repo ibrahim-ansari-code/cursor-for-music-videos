@@ -70,6 +70,8 @@ instance/
 .cursor/
 .cursor
 mcp.json
+.qodo
+testConfig.toml
 
 # Sphinx documentation
 docs/_build/

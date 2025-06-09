@@ -2,8 +2,14 @@ import os
 
 from supabase import Client, create_client
 
+
 def get_supabase_client() -> Client:
-    """Get a Supabase client instance."""
+    """
+    Returns a Supabase client instance using credentials from environment variables.
+    
+    Raises:
+        ValueError: If either SUPABASE_URL or SUPABASE_SERVICE_KEY environment variable is not set.
+    """
     url = os.getenv("SUPABASE_URL")
     # Use service key for admin operations
     key = os.getenv("SUPABASE_SERVICE_KEY")

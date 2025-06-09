@@ -24,14 +24,26 @@ import Tenants from "./pages/Tenants";
 import Maintenance from "./pages/Maintenance";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import Integrations from "./pages/Integrations";
 
 // Import the login API function
 import { getCurrentUser } from "./utils/api";
 import { supabase } from "./supabaseClient"; // Import Supabase client
+import LoadingSpinner from "./components/LoadingSpinner";
 
 // Auth Context
 export const AuthContext = createContext(null);
 
+/**
+ * Main application component that manages authentication state, session persistence, and protected routing.
+ *
+ * Initializes authentication state using Supabase, fetches user profile from the backend, and provides authentication context to the app. Handles login, logout, and session changes, and conditionally renders routes based on authentication status.
+ *
+ * @returns {JSX.Element} The root component of the authenticated single-page application.
+ *
+ * @remark
+ * If authentication or user profile fetching fails, the user is signed out and local authentication data is cleared.
+ */
 function App() {
   console.log(`[App] Effective VITE_API_URL: ${import.meta.env.VITE_API_URL}`);
   const [user, setUser] = useState(null);
@@ -250,14 +262,7 @@ function App() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="spinner block mx-auto mb-2 w-7 h-7" />
-          <p>Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading app..." />;
   }
 
   return (
@@ -281,6 +286,7 @@ function App() {
             <Route path="maintenance" element={<Maintenance />} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="integrations" element={<Integrations />} />
           </Route>
           <Route
             path="/login"

@@ -1,11 +1,12 @@
 import logging
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.datastructures import FormData
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -75,17 +76,61 @@ app.add_middleware(
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Handles FastAPI request validation errors by returning a JSON response with error details and a sanitized, serializable representation of the request body.
+    
+    If the request body is FormData, separates form fields and file uploads for safe logging and response content, avoiding exposure of file contents. Logs the validation error with a summary of the request body.
+    """
+    body_representation = exc.body  # Default to original body
+
+    if isinstance(exc.body, FormData):
+        # If body is FormData, create a serializable representation
+        form_fields = {}
+        file_fields = {}
+        try:
+            for key, value in exc.body.multi_items():
+                if isinstance(value, UploadFile):
+                    file_fields[key] = value.filename if value.filename is not None else "[FileUploadWithoutName]"
+                elif isinstance(value, str):  # Standard form fields
+                    form_fields[key] = value
+                else:  # Other types, convert to string to be safe
+                    form_fields[key] = str(value)
+
+            if form_fields or file_fields:
+                body_representation = {
+                    "form_fields": form_fields, "file_fields": file_fields}
+            else:
+                body_representation = "[Empty FormData Content]"
+        except (TypeError, AttributeError, ValueError) as e:  # Catch more specific errors
+            logger.exception(
+                "Error processing FormData in exception handler:"
+            )
+            body_representation = "[FormData Content - Error during processing]"
+
+    # For logging, use a potentially more verbose but safe string representation of the original body
+    log_body_str = str(exc.body)
+    if isinstance(exc.body, FormData):
+        # Avoid logging full file content
+        log_body_str = f"[FormData with keys: {list(exc.body.keys())}]"
+
     logger.error(
-        f"Validation error: {exc.errors()} for request: {request.url} with body: {exc.body}")
+        "Validation error: %s for request: %s with body: %s", exc.errors(), request.url, log_body_str
+    )
+
+    # Ensure the final body for the JSON response is serializable
+    final_response_body = body_representation
+    if not isinstance(body_representation, (dict, list, str, int, float, bool, type(None))):
+        final_response_body = str(body_representation)
+
     return JSONResponse(
         status_code=422,
-        content={"detail": exc.errors(), "body": exc.body},
+        content={"detail": exc.errors(), "body": final_response_body},
     )
 
 # Router import + error trapping
 try:
     # Router Imports
-    from Backend.api.accounting import router as accounting_router
+    from Backend.api.accounting import accounting_api_router
     from Backend.api.ai import router as ai_router
     from Backend.api.auth import router as auth_router
     from Backend.api.dashboard import router as dashboard_router
@@ -96,6 +141,7 @@ try:
     from Backend.api.reports import router as reports_router
     from Backend.api.tenants import router as tenants_router
     from Backend.api.units import router as units_router
+    from Backend.api.maintenance import router as maintenance_router
 
     # Include routers into the central api_main_router
     # Their internal prefixes (e.g., /auth, /properties) will apply
@@ -103,13 +149,15 @@ try:
     api_main_router.include_router(properties_router)
     api_main_router.include_router(dashboard_router)
     api_main_router.include_router(leases_router)
-    api_main_router.include_router(accounting_router)
+    # Include the new accounting router with its own base prefix
+    api_main_router.include_router(accounting_api_router, prefix="/accounting")
     api_main_router.include_router(ai_router)
     api_main_router.include_router(tenants_router)
     api_main_router.include_router(rent_tracker_router)
     api_main_router.include_router(units_router)
     api_main_router.include_router(reports_router)
     api_main_router.include_router(health_router)
+    api_main_router.include_router(maintenance_router)
 
     # Define the /api/health endpoint on the api_main_router
     @api_main_router.get("/health")
@@ -126,7 +174,7 @@ try:
 
     logger.info("✅ Routers mounted successfully under /api prefix.")
 except Exception as e:
-    logger.exception("❌ Failed to mount routers:")
+    logger.exception("❌ Failed to mount routers: %s", e)
     raise
 
 # Root endpoint (remains on app, not under /api)

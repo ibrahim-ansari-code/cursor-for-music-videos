@@ -1,20 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   fetchPayments,
   fetchInvoices,
   fetchExpenses,
   getAccountingOverview,
-  createPayment,
-  createInvoice,
-  createExpense,
   fetchProperties,
   fetchOutstandingPayments,
   fetchRentTracker,
   fetchReportSummary,
+  deletePaymentAPI,
+  deleteExpenseAPI,
 } from "../utils/api";
 import { toast } from "react-toastify";
 import NewPaymentModal from "../components/NewPaymentModal";
+import EditPaymentModal from "../components/EditPaymentModal";
 import NewExpenseModal from "../components/NewExpenseModal";
+import FilePreviewModal from "../components/FilePreviewModal";
 import MonthlyMetricsCard from "../components/MonthlyMetricsCard";
 import YTDCard from "../components/YTDCard";
 import SnapshotCard from "../components/SnapshotCard";
@@ -22,6 +23,20 @@ import RentTracker from "../components/RentTracker";
 import RevenueChart from "../components/RevenueChart";
 import ExpenseBreakdownChart from "../components/ExpenseBreakdownChart";
 import IncomeByPropertyCard from "../components/IncomeByPropertyCard";
+import EditExpenseModal from "../components/EditExpenseModal";
+import LoadingSpinner from "../components/LoadingSpinner";
+
+// Reusable loading spinner row for tables
+const LoadingRow = ({ colSpan, loadingText }) => (
+  <tr>
+    <td
+      colSpan={colSpan}
+      className="px-6 py-12 text-center text-sm text-gray-500"
+    >
+      <LoadingSpinner message={loadingText} size="medium" center={false} />
+    </td>
+  </tr>
+);
 
 const Accounting = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -33,6 +48,11 @@ const Accounting = () => {
   const [invoices, setInvoices] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [overviewData, setOverviewData] = useState(null);
+  const [paymentsPagination, setPaymentsPagination] = useState({
+    currentPage: 0,
+    limit: 15, // Number of items per page
+    hasMore: true,
+  });
   const [accountingData, setAccountingData] = useState({
     monthly: { revenue: 0, expenses: 0, netIncome: 0 },
     ytd: { revenue: 0, expenses: 0, netIncome: 0 },
@@ -42,19 +62,26 @@ const Accounting = () => {
 
   // Add state for rent tracker data
   const [rentTrackerData, setRentTrackerData] = useState([]);
-  const [currentMonth] = useState(new Date().getMonth() + 1); // JavaScript months are 0-indexed
+  // JavaScript getMonth() returns 0-based index (0-11), so add 1 for human-readable month (1-12)
+  const [currentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear] = useState(new Date().getFullYear());
 
   // Modal states
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState(null); // 'payment', 'invoice', 'expense'
+  const [modalType, setModalType] = useState(null);
   const [showNewPaymentModal, setShowNewPaymentModal] = useState(false);
+  const [showEditPaymentModal, setShowEditPaymentModal] = useState(false);
   const [showNewExpenseModal, setShowNewExpenseModal] = useState(false);
+
+  // State for file preview modal
+  const [showFilePreviewModal, setShowFilePreviewModal] = useState(false);
+  const [fileToPreviewUrl, setFileToPreviewUrl] = useState(null);
+  const [filePreviewName, setFilePreviewName] = useState("File Preview");
 
   // Filter states
   const [paymentFilters, setPaymentFilters] = useState({
     status: "all",
-    dateRange: "month",
+    dateRange: "all_time",
   });
 
   const [invoiceFilters, setInvoiceFilters] = useState({
@@ -67,8 +94,17 @@ const Accounting = () => {
     dateRange: "month",
   });
 
+  // Add state for selected payment/expense for editing/deleting
+  const [selectedItem, setSelectedItem] = useState(null);
+
   // Add state for outstanding payments
   const [outstandingPayments, setOutstandingPayments] = useState([]);
+
+  // Add state for edit expense modal
+  const [showEditExpenseModal, setShowEditExpenseModal] = useState(false);
+
+  // Ref to track previous payment filters for race condition prevention
+  const prevPaymentFiltersRef = useRef(paymentFilters);
 
   // Get overdue payments from rent tracker data
   const overduePayments = rentTrackerData.filter(
@@ -77,19 +113,36 @@ const Accounting = () => {
 
   useEffect(() => {
     if (activeTab === "overview") {
-      loadOverviewData();
-      loadOutstandingPayments();
-      loadRentTrackerData(); // Load rent tracker data for overview
-      loadExpensesData(); // Load expenses data for pie chart
-      loadIncomeByProperty(); // Load income by property data
-    } else if (activeTab === "payments") {
-      loadPaymentsData();
+      loadOverviewData(); // Load financial metrics and revenue trends for dashboard cards
+      loadOutstandingPayments(); // Load unpaid/overdue payment records
+      loadRentTrackerData(); // Load rent payment status for current month
+      loadExpensesData(); // Load expense records for charts and calculations
+      loadIncomeByProperty(); // Load property-specific income data for property breakdown
     } else if (activeTab === "invoices") {
-      loadInvoicesData();
+      loadInvoicesData(); // Load invoice records with applied filters
     } else if (activeTab === "expenses") {
-      loadExpensesData();
+      loadExpensesData(); // Load expense records with applied filters
     }
+    // Note: Payments data loading is handled by the pagination useEffect below
   }, [activeTab, paymentFilters, invoiceFilters, expenseFilters]);
+
+  // Effect for handling filter changes on the payments tab
+  useEffect(() => {
+    if (activeTab === "payments") {
+      // When filters change, reset to the first page.
+      // The pagination effect will then trigger the data load.
+      setPaymentsPagination((prev) => ({ ...prev, currentPage: 0 }));
+    }
+  }, [paymentFilters, activeTab]);
+
+  // Effect for handling data loading when pagination changes
+  useEffect(() => {
+    if (activeTab === "payments") {
+      loadPaymentsData();
+    }
+    // The dependency array correctly triggers this effect when either the
+    // page or the active tab changes, ensuring data is loaded when needed.
+  }, [paymentsPagination.currentPage, activeTab]);
 
   const loadRentTrackerData = async () => {
     try {
@@ -167,6 +220,10 @@ const Accounting = () => {
           paymentFilters.status.slice(1);
       }
 
+      // Add pagination params
+      params.limit = paymentsPagination.limit;
+      params.offset = paymentsPagination.currentPage * paymentsPagination.limit;
+
       // Convert date range to actual date params
       const today = new Date();
       if (paymentFilters.dateRange === "week") {
@@ -189,12 +246,15 @@ const Accounting = () => {
         yearAgo.setFullYear(today.getFullYear() - 1);
         params.start_date = yearAgo.toISOString().split("T")[0];
         params.end_date = today.toISOString().split("T")[0];
+      } else if (paymentFilters.dateRange === "all_time") {
+        // If dateRange is "all_time", no date params are set, so all payments are fetched (unless other filters apply)
       }
 
-      console.log("API params being sent:", params);
+      console.log("API params being sent for payments:", params);
       const data = await fetchPayments(params);
       console.log("Payments received from API:", data);
-      setPayments(data);
+      setPayments(data.items);
+      setPaymentsPagination((prev) => ({ ...prev, hasMore: data.has_more }));
       setError(null);
     } catch (err) {
       console.error("Error loading payments data:", err);
@@ -370,15 +430,88 @@ const Accounting = () => {
     }
   };
 
+  // Add function to handle editing a payment
+  const handleEditPayment = (payment) => {
+    console.log("Edit payment clicked:", payment);
+    setSelectedItem(payment);
+    setShowEditPaymentModal(true);
+  };
+
+  // Add function to handle deleting a payment
+  const handleDeletePayment = async (paymentId) => {
+    console.log("Delete payment clicked, ID:", paymentId);
+    if (
+      window.confirm(
+        "Are you sure you want to delete this payment? This action cannot be undone."
+      )
+    ) {
+      try {
+        await deletePaymentAPI(paymentId);
+        toast.success("Payment deleted successfully.");
+        loadPaymentsData();
+      } catch (err) {
+        console.error("Failed to delete payment:", err);
+        toast.error(err.message || "Failed to delete payment.");
+      }
+    }
+  };
+
+  const handlePreviewReceipt = (url, name = "Payment Receipt") => {
+    setFileToPreviewUrl(url);
+    setFilePreviewName(name);
+    setShowFilePreviewModal(true);
+  };
+
+  const handleEditExpense = (expense) => {
+    console.log("Edit expense clicked:", expense);
+    setSelectedItem(expense);
+    setShowEditExpenseModal(true);
+  };
+
+  const handleDeleteExpense = async (expenseId) => {
+    console.log("Delete expense clicked, ID:", expenseId);
+    // Find the expense to get its details for the toast message
+    const expenseToDelete = expenses.find((exp) => exp.id === expenseId);
+    const expenseDescription = expenseToDelete
+      ? `${expenseToDelete.category} for ${
+          expenseToDelete.property_name ||
+          `Property #${expenseToDelete.property_id}`
+        }`
+      : `Expense ID ${expenseId}`;
+
+    if (
+      window.confirm(
+        `Are you sure you want to delete this expense: ${expenseDescription}? This action cannot be undone.`
+      )
+    ) {
+      try {
+        await deleteExpenseAPI(expenseId);
+        toast.success(`${expenseDescription} deleted successfully.`);
+        loadExpensesData(); // Refresh the list
+        loadOverviewData(); // Refresh overview data as expenses changed
+      } catch (err) {
+        console.error("Failed to delete expense:", err);
+        toast.error(err.message || "Failed to delete expense.");
+      }
+    }
+  };
+
+  const handleNextPage = () => {
+    setPaymentsPagination((prev) => ({
+      ...prev,
+      currentPage: prev.currentPage + 1,
+    }));
+  };
+
+  const handlePreviousPage = () => {
+    setPaymentsPagination((prev) => ({
+      ...prev,
+      currentPage: Math.max(0, prev.currentPage - 1),
+    }));
+  };
+
   if (loading && activeTab === "overview") {
-    return (
-      <div className="p-4 flex justify-center items-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-3 text-gray-600">Loading accounting data...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading accounting data..." />;
   }
 
   return (
@@ -650,10 +783,11 @@ const Accounting = () => {
                     })
                   }
                 >
-                  <option value="week">Last 7 days</option>
-                  <option value="month">Last 30 days</option>
-                  <option value="quarter">Last 90 days</option>
-                  <option value="year">Last year</option>
+                  <option value="all_time">All Time</option>
+                  <option value="week">Last 7 Days</option>
+                  <option value="month">Last 30 Days</option>
+                  <option value="quarter">Last 3 Months</option>
+                  <option value="year">Last 12 Months</option>
                 </select>
               </div>
             </div>
@@ -717,7 +851,9 @@ const Accounting = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {payments.length > 0 ? (
+                  {loading && activeTab === "payments" ? (
+                    <LoadingRow colSpan={6} loadingText="Loading payments..." />
+                  ) : payments.length > 0 ? (
                     payments.map((payment) => (
                       <tr key={payment.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -779,17 +915,43 @@ const Accounting = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                           <div className="flex justify-center space-x-2">
+                            {payment.receipt_url && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const descriptiveName = `Receipt for ${
+                                    payment.tenant_name || "Unknown Tenant"
+                                  } ${
+                                    payment.property_name
+                                      ? " - " + payment.property_name
+                                      : ""
+                                  }`;
+                                  handlePreviewReceipt(
+                                    payment.receipt_url,
+                                    descriptiveName
+                                  );
+                                }}
+                                className="text-blue-600 hover:text-blue-900 p-1"
+                                title="View Receipt"
+                              >
+                                <i className="fas fa-eye" />
+                              </button>
+                            )}
                             <button
+                              type="button"
+                              onClick={() => handleEditPayment(payment)}
                               className="text-indigo-600 hover:text-indigo-900"
                               title="Edit"
                             >
-                              <i className="fas fa-edit"></i>
+                              <i className="fas fa-edit" />
                             </button>
                             <button
+                              type="button"
+                              onClick={() => handleDeletePayment(payment.id)}
                               className="text-red-600 hover:text-red-900"
                               title="Delete"
                             >
-                              <i className="fas fa-trash-alt"></i>
+                              <i className="fas fa-trash-alt" />
                             </button>
                           </div>
                         </td>
@@ -807,6 +969,32 @@ const Accounting = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+            {/* Pagination Controls */}
+            <div className="flex justify-between items-center mt-4">
+              <button
+                type="button"
+                onClick={handlePreviousPage}
+                disabled={paymentsPagination.currentPage === 0 || loading}
+                className="btn btn-secondary disabled:opacity-50"
+                aria-label="Go to previous page"
+              >
+                <i className="fas fa-arrow-left mr-2" aria-hidden="true" />
+                Previous
+              </button>
+              <span className="text-sm text-gray-700">
+                Page {paymentsPagination.currentPage + 1}
+              </span>
+              <button
+                type="button"
+                onClick={handleNextPage}
+                disabled={!paymentsPagination.hasMore || loading}
+                className="btn btn-secondary disabled:opacity-50"
+                aria-label="Go to next page"
+              >
+                Next
+                <i className="fas fa-arrow-right ml-2" aria-hidden="true" />
+              </button>
             </div>
           </div>
         </div>
@@ -938,12 +1126,6 @@ const Accounting = () => {
                     </th>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Vendor
-                    </th>
-                    <th
-                      scope="col"
                       className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                     >
                       Actions
@@ -951,59 +1133,63 @@ const Accounting = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {expenses.length > 0 ? (
+                  {loading && activeTab === "expenses" ? (
+                    <LoadingRow colSpan={5} loadingText="Loading expenses..." />
+                  ) : expenses.length > 0 ? (
                     expenses.map((expense) => (
                       <tr key={expense.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {expense.property_name ||
-                              `Property #${expense.property_id}`}
-                          </div>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {expense.property_name ||
+                            `Property #${expense.property_id}` ||
+                            "Unknown Property"}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {expense.category.charAt(0).toUpperCase() +
-                              expense.category.slice(1)}
-                          </div>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {expense.category.charAt(0).toUpperCase() +
+                            expense.category.slice(1)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            ${expense.amount.toFixed(2)}
-                          </div>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          ${parseFloat(expense.total_amount).toFixed(2)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {new Date(
-                              expense.expense_date
-                            ).toLocaleDateString()}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {expense.vendor_id
-                              ? `Vendor #${expense.vendor_id}`
-                              : "-"}
-                          </div>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(expense.expense_date).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                           <div className="flex justify-center space-x-2">
+                            {expense.receipt_url && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handlePreviewReceipt(
+                                    expense.receipt_url,
+                                    `Receipt: ${expense.category} on ${
+                                      expense.property_name ||
+                                      "Property " + expense.property_id
+                                    } - ${new Date(
+                                      expense.expense_date
+                                    ).toLocaleDateString()}`
+                                  )
+                                }
+                                className="text-blue-600 hover:text-blue-900 p-1"
+                                title="View Receipt"
+                              >
+                                <i className="fas fa-eye" />
+                              </button>
+                            )}
                             <button
-                              className="text-indigo-600 hover:text-indigo-900"
-                              title="Edit"
+                              type="button"
+                              onClick={() => handleEditExpense(expense)}
+                              className="text-indigo-600 hover:text-indigo-900 p-1"
+                              title="Edit Expense"
                             >
-                              <i className="fas fa-edit"></i>
+                              <i className="fas fa-edit" />
                             </button>
                             <button
-                              className="text-green-600 hover:text-green-900"
-                              title="View Receipt"
+                              type="button"
+                              onClick={() => handleDeleteExpense(expense.id)}
+                              className="text-red-600 hover:text-red-900 p-1"
+                              title="Delete Expense"
                             >
-                              <i className="fas fa-receipt"></i>
-                            </button>
-                            <button
-                              className="text-red-600 hover:text-red-900"
-                              title="Delete"
-                            >
-                              <i className="fas fa-trash-alt"></i>
+                              <i className="fas fa-trash-alt" />
                             </button>
                           </div>
                         </td>
@@ -1012,7 +1198,7 @@ const Accounting = () => {
                   ) : (
                     <tr>
                       <td
-                        colSpan="6"
+                        colSpan="5"
                         className="px-6 py-4 text-center text-sm text-gray-500"
                       >
                         No expenses found
@@ -1053,10 +1239,27 @@ const Accounting = () => {
           onClose={handleCloseModal}
           onSuccess={() => {
             setShowNewPaymentModal(false);
-            loadOverviewData(); // Refresh overview data after payment creation
-            loadPaymentsData(); // Refresh payments data after payment creation
+            loadOverviewData();
+            loadPaymentsData();
             toast.success("Payment created successfully");
           }}
+        />
+      )}
+
+      {showEditPaymentModal && selectedItem && (
+        <EditPaymentModal
+          isOpen={showEditPaymentModal}
+          onClose={() => {
+            setShowEditPaymentModal(false);
+            setSelectedItem(null);
+          }}
+          onSuccess={() => {
+            setShowEditPaymentModal(false);
+            setSelectedItem(null);
+            loadPaymentsData();
+            toast.success("Payment updated successfully");
+          }}
+          paymentData={selectedItem}
         />
       )}
 
@@ -1066,10 +1269,40 @@ const Accounting = () => {
           onClose={handleCloseModal}
           onSuccess={() => {
             setShowNewExpenseModal(false);
-            loadOverviewData(); // Refresh overview data after expense creation
-            loadExpensesData(); // Refresh expenses data after expense creation
+            loadOverviewData();
+            loadExpensesData();
             toast.success("Expense created successfully");
           }}
+        />
+      )}
+
+      {showFilePreviewModal && fileToPreviewUrl && (
+        <FilePreviewModal
+          isOpen={showFilePreviewModal}
+          onClose={() => {
+            setShowFilePreviewModal(false);
+            setFileToPreviewUrl(null);
+            setFilePreviewName("File Preview");
+          }}
+          fileUrl={fileToPreviewUrl}
+          fileName={filePreviewName}
+        />
+      )}
+
+      {showEditExpenseModal && selectedItem && (
+        <EditExpenseModal
+          isOpen={showEditExpenseModal}
+          onClose={() => {
+            setShowEditExpenseModal(false);
+            setSelectedItem(null);
+          }}
+          onSuccess={() => {
+            setShowEditExpenseModal(false);
+            setSelectedItem(null);
+            loadExpensesData();
+            toast.success("Expense updated successfully");
+          }}
+          expenseData={selectedItem}
         />
       )}
     </div>

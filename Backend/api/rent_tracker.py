@@ -12,7 +12,8 @@ from sqlmodel import col
 
 from Backend.api.auth import get_current_user
 from Backend.database import get_session
-from Backend.models.accounting import Payment, PaymentStatus
+from Backend.models.accounting.payment import Payment
+from Backend.models.accounting.common import PaymentStatus
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.user import User
 

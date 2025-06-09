@@ -1,0 +1,25 @@
+# Sensitive authentication files
+api_tests/.test_jwt_token
+.test_credentials.json
+
+# Python cache directories
+__pycache__/
+*.pyc
+*.pyo
+
+# Pytest cache
+.pytest_cache/
+
+# Test reports and logs
+pytest_report.json
+*.log
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+Thumbs.db

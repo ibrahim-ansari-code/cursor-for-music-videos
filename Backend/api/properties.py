@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 from typing import Annotated
+from uuid import UUID as PythonUUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -72,7 +73,7 @@ class PropertyResponse(BaseModel):
     description: str | None = None
     year_built: int | None = None
     status: PropertyStatus = PropertyStatus.ACTIVE
-    user_id: str  # Changed from int to str
+    user_id: PythonUUID
     created_at: datetime
     updated_at: datetime
 
@@ -81,9 +82,9 @@ class PropertyResponse(BaseModel):
 
 
 class OwnerResponse(BaseModel):
-    id: str  # Changed from int to str
-    first_name: str
-    last_name: str
+    id: PythonUUID
+    first_name: str | None = None
+    last_name: str | None = None
     email: str
     phone: str | None = None
     profile_image_url: str | None = None
@@ -121,8 +122,8 @@ class PropertyDetailResponse_Standalone(BaseModel):
     property_type: str
     description: str | None = None
     year_built: int | None = None
-    status: str  # Changed from PropertyStatus to str
-    user_id: str  # Will inherit str from PropertyResponse if it was based on it, explicitly set for clarity
+    status: str
+    user_id: PythonUUID
     created_at: datetime
     updated_at: datetime
     # Additional fields for detail view
@@ -152,18 +153,9 @@ async def get_property(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Retrieves a property by its ID, including owner and unit details with tenant
-    information.
-
-    Checks that the requesting user is the property owner or an admin. Calculates
-    the property's status based on the rental status of its units, overriding the
-    stored status if all units are vacant, all are rented, or some are partially
-    rented. Serializes all related data for the response. Raises a 404 error if
-    the property does not exist, a 403 error if the user lacks permission, or a
-    500 error if a critical retrieval issue occurs.
-
-    Returns:
-        A detailed property response including owner and units with tenant info.
+    Retrieves a property by its ID, including owner details and all units with tenant information.
+    
+    Checks that the requesting user is the property owner or an admin. Calculates the property's status based on the occupancy of its units, overriding the stored status if all units are vacant, all are rented, or some are partially rented. Returns a detailed property response with owner and unit information, or raises an HTTP error if the property is not found or access is forbidden.
     """
     try:
         # Get property with owner and units relationship loaded
@@ -260,8 +252,7 @@ async def get_property(
             description=property_orm.description,
             year_built=property_orm.year_built,
             status=response_status,  # Use calculated status
-            # Ensure user_id is explicitly cast to string
-            user_id=str(property_orm.user_id),
+            user_id=property_orm.user_id,
             created_at=property_orm.created_at,
             updated_at=property_orm.updated_at,
             owner=OwnerResponse.model_validate(
@@ -339,12 +330,9 @@ async def create_property(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Creates a new property with the current user as the owner.
-
-    If unit names are provided, creates associated units for the property,
-    assigning each to the appropriate floor if possible. Returns the created
-    property with owner and units included in the response. Raises a 500 error
-    if property creation or retrieval fails.
+    Creates a new property owned by the current user, optionally with associated units.
+    
+    If unit names are provided, creates units for the property and assigns each to a floor based on the unit name. Returns the created property with owner and units included. Raises a 500 error if creation or retrieval fails.
     """
     try:
         # Create new property instance
@@ -358,8 +346,7 @@ async def create_property(
             description=property_data.description,
             year_built=property_data.year_built,
             status=property_data.status or PropertyStatus.ACTIVE,
-            # Ensure user_id is explicitly cast to string
-            user_id=str(current_user.id),
+            user_id=current_user.id,
             created_at=create_audit_datetime(),
             updated_at=create_audit_datetime()
         )
@@ -436,14 +423,9 @@ async def update_property(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Updates an existing property's details and returns the updated information.
-
-    Only the property owner or an admin can update a property. This operation
-    does not allow modifying or creating property units. The response includes
-    the updated property details, recalculated status based on unit occupancy,
-    and related owner and unit information. Raises a 404 error if the property
-    does not exist, a 403 error if the user lacks permission, and a 400 error
-    if no update data is provided.
+    Updates an existing property's details and returns the updated property information.
+    
+    Only the property owner or an admin can perform this operation. Units cannot be modified or created through this endpoint. The response includes the updated property details, recalculated status based on unit occupancy, and related owner and unit information. Raises a 404 error if the property does not exist, a 403 error if the user lacks permission, and a 400 error if no update data is provided.
     """
     # Fetch the existing property
     result = await session.execute(
@@ -557,8 +539,7 @@ async def update_property(
             description=updated_property_orm.description,
             year_built=updated_property_orm.year_built,
             status=response_status,
-            # Ensure user_id is explicitly cast to string
-            user_id=str(updated_property_orm.user_id),
+            user_id=updated_property_orm.user_id,
             created_at=updated_property_orm.created_at,
             updated_at=updated_property_orm.updated_at,
             owner=OwnerResponse.model_validate(

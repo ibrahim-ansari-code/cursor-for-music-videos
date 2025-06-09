@@ -1,6 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
-import { fetchProperties, createExpense } from "../utils/api";
+import {
+  fetchProperties,
+  createExpense,
+  parseExpenseReceiptAPI,
+} from "../utils/api";
+import {
+  ModalShell,
+  Label,
+  Input,
+  Select,
+  TextArea,
+  Button,
+  // ErrorMessage, // General error is now handled by ModalShell's error prop
+} from "./ui/SharedModalComponents";
+import { AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 const EXPENSE_CATEGORIES = [
   "maintenance",
@@ -12,27 +27,33 @@ const EXPENSE_CATEGORIES = [
 ];
 
 const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
-  // Form state
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     property_id: "",
+    property_name: "", // For displaying in search input after selection
     category: "",
     amount: "",
     expense_date: new Date().toISOString().split("T")[0],
-    vendor_id: "",
     description: "",
     receipt_url: null,
-  });
-
-  // UI state
+    taxes: [{ tax_name: "", tax_rate: "" }],
+  };
+  const [formData, setFormData] = useState(initialFormData);
+  const [calculatedTotalTaxAmount, setCalculatedTotalTaxAmount] = useState(0);
+  const [calculatedTotalAmount, setCalculatedTotalAmount] = useState(0);
   const [properties, setProperties] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  // Dropdown states
+  const [isLoading, setIsLoading] = useState(false); // For main form submission
+  const [error, setError] = useState(null); // General modal error
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [isParsingReceipt, setIsParsingReceipt] = useState(false);
+  const [receiptParseError, setReceiptParseError] = useState(null); // Specific error for receipt parsing
+  const [currentReceiptUrl, setCurrentReceiptUrl] = useState(null);
+  const [showReceiptPreview, setShowReceiptPreview] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState("");
-  const [propertySearchTerm, setPropertySearchTerm] = useState("");
+  const propertySearchInputRef = useRef(null);
+  
+  // Add AbortController ref for receipt parsing
+  const receiptParseAbortControllerRef = useRef(null);
 
-  // Load properties on mount
   useEffect(() => {
     const loadProperties = async () => {
       try {
@@ -40,14 +61,62 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
         setProperties(data);
       } catch (err) {
         console.error("Failed to load properties:", err);
-        setError("Failed to load properties. Please try again.");
+        // setError("Failed to load properties. Please try again."); // Potentially set general modal error
+        toast.error("Failed to load properties for dropdown.");
       }
     };
-
     if (isOpen) {
       loadProperties();
+      // Reset form when modal opens
+      setFormData(initialFormData);
+      setCalculatedTotalTaxAmount(0);
+      setCalculatedTotalAmount(0);
+      setError(null);
+      setReceiptFile(null);
+      setIsParsingReceipt(false);
+      setReceiptParseError(null);
+      setCurrentReceiptUrl(null);
+      setShowReceiptPreview(false);
+      setDropdownOpen("");
     }
   }, [isOpen]);
+
+  // Cleanup function for aborting receipt parsing when modal closes or component unmounts
+  useEffect(() => {
+    return () => {
+      // Abort any ongoing receipt parsing request when component unmounts
+      if (receiptParseAbortControllerRef.current) {
+        receiptParseAbortControllerRef.current.abort();
+        receiptParseAbortControllerRef.current = null;
+      }
+    };
+  }, []);
+
+  // Additional cleanup when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      // Abort any ongoing receipt parsing request when modal closes
+      if (receiptParseAbortControllerRef.current) {
+        receiptParseAbortControllerRef.current.abort();
+        receiptParseAbortControllerRef.current = null;
+      }
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const subtotal = Number.parseFloat(formData.amount) || 0;
+    let totalTax = 0;
+    if (subtotal > 0) {
+      formData.taxes.forEach((tax) => {
+        const rate = Number.parseFloat(tax.tax_rate);
+        if (tax.tax_name && !isNaN(rate) && rate > 0) {
+          totalTax += (subtotal * rate) / 100;
+        }
+      });
+    }
+    setCalculatedTotalTaxAmount(totalTax);
+    setCalculatedTotalAmount(subtotal + totalTax);
+  }, [formData.amount, formData.taxes]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -57,265 +126,566 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
     }));
   };
 
+  const handleTaxInputChange = (index, e) => {
+    const { name, value } = e.target;
+    // Ensure immutable update by creating a completely new array
+    const updatedTaxes = formData.taxes.map((tax, i) =>
+      i === index ? { ...tax, [name]: value } : tax
+    );
+    setFormData((prev) => ({ ...prev, taxes: updatedTaxes }));
+  };
+
+  const addTaxItem = () => {
+    // Ensure immutable update by creating a new array with spread operator
+    setFormData((prev) => ({
+      ...prev,
+      taxes: [...prev.taxes, { tax_name: "", tax_rate: "" }],
+    }));
+  };
+
+  const removeTaxItem = (index) => {
+    // Ensure immutable update by creating a new array with filter
+    setFormData((prev) => ({
+      ...prev,
+      taxes: prev.taxes.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleReceiptFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Abort any existing receipt parsing request
+      if (receiptParseAbortControllerRef.current) {
+        receiptParseAbortControllerRef.current.abort();
+      }
+
+      // Create new AbortController for this request
+      const abortController = new AbortController();
+      receiptParseAbortControllerRef.current = abortController;
+
+      setReceiptFile(file);
+      setReceiptParseError(null);
+      setIsParsingReceipt(true);
+      setCurrentReceiptUrl(null);
+      setShowReceiptPreview(false);
+      const formDataForApi = new FormData();
+      formDataForApi.append("file", file);
+      try {
+        const response = await parseExpenseReceiptAPI(formDataForApi, {
+          signal: abortController.signal, // Pass abort signal to API call
+        });
+        
+        // Check if request was aborted
+        if (abortController.signal.aborted) {
+          return; // Don't process the response if aborted
+        }
+
+        if (response && response.parsed_details) {
+          const { parsed_details, receipt_url: parsedReceiptUrl } = response;
+          let updatedAmount = formData.amount;
+          let updatedTaxes = [...formData.taxes]; // Create new array reference
+
+          if (
+            parsed_details.subtotal_amount !== null &&
+            parsed_details.subtotal_amount > 0
+          ) {
+            updatedAmount = parsed_details.subtotal_amount.toString();
+            if (
+              parsed_details.total_amount !== null &&
+              parsed_details.total_amount > parsed_details.subtotal_amount
+            ) {
+              const totalTaxParsed =
+                parsed_details.total_amount - parsed_details.subtotal_amount;
+              const taxRate =
+                (totalTaxParsed / parsed_details.subtotal_amount) * 100;
+              if (taxRate > 0) {
+                // Create new array with new tax object
+                updatedTaxes = [
+                  {
+                    tax_name: "Sales Tax (auto)",
+                    tax_rate: taxRate.toFixed(2),
+                  },
+                ];
+              } else {
+                // Create new array with default tax object
+                updatedTaxes = [{ tax_name: "", tax_rate: "" }];
+              }
+            } else {
+              // Create new array with default tax object
+              updatedTaxes = [{ tax_name: "", tax_rate: "" }];
+            }
+          } else if (parsed_details.total_amount !== null) {
+            updatedAmount = parsed_details.total_amount.toString();
+            // Create new array with default tax object
+            updatedTaxes = [{ tax_name: "", tax_rate: "" }];
+          }
+
+          setFormData((prev) => ({
+            ...prev,
+            amount: updatedAmount,
+            taxes: updatedTaxes, // Assign the new array reference
+            expense_date:
+              parsed_details.payment_date ||
+              prev.expense_date ||
+              new Date().toISOString().split("T")[0],
+            description:
+              parsed_details.description_notes || prev.description || "",
+          }));
+          setCurrentReceiptUrl(parsedReceiptUrl);
+          toast.success(response.message || "Receipt parsed successfully!");
+        } else {
+          throw new Error("Invalid response from receipt parser.");
+        }
+      } catch (err) {
+        // Don't show error if request was aborted (modal closed)
+        if (err.name === 'AbortError' || abortController.signal.aborted) {
+          console.log("Receipt parsing was aborted");
+          return;
+        }
+        setReceiptParseError(err.message || "Failed to parse receipt.");
+        toast.error(err.message || "Failed to parse receipt.");
+      } finally {
+        // Only update loading state if request wasn't aborted
+        if (!abortController.signal.aborted) {
+          setIsParsingReceipt(false);
+        }
+        // Clear the abort controller reference
+        if (receiptParseAbortControllerRef.current === abortController) {
+          receiptParseAbortControllerRef.current = null;
+        }
+      }
+    }
+  };
+
+  const handleExpensePropertySelect = (property) => {
+    setFormData((prev) => ({
+      ...prev,
+      property_id: property.id.toString(),
+      property_name: property.name,
+    }));
+    setDropdownOpen("");
+  };
+
+  const handleExpensePropertySelectKeyDown = (event, property) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleExpensePropertySelect(property);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null); // Clear previous general errors
 
     if (!formData.property_id) {
       setError("Please select a property.");
       return;
     }
+    if (!formData.category) {
+      setError("Please select a category.");
+      return;
+    }
+    if (!formData.amount || Number.parseFloat(formData.amount) <= 0) {
+      setError("Please enter a valid subtotal amount greater than 0.");
+      return;
+    }
 
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      setError(null);
-
-      // Properly format the expense data to match backend expectations
       const expenseData = {
-        property_id: parseInt(formData.property_id),
+        property_id: Number.parseInt(formData.property_id, 10),
         category: formData.category,
-        amount: parseFloat(formData.amount),
+        subtotal_amount: Number.parseFloat(formData.amount),
         expense_date: formData.expense_date,
         description: formData.description || "",
-        vendor_id: formData.vendor_id ? parseInt(formData.vendor_id) : null,
-        receipt_url: formData.receipt_url,
+        receipt_url: currentReceiptUrl,
+        taxes: formData.taxes
+          .filter(
+            (tax) =>
+              tax.tax_name &&
+              tax.tax_rate &&
+              Number.parseFloat(tax.tax_rate) >= 0
+          )
+          .map((tax) => ({
+            tax_name: tax.tax_name,
+            tax_rate: Number.parseFloat(tax.tax_rate),
+          })),
       };
 
-      console.log("Submitting expense with data:", expenseData);
       await createExpense(expenseData);
-      // Success notification is handled by the parent component
+      toast.success("Expense created successfully!");
       onSuccess?.();
-      handleClose();
+      onClose(); // This will trigger useEffect to reset form state
     } catch (err) {
       console.error("Failed to create expense:", err);
-      setError(err.message || "Failed to create expense. Please try again.");
-      toast.error("Failed to create expense");
+      const errorMsg =
+        err.data?.detail ||
+        err.message ||
+        "Failed to create expense. Please try again.";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleClose = () => {
-    setFormData({
-      property_id: "",
-      category: "",
-      amount: "",
-      expense_date: new Date().toISOString().split("T")[0],
-      vendor_id: "",
-      description: "",
-      receipt_url: null,
-    });
-    setError(null);
-    setPropertySearchTerm("");
-    onClose();
-  };
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    /**
+     * Closes the property search dropdown when a click occurs outside the input container.
+     *
+     * @param {MouseEvent} event - The mouse event triggered by the user's click.
+     */
+    function handleClickOutside(event) {
+      if (
+        propertySearchInputRef.current &&
+        !propertySearchInputRef.current.contains(event.target)
+      ) {
+        setDropdownOpen("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [propertySearchInputRef]);
 
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-lg bg-white">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">New Expense</h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-600 hover:text-gray-800"
-          >
-            <i className="fas fa-times"></i>
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Property Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Property *
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search properties..."
-                value={propertySearchTerm}
-                onChange={(e) => {
-                  setPropertySearchTerm(e.target.value);
-                  setDropdownOpen("property");
-                }}
-                className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
-              {dropdownOpen === "property" && (
-                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md">
-                  <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                    {properties
-                      .filter((property) =>
-                        property.name
-                          .toLowerCase()
-                          .includes(propertySearchTerm.toLowerCase())
-                      )
-                      .map((property) => (
-                        <li
-                          key={property.id}
-                          className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
-                          onClick={() => {
-                            setFormData((prev) => ({
-                              ...prev,
-                              property_id: property.id,
-                            }));
-                            setPropertySearchTerm(property.name);
-                            setDropdownOpen("");
-                          }}
-                        >
-                          <span className="font-normal block truncate">
-                            {property.name}
-                          </span>
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Category Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category *
-            </label>
-            <select
-              name="category"
-              value={formData.category}
-              onChange={handleInputChange}
-              required
-              className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            >
-              <option value="">Select a category</option>
-              {EXPENSE_CATEGORIES.map((category) => (
-                <option key={category} value={category}>
-                  {category.charAt(0).toUpperCase() + category.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Amount */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Amount *
-            </label>
-            <div className="relative rounded-md shadow-sm">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span className="text-gray-500 sm:text-sm">$</span>
-              </div>
-              <input
-                type="number"
-                name="amount"
-                value={formData.amount}
-                onChange={handleInputChange}
-                min="0"
-                step="0.01"
-                required
-                className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 pr-3 py-2 border-gray-300 rounded-md text-sm"
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          {/* Expense Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date *
-            </label>
-            <input
-              type="date"
-              name="expense_date"
-              value={formData.expense_date}
-              onChange={handleInputChange}
-              required
-              className="focus:ring-blue-500 focus:border-blue-500 block w-full py-2 px-3 border-gray-300 rounded-md text-sm"
-            />
-          </div>
-
-          {/* Vendor */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Vendor
-            </label>
-            <input
-              type="text"
-              name="vendor_id"
-              value={formData.vendor_id}
-              onChange={handleInputChange}
-              className="focus:ring-blue-500 focus:border-blue-500 block w-full py-2 px-3 border-gray-300 rounded-md text-sm"
-              placeholder="Optional vendor name or ID"
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              rows="2"
-              className="focus:ring-blue-500 focus:border-blue-500 block w-full py-2 px-3 border-gray-300 rounded-md text-sm"
-              placeholder="Description of the expense..."
-            />
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
-              <span className="block sm:inline">{error}</span>
+  const formContent = (
+    <form
+      id="new-expense-form"
+      onSubmit={handleSubmit}
+      className="space-y-5 w-full"
+    >
+      <div>
+        <Label htmlFor="property_id" required>
+          Property
+        </Label>
+        <div className="relative" ref={propertySearchInputRef}>
+          <Input
+            type="text"
+            id="property_search"
+            name="property_search"
+            placeholder="Search and select a property..."
+            value={formData.property_name} // Display selected property name
+            onChange={(e) => {
+              setFormData((prev) => ({
+                ...prev,
+                property_id: "",
+                property_name: e.target.value,
+              }));
+              setDropdownOpen("property");
+            }}
+            onFocus={() => setDropdownOpen("property")}
+            autoComplete="off"
+          />
+          {dropdownOpen === "property" && properties.length > 0 && (
+            <div className="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+              <ul className="py-1" role="listbox">
+                {properties
+                  .filter((property) =>
+                    property.name
+                      .toLowerCase()
+                      .includes(formData.property_name.toLowerCase())
+                  )
+                  .map((property) => (
+                    <li
+                      key={property.id}
+                      role="option"
+                      tabIndex={0}
+                      aria-selected={
+                        formData.property_id === property.id.toString()
+                      }
+                      className="px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-500 hover:text-white cursor-pointer transition-colors duration-150"
+                      onClick={() => handleExpensePropertySelect(property)}
+                      onKeyDown={(e) =>
+                        handleExpensePropertySelectKeyDown(e, property)
+                      }
+                    >
+                      {property.name}
+                    </li>
+                  ))}
+              </ul>
             </div>
           )}
+        </div>
+      </div>
 
-          {/* Form Actions */}
-          <div className="mt-6 flex justify-end space-x-3">
-            <button
+      <div>
+        <Label htmlFor="category" required>
+          Category
+        </Label>
+        <Select
+          id="category"
+          name="category"
+          value={formData.category}
+          onChange={handleInputChange}
+          required
+        >
+          <option value="">Select a category</option>
+          {EXPENSE_CATEGORIES.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat.charAt(0).toUpperCase() + cat.slice(1)}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="amount" required>
+          Subtotal (before tax)
+        </Label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span className="text-gray-500 sm:text-sm">$</span>
+          </div>
+          <Input
+            type="number"
+            id="amount"
+            name="amount"
+            value={formData.amount}
+            onChange={handleInputChange}
+            min="0.01" // Typically expenses should be positive
+            step="0.01"
+            required
+            placeholder="0.00"
+            className="pl-7"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-3 pt-2">
+        <Label>Taxes</Label>
+        {formData.taxes.map((tax, index) => (
+          <div
+            key={index}
+            className="flex items-center space-x-2 p-3 border border-gray-200 rounded-lg bg-gray-50/50"
+          >
+            <div className="flex-grow">
+              <Input
+                type="text"
+                name="tax_name"
+                id={`tax_name_${index}`}
+                value={tax.tax_name}
+                onChange={(e) => handleTaxInputChange(index, e)}
+                placeholder="Tax Name (e.g., GST)"
+                className="text-sm py-2"
+              />
+            </div>
+            <div className="w-1/3 relative">
+              <Input
+                type="number"
+                name="tax_rate"
+                id={`tax_rate_${index}`}
+                value={tax.tax_rate}
+                onChange={(e) => handleTaxInputChange(index, e)}
+                min="0"
+                step="0.01"
+                placeholder="Rate"
+                className="text-sm py-2 pr-6" // Added pr-6 for percent sign
+              />
+              <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
+                <span className="text-gray-500 text-sm">%</span>
+              </div>
+            </div>
+            {formData.taxes.length > 1 && (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => removeTaxItem(index)}
+                className="p-2 text-xs h-9 w-9 flex items-center justify-center bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 border-none shadow-none"
+                title="Remove Tax"
+              >
+                <i className="fas fa-trash-alt" />
+              </Button>
+            )}
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={addTaxItem}
+          className="mt-1 text-sm py-2 border-gray-300 hover:border-gray-400"
+        >
+          <i className="fas fa-plus mr-2" /> Add Tax Item
+        </Button>
+      </div>
+
+      <div>
+        <Label>Total Tax Amount</Label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span className="text-gray-500 sm:text-sm">$</span>
+          </div>
+          <Input
+            type="text"
+            value={calculatedTotalTaxAmount.toFixed(2)}
+            readOnly
+            className="bg-gray-100 pl-7"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label>Total Amount (incl. tax)</Label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span className="text-gray-500 sm:text-sm">$</span>
+          </div>
+          <Input
+            type="text"
+            value={calculatedTotalAmount.toFixed(2)}
+            readOnly
+            className="bg-gray-100 pl-7"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="expense_date" required>
+          Date
+        </Label>
+        <Input
+          type="date"
+          id="expense_date"
+          name="expense_date"
+          value={formData.expense_date}
+          onChange={handleInputChange}
+          required
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="description">Description</Label>
+        <TextArea
+          id="description"
+          name="description"
+          value={formData.description}
+          onChange={handleInputChange}
+          rows="2"
+          placeholder="Optional description of the expense..."
+        />
+      </div>
+
+      <div>
+        <Label>Receipt (Optional)</Label>
+        <Input
+          type="file"
+          id="receipt_file"
+          name="receipt_file"
+          accept=".pdf,.png,.jpg,.jpeg"
+          onChange={handleReceiptFileChange}
+          disabled={isParsingReceipt}
+          className="block w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 disabled:opacity-50"
+        />
+        {isParsingReceipt && (
+          <p className="mt-1.5 text-sm text-blue-600">Parsing receipt...</p>
+        )}
+        {receiptParseError && (
+          <p className="mt-1.5 text-sm text-red-600">
+            Error: {receiptParseError}
+          </p>
+        )}
+        {currentReceiptUrl && !isParsingReceipt && !receiptParseError && (
+          <div className="mt-2">
+            <Button
               type="button"
-              onClick={handleClose}
-              className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              variant="secondary"
+              onClick={() => setShowReceiptPreview(!showReceiptPreview)}
+              className="text-sm py-1.5"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
+              {showReceiptPreview ? (
                 <>
-                  <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Creating...
+                  <i className="fas fa-eye-slash mr-2" />
+                  Hide Preview
                 </>
               ) : (
-                "Create Expense"
+                <>
+                  <i className="fas fa-eye mr-2" />
+                  Preview Receipt
+                </>
               )}
-            </button>
+            </Button>
           </div>
-        </form>
+        )}
+        <AnimatePresence>
+          {showReceiptPreview && currentReceiptUrl && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "24rem" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="mt-3 border rounded-lg overflow-hidden shadow bg-gray-50"
+            >
+              {(() => {
+                const url = currentReceiptUrl;
+                const lowerUrl = url.toLowerCase();
+                if (
+                  lowerUrl.endsWith(".png") ||
+                  lowerUrl.endsWith(".jpg") ||
+                  lowerUrl.endsWith(".jpeg") ||
+                  lowerUrl.endsWith(".gif")
+                ) {
+                  return (
+                    <img
+                      src={url}
+                      alt="Receipt Preview"
+                      className="w-full h-full object-contain p-1"
+                    />
+                  );
+                } else if (lowerUrl.endsWith(".pdf")) {
+                  const pdfDisplayUrl = `${url}#view=FitH`;
+                  return (
+                  <iframe
+                    src={pdfDisplayUrl}
+                    title="Receipt Preview"
+                    className="w-full h-full border-0"
+                    sandbox="allow-same-origin allow-scripts"
+                  />);
+                } else {
+                  return (
+                    <iframe
+                      src={url}
+                      title="Receipt Preview"
+                      className="w-full h-full border-0"
+                    />
+                  );
+                }
+              })()}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </div>
+    </form>
+  );
+
+  const footerButtons = (
+    <>
+      <Button type="button" variant="secondary" onClick={onClose}>
+        Cancel
+      </Button>
+      <Button
+        type="submit"
+        form="new-expense-form"
+        variant="primary"
+        isLoading={isLoading || isParsingReceipt}
+        loadingText={isLoading ? "Creating..." : "Parsing..."}
+      >
+        Create Expense
+      </Button>
+    </>
+  );
+
+  return (
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Add New Expense"
+      error={error} // General error for the modal
+      footerContent={footerButtons}
+      maxWidth="max-w-lg" // Slightly wider for more complex form
+    >
+      {formContent}
+    </ModalShell>
   );
 };
 

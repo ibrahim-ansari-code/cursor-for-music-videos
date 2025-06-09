@@ -1,10 +1,12 @@
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, List, Optional
+from uuid import UUID as PythonUUID
 
 from sqlalchemy import DateTime
 from sqlalchemy import Enum as PgEnum
 from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Column, Field, Relationship, SQLModel
 
 from Backend.models.enums import PropertyStatus
@@ -13,9 +15,11 @@ from Backend.models.user import User
 from Backend.utils.datetime_utils import create_audit_datetime
 
 if TYPE_CHECKING:
-    from Backend.models.accounting import Expense
+    from Backend.models.accounting.expense import Expense
     from Backend.models.lease import Lease
     from Backend.models.tenant import Tenant
+    from Backend.models.maintenance import MaintenanceRequest
+    from Backend.models.accounting.invoice import Invoice
 
 
 class PropertyType(str, Enum):
@@ -57,20 +61,20 @@ class Property(SQLModel, table=True):
     )
 
     # Foreign keys
-    user_id: str = Field(
-        sa_column=Column(String(36), ForeignKey(
+    user_id: PythonUUID = Field(
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey(
             "users.id", ondelete="CASCADE"), nullable=False)
     )
 
     # Timestamps - Using datetime utilities
     created_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=False), nullable=True),
+        sa_column=Column(DateTime(timezone=True), nullable=False),
         description="Creation timestamp"
     )
     updated_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=False), nullable=True),
+        sa_column=Column(DateTime(timezone=True), nullable=False, onupdate=create_audit_datetime),
         description="Last update timestamp"
     )
 
@@ -99,6 +103,17 @@ class Property(SQLModel, table=True):
         }
     )
 
+    # Relationship to maintenance requests (One-to-many)
+    maintenance_requests: list["MaintenanceRequest"] = Relationship(
+        back_populates="property",
+        sa_relationship_kwargs={'cascade': 'all, delete-orphan'}
+    )
+
+    invoices: list["Invoice"] = Relationship(
+        back_populates="property",
+        sa_relationship_kwargs={'cascade': 'all, delete-orphan'}
+    )
+
 
 class PropertyUnit(SQLModel, table=True):
     """Unit model representing individual units within a property"""
@@ -124,11 +139,11 @@ class PropertyUnit(SQLModel, table=True):
         default=None, description="The floor number of the unit")
     created_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=False), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False)
     )
     updated_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=False), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False, onupdate=create_audit_datetime)
     )
 
     # Relationships
@@ -149,4 +164,10 @@ class PropertyUnit(SQLModel, table=True):
         back_populates="units",
         link_model=TenantUnitLink,
         sa_relationship_kwargs={"lazy": "selectin"}
+    )
+
+    # Relationship to maintenance requests (One-to-many)
+    maintenance_requests: list["MaintenanceRequest"] = Relationship(
+        back_populates="unit",
+        sa_relationship_kwargs={'cascade': 'all, delete-orphan'}
     )

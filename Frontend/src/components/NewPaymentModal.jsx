@@ -1,11 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
 import {
   fetchProperties,
   fetchTenantsByProperty,
   createPayment,
   fetchLeases,
+  parsePaymentReceiptAPI,
 } from "../utils/api";
+import {
+  ModalShell,
+  Label,
+  Input,
+  Select,
+  TextArea,
+  Button,
+} from "./ui/SharedModalComponents";
+import { AnimatePresence, motion } from "framer-motion";
 
 const PAYMENT_METHODS = [
   "Credit Card",
@@ -25,30 +35,33 @@ const PAYMENT_STATUSES = [
 ];
 
 const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
-  // Form state
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     property_id: "",
+    property_name: "",
     tenant_id: "",
+    tenant_name: "",
     amount: "",
     payment_date: new Date().toISOString().split("T")[0],
-    payment_method: "",
+    payment_method: "Other",
     status: "Paid",
     notes: "",
-  });
-
-  // UI state
+    receipt_url: null,
+    transaction_reference: "",
+  };
+  const [formData, setFormData] = useState(initialFormData);
   const [properties, setProperties] = useState([]);
   const [tenants, setTenants] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lease, setLease] = useState(null);
-
-  // Dropdown states
+  const [isParsingReceipt, setIsParsingReceipt] = useState(false);
+  const [receiptParseError, setReceiptParseError] = useState(null);
+  const [showReceiptPreview, setShowReceiptPreview] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState("");
-  const [propertySearchTerm, setPropertySearchTerm] = useState("");
-  const [tenantSearchTerm, setTenantSearchTerm] = useState("");
 
-  // Load properties on mount
+  const propertyDropdownRef = useRef(null);
+  const tenantDropdownRef = useRef(null);
+
   useEffect(() => {
     const loadProperties = async () => {
       try {
@@ -56,412 +69,597 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
         setProperties(data);
       } catch (err) {
         console.error("Failed to load properties:", err);
-        setError("Failed to load properties. Please try again.");
+        toast.error("Failed to load properties.");
       }
     };
-
     if (isOpen) {
       loadProperties();
+      setFormData(initialFormData);
+      setError(null);
+      setLease(null);
+      setTenants([]);
+      setIsParsingReceipt(false);
+      setReceiptParseError(null);
+      setShowReceiptPreview(false);
+      setDropdownOpen("");
     }
   }, [isOpen]);
 
-  // Load tenants when property is selected
   useEffect(() => {
     const loadTenants = async () => {
       if (formData.property_id) {
         try {
           const data = await fetchTenantsByProperty(formData.property_id);
-          console.log("Fetched tenants:", data); // Log tenant data
           setTenants(data);
-          // Clear tenant selection when property changes
-          setFormData((prev) => ({ ...prev, tenant_id: "" }));
+          setFormData((prev) => ({ ...prev, tenant_id: "", tenant_name: "" }));
           setLease(null);
         } catch (err) {
           console.error("Failed to load tenants:", err);
-          setError("Failed to load tenants. Please try again.");
+          toast.error("Failed to load tenants for the selected property.");
+          setTenants([]);
         }
+      } else {
+        setTenants([]);
       }
     };
-
     loadTenants();
   }, [formData.property_id]);
 
-  // Find active lease when tenant is selected
   useEffect(() => {
     const findActiveLease = async () => {
       if (formData.property_id && formData.tenant_id) {
         try {
-          const leases = await fetchLeases(); // Fetch all leases
-          console.log("Fetched leases:", leases); // Log fetched leases
-
-          const activeLease = leases.find(
-            (lease) =>
-              lease.tenant_id === formData.tenant_id &&
-              lease.property_id === formData.property_id &&
-              lease.status?.toLowerCase() === "active" // Filter client-side
+          const allLeases = await fetchLeases({
+            property_id: formData.property_id,
+            tenant_id: formData.tenant_id,
+            status: "ACTIVE",
+          });
+          const activeLease = allLeases.find(
+            (l) =>
+              l.tenant_id === formData.tenant_id &&
+              l.property_id === Number.parseInt(formData.property_id) &&
+              l.status.toLowerCase() === "active"
           );
-
-          console.log("Active lease found:", activeLease); // Log active lease
 
           if (activeLease) {
             setLease(activeLease);
             setError(null);
-
-            // Log the tenant details
-            console.log("Selected tenant ID:", formData.tenant_id);
-            console.log("Lease tenant ID (user_id):", activeLease.tenant_id);
           } else {
-            setError("No active lease found for this tenant.");
+            setError(
+              "No active lease found for this tenant on the selected property."
+            );
             setLease(null);
           }
         } catch (err) {
           console.error("Failed to find active lease:", err);
-          setError("Failed to verify lease information.");
+          toast.error("Error verifying lease information.");
+          setLease(null);
         }
+      } else {
+        setLease(null);
       }
     };
-
     findActiveLease();
   }, [formData.property_id, formData.tenant_id]);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        dropdownOpen === "property" &&
+        propertyDropdownRef.current &&
+        !propertyDropdownRef.current.contains(event.target)
+      ) {
+        setDropdownOpen("");
+      }
+      if (
+        dropdownOpen === "tenant" &&
+        tenantDropdownRef.current &&
+        !tenantDropdownRef.current.contains(event.target)
+      ) {
+        setDropdownOpen("");
+      }
+    };
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownOpen]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleReceiptFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setReceiptParseError(null);
+      setIsParsingReceipt(true);
+
+      const formDataForApi = new FormData();
+      formDataForApi.append("file", file);
+
+      try {
+        const response = await parsePaymentReceiptAPI(formDataForApi);
+        if (response?.parsed_details) {
+          const { parsed_details, receipt_url: parsedReceiptUrl } = response;
+          setFormData((prev) => ({
+            ...prev,
+            amount: parsed_details.total_amount?.toString() || prev.amount,
+            payment_date: parsed_details.payment_date || prev.payment_date,
+            payment_method:
+              parsed_details.payment_method || prev.payment_method,
+            notes: parsed_details.description_notes || prev.notes,
+            receipt_url: parsedReceiptUrl,
+            transaction_reference:
+              parsed_details.transaction_reference ||
+              prev.transaction_reference,
+          }));
+          toast.success(response.message || "Receipt parsed successfully!");
+        } else {
+          throw new Error("Invalid response from receipt parser.");
+        }
+      } catch (err) {
+        setReceiptParseError(err.message || "Failed to parse receipt.");
+        toast.error(
+          err.message ||
+            "Failed to parse receipt. Please enter details manually."
+        );
+      } finally {
+        setIsParsingReceipt(false);
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
 
+    if (!formData.property_id) {
+      setError("Please select a property.");
+      return;
+    }
+    if (!formData.tenant_id) {
+      setError("Please select a tenant.");
+      return;
+    }
     if (!lease) {
-      setError("No active lease found. Cannot create payment.");
+      setError(
+        "No active lease found for this tenant and property. Cannot create payment."
+      );
+      return;
+    }
+    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+      setError("Please enter a valid amount greater than 0.");
+      return;
+    }
+    if (!formData.payment_method) {
+      setError("Please select a payment method.");
+      return;
+    }
+    if (!formData.status) {
+      setError("Please select a payment status.");
       return;
     }
 
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      setError(null);
-
-      // Get the selected tenant from the tenants array
-      const selectedTenant = tenants.find(
-        (tenant) => tenant.id === formData.tenant_id
-      );
-
-      // Properly format the payment data to match backend expectations
-      const paymentData = {
+      const paymentPayload = {
         lease_id: lease.id,
-        // Include the tenant's name to display in the payment list
-        tenant_name: selectedTenant?.full_name || "Unknown Tenant",
-        // Remove tenant_id as we'll use the current user's ID on the backend
-        amount: parseFloat(formData.amount),
-        // Create a timezone-naive datetime string in ISO format without the 'Z' at the end
+        tenant_name: formData.tenant_name,
+        amount: Number.parseFloat(formData.amount),
         payment_date: formData.payment_date
-          ? `${formData.payment_date}T00:00:00`
+          ? new Date(formData.payment_date).toISOString()
           : null,
         payment_method: formData.payment_method,
-        // Make sure status is a valid enum value
         status: formData.status,
-        // Add transaction_reference as empty string to avoid null issues
-        transaction_reference: "",
-        notes: formData.notes || "",
+        description: formData.notes || "",
+        receipt_url: formData.receipt_url,
+        transaction_reference: formData.transaction_reference || null,
       };
 
-      console.log("Submitting payment with data:", paymentData);
-      await createPayment(paymentData);
-      // Success notification is now handled by the parent component
+      await createPayment(paymentPayload);
+      toast.success("Payment created successfully!");
       onSuccess?.();
-      handleClose();
+      onClose();
     } catch (err) {
       console.error("Failed to create payment:", err);
-      setError(err.message || "Failed to create payment. Please try again.");
-      toast.error("Failed to create payment");
+      const errorMsg =
+        err.data?.detail ||
+        err.message ||
+        "Failed to create payment. Please try again.";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleClose = () => {
-    setFormData({
-      property_id: "",
-      tenant_id: "",
-      amount: "",
-      payment_date: new Date().toISOString().split("T")[0],
-      payment_method: "",
-      status: "Paid",
-      notes: "",
-    });
-    setError(null);
-    setLease(null);
-    setPropertySearchTerm("");
-    setTenantSearchTerm("");
-    onClose();
+  const handlePropertySelect = (property) => {
+    setFormData((prev) => ({
+      ...prev,
+      property_id: property.id.toString(),
+      property_name: property.name,
+      tenant_id: "", // Reset tenant when property changes
+      tenant_name: "",
+    }));
+    setDropdownOpen("");
   };
 
-  if (!isOpen) return null;
+  const handlePropertySelectKeyDown = (event, property) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handlePropertySelect(property);
+    }
+  };
+
+  const handleTenantSelect = (tenant) => {
+    setFormData((prev) => ({
+      ...prev,
+      tenant_id: tenant.id,
+      tenant_name: tenant.full_name,
+    }));
+    setDropdownOpen("");
+  };
+
+  const handleTenantSelectKeyDown = (event, tenant) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleTenantSelect(tenant);
+    }
+  };
+
+  const formContent = (
+    <form
+      id="new-payment-form"
+      onSubmit={handleSubmit}
+      className="space-y-5 w-full"
+    >
+      <div ref={propertyDropdownRef}>
+        <Label htmlFor="property_search" required>
+          Property
+        </Label>
+        <Input
+          type="text"
+          id="property_search"
+          placeholder="Search and select a property..."
+          value={formData.property_name}
+          onChange={(e) => {
+            setFormData((prev) => ({
+              ...prev,
+              property_id: "",
+              property_name: e.target.value,
+            }));
+            setDropdownOpen("property");
+          }}
+          onFocus={() => setDropdownOpen("property")}
+          autoComplete="off"
+          role="combobox"
+          aria-haspopup="listbox"
+          aria-expanded={dropdownOpen === "property"}
+          aria-controls="property-listbox"
+          aria-autocomplete="list"
+        />
+        {dropdownOpen === "property" && properties.length > 0 && (
+          <div className="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+            <ul role="listbox" id="property-listbox" className="py-1">
+              {properties
+                .filter((p) =>
+                  p.name
+                    .toLowerCase()
+                    .includes(formData.property_name.toLowerCase())
+                )
+                .map((p) => (
+                  <li
+                    key={p.id}
+                    role="option"
+                    tabIndex={0}
+                    aria-selected={formData.property_id === p.id.toString()}
+                    className="px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-500 hover:text-white cursor-pointer transition-colors duration-150"
+                    onClick={() => handlePropertySelect(p)}
+                    onKeyDown={(e) => handlePropertySelectKeyDown(e, p)}
+                  >
+                    {p.name}
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      <div ref={tenantDropdownRef}>
+        <Label htmlFor="tenant_search" required>
+          Tenant
+        </Label>
+        <Input
+          type="text"
+          id="tenant_search"
+          placeholder="Search tenants..."
+          value={formData.tenant_name}
+          onChange={(e) => {
+            setFormData((prev) => ({
+              ...prev,
+              tenant_id: "",
+              tenant_name: e.target.value,
+            }));
+            setDropdownOpen("tenant");
+          }}
+          onFocus={() => setDropdownOpen("tenant")}
+          disabled={!formData.property_id || tenants.length === 0}
+          autoComplete="off"
+          role="combobox"
+          aria-haspopup="listbox"
+          aria-expanded={dropdownOpen === "tenant"}
+          aria-controls="tenant-listbox"
+          aria-autocomplete="list"
+          className={
+            !formData.property_id || tenants.length === 0
+              ? "bg-gray-100 cursor-not-allowed"
+              : ""
+          }
+        />
+        {dropdownOpen === "tenant" && tenants.length > 0 && (
+          <div className="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+            <ul role="listbox" id="tenant-listbox" className="py-1">
+              {tenants
+                .filter((t) =>
+                  (t.full_name || "")
+                    .toLowerCase()
+                    .includes(formData.tenant_name.toLowerCase())
+                )
+                .map((t) => (
+                  <li
+                    key={t.id}
+                    role="option"
+                    tabIndex={0}
+                    aria-selected={formData.tenant_id === t.id}
+                    className="px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-500 hover:text-white cursor-pointer transition-colors duration-150"
+                    onClick={() => handleTenantSelect(t)}
+                    onKeyDown={(e) => handleTenantSelectKeyDown(e, t)}
+                  >
+                    {t.full_name} (Property Unit: {t.unit_name || "N/A"})
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
+        {!formData.property_id && (
+          <p className="mt-1 text-xs text-gray-500">
+            Please select a property first to see tenants.
+          </p>
+        )}
+        {formData.property_id && tenants.length === 0 && (
+          <p className="mt-1 text-xs text-gray-500">
+            No tenants found for this property.
+          </p>
+        )}
+      </div>
+
+      {lease && (
+        <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+          Active lease found: ID {lease.id}, Rent: $
+          {lease.monthly_rent?.toLocaleString()}
+        </div>
+      )}
+      {!lease && formData.property_id && formData.tenant_id && !error && (
+        <div className="p-3 bg-yellow-50 border border-yellow-300 rounded-lg text-sm text-yellow-700">
+          Verifying lease information...
+        </div>
+      )}
+
+      <div>
+        <Label htmlFor="amount" required>
+          Amount
+        </Label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span className="text-gray-500 sm:text-sm">$</span>
+          </div>
+          <Input
+            type="number"
+            name="amount"
+            value={formData.amount}
+            onChange={handleInputChange}
+            min="0.01"
+            step="0.01"
+            required
+            placeholder="0.00"
+            className="pl-7"
+          />
+        </div>
+      </div>
+      <div>
+        <Label htmlFor="payment_date" required>
+          Payment Date
+        </Label>
+        <Input
+          type="date"
+          name="payment_date"
+          value={formData.payment_date}
+          onChange={handleInputChange}
+          required
+        />
+      </div>
+      <div>
+        <Label htmlFor="payment_method" required>
+          Payment Method
+        </Label>
+        <Select
+          name="payment_method"
+          value={formData.payment_method}
+          onChange={handleInputChange}
+          required
+        >
+          <option value="">Select a method</option>
+          {PAYMENT_METHODS.map((method) => (
+            <option key={method} value={method}>
+              {method}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor="status" required>
+          Status
+        </Label>
+        <Select
+          name="status"
+          value={formData.status}
+          onChange={handleInputChange}
+          required
+        >
+          {PAYMENT_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor="transaction_reference">
+          Transaction Reference (Optional)
+        </Label>
+        <Input
+          type="text"
+          name="transaction_reference"
+          value={formData.transaction_reference}
+          onChange={handleInputChange}
+          placeholder="e.g., Bank transaction ID"
+        />
+      </div>
+      <div>
+        <Label htmlFor="notes">Notes</Label>
+        <TextArea
+          name="notes"
+          value={formData.notes}
+          onChange={handleInputChange}
+          rows="2"
+          placeholder="Optional payment notes..."
+        />
+      </div>
+      <div>
+        <Label>Payment Receipt (Optional)</Label>
+        <Input
+          type="file"
+          accept=".pdf,.png,.jpg,.jpeg"
+          onChange={handleReceiptFileChange}
+          disabled={isParsingReceipt}
+          className="block w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 disabled:opacity-50"
+        />
+        {isParsingReceipt && (
+          <p className="mt-1.5 text-sm text-blue-600">Parsing receipt...</p>
+        )}
+        {receiptParseError && (
+          <p className="mt-1.5 text-sm text-red-600">
+            Error: {receiptParseError}
+          </p>
+        )}
+        <div className="mt-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setShowReceiptPreview(!showReceiptPreview)}
+            className="text-sm py-1.5"
+          >
+            {showReceiptPreview ? (
+              <>
+                <i className="fas fa-eye-slash mr-2"></i>Hide Preview
+              </>
+            ) : (
+              <>
+                <i className="fas fa-eye mr-2"></i>Preview Receipt
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+      <AnimatePresence>
+        {showReceiptPreview && formData.receipt_url && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "24rem" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="mt-3 border rounded-lg overflow-hidden shadow bg-gray-50"
+          >
+            {(() => {
+              const url = formData.receipt_url;
+              const lowerUrl = url.toLowerCase();
+              if (
+                lowerUrl.endsWith(".png") ||
+                lowerUrl.endsWith(".jpg") ||
+                lowerUrl.endsWith(".jpeg") ||
+                lowerUrl.endsWith(".gif")
+              ) {
+                return (
+                  <img
+                    src={url}
+                    alt="Receipt Preview"
+                    className="w-full h-full object-contain p-1"
+                  />
+                );
+              } else if (lowerUrl.endsWith(".pdf")) {
+                const pdfDisplayUrl = `${url}#view=FitH`;
+                return (
+                  <iframe
+                    src={pdfDisplayUrl}
+                    title="Receipt Preview"
+                    className="w-full h-full border-0"
+                  ></iframe>
+                );
+              } else {
+                return (
+                  <iframe
+                    src={url}
+                    title="Receipt Preview"
+                    className="w-full h-full border-0"
+                  ></iframe>
+                );
+              }
+            })()}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </form>
+  );
+
+  const footerButtons = (
+    <>
+      <Button type="button" variant="secondary" onClick={onClose}>
+        Cancel
+      </Button>
+      <Button
+        type="submit"
+        form="new-payment-form"
+        variant="primary"
+        isLoading={isLoading || isParsingReceipt}
+        loadingText={
+          isLoading
+            ? "Creating..."
+            : isParsingReceipt
+            ? "Parsing..."
+            : "Saving..."
+        }
+        disabled={!lease || isLoading || isParsingReceipt}
+      >
+        Create Payment
+      </Button>
+    </>
+  );
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-lg bg-white">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">New Payment</h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-600 hover:text-gray-800"
-          >
-            <i className="fas fa-times"></i>
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Property Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Property *
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search properties..."
-                value={propertySearchTerm}
-                onChange={(e) => {
-                  setPropertySearchTerm(e.target.value);
-                  setDropdownOpen("property");
-                }}
-                className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
-              {dropdownOpen === "property" && (
-                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md">
-                  <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                    {properties
-                      .filter((property) =>
-                        property.name
-                          .toLowerCase()
-                          .includes(propertySearchTerm.toLowerCase())
-                      )
-                      .map((property) => (
-                        <li
-                          key={property.id}
-                          className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
-                          onClick={() => {
-                            setFormData((prev) => ({
-                              ...prev,
-                              property_id: property.id,
-                            }));
-                            setPropertySearchTerm(property.name);
-                            setDropdownOpen("");
-                          }}
-                        >
-                          <span className="font-normal block truncate">
-                            {property.name}
-                          </span>
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Tenant Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tenant *
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search tenants..."
-                value={tenantSearchTerm}
-                onChange={(e) => {
-                  setTenantSearchTerm(e.target.value);
-                  setDropdownOpen("tenant");
-                }}
-                disabled={!formData.property_id}
-                className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
-              />
-              {dropdownOpen === "tenant" && (
-                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md">
-                  <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                    {tenants
-                      .filter((tenant) =>
-                        (tenant.full_name || "")
-                          .toLowerCase()
-                          .includes(tenantSearchTerm.toLowerCase())
-                      )
-                      .map((tenant) => (
-                        <li
-                          key={tenant.id}
-                          className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
-                          onClick={() => {
-                            console.log("Selected tenant:", tenant);
-                            setFormData((prev) => ({
-                              ...prev,
-                              tenant_id: tenant.id,
-                            }));
-                            setTenantSearchTerm(tenant.full_name);
-                            setDropdownOpen("");
-                          }}
-                        >
-                          <span className="font-normal block truncate">
-                            {tenant.full_name}
-                          </span>
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Amount */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Amount *
-            </label>
-            <div className="relative rounded-md shadow-sm">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span className="text-gray-500 sm:text-sm">$</span>
-              </div>
-              <input
-                type="number"
-                name="amount"
-                value={formData.amount}
-                onChange={handleInputChange}
-                min="0"
-                step="0.01"
-                required
-                className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 pr-3 py-2 border-gray-300 rounded-md text-sm"
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          {/* Payment Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Payment Date *
-            </label>
-            <input
-              type="date"
-              name="payment_date"
-              value={formData.payment_date}
-              onChange={handleInputChange}
-              required
-              className="focus:ring-blue-500 focus:border-blue-500 block w-full py-2 px-3 border-gray-300 rounded-md text-sm"
-            />
-          </div>
-
-          {/* Payment Method */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Payment Method *
-            </label>
-            <select
-              name="payment_method"
-              value={formData.payment_method}
-              onChange={handleInputChange}
-              required
-              className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            >
-              <option value="">Select a method</option>
-              {PAYMENT_METHODS.map((method) => (
-                <option key={method} value={method}>
-                  {method}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status *
-            </label>
-            <select
-              name="status"
-              value={formData.status}
-              onChange={handleInputChange}
-              required
-              className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            >
-              {PAYMENT_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes
-            </label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleInputChange}
-              rows="2"
-              className="focus:ring-blue-500 focus:border-blue-500 block w-full py-2 px-3 border-gray-300 rounded-md text-sm"
-              placeholder="Optional payment notes..."
-            />
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
-              <span className="block sm:inline">{error}</span>
-            </div>
-          )}
-
-          {/* Form Actions */}
-          <div className="mt-6 flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading || !lease}
-              className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <>
-                  <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Creating...
-                </>
-              ) : (
-                "Create Payment"
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Log New Payment"
+      error={error}
+      footerContent={footerButtons}
+      maxWidth="max-w-xl"
+    >
+      {formContent}
+    </ModalShell>
   );
 };
 

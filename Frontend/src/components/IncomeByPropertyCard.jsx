@@ -84,7 +84,11 @@ const IncomeByPropertyCard = ({ properties = [] }) => {
                 <path
                   d={properties
                     .map((property, index) => {
-                      const x = (index / (properties.length - 1)) * 100;
+                      // Handle single property case - center it
+                      const x =
+                        properties.length === 1
+                          ? 50
+                          : (index / (properties.length - 1)) * 100;
                       const y = 100 - (property.occupancyRate || 0);
                       return (index === 0 ? "M" : "L") + `${x},${y}`;
                     })

@@ -1,9 +1,10 @@
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
-from uuid import UUID
+from uuid import UUID as PythonUUID
 
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, ForeignKey, Integer
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, Relationship, SQLModel
 
 from Backend.utils.datetime_utils import create_audit_datetime
@@ -13,6 +14,9 @@ if TYPE_CHECKING:
     from Backend.models.lease import Lease
     from Backend.models.property import Property, PropertyUnit
     from Backend.models.user import User
+    from Backend.models.maintenance import MaintenanceRequest
+    from Backend.models.accounting.payment import Payment
+    from Backend.models.accounting.invoice import Invoice
 
 
 class TenantStatus(str, Enum):
@@ -39,9 +43,9 @@ class Tenant(SQLModel, table=True):
     __tablename__ = "tenants"  # type: ignore
 
     id: int | None = Field(default=None, primary_key=True)
-    user_id: UUID | None = Field(
+    user_id: PythonUUID | None = Field(
         default=None,
-        sa_column=Column(String(36), ForeignKey(
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey(
             "users.id", ondelete="SET NULL"), index=True)
     )
     first_name: str = Field(max_length=100)
@@ -49,8 +53,14 @@ class Tenant(SQLModel, table=True):
     phone: str | None = None
     email: str | None = None
     status: TenantStatus = Field(default=TenantStatus.ACTIVE, index=True)
-    created_at: datetime = Field(default_factory=create_audit_datetime)
-    updated_at: datetime = Field(default_factory=create_audit_datetime)
+    created_at: datetime = Field(
+        default_factory=create_audit_datetime,
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    updated_at: datetime = Field(
+        default_factory=create_audit_datetime,
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
     current_property_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey(
@@ -74,5 +84,17 @@ class Tenant(SQLModel, table=True):
     units: list["PropertyUnit"] = Relationship(
         back_populates="tenants",
         link_model=TenantUnitLink,
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
+    maintenance_requests: list["MaintenanceRequest"] = Relationship(
+        back_populates="tenant",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
+    payments: list["Payment"] = Relationship(
+        back_populates="tenant",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
+    invoices: list["Invoice"] = Relationship(
+        back_populates="tenant",
         sa_relationship_kwargs={"lazy": "selectin"}
     )

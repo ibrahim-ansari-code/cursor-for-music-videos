@@ -8,6 +8,7 @@ import {
   fetchPropertyById,
 } from "../utils/api";
 import NewPropertyModal from "../components/NewPropertyModal";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 // Utility functions
 // Capitalize first letter of string
@@ -68,13 +69,7 @@ const StatusBadge = ({ status }) => {
 const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
   const navigate = useNavigate();
 
-  if (loading)
-    return (
-      <div className="p-8 text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
-        <p className="text-gray-600">Loading properties...</p>
-      </div>
-    );
+  if (loading) return <LoadingSpinner message="Loading properties..." />;
 
   if (error)
     return (

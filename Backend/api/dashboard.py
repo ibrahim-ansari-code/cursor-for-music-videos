@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from Backend.api.auth import get_current_user
 from Backend.database import get_session
-from Backend.models.accounting import PaymentStatus
+from Backend.models.accounting.common import PaymentStatus
 from Backend.models.enums import UserType
 from Backend.models.user import User
 from Backend.utils.datetime_utils import date_to_utc_range
@@ -76,23 +76,21 @@ async def get_dashboard_data(
     current_user: User = Depends(get_current_user)
 ) -> DashboardResponse:
     """
-    Retrieves summarized dashboard data for real estate management, including occupancy rates, revenue trends, and outstanding payments.
-
-    Only users with ADMIN or LANDLORD roles are authorized to access this endpoint. The response aggregates property, unit, and financial metrics, optionally filtered by property and time period (week, month, quarter, or year). Returns a structured summary with occupancy statistics, revenue and expense trends for the past 12 months, and up to five pending or overdue payments.
-
+    Retrieves aggregated dashboard data for real estate management, including property statistics, occupancy rates, financial summaries, revenue trends, and outstanding payments.
+    
+    Only users with ADMIN or LANDLORD roles can access this endpoint. The response includes summary metrics, occupancy details, revenue and expense trends for the past 12 months, and up to five pending or overdue payments. Data can be filtered by property and time period ("week", "month", "quarter", or "year").
+    
     Args:
-        property_id: If provided, restricts data to a specific property.
-        time_period: Time range for summary calculations; one of "week", "month", "quarter", or "year".
-
+        property_id: Optional; filters dashboard data to a specific property.
+        time_period: Time range for summary calculations; accepts "week", "month", "quarter", or "year".
+    
     Returns:
-        DashboardResponse: An object containing summary metrics, occupancy data, revenue trends, and a list of payments due.
-
+        DashboardResponse containing summary metrics, occupancy data, revenue trends, and a list of payments due.
+    
     Raises:
-        HTTPException: If the user is not authorized to access dashboard data.
+        HTTPException: If the user does not have ADMIN or LANDLORD privileges.
     """
-    # Convert user_type to uppercase for comparison
-    user_type = current_user.user_type.upper() if current_user.user_type else None
-    if user_type not in [UserType.ADMIN.value, UserType.LANDLORD.value]:
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access dashboard data"
@@ -101,8 +99,8 @@ async def get_dashboard_data(
     # Define a filter for landlord's properties
     landlord_property_filter_sql = ""
     landlord_params = {}
-    if user_type == UserType.LANDLORD.value:
-        landlord_property_filter_sql = "AND CAST(p.user_id AS TEXT) = CAST(:current_user_id AS TEXT)"
+    if current_user.user_type == UserType.LANDLORD:
+        landlord_property_filter_sql = "AND p.user_id = :current_user_id"
         landlord_params["current_user_id"] = current_user.id
 
     # Calculate date range for filtering
@@ -142,8 +140,8 @@ async def get_dashboard_data(
     financial_summary AS (
         SELECT 
             COALESCE(SUM(CASE WHEN pay.status IN ('Paid', 'Partial') THEN pay.amount ELSE 0 END), 0) as monthly_revenue,
-            COALESCE(SUM(CASE WHEN exp.category = 'maintenance' THEN exp.amount ELSE 0 END), 0) as maintenance_expenses,
-            COALESCE(SUM(exp.amount), 0) as monthly_expenses,
+            COALESCE(SUM(CASE WHEN exp.category = 'maintenance' THEN exp.total_amount ELSE 0 END), 0) as maintenance_expenses,
+            COALESCE(SUM(exp.total_amount), 0) as monthly_expenses,
             COALESCE(SUM(CASE WHEN inv.status IN ('Pending', 'Overdue') THEN inv.amount ELSE 0 END), 0) as outstanding_rent
         FROM 
             properties p
@@ -156,7 +154,7 @@ async def get_dashboard_data(
         LEFT JOIN 
             expenses exp ON p.id = exp.property_id AND exp.expense_date BETWEEN :start_date AND :end_date
         LEFT JOIN 
-            invoices inv ON (p.id = inv.property_id OR t.user_id = inv.tenant_id)
+            invoices inv ON (p.id = inv.property_id OR t.id = inv.tenant_id)
                          AND inv.status IN ('Pending', 'Overdue')
         WHERE 
             1=1
@@ -180,15 +178,16 @@ async def get_dashboard_data(
 
     property_filter = ""
     params = {
-        "user_id": current_user.id,
         "start_date": start_datetime,
         "end_date": end_datetime,
-        **landlord_params  # Add landlord params here
+        **landlord_params
     }
 
     if property_id:
         property_filter = "AND p.id = :property_id"
         params["property_id"] = property_id
+    else:
+        property_filter = ""
 
     # Replace the placeholder
     summary_query = summary_query.format(
@@ -244,7 +243,7 @@ async def get_dashboard_data(
         SELECT 
             date_trunc('month', m.month_start)::date as month,
             COALESCE(SUM(CASE WHEN pay.status IN ('Paid', 'Partial') THEN pay.amount ELSE 0 END), 0) as revenue,
-            COALESCE(SUM(exp.amount), 0) as expenses
+            COALESCE(SUM(exp.total_amount), 0) as expenses
         FROM 
             months m
         LEFT JOIN 
@@ -302,7 +301,7 @@ async def get_dashboard_data(
     payments_query = """
     SELECT 
         i.id,
-        CONCAT(u.first_name, ' ', u.last_name) as tenant_name,
+        CONCAT(t.first_name, ' ', t.last_name) as tenant_name,
         i.amount,
         i.due_date,
         CASE 
@@ -313,7 +312,7 @@ async def get_dashboard_data(
     FROM 
         invoices i
     JOIN 
-        users u ON i.tenant_id = u.id
+        tenants t ON i.tenant_id = t.id
     LEFT JOIN 
         properties p ON i.property_id = p.id
     WHERE 
@@ -341,7 +340,7 @@ async def get_dashboard_data(
             amount=float(row['amount']),
             due_date=row['due_date'],
             days_overdue=row['days_overdue'],
-            status=row['status']
+            status=PaymentStatus(row['status'])
         ))
 
     return DashboardResponse(

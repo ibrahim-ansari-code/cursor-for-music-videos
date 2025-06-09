@@ -10,7 +10,9 @@ from sqlmodel import col
 
 from Backend.api.auth import get_current_user
 from Backend.database import get_session
-from Backend.models.accounting import Expense, Payment, PaymentStatus
+from Backend.models.accounting.expense import Expense
+from Backend.models.accounting.payment import Payment
+from Backend.models.accounting.common import PaymentStatus
 from Backend.models.enums import UserType
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.property import Property
@@ -138,15 +140,15 @@ async def get_report_summary(
     current_user: User = Depends(get_current_user)
 ) -> ReportResponse:
     """
-    Generates a comprehensive financial summary report for properties accessible to the current user over a specified date range.
-
-    The report includes monthly income and expense charts, summary statistics (such as total monthly revenue and average rent), a financial table with property-level details, and income by property for the last month in the range. Only properties the user has access to are included. Raises HTTP errors for invalid date ranges or inaccessible properties.
-
+    Generates a financial summary report for properties accessible to the current user over a specified date range.
+    
+    The report includes monthly income and expense charts, summary statistics (total monthly revenue and average rent), a financial table with property-level details, and income by property for the last month in the range. Only properties the user can access are included. Raises HTTP errors for invalid date ranges or inaccessible properties.
+    
     Args:
-        report_type: The type of report to generate (default is "Financial Summary").
-        date_range: The date range for the report (e.g., "Current Month", "Last Month", "YTD").
+        report_type: Optional report type (default is "Financial Summary").
+        date_range: Optional date range for the report (e.g., "Current Month", "Last Month", "YTD").
         property_ids: Optional list of property IDs to filter the report.
-
+    
     Returns:
         A structured report response containing chart data, summary statistics, financial table rows, and income by property.
     """
@@ -205,7 +207,7 @@ async def get_report_summary(
     # Query expenses grouped by month
     expenses_query = select(
         func.date_trunc('month', Expense.expense_date).label('month'),
-        func.sum(Expense.amount).label('total_expenses')
+        func.sum(Expense.total_amount).label('total_expenses')
     ).where(
         col(Expense.expense_date) >= start_datetime_utc,
         col(Expense.expense_date) <= end_datetime_utc,
@@ -270,7 +272,7 @@ async def get_report_summary(
             col(Lease.property_id).in_(accessible_property_ids)
     ).group_by(col(Lease.property_id))
 
-    all_expenses_query = select(col(Expense.property_id), func.sum(Expense.amount).label('total_expenses'))\
+    all_expenses_query = select(col(Expense.property_id), func.sum(Expense.total_amount).label('total_expenses'))\
         .where(
             col(Expense.expense_date) >= start_datetime_utc,
             col(Expense.expense_date) <= end_datetime_utc,

@@ -6,17 +6,19 @@ used to manage rental agreements and their documentation.
 from datetime import date, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
+from uuid import UUID as PythonUUID
 
-from sqlalchemy import String
-from sqlmodel import Column, Field, ForeignKey, Integer, Relationship, SQLModel
+from sqlalchemy import Column
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlmodel import Field, ForeignKey, Integer, Relationship, SQLModel
 
 from Backend.models.user import User
 from Backend.utils.datetime_utils import create_audit_datetime
 
 if TYPE_CHECKING:
-    from Backend.models.accounting import Payment
-    from Backend.models.property import Property, PropertyUnit
-    from Backend.models.tenant import Tenant
+    from .accounting.payment import Payment
+    from .property import Property, PropertyUnit
+    from .tenant import Tenant
 
 # Enum for lease status
 
@@ -84,15 +86,15 @@ class LeaseDocument(SQLModel, table=True):
     # Foreign keys
     lease_id: int = Field(sa_column=Column(
         Integer, ForeignKey("leases.id", ondelete="CASCADE")))
-    uploaded_by_id: str | None = Field(
+    uploaded_by_id: PythonUUID | None = Field(
         default=None,
-        sa_column=Column(String(36), ForeignKey(
-            "users.id", ondelete="SET NULL"))
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey(
+            "users.id", ondelete="SET NULL"), index=True)
     )
 
     # Relationships
-    lease: Lease = Relationship(back_populates="documents")
-    uploaded_by: User = Relationship()
+    lease: "Lease" = Relationship(back_populates="documents")
+    uploaded_by: "User" = Relationship()
 
 
 class LeaseCreate(SQLModel):
@@ -103,3 +105,33 @@ class LeaseCreate(SQLModel):
     end_date: date
     monthly_rent: float
     security_deposit: float
+    status: LeaseStatus | None = LeaseStatus.DRAFT
+    file_url: str | None = None
+
+
+class LeaseUpdate(SQLModel):
+    """
+    Model for applying partial updates to an existing Lease object.
+
+    All fields are optional, allowing clients to send only the data points
+    that need to be modified. Status updates (e.g., activating or
+    terminating a lease) are handled via a separate mechanism to maintain
+    a clear distinction in API operations and business logic.
+    """
+    start_date: date | None = None
+    end_date: date | None = None
+    monthly_rent: float | None = None
+    security_deposit: float | None = None
+    rent_due_day: int | None = None
+    late_fee_amount: float | None = Field(default=None)
+    late_fee_after_days: int | None = Field(default=None)
+    special_terms: str | None = Field(default=None)
+    # Consider if status updates should be part of this or a separate endpoint
+    # status: LeaseStatus | None = None
+
+# Ensure all Field imports from sqlmodel are correct if this class uses them.
+# If only Pydantic BaseModel is needed, adjust SQLModel inheritance.
+# For now, assuming SQLModel is appropriate for consistency or future ORM use.
+# If it's purely for API data validation, from pydantic import BaseModel would be more standard.
+# However, to keep it consistent with LeaseCreate, using SQLModel.
+# Added default=None to optional fields to be more explicit.

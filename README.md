@@ -73,10 +73,10 @@ Database schema changes are managed using Alembic.
 - **Ensure `Backend/.env` `DATABASE_URL` is correct before running Alembic commands.**
 - Alembic's `env.py` is configured to use `DATABASE_URL`.
 
-To create a new migration:
+To create a new migration (run from project root):
 
 ```bash
-
+# From the project root directory (Brikli-V2/)
 poetry run alembic revision -m "your_migration_message"
 ```
 
@@ -85,13 +85,14 @@ Edit the generated script in `Backend/migrations/versions/`.
 To apply migrations:
 
 ```bash
+# From the project root directory (Brikli-V2/)
 poetry run alembic upgrade head
 ```
 
 To downgrade:
 
 ```bash
-
+# From the project root directory (Brikli-V2/)
 poetry run alembic downgrade -1 # Downgrade one revision
 ```
 

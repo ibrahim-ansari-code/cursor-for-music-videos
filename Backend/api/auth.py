@@ -2,7 +2,7 @@ import logging
 import traceback
 from datetime import datetime
 from typing import Optional, Protocol
-import uuid
+from uuid import UUID as PythonUUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -54,10 +54,10 @@ def touch_updated_at(obj: HasUpdatedAt) -> None:
 
 
 class UserResponse(BaseModel):
-    id: str  # UUID from Supabase
+    id: PythonUUID
     email: str
-    first_name: str
-    last_name: str
+    first_name: str | None = None
+    last_name: str | None = None
     user_type: UserType
     phone: Optional[str] = None
     address: Optional[str] = None
@@ -81,9 +81,9 @@ class UserResponse(BaseModel):
 
 
 class ProfileUpdateRequest(BaseModel):
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    phone: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    phone: str | None = None
 
 
 class AvatarUploadResponse(BaseModel):
@@ -95,11 +95,11 @@ class AvatarUploadResponse(BaseModel):
 class UserSyncRequest(BaseModel):
     supabase_user_id: str  # This will be the UUID from Supabase
     email: EmailStr
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    phone: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    phone: str | None = None
     # Assuming UserType enum strings like "LANDLORD"
-    user_type: Optional[str] = None
+    user_type: str | None = None
 
 
 class UserSyncResponse(UserResponse):  # Reuse existing UserResponse
@@ -139,28 +139,29 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+        # Quick sanity-check that the ID looks like a UUID
         try:
-            # Convert to UUID to match the DB column type and avoid varchar/uuid operator errors
-            local_user_uuid = uuid.UUID(str(actual_user_from_supabase.id))
-        except ValueError:
-            logger.error("Supabase user ID '%s' is not a valid UUID", actual_user_from_supabase.id)
+            uuid_obj = PythonUUID(str(actual_user_from_supabase.id))
+        except ValueError as e:
+            logger.warning("Supabase ID is not a valid UUID: %s",
+                           actual_user_from_supabase.id)
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Supabase user ID is not a valid UUID",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
         # Use session.get which handles primary-key lookup and proper typing
-        db_user = await session.get(User, local_user_uuid)
+        db_user = await session.get(User, uuid_obj)
 
         # Fallback to explicit select if session.get returned None (e.g., composite PK future changes)
         if db_user is None:
-            result = await session.execute(select(User).where(col(User.id) == local_user_uuid))
+            result = await session.execute(select(User).where(col(User.id) == uuid_obj))
             db_user = result.scalar_one_or_none()
 
         if not db_user:
             logger.warning(
-                "User with Supabase ID %s not found in local database.", local_user_uuid)
+                "User with Supabase ID %s not found in local database.", actual_user_from_supabase.id)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User authenticated with Supabase but not found in local application database.",
@@ -198,7 +199,7 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
 
 @router.put("/users/{user_id}/profile", response_model=UserResponse)
 async def update_user_profile(
-    user_id: str,
+    user_id: PythonUUID,
     profile_update: ProfileUpdateRequest,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
@@ -224,12 +225,25 @@ async def update_user_profile(
 
 @router.post("/users/{user_id}/avatar", response_model=AvatarUploadResponse)
 async def upload_user_avatar(
-    user_id: str,
+    user_id: PythonUUID,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    """Upload user avatar"""
+    """
+    Uploads a new avatar image for the specified user.
+
+    Only the user themselves or an admin can upload an avatar. 
+    The image is stored in Azure Blob Storage, and the user's profile 
+    is updated with the new avatar URL.
+
+    Args:
+        user_id: The ID of the user whose avatar is being updated.
+        file: The image file to upload.
+
+    Returns:
+        An object containing the URL of the uploaded avatar image.
+    """
     if current_user.id != user_id and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -238,7 +252,7 @@ async def upload_user_avatar(
 
     try:
         # Upload to Azure Blob Storage
-        profile_image_url = await upload_avatar_to_blob(file, f"avatars/{user_id}")
+        profile_image_url = await upload_avatar_to_blob(file, current_user.id)
 
         # Update user profile
         current_user.profile_image_url = profile_image_url

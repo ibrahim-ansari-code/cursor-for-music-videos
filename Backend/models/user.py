@@ -1,8 +1,10 @@
 """Defines the User SQLModel, representing users within the application, including their attributes and relationships."""
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
+from uuid import UUID as PythonUUID
 
-from sqlalchemy import Column, String
+from sqlalchemy import Column, String, DateTime
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, Relationship, SQLModel
 
 from Backend.utils.datetime_utils import create_audit_datetime
@@ -10,13 +12,16 @@ from Backend.utils.datetime_utils import create_audit_datetime
 if TYPE_CHECKING:
     from Backend.models.property import Property
     from Backend.models.tenant import Tenant
+    from Backend.models.maintenance import MaintenanceRequest
+    from Backend.models.accounting.integration import Integration
 
 
 class User(SQLModel, table=True):
     __tablename__ = "users"  # type: ignore
 
-    id: str = Field(
-        sa_column=Column(String(36), primary_key=True)
+    id: PythonUUID = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), primary_key=True)
     )
     email: str = Field(unique=True, index=True)
     first_name: str | None = None
@@ -31,11 +36,27 @@ class User(SQLModel, table=True):
     profile_image_url: str | None = None
     is_active: bool = Field(default=True)
     is_admin: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=create_audit_datetime)
-    updated_at: datetime = Field(default_factory=create_audit_datetime)
+    created_at: datetime = Field(
+        default_factory=create_audit_datetime,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=create_audit_datetime,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
     is_email_verified: bool = Field(default=False)
 
     properties: list["Property"] = Relationship(back_populates="owner")
 
     # Define tenant_details relationship directly
     tenant_details: Optional["Tenant"] = Relationship(back_populates="user")
+    maintenance_requests: list["MaintenanceRequest"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+
+    # Integration connections (QuickBooks, Xero, etc.)
+    integrations: list["Integration"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )

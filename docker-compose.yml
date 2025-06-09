@@ -1,18 +1,14 @@
 services:
   backend:
-    build: ./backend
-    ports:
-      - "8000:8000"
+    build: ./Backend
     volumes:
-      - ./backend:/app
+      - ./Backend:/app
     environment:
       - PORT=8000
 
   frontend:
-    build: ./frontend
+    build: ./Frontend
     ports:
       - "3000:80"
-    volumes:
-      - ./frontend:/app
-    environment:
-      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - backend

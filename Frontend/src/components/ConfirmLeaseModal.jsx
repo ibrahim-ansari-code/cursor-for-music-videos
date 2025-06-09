@@ -5,188 +5,16 @@ import {
   fetchPropertyUnits,
   fetchLeases,
   createLease,
-  updateLeaseStatus,
 } from "../utils/api";
 import { motion, AnimatePresence } from "framer-motion"; // Add framer-motion for animations
-import { format } from "date-fns";
-
-// UI Components
-const Label = ({ htmlFor, required, children }) => (
-  <label
-    htmlFor={htmlFor}
-    className={`block text-sm font-medium text-gray-700 mb-1.5 ${
-      required ? 'after:content-["*"] after:ml-0.5 after:text-red-500' : ""
-    }`}
-  >
-    {children}
-    {required && (
-      <span
-        className="ml-1 text-xs text-gray-400"
-        title="This field is required"
-      >
-        (required)
-      </span>
-    )}
-  </label>
-);
-
-const Input = ({
-  id,
-  name,
-  value,
-  onChange,
-  placeholder,
-  required,
-  readOnly,
-  type = "text",
-  min,
-  className = "",
-  ...props
-}) => (
-  <input
-    id={id || name}
-    name={name}
-    type={type}
-    value={value}
-    onChange={onChange}
-    min={min}
-    placeholder={placeholder}
-    required={required}
-    readOnly={readOnly}
-    className={`w-full px-4 py-2.5 text-gray-900 bg-white border ${
-      readOnly ? "bg-gray-50 border-gray-200" : "border-gray-300"
-    } rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 ${className}`}
-    {...props}
-  />
-);
-
-const Select = ({
-  id,
-  name,
-  value,
-  onChange,
-  placeholder,
-  required,
-  disabled,
-  options,
-  isLoading,
-  emptyMessage,
-  className = "",
-  ...props
-}) => (
-  <div className="relative">
-    <select
-      id={id || name}
-      name={name}
-      value={value}
-      onChange={onChange}
-      required={required}
-      disabled={disabled || isLoading}
-      className={`w-full px-4 py-2.5 text-gray-900 bg-white border ${
-        disabled ? "bg-gray-50 border-gray-200" : "border-gray-300"
-      } rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 appearance-none ${className}`}
-      {...props}
-    >
-      <option value="" disabled>
-        {isLoading ? "Loading units..." : emptyMessage || "Select an option"}
-      </option>
-      {options && options.length > 0
-        ? options.map((option, index) => (
-            <option key={index} value={option.value || option.id}>
-              {option.label || option.name}
-            </option>
-          ))
-        : !isLoading && (
-            <option value="" disabled>
-              No options available
-            </option>
-          )}
-    </select>
-    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-      <svg
-        className="h-5 w-5"
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-        aria-hidden="true"
-      >
-        <path
-          fillRule="evenodd"
-          d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-          clipRule="evenodd"
-        />
-      </svg>
-    </div>
-  </div>
-);
-
-const ErrorMessage = ({ message }) => (
-  <motion.div
-    initial={{ opacity: 0, y: -10 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0 }}
-    className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg flex items-start gap-2"
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      className="h-5 w-5 mt-0.5 flex-shrink-0"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-    >
-      <path
-        fillRule="evenodd"
-        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 9a1 1 0 100-2 1 1 0 000 2z"
-        clipRule="evenodd"
-      />
-    </svg>
-    <span>{message}</span>
-  </motion.div>
-);
-
-const Button = ({
-  type,
-  onClick,
-  variant = "primary",
-  disabled,
-  children,
-  className = "",
-  ...props
-}) => {
-  const baseClasses =
-    "px-4 py-2.5 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed";
-
-  const variants = {
-    primary:
-      "bg-blue-600 hover:bg-blue-700 text-white border border-transparent focus:ring-blue-500",
-    secondary:
-      "bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 focus:ring-blue-500",
-    danger:
-      "bg-red-600 hover:bg-red-700 text-white border border-transparent focus:ring-red-500",
-  };
-
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      className={`${baseClasses} ${variants[variant]} ${className}`}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-};
-
-const FormSection = ({ title, children, className = "" }) => (
-  <div className={`space-y-6 ${className}`}>
-    {title && (
-      <h3 className="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200">
-        {title}
-      </h3>
-    )}
-    {children}
-  </div>
-);
+import {
+  Label,
+  Input,
+  Select,
+  Button,
+  ErrorMessage,
+  FormSection,
+} from "./ui/SharedModalComponents"; // Import all required shared components
 
 const ConfirmLeaseModal = ({
   isOpen,
@@ -226,6 +54,7 @@ const ConfirmLeaseModal = ({
   const [isLoadingLeases, setIsLoadingLeases] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState(leaseData.unit || "");
   const [selectedUnitId, setSelectedUnitId] = useState(null);
+  const [showLeasePreview, setShowLeasePreview] = useState(false);
 
   // Initialize allUnitsForProperty from prop
   useEffect(() => {
@@ -693,6 +522,50 @@ const ConfirmLeaseModal = ({
     },
   };
 
+  const renderPreviewContent = (url) => {
+    if (!url) return null;
+    const lowerUrl = url.toLowerCase();
+    if (
+      lowerUrl.endsWith(".png") ||
+      lowerUrl.endsWith(".jpg") ||
+      lowerUrl.endsWith(".jpeg") ||
+      lowerUrl.endsWith(".gif") ||
+      lowerUrl.endsWith(".webp") ||
+      lowerUrl.endsWith(".bmp") ||
+      lowerUrl.endsWith(".svg")
+    ) {
+      return (
+        <img
+          src={url}
+          alt="Lease Document Preview"
+          className="w-full h-full object-contain p-1"
+        />
+      );
+    } else if (lowerUrl.endsWith(".pdf")) {
+      const pdfDisplayUrl = `${url}#view=FitH`;
+      return (
+        <iframe
+          src={pdfDisplayUrl}
+          title="Lease Document Preview"
+          className="w-full h-full border-0"
+          sandbox="allow-same-origin"
+          referrerPolicy="no-referrer"
+        />
+      );
+    } else {
+      // Fallback for other types or if type detection fails
+      return (
+        <iframe
+          src={url}
+          title="Lease Document Preview"
+          className="w-full h-full border-0"
+          sandbox="allow-same-origin"
+          referrerPolicy="no-referrer"
+        />
+      );
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -742,8 +615,53 @@ const ConfirmLeaseModal = ({
                 {error && <ErrorMessage message={error} />}
               </AnimatePresence>
 
-              <form onSubmit={handleSubmit} className="space-y-8">
-                <FormSection title="Tenant Information">
+              {/* Document Preview Section - Refactored */}
+              {leaseData.file_url && (
+                <FormSection
+                  title="Lease Document"
+                  containerClass="space-y-6"
+                  titleClass="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200"
+                >
+                  <div className="col-span-full mb-4">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setShowLeasePreview(!showLeasePreview)}
+                      className="text-sm py-1.5"
+                    >
+                      {showLeasePreview ? (
+                        <>
+                          <i className="fas fa-eye-slash mr-2" />Hide Document
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-eye mr-2" />Show Document
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <AnimatePresence>
+                    {showLeasePreview && leaseData.file_url && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "24rem" }} // Consistent height
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                        className="col-span-full mt-1 mb-4 border rounded-lg overflow-hidden shadow bg-gray-50" // Consistent styling
+                      >
+                        {renderPreviewContent(leaseData.file_url)}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </FormSection>
+              )}
+
+              <form onSubmit={handleCreateLease} className="space-y-8" id="confirm-lease-form">
+                <FormSection
+                  title="Tenant Information"
+                  containerClass="space-y-6"
+                  titleClass="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200"
+                >
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <div className="flex flex-col sm:flex-row justify-between">
                       <div>
@@ -759,7 +677,11 @@ const ConfirmLeaseModal = ({
                   </div>
                 </FormSection>
 
-                <FormSection title="Property & Unit Details">
+                <FormSection
+                  title="Property & Unit Details"
+                  containerClass="space-y-6"
+                  titleClass="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200"
+                >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Property Information */}
                     <div>
@@ -850,7 +772,11 @@ const ConfirmLeaseModal = ({
                   </div>
                 </FormSection>
 
-                <FormSection title="Lease Details">
+                <FormSection
+                  title="Lease Details"
+                  containerClass="space-y-6"
+                  titleClass="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200"
+                >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <Label htmlFor="start_date" required>
@@ -991,8 +917,8 @@ const ConfirmLeaseModal = ({
               </Button>
               <Button
                 type="submit"
+                form="confirm-lease-form"
                 variant="primary"
-                onClick={handleCreateLease}
                 disabled={
                   isLoading ||
                   isLoadingUnits ||
