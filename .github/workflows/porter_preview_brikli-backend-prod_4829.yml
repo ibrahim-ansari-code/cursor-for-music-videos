@@ -5,7 +5,7 @@
     paths:
       - "**"
       - "!.github/workflows/porter_**"
-name: Deploy to Preview Environment
+name: Deploy to Backend Preview Environment
 jobs:
   porter-deploy:
     runs-on: ubuntu-latest
