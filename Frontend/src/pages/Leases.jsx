@@ -117,22 +117,22 @@ const Leases = () => {
                   `Failed to fetch documents for lease ${lease.id}:`,
                   err
                 );
-                
+
                 // Report document fetch failure to monitoring service
                 Sentry.captureException(err, {
                   tags: {
-                    feature: 'lease_documents',
-                    operation: 'fetch_documents'
+                    feature: "lease_documents",
+                    operation: "fetch_documents",
                   },
                   extra: {
                     leaseId: lease.id,
                     tenantId: lease.tenant_id,
                     propertyId: lease.property_id,
-                    leaseStatus: lease.status
+                    leaseStatus: lease.status,
                   },
-                  level: 'warning' // Non-critical since we return partial results
+                  level: "warning", // Non-critical since we return partial results
                 });
-                
+
                 return { ...lease, documents: [], file_url: null };
               }
             })
@@ -342,14 +342,16 @@ const Leases = () => {
 
   if (loading && leases.length === 0) {
     return (
-      <LoadingSpinner 
-        message={documentsLoading ? "Loading lease documents..." : "Loading leases..."}
+      <LoadingSpinner
+        message={
+          documentsLoading ? "Loading lease documents..." : "Loading leases..."
+        }
       />
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end">
         <div className="mt-3 sm:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
           <div className="relative">
