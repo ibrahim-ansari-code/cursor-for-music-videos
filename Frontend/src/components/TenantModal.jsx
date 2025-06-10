@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { createTenant, fetchProperties } from "../utils/api";
 import { ModalShell, Label, Input, Button } from "./ui/SharedModalComponents";
 
@@ -30,6 +30,21 @@ const TenantModal = ({
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
 
+  const loadProperties = useCallback(async (signal) => {
+    setIsLoadingProperties(true);
+    try {
+      const propertiesData = await fetchProperties({}, { signal });
+      setProperties(propertiesData || []);
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        console.error("Failed to load properties:", err);
+        // Don't show error to user as properties are optional
+      }
+    } finally {
+      setIsLoadingProperties(false);
+    }
+  }, []);
+
   // Populate form when tenant data is provided
   useEffect(() => {
     if (isOpen) {
@@ -58,24 +73,16 @@ const TenantModal = ({
       setError(null);
       setTouched({});
       
+      const abortController = new AbortController();
       // Load properties when modal opens
-      loadProperties();
-    }
-  }, [isOpen, propertyId, unitId, unitName, JSON.stringify(tenant)]);
-  
-  const loadProperties = async () => {
-    setIsLoadingProperties(true);
-    try {
-      const propertiesData = await fetchProperties();
-      setProperties(propertiesData || []);
-    } catch (err) {
-      console.error("Failed to load properties:", err);
-      // Don't show error to user as properties are optional
-    } finally {
-      setIsLoadingProperties(false);
-    }
-  };
+      loadProperties(abortController.signal);
 
+      return () => {
+        abortController.abort();
+      };
+    }
+  }, [isOpen, propertyId, unitId, unitName, tenant?.id, loadProperties]);
+  
   const validateField = (name, value) => {
     switch (name) {
       case "first_name":
@@ -126,11 +133,22 @@ const TenantModal = ({
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    let finalValue = value;
+    if (name === "current_property_id") {
+      if (value) {
+        const parsed = parseInt(value, 10);
+        finalValue = isNaN(parsed) ? null : parsed;
+      } else {
+        finalValue = null;
+      }
+    }
+    setFormData((prev) => ({ ...prev, [name]: finalValue }));
     
     // Clear error when user starts typing if field was touched
     if (touched[name]) {
-      const error = validateField(name, value);
+      // Use finalValue for validation consistency, but validateField only handles text fields anyway
+      const valueToValidate = name === "current_property_id" ? finalValue : value;
+      const error = validateField(name, valueToValidate);
       if (error) {
         setFieldErrors((prev) => ({ ...prev, [name]: error }));
       } else {
@@ -176,6 +194,7 @@ const TenantModal = ({
     try {
       const tenantToCreate = {
         ...formData,
+        status: formData.status.charAt(0).toUpperCase() + formData.status.slice(1),
         current_property_id: formData.current_property_id || propertyId || null,
         unit: formData.unit || unitName || "",
         unit_id: formData.unit_id || unitId || null,
@@ -200,8 +219,13 @@ const TenantModal = ({
 
       // Handle specific HTTP status codes
       if (err.status === 409) {
-        errorMessage = err.data?.detail || "A tenant with this email already exists.";
-        setFieldErrors((prev) => ({...prev, email: "This email is already in use."}));
+        errorMessage =
+          err.data?.detail || "A tenant with this email already exists.";
+        setFieldErrors((prev) => ({
+          ...prev,
+          email: "This email is already in use.",
+        }));
+        setTouched((prev) => ({ ...prev, email: true }));
       }
       // Handle structured validation errors from backend
       else if (err.data?.detail && Array.isArray(err.data.detail)) {

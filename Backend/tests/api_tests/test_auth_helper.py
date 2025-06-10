@@ -195,52 +195,21 @@ class AuthTestManager:
         user_type: str = PRIMARY_TEST_USER_TYPE
     ) -> bool:
         """
-        Synchronizes a Supabase user with the backend system.
+        (DEPRECATED) No-ops user synchronization with the backend.
         
-        Attempts to create or update the user in the backend by sending user details to the backend's sync endpoint. Returns True if the operation succeeds or if the user already exists (HTTP 409), otherwise returns False.
+        This method previously synchronized a Supabase user with the backend system, but this functionality is now handled by a production webhook and should not be used in tests. Always returns True.
         """
-        logger.info(
-            f"Attempting to sync Supabase user {email} (ID: {supabase_user_id}) to backend...")
-        try:
-            sync_data = {
-                "supabase_user_id": str(supabase_user_id),
-                "email": email,
-                "first_name": first_name,
-                "last_name": last_name,
-                "user_type": user_type,
-                "phone": "0000000000"  # Placeholder
-            }
-            response = await self.http_client.post(
-                f"{self.backend_url}/api/auth/sync-user",
-                json=sync_data,
-                headers={"Content-Type": "application/json"}
-            )
-            # Check if status code is in the 2xx range for success
-            if 200 <= response.status_code < 300:
-                logger.info(
-                    f"Successfully synced user {email} to backend. Status: {response.status_code}")
-                return True
-            # Handle 409 Conflict if user already exists and sync endpoint doesn't update
-            elif response.status_code == 409:
-                logger.info(
-                    f"User {email} already exists in backend (Conflict 409). Sync considered successful.")
-                return True
-            else:
-                logger.warning(
-                    f"Failed to sync user {email}. Status: {response.status_code}, Response: {response.text}")
-                return False
-        except Exception as e:
-            logger.error(f"Error syncing user {email} to backend: {str(e)}")
-            return False
+        logger.warning("DEPRECATED: _sync_user_to_backend_if_needed was called but is disabled.")
+        return True
 
     async def get_or_refresh_jwt(
         self,
         prompt_for_password_if_needed: bool = False
     ) -> Optional[Dict[str, Any]]:
         """
-        Obtains a JWT for the primary test user by attempting to refresh the session or signing in.
+        Obtains a JWT for the primary test user by refreshing the session or signing in.
         
-        If a valid refresh token is available, tries to refresh the session using Supabase Auth. If refreshing fails or no refresh token exists, attempts to sign in with the user's password, which may be sourced from credentials, environment variables, or interactively prompted if allowed. On successful authentication, synchronizes the user with the backend and saves updated credentials.
+        Attempts to refresh the session using a stored refresh token. If refreshing fails or no refresh token is available, tries to sign in with the user's password, which may be sourced from credentials, environment variables, or interactively prompted if allowed. On successful authentication, saves updated credentials and tokens.
         
         Args:
             prompt_for_password_if_needed: If True, prompts for the user's password interactively if not found in credentials or environment variables.
@@ -268,10 +237,10 @@ class AuthTestManager:
                 if session_response.session and session_response.user:
                     logger.info(f"Token refreshed successfully for {email}.")
                     
-                    # Also sync the user to the backend on refresh
+                    # Also sync the user to the backend on refresh (NOW DISABLED)
                     user_id = str(session_response.user.id)
-                    if email:
-                        await self._sync_user_to_backend_if_needed(user_id, email, user_type=PRIMARY_TEST_USER_TYPE)
+                    # if email:
+                    #     await self._sync_user_to_backend_if_needed(user_id, email, user_type=PRIMARY_TEST_USER_TYPE)
                     
                     updated_creds = {
                         "email": email,
@@ -326,12 +295,12 @@ class AuthTestManager:
                 logger.info(f"Signed in successfully as {email}.")
                 user_id = str(session_response.user.id)
 
-                # Ensure email is not None before syncing
-                if email:
-                    await self._sync_user_to_backend_if_needed(user_id, email, user_type=PRIMARY_TEST_USER_TYPE)
-                else:
-                    logger.error("Cannot sync user to backend, email is None.")
-                    return None
+                # Ensure email is not None before syncing (NOW DISABLED)
+                # if email:
+                #     await self._sync_user_to_backend_if_needed(user_id, email, user_type=PRIMARY_TEST_USER_TYPE)
+                # else:
+                #     logger.error("Cannot sync user to backend, email is None.")
+                #     return None
 
                 new_creds = {
                     "email": email,

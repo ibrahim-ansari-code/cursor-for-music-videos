@@ -23,13 +23,13 @@ build:
 services:
   - name: brikli-frontend
     type: web
-    run: "" # Nginx starts automatically, so no run command is needed.
+    run: ""  # Nginx starts automatically, so no run command is needed.
     port: 4173
     cpuCores: 0.16
     ramMegabytes: 500
     instances: 1
-    domains:
-      - name: app.brikli.com
+    # No custom domains - Porter will auto-generate preview URLs
+    # Format will be: https://brikli-frontend-<hash>.porter.run
 
 # ---------- Environment ----------
 # This links the same environment group you're already using.
@@ -37,4 +37,4 @@ envGroups:
   - brikli-frontend-prod
 
 autoRollback:
-  enabled: false 
+  enabled: false

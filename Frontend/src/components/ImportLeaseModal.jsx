@@ -1,14 +1,14 @@
 import { AnimatePresence, motion } from "framer-motion";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   fetchProperties,
-  fetchPropertyUnits,
   fetchTenants,
-  getCurrentUser,
   parseLease,
   uploadLeasePDF,
+  fetchPropertyUnits,
+  fetchLeases,
+  createLease,
 } from "../utils/api";
-import ConfirmLeaseModal from "./ConfirmLeaseModal";
 import TenantModal from "./TenantModal";
 import {
   Label,
@@ -16,655 +16,736 @@ import {
   Button,
   ErrorMessage,
   FormSection,
+  Select,
 } from "./ui/SharedModalComponents";
 import LoadingSpinner from "./LoadingSpinner";
 
-const ImportLeaseModal = ({ isOpen, onClose, onImport }) => {
+const ImportLeaseModal = ({
+  isOpen,
+  onClose,
+  onImport,
+  initialMode = 'file',
+  propertyId: initialPropertyId = null,
+  unitId: initialUnitId = null,
+  unitName: initialUnitName = "",
+}) => {
+  const [mode, setMode] = useState(initialMode);
+  const [showParsedResults, setShowParsedResults] = useState(false);
+
+  // Common State
   const [properties, setProperties] = useState([]);
-  const [selectedProperty, setSelectedProperty] = useState("");
-  const [tenants, setTenants] = useState([]);
-  const [selectedTenant, setSelectedTenant] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [file, setFile] = useState(null);
+  const [units, setUnits] = useState([]);
+  const [availableUnits, setAvailableUnits] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingUnits, setIsLoadingUnits] = useState(false);
   const [error, setError] = useState(null);
-  const [leaseData, setLeaseData] = useState({
+  const [fieldErrors, setFieldErrors] = useState({});
+  
+  // File Upload Mode State
+  const [file, setFile] = useState(null);
+  const [parsedFileUrl, setParsedFileUrl] = useState(null);
+
+  // Form Data - Used for both modes
+  const [formData, setFormData] = useState({
+    property_id: initialPropertyId || "",
+    unit_id: initialUnitId || "",
+    unit_name: initialUnitName || "",
+    tenant_id: null,
     monthly_rent: "",
+    security_deposit: "",
     start_date: "",
     end_date: "",
-    security_deposit: "",
-    tenant_name: "",
-    unit: "",
+    rent_due_day: "1",
+    late_fee_amount: "",
+    late_fee_after_days: "",
+    special_terms: "",
   });
-  const [isCreatingNewTenant, setIsCreatingNewTenant] = useState(false);
+
+  // Tenant Management
+  const [availableTenants, setAvailableTenants] = useState([]);
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
-  const [tenantLoadError, setTenantLoadError] = useState(null);
+  const [selectedTenant, setSelectedTenant] = useState(null);
+  const [tenantSearchTerm, setTenantSearchTerm] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Child Modals State
   const [showTenantModal, setShowTenantModal] = useState(false);
-  const [showConfirmLeaseModal, setShowConfirmLeaseModal] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [propertySearchTerm, setPropertySearchTerm] = useState("");
-  const [tenantData, setTenantData] = useState({});
-  const [createdTenant, setCreatedTenant] = useState(null);
-  const [availableUnits, setAvailableUnits] = useState([]);
-  const [isLoadingUnits, setIsLoadingUnits] = useState(false);
 
-  // Load properties on component mount
+  // Reset state when modal opens
   useEffect(() => {
-    const loadProperties = async () => {
-      try {
-        const data = await fetchProperties();
-        setProperties(data);
-      } catch (error) {
-        console.error("Failed to fetch properties:", error);
-        setError("Failed to load properties. Please try again.");
-      }
-    };
-
-    const validateUserPermissions = async () => {
-      try {
-        // Check current user permissions from server
-        const userInfo = await getCurrentUser();
-
-        // Get and log the user type we got from the server
-        const userType = userInfo.user_type?.toUpperCase();
-        console.log("Current user type from server:", userType);
-
-        // Also check what we have in localStorage
-        const localUserType = localStorage.getItem("user_type");
-        const localUser = JSON.parse(localStorage.getItem("user") || "{}");
-        console.log("User type from localStorage:", localUserType);
-        console.log("User object from localStorage:", localUser);
-
-        // Validate against uppercase values to match the enum
-        if (userType !== "LANDLORD" && userType !== "ADMIN") {
-          setError(
-            "Your account doesn't have permission to create leases. Please contact an administrator."
-          );
-        } else {
-          // Ensure we have the correct uppercase value in localStorage
-          localStorage.setItem("user_type", userType);
-
-          // Update the user object too if it exists
-          if (localUser && localUser.id) {
-            localUser.user_type = userType;
-            localStorage.setItem("user", JSON.stringify(localUser));
-          }
-        }
-      } catch (error) {
-        console.error("Failed to validate user permissions:", error);
-        setError(
-          "Unable to verify your permissions. Please refresh the page and try again."
-        );
-      }
-    };
-
     if (isOpen) {
+      setMode(initialMode);
+      setFile(null);
+      setParsedFileUrl(null);
+      setShowParsedResults(false);
+      setError(null);
+      setFieldErrors({});
+      setSelectedTenant(null);
+      setTenantSearchTerm("");
+      setFormData({
+        property_id: initialPropertyId || "",
+        unit_id: initialUnitId || "",
+        unit_name: initialUnitName || "",
+        tenant_id: null,
+        monthly_rent: "",
+        security_deposit: "",
+        start_date: "",
+        end_date: "",
+        rent_due_day: "1",
+        late_fee_amount: "",
+        late_fee_after_days: "",
+        special_terms: "",
+      });
       loadProperties();
-      validateUserPermissions();
-    }
-  }, [isOpen]);
-
-  // Load tenants when property is selected
-  useEffect(() => {
-    const loadTenants = async () => {
-      if (selectedProperty) {
-        setIsLoadingTenants(true);
-        setTenantLoadError(null);
-        try {
-          // Fetch ALL tenants the user can see, not just by selectedProperty for the dropdown
-          const data = await fetchTenants({});
-          setTenants(data);
-          setError(null); // Clear any previous general errors
-
-          // Now fetch units for this property
-          await loadUnits(selectedProperty);
-        } catch (error) {
-          console.error("Failed to fetch tenants:", error);
-          setTenantLoadError("Failed to load tenants. Please try again.");
-        } finally {
-          setIsLoadingTenants(false);
-        }
-      } else {
-        setTenants([]);
-        setSelectedTenant(null);
-        setTenantLoadError(null);
-        setAvailableUnits([]);
+      if (initialPropertyId) {
+        loadTenantsForProperty(initialPropertyId);
+        loadUnitsForProperty(initialPropertyId);
       }
-    };
+    }
+  }, [isOpen, initialMode, initialPropertyId, initialUnitId, initialUnitName]);
 
-    loadTenants();
-  }, [selectedProperty]);
+  const loadProperties = async () => {
+    try {
+      const data = await fetchProperties();
+      setProperties(data || []);
+    } catch (err) {
+      console.error("Failed to fetch properties:", err);
+      setError("Could not load properties.");
+    }
+  };
 
-  // Fetch available units for a property
-  const loadUnits = async (propertyId) => {
-    if (!propertyId) return;
+  const loadTenantsForProperty = async (propertyId) => {
+    if (!propertyId) {
+        setAvailableTenants([]);
+        return [];
+    }
+    setIsLoadingTenants(true);
+    try {
+      const tenants = await fetchTenants({ unassigned_only: true });
+      setAvailableTenants(tenants || []);
+      return tenants || [];
+    } catch (err) {
+      console.error("Failed to load available tenants:", err);
+      setError("Could not load available tenants.");
+      setAvailableTenants([]);
+      return [];
+    } finally {
+      setIsLoadingTenants(false);
+    }
+  };
 
+  const loadUnitsForProperty = async (propertyId) => {
+    if (!propertyId) {
+      setUnits([]);
+      setAvailableUnits([]);
+      return;
+    }
     setIsLoadingUnits(true);
     try {
-      const units = await fetchPropertyUnits(propertyId);
-      console.log("Available units:", units);
-      setAvailableUnits(units || []);
-    } catch (error) {
-      console.error("Failed to fetch units for property:", error);
-      // Don't set an error for the user, just log it
+      // Fetch all units for the property
+      const unitsData = await fetchPropertyUnits(propertyId);
+      setUnits(unitsData || []);
+
+      // Fetch active leases to filter available units
+      const activeLeases = await fetchLeases({
+        property_id: propertyId,
+        status: "ACTIVE",
+      });
+      const activeLeaseUnitIds = new Set(
+        activeLeases.map((lease) => lease.unit_id).filter((id) => id != null)
+      );
+
+      const available = unitsData.filter(
+        (unit) => !activeLeaseUnitIds.has(unit.id)
+      );
+      setAvailableUnits(available);
+    } catch (err) {
+      console.error("Failed to load units:", err);
+      setError("Failed to load unit information.");
+      setUnits([]);
+      setAvailableUnits([]);
     } finally {
       setIsLoadingUnits(false);
     }
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownOpen && !event.target.closest(".tenant-dropdown")) {
-        setDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [dropdownOpen]);
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Clear field error when user starts typing
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => {
+        const updated = { ...prev };
+        delete updated[name];
+        return updated;
+      });
+    }
 
-  const handleFileSelect = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile && selectedFile.type === "application/pdf") {
-      setFile(selectedFile);
-      setError(null);
+    // Handle property change and update form data atomically
+    if (name === "property_id" && value) {
+      loadTenantsForProperty(value);
+      loadUnitsForProperty(value);
+      setFormData(prev => ({ ...prev, [name]: value, unit_id: "", unit_name: "" }));
     } else {
-      alert("Please select a PDF file");
-      setFile(null);
+      setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
 
-  const handleFileDrop = (e) => {
-    e.preventDefault();
-    const selectedFile = e.dataTransfer.files[0];
-    if (selectedFile && selectedFile.type === "application/pdf") {
-      setFile(selectedFile);
-      setError(null);
-    } else {
-      alert("Please drop a PDF file");
-      setFile(null);
-    }
+  const handleSelectTenant = (tenant) => {
+    setSelectedTenant(tenant);
+    setFormData(prev => ({...prev, tenant_id: tenant.id}));
+    setTenantSearchTerm(`${tenant.first_name} ${tenant.last_name}`);
+    setIsDropdownOpen(false);
   };
 
-  const handleImportClick = async () => {
-    try {
+  const handleCreateNewTenant = () => {
+    setIsDropdownOpen(false);
+    setShowTenantModal(true);
+  };
+
+  const handleTenantSaved = (newTenant) => {
+    setShowTenantModal(false);
+    setAvailableTenants(prev => [newTenant, ...prev]);
+    handleSelectTenant(newTenant);
+  };
+
+  // FILE UPLOAD MODE: Parse the lease file
+  const handleAnalyzeLease = async () => {
+    if (!file || !formData.property_id) {
+      setError("Please select a property and upload a lease file.");
+      return;
+    }
+
       setIsLoading(true);
       setError(null);
 
-      // First, upload the PDF file to Azure Blob Storage
-      console.log("Uploading lease PDF to Azure Blob Storage...");
-      const fileUrl = await uploadLeasePDF(file);
-      console.log("Lease PDF uploaded successfully, URL:", fileUrl);
+    try {
+      // Create FormData for file upload
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
 
-      // Analyze the lease to get LLM data
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("property_id", selectedProperty);
+      // Parse the lease file
+      const parsedData = await parseLease(uploadFormData);
+      console.log("Parsed lease data:", parsedData);
 
-      console.log("Calling parseLease API endpoint...");
-      const response = await parseLease(formData);
-      console.log("Lease parse successful:", response);
-
-      // Store the complete lease data needed for creation
-      const extractedLeaseData = {
-        monthly_rent: parseFloat(response.monthly_rent || 0),
-        security_deposit: parseFloat(response.security_deposit || 0),
-        start_date: response.start_date,
-        end_date: response.end_date,
-        property_id: parseInt(selectedProperty),
-        is_renewable: true,
-        auto_renew: false,
-        rent_due_day: 1,
-        late_fee_amount: null,
-        late_fee_after_days: null,
-        special_terms: null,
-        unit: response.unit || "",
-        file_url: fileUrl, // Add the file URL to lease data
-      };
-      console.log("Storing lease data:", extractedLeaseData);
-      setLeaseData(extractedLeaseData);
-
-      // Set tenant data from LLM extracted information
-      const tenantData = {
-        full_name: response.tenant_name,
-        first_name: "",
-        last_name: "",
-        phone: "", // This will be filled in by the user in TenantModal
-        email: "", // This will be filled in by the user in TenantModal
-        current_property_id: parseInt(selectedProperty),
-        unit: response.unit || "",
-        lease_start: response.start_date,
-        lease_end: response.end_date,
-        monthly_rent: response.monthly_rent?.toString() || "0",
-        status: "Active",
-      };
-
-      // Split the full name into first and last name
-      if (response.tenant_name) {
-        const nameParts = response.tenant_name.split(" ");
-        tenantData.first_name = nameParts[0] || "";
-        tenantData.last_name = nameParts.slice(1).join(" ") || "";
+      // Upload PDF to blob storage if it's a PDF
+      let fileUrl = null;
+      if (file.type === 'application/pdf') {
+        fileUrl = await uploadLeasePDF(file);
+        setParsedFileUrl(fileUrl);
       }
 
-      // Find unitId based on unit name if available
-      let unitId = null;
-      if (response.unit && availableUnits && availableUnits.length > 0) {
+      // Load available tenants for matching
+      const tenantsForMatching = await loadTenantsForProperty(formData.property_id);
+
+      // Try to find a matching tenant by name
+      let matchedTenant = null;
+      if (parsedData.tenant_name) {
+        const nameToMatch = parsedData.tenant_name.toLowerCase();
+        matchedTenant = tenantsForMatching.find(tenant => {
+          const fullName = `${tenant.first_name} ${tenant.last_name}`.toLowerCase();
+          return fullName.includes(nameToMatch) || nameToMatch.includes(fullName);
+        });
+      }
+
+      // Update form with parsed data
+      setFormData(prev => ({
+        ...prev,
+        monthly_rent: parsedData.monthly_rent || prev.monthly_rent,
+        security_deposit: parsedData.security_deposit || prev.security_deposit,
+        start_date: parsedData.start_date || prev.start_date,
+        end_date: parsedData.end_date || prev.end_date,
+        tenant_id: matchedTenant?.id || prev.tenant_id,
+      }));
+
+      if (matchedTenant) {
+        setSelectedTenant(matchedTenant);
+        setTenantSearchTerm(`${matchedTenant.first_name} ${matchedTenant.last_name}`);
+      }
+
+      // Try to match unit if parsed
+      if (parsedData.unit && availableUnits.length > 0) {
         const matchedUnit = availableUnits.find(
-          (unit) => unit.name.toLowerCase() === response.unit.toLowerCase()
+          unit => unit.name.toLowerCase() === parsedData.unit.toLowerCase()
         );
         if (matchedUnit) {
-          unitId = matchedUnit.id;
-          tenantData.unit_id = unitId;
-          console.log(
-            `Found matching unit ID ${unitId} for unit name ${response.unit}`
-          );
+          setFormData(prev => ({...prev, unit_id: matchedUnit.id}));
         }
       }
 
-      console.log("Setting tenant data:", tenantData);
-      setTenantData(tenantData);
-
-      // If creating a new tenant, show the tenant modal first
-      if (isCreatingNewTenant) {
-        setShowTenantModal(true);
-      } else if (selectedTenant) {
-        // If an existing tenant is selected, show the confirm lease modal
-        setCreatedTenant(selectedTenant);
-        setShowConfirmLeaseModal(true);
-      }
-    } catch (error) {
-      console.error("Error analyzing lease:", error);
-      setError(error.message || "Failed to analyze lease. Please try again.");
+      setShowParsedResults(true);
+    } catch (err) {
+      console.error("Failed to analyze lease:", err);
+      setError(err.message || "Failed to analyze lease file. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleTenantSave = (tenant) => {
-    console.log("Received created tenant from TenantModal:", tenant);
-    setError(null);
-    setCreatedTenant(tenant);
-    setShowTenantModal(false);
+  const validateForm = () => {
+    const errors = {};
 
-    // Show the confirm lease modal after tenant is created
-    setShowConfirmLeaseModal(true);
-  };
+    if (!formData.property_id) errors.property_id = "Property is required";
+    if (!formData.unit_id && mode !== 'manual') errors.unit_id = "Unit is required";
+    if (!formData.tenant_id) errors.tenant_id = "Tenant is required";
+    if (!formData.start_date) errors.start_date = "Start date is required";
+    if (!formData.end_date) errors.end_date = "End date is required";
+    if (!formData.monthly_rent) errors.monthly_rent = "Monthly rent is required";
+    if (!formData.security_deposit) errors.security_deposit = "Security deposit is required";
 
-  const handleLeaseSubmit = (lease) => {
-    console.log("Lease created successfully:", lease);
-    onImport();
-    onClose();
-  };
-
-  const filteredTenants = tenants.filter((tenant) => {
-    // Check if tenant has any active leases
-    const hasActiveLease =
-      tenant.leases && tenant.leases.some((lease) => lease.status === "ACTIVE");
-
-    // If tenant has an active lease, exclude them
-    if (hasActiveLease) {
-      return false;
+    // Date validation
+    if (formData.start_date && formData.end_date) {
+      const start = new Date(formData.start_date);
+      const end = new Date(formData.end_date);
+      if (start > end) {
+        errors.end_date = "End date must be after start date";
+      }
     }
 
-    // Existing search term filtering
-    const tenantName = tenant.name || tenant.full_name || "";
-    const tenantEmail = tenant.email || "";
+    return errors;
+  };
 
-    return (
-      tenantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tenantEmail.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  });
+  const handleSubmitLease = async () => {
+    // Validate form
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setError("Please correct the validation errors below.");
+      return;
+    }
 
-  // Handle closing the modal with cleanup
-  const handleClose = () => {
-    // Reset states when closing
+    setIsLoading(true);
     setError(null);
-    setTenantLoadError(null);
-    setSelectedTenant(null);
-    setCreatedTenant(null);
-    setShowTenantModal(false);
-    setShowConfirmLeaseModal(false);
 
-    // Call the parent's onClose
-    onClose();
+    try {
+      // Prepare lease data with NaN checks
+      const parseIntSafe = (value) => {
+        const parsed = Number.parseInt(value);
+        return isNaN(parsed) ? null : parsed;
+      };
+      
+      const parseFloatSafe = (value) => {
+        const parsed = Number.parseFloat(value);
+        return isNaN(parsed) ? null : parsed;
+      };
+
+      const leaseData = {
+        property_id: parseIntSafe(formData.property_id),
+        unit_id: formData.unit_id ? parseIntSafe(formData.unit_id) : null,
+        tenant_id: parseIntSafe(formData.tenant_id),
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        monthly_rent: parseFloatSafe(formData.monthly_rent),
+        security_deposit: parseFloatSafe(formData.security_deposit),
+        rent_due_day: parseIntSafe(formData.rent_due_day || 1),
+        late_fee_amount: formData.late_fee_amount ? parseFloatSafe(formData.late_fee_amount) : null,
+        late_fee_after_days: formData.late_fee_after_days ? parseIntSafe(formData.late_fee_after_days) : null,
+        special_terms: formData.special_terms || null,
+        status: "ACTIVE",
+        file_url: parsedFileUrl,
+      };
+
+      console.log("Creating lease with data:", leaseData);
+      const createdLease = await createLease(leaseData);
+      console.log("Lease created successfully:", createdLease);
+
+      // Call the onImport callback
+      onImport(createdLease);
+    } catch (err) {
+      console.error("Failed to create lease:", err);
+      setError(err.message || "Failed to create lease. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  if (!isOpen) return null;
+  const filteredTenants = availableTenants.filter(
+    (t) =>
+      `${t.first_name} ${t.last_name}`.toLowerCase().includes(tenantSearchTerm.toLowerCase()) ||
+      (t.email && t.email.toLowerCase().includes(tenantSearchTerm.toLowerCase()))
+  );
 
-  // Define animation variants for modal transitions
-  const modalVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 30,
-      },
-    },
-    exit: {
-      opacity: 0,
-      scale: 0.95,
-      transition: {
-        duration: 0.15,
-      },
-    },
-  };
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const renderFormFields = () => (
+    <div className="space-y-4">
+      {/* Property Selection */}
+      <div>
+        <Label htmlFor="property_id" required>Property</Label>
+        <select 
+          name="property_id" 
+          id="property_id" 
+          value={formData.property_id} 
+          onChange={handleFormChange}
+          disabled={initialPropertyId && mode === 'manual'}
+          className="w-full border-gray-300 rounded-md"
+        >
+          <option value="">Choose a property</option>
+          {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        {fieldErrors.property_id && (
+          <p className="mt-1 text-sm text-red-600">{fieldErrors.property_id}</p>
+        )}
+      </div>
+
+      {/* Unit Selection */}
+      <div>
+        <Label htmlFor="unit_id" required={mode !== 'manual'}>Unit</Label>
+        {mode === 'manual' && initialUnitId ? (
+          <Input 
+            value={initialUnitName} 
+            disabled 
+            className="bg-gray-50"
+          />
+        ) : (
+          <Select
+            id="unit_id"
+            name="unit_id"
+            value={formData.unit_id}
+            onChange={handleFormChange}
+            disabled={isLoadingUnits || !formData.property_id}
+            required={mode !== 'manual'}
+            isLoading={isLoadingUnits}
+            emptyMessage={
+              !formData.property_id
+                ? "Select property first"
+                : availableUnits.length === 0
+                ? "No available units"
+                : "Select a unit"
+            }
+            options={availableUnits}
+          />
+        )}
+        {fieldErrors.unit_id && (
+          <p className="mt-1 text-sm text-red-600">{fieldErrors.unit_id}</p>
+        )}
+      </div>
+
+      {/* Tenant Selection */}
+      <div ref={dropdownRef}>
+        <Label htmlFor="tenant-search" required>Tenant</Label>
+        <div className="relative">
+          <Input 
+            id="tenant-search" 
+            type="text" 
+            placeholder="Search for existing tenant or create new" 
+            value={tenantSearchTerm} 
+            onChange={(e) => {
+              setTenantSearchTerm(e.target.value);
+              setIsDropdownOpen(true);
+            }} 
+            onFocus={() => setIsDropdownOpen(true)}
+          />
+          {isDropdownOpen && (
+            <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border max-h-48 overflow-y-auto">
+              {isLoadingTenants ? (
+                <div className="p-2 text-sm text-gray-500">Loading...</div>
+              ) : (
+                <ul>
+                  {filteredTenants.map(t => (
+                    <li 
+                      key={t.id} 
+                      onClick={() => handleSelectTenant(t)} 
+                      className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
+                    >
+                      {t.first_name} {t.last_name}
+                      {t.email && <span className="text-gray-500 ml-2">({t.email})</span>}
+                    </li>
+                  ))}
+                  <li 
+                    onClick={handleCreateNewTenant} 
+                    className="p-2 hover:bg-gray-100 cursor-pointer text-sm font-semibold text-blue-600 border-t"
+                  >
+                    + Create New Tenant
+                  </li>
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+        {fieldErrors.tenant_id && (
+          <p className="mt-1 text-sm text-red-600">{fieldErrors.tenant_id}</p>
+        )}
+      </div>
+
+      {/* Lease Terms */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="start_date" required>Start Date</Label>
+          <Input 
+            name="start_date" 
+            id="start_date" 
+            type="date" 
+            value={formData.start_date} 
+            onChange={handleFormChange}
+          />
+          {fieldErrors.start_date && (
+            <p className="mt-1 text-sm text-red-600">{fieldErrors.start_date}</p>
+          )}
+        </div>
+        <div>
+          <Label htmlFor="end_date" required>End Date</Label>
+          <Input 
+            name="end_date" 
+            id="end_date" 
+            type="date" 
+            value={formData.end_date} 
+            onChange={handleFormChange}
+          />
+          {fieldErrors.end_date && (
+            <p className="mt-1 text-sm text-red-600">{fieldErrors.end_date}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Financial Terms */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="monthly_rent" required>Monthly Rent ($)</Label>
+          <Input 
+            name="monthly_rent" 
+            id="monthly_rent" 
+            type="number" 
+            step="0.01"
+            placeholder="1500" 
+            value={formData.monthly_rent} 
+            onChange={handleFormChange}
+          />
+          {fieldErrors.monthly_rent && (
+            <p className="mt-1 text-sm text-red-600">{fieldErrors.monthly_rent}</p>
+          )}
+        </div>
+        <div>
+          <Label htmlFor="security_deposit" required>Security Deposit ($)</Label>
+          <Input 
+            name="security_deposit" 
+            id="security_deposit" 
+            type="number" 
+            step="0.01"
+            placeholder="1500" 
+            value={formData.security_deposit} 
+            onChange={handleFormChange}
+          />
+          {fieldErrors.security_deposit && (
+            <p className="mt-1 text-sm text-red-600">{fieldErrors.security_deposit}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Additional Terms */}
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <Label htmlFor="rent_due_day">Rent Due Day</Label>
+          <Input 
+            name="rent_due_day" 
+            id="rent_due_day" 
+            type="number" 
+            min="1" 
+            max="31"
+            value={formData.rent_due_day} 
+            onChange={handleFormChange}
+          />
+        </div>
+        <div>
+          <Label htmlFor="late_fee_amount">Late Fee ($)</Label>
+          <Input 
+            name="late_fee_amount" 
+            id="late_fee_amount" 
+            type="number" 
+            step="0.01"
+            placeholder="50" 
+            value={formData.late_fee_amount} 
+            onChange={handleFormChange}
+          />
+        </div>
+        <div>
+          <Label htmlFor="late_fee_after_days">Late After (Days)</Label>
+          <Input 
+            name="late_fee_after_days" 
+            id="late_fee_after_days" 
+            type="number" 
+            min="1"
+            placeholder="5" 
+            value={formData.late_fee_after_days} 
+            onChange={handleFormChange}
+          />
+        </div>
+      </div>
+
+      {/* Special Terms */}
+      <div>
+        <Label htmlFor="special_terms">Special Terms</Label>
+        <textarea 
+          name="special_terms" 
+          id="special_terms" 
+          rows="3"
+          className="w-full border-gray-300 rounded-md"
+          placeholder="Any special conditions or notes..."
+          value={formData.special_terms} 
+          onChange={handleFormChange}
+        />
+      </div>
+    </div>
+  );
 
   return (
+    <>
+      <AnimatePresence>
+        {isOpen && !showTenantModal && (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
-    >
-      <AnimatePresence mode="wait">
-        {!showTenantModal && !showConfirmLeaseModal && (
-          <motion.div
-            key="importModal"
-            variants={modalVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden"
+            className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={onClose}
           >
-            <div className="sticky top-0 z-10 px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Import Lease
-              </h2>
+            <motion.div 
+              className="relative w-full max-w-3xl bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="px-6 py-4 border-b flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-gray-900">Create New Lease</h2>
               <button
-                onClick={handleClose}
-                className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full p-1 transition-colors duration-200"
-                aria-label="Close modal"
-              >
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+                  onClick={onClose}
+                  type="button"
+                  aria-label="Close"
+                  className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full p-1"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" role="img">
+                    <title>Close modal</title>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
               </button>
             </div>
 
-            <div className="p-6 max-h-[calc(100vh-12rem)] overflow-y-auto">
-              <AnimatePresence>
+              {/* Mode Selector - Only show if not locked to a specific mode */}
+              {!initialPropertyId && (
+                <div className="p-6 border-b">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div 
+                      onClick={() => {setMode('file'); setShowParsedResults(false);}} 
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { setMode('file'); setShowParsedResults(false); } }}
+                      className={`p-4 border-2 rounded-lg cursor-pointer text-center ${
+                        mode === 'file' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      <i className="fas fa-file-upload text-2xl text-blue-600 mb-2"></i>
+                      <h3 className="font-semibold">File Upload</h3>
+                      <p className="text-xs text-gray-500">Upload lease PDF to parse</p>
+                    </div>
+                    <div 
+                      onClick={() => {setMode('manual'); setShowParsedResults(false);}} 
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { setMode('manual'); setShowParsedResults(false); } }}
+                      className={`p-4 border-2 rounded-lg cursor-pointer text-center ${
+                        mode === 'manual' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      <i className="fas fa-keyboard text-2xl text-blue-600 mb-2"></i>
+                      <h3 className="font-semibold">Manual Entry</h3>
+                      <p className="text-xs text-gray-500">Enter lease details directly</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Form Area */}
+              <div className="flex-1 overflow-y-auto p-6">
                 {error && <ErrorMessage message={error} />}
-              </AnimatePresence>
 
-              <form className="space-y-6">
-                <FormSection
-                  title="Property & Tenant Selection"
-                  containerClass="space-y-6"
-                  titleClass="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200"
-                >
+                {/* File Upload Mode */}
+                {mode === 'file' && !showParsedResults && (
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="property" required>
-                        Select Property
-                      </Label>
-                      <div className="relative tenant-dropdown">
-                        <Input
-                          type="text"
-                          placeholder="Search or select property..."
-                          value={propertySearchTerm}
-                          onChange={(e) => {
-                            setPropertySearchTerm(e.target.value);
-                            setDropdownOpen("property");
-                          }}
-                        />
-                        {dropdownOpen === "property" && (
-                          <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg border border-gray-200">
-                            <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                              {properties
-                                .filter((property) =>
-                                  property.name
-                                    .toLowerCase()
-                                    .includes(propertySearchTerm.toLowerCase())
-                                )
-                                .map((property) => (
-                                  <li
-                                    key={property.id}
-                                    className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-50 transition-colors"
-                                    onClick={() => {
-                                      setSelectedProperty(property.id);
-                                      setPropertySearchTerm(property.name);
-                                      setDropdownOpen(false);
-                                    }}
-                                  >
-                                    <span className="font-normal block truncate">
-                                      {property.name}
-                                    </span>
-                                  </li>
-                                ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
+                      <Label htmlFor="file-property_id" required>Property</Label>
+                      <select 
+                        name="property_id" 
+                        id="file-property_id" 
+                        value={formData.property_id} 
+                        onChange={handleFormChange} 
+                        className="w-full border-gray-300 rounded-md"
+                      >
+                        <option value="">Choose a property</option>
+                        {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
                     </div>
 
-                    {selectedProperty && (
                       <div>
-                        <Label htmlFor="tenant" required>
-                          Select or Create Tenant
-                        </Label>
-                        <div className="relative tenant-dropdown">
-                          <Input
-                            type="text"
-                            placeholder="Search or create tenant..."
-                            value={searchTerm}
-                            onChange={(e) => {
-                              setSearchTerm(e.target.value);
-                              setDropdownOpen("tenant");
-                            }}
-                          />
-                          {dropdownOpen === "tenant" && (
-                            <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg border border-gray-200">
-                              <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                                {isLoadingTenants ? (
-                                  <li className="text-gray-500 py-2 px-3 flex items-center">
-                                    <LoadingSpinner message="Loading tenants..." />
-                                  </li>
-                                ) : filteredTenants.length > 0 ? (
-                                  filteredTenants.map((tenant) => (
-                                    <li
-                                      key={tenant.id}
-                                      className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-50 transition-colors"
-                                      onClick={() => {
-                                        setSelectedTenant(tenant);
-                                        setSearchTerm(
-                                          tenant.name || tenant.full_name
-                                        );
-                                        setIsCreatingNewTenant(false);
-                                        setDropdownOpen(false);
-                                      }}
-                                    >
-                                      <span className="font-normal block truncate">
-                                        {tenant.name || tenant.full_name}{" "}
-                                        {tenant.email
-                                          ? `(${tenant.email})`
-                                          : ""}
-                                      </span>
-                                    </li>
-                                  ))
-                                ) : (
-                                  <li className="text-gray-500 py-2 px-3">
-                                    No tenants found
-                                  </li>
-                                )}
-                                <li
-                                  className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-50 transition-colors border-t border-gray-100"
-                                  onClick={() => {
-                                    setIsCreatingNewTenant(true);
-                                    setSelectedTenant(null);
-                                    setSearchTerm("Create New Tenant");
-                                    setDropdownOpen(false);
-                                  }}
-                                >
-                                  <span className="font-normal block truncate text-blue-600">
-                                    + Create New Tenant
-                                  </span>
-                                </li>
-                              </ul>
-                            </div>
+                      <Label htmlFor="lease-file" required>Lease Document</Label>
+                      <input
+                        id="lease-file"
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) => setFile(e.target.files[0])}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm file:mr-4 file:py-1 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      {file && (
+                        <p className="mt-2 text-sm text-gray-600">
+                          Selected: {file.name}
+                        </p>
                           )}
                         </div>
                       </div>
                     )}
-                  </div>
-                </FormSection>
 
-                <FormSection
-                  title="Upload Lease Document"
-                  containerClass="space-y-6"
-                  titleClass="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200"
-                >
-                  <div
-                    onDrop={handleFileDrop}
-                    onDragOver={(e) => e.preventDefault()}
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-                    onClick={() => document.getElementById("fileInput").click()}
+                {/* Show parsed results or manual entry form */}
+                {(mode === 'manual' || showParsedResults) && renderFormFields()}
+                  </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 bg-gray-50 border-t flex justify-end space-x-3">
+                <Button variant="secondary" onClick={onClose}>Cancel</Button>
+                {mode === 'file' && !showParsedResults ? (
+                  <Button 
+                    variant="primary" 
+                    onClick={handleAnalyzeLease} 
+                    disabled={!file || !formData.property_id || isLoading}
+                    isLoading={isLoading}
                   >
-                    {file ? (
-                      <div className="flex flex-col items-center">
-                        <svg
-                          className="h-12 w-12 text-green-500 mb-2"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        <span className="text-sm font-medium text-gray-900">
-                          {file.name}
-                        </span>
-                        <span className="text-xs text-gray-500 mt-1">
-                          Click to change file
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center">
-                        <svg
-                          className="h-12 w-12 text-gray-400 mb-2"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                          />
-                        </svg>
-                        <span className="text-sm font-medium text-gray-900">
-                          Click to select or drop lease PDF here
-                        </span>
-                        <span className="text-xs text-gray-500 mt-1">
-                          Only PDF files are accepted
-                        </span>
-                      </div>
-                    )}
-                    <input
-                      type="file"
-                      id="fileInput"
-                      accept=".pdf"
-                      onChange={handleFileSelect}
-                      style={{ display: "none" }}
-                    />
-                  </div>
-                </FormSection>
-              </form>
-            </div>
-
-            <div className="sticky bottom-0 z-10 px-6 py-4 bg-white border-t border-gray-200 flex justify-end space-x-3">
-              <Button type="button" variant="secondary" onClick={handleClose}>
-                Cancel
+                    Parse Lease
               </Button>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleImportClick}
-                disabled={
-                  !file ||
-                  !selectedProperty ||
-                  (!selectedTenant && !isCreatingNewTenant) ||
-                  isLoading
-                }
-              >
-                {isLoading ? (
-                  <>
-                    <LoadingSpinner message="Importing..." />
-                  </>
                 ) : (
-                  "Import"
+                  <Button 
+                    variant="primary" 
+                    onClick={handleSubmitLease} 
+                    disabled={!formData.tenant_id || isLoading}
+                    isLoading={isLoading}
+                  >
+                    Create Lease
+                  </Button>
                 )}
-              </Button>
             </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Tenant Modal for creating a new tenant */}
+      {/* Tenant Modal */}
       <AnimatePresence>
         {showTenantModal && (
           <TenantModal
-            isOpen={showTenantModal}
+            isOpen={true} 
             onClose={() => setShowTenantModal(false)}
-            tenant={tenantData}
-            onSave={handleTenantSave}
-            source="importLeaseModal"
-            propertyId={parseInt(selectedProperty)}
-            unitId={tenantData.unit_id}
-            unitName={tenantData.unit}
+            onSave={handleTenantSaved} 
+            propertyId={formData.property_id}
           />
         )}
       </AnimatePresence>
-
-      {/* Confirm Lease Modal */}
-      <AnimatePresence>
-        {showConfirmLeaseModal && (
-          <ConfirmLeaseModal
-            isOpen={showConfirmLeaseModal}
-            onClose={() => setShowConfirmLeaseModal(false)}
-            leaseData={leaseData}
-            tenant={createdTenant}
-            onSubmit={handleLeaseSubmit}
-            availableUnits={availableUnits}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Loading overlay */}
-      <AnimatePresence>
-        {isLoading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center"
-          >
-            <LoadingSpinner message="Processing lease..." />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+    </>
   );
 };
 

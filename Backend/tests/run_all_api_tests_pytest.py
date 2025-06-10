@@ -38,9 +38,15 @@ BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 def run_pytest_with_json_report(plugin_status: Optional[dict[str, bool]] = None) -> bool:
     """
-    Runs pytest on the API tests directory with optional JSON reporting and parallel execution.
+    Runs API tests using pytest with optional parallel execution and JSON reporting.
     
-    If the required plugins are available, enables parallel test execution and generates a JSON report for structured output parsing. Streams pytest output in real time. After completion, prints a detailed summary from the JSON report if available; otherwise, prints a basic summary. Returns True if all tests pass (exit code 0), otherwise False.
+    If supported plugins are available, enables parallel test execution and generates a JSON report for detailed result summaries. Ensures a dummy SUPABASE_WEBHOOK_SECRET is set if missing. Streams pytest output in real time, prints a detailed summary if a JSON report is produced, or a basic summary otherwise.
+    
+    Args:
+        plugin_status: Optional dictionary indicating the availability of pytest plugins.
+    
+    Returns:
+        True if all tests pass (pytest exit code 0), otherwise False.
     """
     
     if plugin_status is None:
@@ -49,6 +55,12 @@ def run_pytest_with_json_report(plugin_status: Optional[dict[str, bool]] = None)
     # Create a temporary file for JSON report
     json_report_path = os.path.join(_TESTS_DIR, "pytest_report.json")
     
+    # Set the webhook secret for the test environment
+    test_env = os.environ.copy()
+    if not test_env.get("SUPABASE_WEBHOOK_SECRET"):
+        logger.info("Temporarily setting a dummy SUPABASE_WEBHOOK_SECRET for test run.")
+        test_env["SUPABASE_WEBHOOK_SECRET"] = "dummy-secret-for-testing"
+
     # Base pytest command
     pytest_cmd = [
         sys.executable, "-m", "pytest",
@@ -85,7 +97,8 @@ def run_pytest_with_json_report(plugin_status: Optional[dict[str, bool]] = None)
             stderr=subprocess.STDOUT,  # Merge stderr into stdout
             text=True,
             bufsize=1,  # Line-buffered
-            universal_newlines=True
+            universal_newlines=True,
+            env=test_env # Pass the modified environment
         ) as process:
             
             # Stream output line by line in real-time

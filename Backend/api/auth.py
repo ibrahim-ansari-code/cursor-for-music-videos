@@ -122,7 +122,14 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     session: AsyncSession = Depends(get_session)
 ):
-    """Get current user from Supabase JWT token"""
+    """
+    Retrieves the current authenticated user based on a Supabase JWT token.
+    
+    Validates the provided JWT token with Supabase, extracts the user ID, and attempts to fetch the corresponding user from the local database. If the user does not exist locally, performs just-in-time (JIT) user creation in a concurrency-safe manner using a nested transaction. Raises HTTP exceptions for invalid credentials or unexpected errors.
+    
+    Returns:
+        The authenticated User instance from the local database.
+    """
     user_response_from_supabase = None
     try:
         supabase = get_supabase_client()
@@ -171,34 +178,46 @@ async def get_current_user(
 
         if not db_user:
             logger.warning(
-                "User with Supabase ID %s not found in local database. Creating user.", actual_user_from_supabase.id)
+                "User with Supabase ID %s not found in local database. Attempting JIT creation.", actual_user_from_supabase.id)
             
-            # JIT User Creation
-            user_metadata = actual_user_from_supabase.user_metadata or {}
-            full_name = user_metadata.get("full_name", "")
-            first_name = user_metadata.get("first_name")
-            last_name = user_metadata.get("last_name")
+            # Use a transaction with a lock to prevent race conditions
+            async with session.begin_nested():
+                # Re-check if user was created by a concurrent request while we were waiting for the lock
+                check_user_again = await session.get(User, uuid_obj)
+                if check_user_again:
+                    logger.info("User %s was created by a concurrent request. Using existing user.", uuid_obj)
+                    return check_user_again
 
-            if not first_name and full_name:
-                parts = full_name.split(" ", 1)
-                first_name = parts[0]
-                last_name = parts[1] if len(parts) > 1 else ""
+                # JIT User Creation - if still not found, proceed with creation
+                user_metadata = actual_user_from_supabase.user_metadata or {}
+                full_name = user_metadata.get("full_name", "")
+                first_name = user_metadata.get("first_name")
+                last_name = user_metadata.get("last_name")
 
-            new_user_data = {
-                "id": uuid_obj,
-                "email": actual_user_from_supabase.email,
-                "first_name": first_name,
-                "last_name": last_name,
-                "is_email_verified": user_metadata.get("email_verified", False),
-                "user_type": "LANDLORD"
-                # user_type will use the default "UNKNOWN" from the model
-            }
+                if not first_name and full_name:
+                    parts = full_name.split(" ", 1)
+                    first_name = parts[0]
+                    last_name = parts[1] if len(parts) > 1 else ""
+
+                new_user_data = {
+                    "id": uuid_obj,
+                    "email": actual_user_from_supabase.email,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "is_email_verified": user_metadata.get("email_verified", False),
+                    "user_type": UserType.LANDLORD
+                }
+
+                db_user = User.model_validate(new_user_data)
+                session.add(db_user)
+                await session.flush() # Use flush instead of commit inside the nested transaction
+                logger.info("Successfully provisioned user %s via JIT.", db_user.id)
             
-            db_user = User.model_validate(new_user_data)
-            session.add(db_user)
-            await session.commit()
+            # After the nested transaction commits to a savepoint, refresh the object to ensure
+            # it's up-to-date in the parent session. The final commit of the overall transaction
+            # is handled by the FastAPI dependency lifecycle (e.g., a middleware) to ensure
+            # the entire request is treated as a single unit of work.
             await session.refresh(db_user)
-            logger.info("Successfully created user %s via JIT provisioning.", db_user.id)
 
         return db_user
     except HTTPException as http_exc:  # Re-raise HTTPException to preserve status code and details
@@ -371,7 +390,7 @@ async def supabase_webhook_handler(
         "first_name": raw_user_meta_data.get("first_name"),
         "last_name": raw_user_meta_data.get("last_name"),
         "phone": raw_user_meta_data.get("phone"),
-        "user_type": "LANDLORD",
+        "user_type": UserType.LANDLORD,
         "is_active": True,
         "is_admin": False,
         "is_email_verified": False,
@@ -451,7 +470,7 @@ async def sync_supabase_user(
         "last_name": sync_request.last_name,
         "phone": sync_request.phone,
         # Ensure user_type is always LANDLORD for this portal
-        "user_type": "LANDLORD",
+        "user_type": UserType.LANDLORD,
         # Default values based on observed schema and common practice:
         "is_active": True,
         "is_admin": False,  # New users from Supabase signup are not admins by default

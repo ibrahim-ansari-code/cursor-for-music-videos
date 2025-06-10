@@ -684,7 +684,15 @@ export const getTenantSupport = async (messages, context) => {
 };
 
 // Property Management API Functions
-export const fetchProperties = async (params = {}) => {
+/**
+ * Fetches properties from the API.
+ * @param {object} params - Query parameters for filtering properties.
+ * @param {object} [options={}] - Optional request options, e.g., for AbortController.
+ * @param {object} [options.headers] - Custom headers for the request.
+ * @param {AbortSignal} [options.signal] - An AbortSignal to allow aborting the request.
+ * @returns {Promise<Array<object>>} A promise that resolves to an array of property objects.
+ */
+export const fetchProperties = async (params = {}, options = {}) => {
   const queryParams = new URLSearchParams();
 
   if (params.owner_id) queryParams.append("owner_id", params.owner_id);
@@ -692,7 +700,7 @@ export const fetchProperties = async (params = {}) => {
     queryParams.append("property_type", params.property_type);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/properties${formatQueryString(queryString)}`);
+  return apiRequest(`/properties${formatQueryString(queryString)}`, options);
 };
 
 export const fetchPropertyById = async (propertyId) => {
@@ -805,6 +813,7 @@ export const fetchTenants = async (params = {}) => {
   if (params.property_id) queryParams.append("property_id", params.property_id);
   if (params.status) queryParams.append("status", params.status);
   if (params.search) queryParams.append("search", params.search);
+  if (params.unassigned_only) queryParams.append("unassigned_only", "true");
 
   const queryString = queryParams.toString();
   return apiRequest(`/tenants${formatQueryString(queryString)}`);
@@ -816,58 +825,24 @@ export const fetchTenant = async (tenantId) => {
 
 export const createTenant = async (tenantData) => {
   console.log("Creating tenant with data:", tenantData);
-  // Basic data sanitization
-  const sanitizedData = { ...tenantData };
   
-  // Trim and lowercase email if it's a string
-  if (typeof sanitizedData.email === "string") {
-    sanitizedData.email = sanitizedData.email.trim().toLowerCase();
-    // If email is empty string, set to null to avoid validation issues
-    if (sanitizedData.email === "") {
-      sanitizedData.email = null;
-    }
-  }
-  
-  // Ensure status is properly formatted for the backend enum
-  if (sanitizedData.status) {
-    sanitizedData.status =
-      sanitizedData.status.charAt(0).toUpperCase() +
-      sanitizedData.status.slice(1).toLowerCase();
-  }
+  // Backend now handles all normalization and validation.
   
   // Use the standardized apiRequest helper for consistency
   return apiRequest("/tenants", {
     method: "POST",
-    body: JSON.stringify(sanitizedData),
+    body: JSON.stringify(tenantData),
   });
 };
 
 export const updateTenant = async (tenantId, tenantData) => {
   console.log(`Updating tenant ${tenantId} with data:`, tenantData);
   
-  // Basic data sanitization
-  const sanitizedData = { ...tenantData };
-  
-  // Trim email if it's a string
-  if (typeof sanitizedData.email === "string") {
-    sanitizedData.email = sanitizedData.email.trim().toLowerCase();
-    // If email is empty string, set to null to avoid validation issues
-    if (sanitizedData.email === "") {
-      sanitizedData.email = null;
-    }
-  }
-  
-  // Ensure status is properly formatted for the backend enum
-  if (sanitizedData.status) {
-    sanitizedData.status =
-      sanitizedData.status.charAt(0).toUpperCase() +
-      sanitizedData.status.slice(1).toLowerCase();
-  }
-  
-  // Use the standardized apiRequest helper for consistency
+  // Backend now handles all validation and normalization via Pydantic validators
+  // No need for frontend data manipulation that could introduce bugs
   return apiRequest(`/tenants/${tenantId}`, {
     method: "PATCH",
-    body: JSON.stringify(sanitizedData),
+    body: JSON.stringify(tenantData),
   });
 };
 
@@ -999,28 +974,7 @@ export const analyzeLease = async (formData) => {
   return response.json();
 };
 
-export const submitLease = async (leaseData) => {
-  try {
-    console.log("Submitting lease data:", leaseData);
-    const token = localStorage.getItem("token");
-
-    const response = await fetch(`${API_BASE_URL}/api/leases`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(leaseData),
-    });
-
-    const result = await handleResponse(response);
-    console.log("Lease created successfully:", result);
-    return result;
-  } catch (error) {
-    console.error("Error in submitLease:", error);
-    throw error;
-  }
-};
+// submitLease has been removed - use createLease instead for consistency
 
 export const parseLease = async (formData) => {
   const token = localStorage.getItem("token");

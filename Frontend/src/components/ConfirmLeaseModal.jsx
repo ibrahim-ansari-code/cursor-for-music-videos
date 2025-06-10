@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
 import {
-  submitLease,
+  createLease,
   fetchProperties,
   fetchPropertyUnits,
   fetchLeases,
-  createLease,
 } from "../utils/api";
 import { motion, AnimatePresence } from "framer-motion"; // Add framer-motion for animations
 import {
@@ -332,76 +331,10 @@ const ConfirmLeaseModal = ({
     return errors;
   };
 
-  const handleSubmit = async (e) => {
+  const handleCreateLease = async (e) => {
     e.preventDefault();
     setFormSubmitted(true);
 
-    // Validate form
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      setFieldErrors(validationErrors);
-      setError("Please correct the validation errors below.");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    setFieldErrors({});
-
-    try {
-      // Format data for API, removing renewable fields
-      const leaseSubmitData = {
-        property_id: Number.parseInt(formData.property_id, 10),
-        unit_id: formData.unit_id
-          ? Number.parseInt(formData.unit_id, 10)
-          : null,
-        // unit name is not needed if unit_id is provided, backend should handle linking
-        start_date: formData.start_date,
-        end_date: formData.end_date,
-        monthly_rent: Number.parseFloat(formData.monthly_rent),
-        security_deposit: Number.parseFloat(formData.security_deposit),
-        tenant_id: Number.parseInt(formData.tenant_id, 10),
-        rent_due_day: Number.parseInt(formData.rent_due_day || 1, 10),
-        late_fee_amount: formData.late_fee_amount
-          ? Number.parseFloat(formData.late_fee_amount)
-          : null,
-        late_fee_after_days: formData.late_fee_after_days
-          ? Number.parseInt(formData.late_fee_after_days, 10)
-          : null,
-        special_terms: formData.special_terms,
-        status: "ACTIVE", // Default status for new lease
-      };
-
-      // Remove null values if backend prefers absence over null
-      Object.keys(leaseSubmitData).forEach((key) => {
-        if (
-          leaseSubmitData[key] === null ||
-          leaseSubmitData[key] === undefined
-        ) {
-          // delete leaseSubmitData[key]; // Option 1: delete null keys
-        }
-      });
-
-      console.log("Submitting lease data:", leaseSubmitData);
-
-      // Submit to backend
-      const response = await submitLease(leaseSubmitData);
-      console.log("Lease created successfully:", response);
-
-      if (onSubmit) {
-        onSubmit(response);
-      }
-
-      onClose();
-    } catch (err) {
-      console.error("Failed to create lease:", err);
-      setError(err.message || "Failed to create lease. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCreateLease = async () => {
     try {
       setIsLoading(true);
       setError(null);

@@ -8,7 +8,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID as PythonUUID
 
-from sqlalchemy import Column
+from sqlalchemy import Column, DateTime
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, ForeignKey, Integer, Relationship, SQLModel
 
@@ -58,8 +58,14 @@ class Lease(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
 
     # Timestamps
-    created_at: datetime = Field(default_factory=create_audit_datetime)
-    updated_at: datetime = Field(default_factory=create_audit_datetime)
+    created_at: datetime = Field(
+        default_factory=create_audit_datetime,
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    updated_at: datetime = Field(
+        default_factory=create_audit_datetime,
+        sa_column=Column(DateTime(timezone=True), nullable=False, onupdate=create_audit_datetime)
+    )
 
     # Relationships
     property: "Property" = Relationship(back_populates="leases")
@@ -81,7 +87,10 @@ class LeaseDocument(SQLModel, table=True):
     name: str
     file_path: str
     document_type: str  # contract, addendum, notice, etc.
-    upload_date: datetime = Field(default_factory=create_audit_datetime)
+    upload_date: datetime = Field(
+        default_factory=create_audit_datetime,
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
 
     # Foreign keys
     lease_id: int = Field(sa_column=Column(

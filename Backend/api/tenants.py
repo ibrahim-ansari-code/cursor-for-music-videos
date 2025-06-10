@@ -1,10 +1,12 @@
 import logging
 from datetime import datetime
 from uuid import UUID as PythonUUID
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, computed_field, model_validator
-from sqlalchemy import and_, not_, or_
+from pydantic import BaseModel, computed_field, model_validator, field_validator, ValidationError
+from sqlalchemy import and_, not_, or_, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -141,29 +143,88 @@ class UnitResponseSimple(BaseModel):
 
 
 class TenantBase(BaseModel):
-    first_name: str | None = None
-    last_name: str | None = None
-    phone: str | None = None
-    email: str | None = None
+    first_name: str
+    last_name: str
+    phone: str
+    email: str
     status: TenantStatus = TenantStatus.ACTIVE
     user_id: PythonUUID | None = None
     current_property_id: int | None = None
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        """
+        Normalizes and validates an email address.
+        
+        Ensures the email is present, trims whitespace, converts to lowercase, and checks for a valid format. Raises a ValueError if the email is missing or invalid.
+        """
+        if not v:
+            raise ValueError('Email is required')
+        email = v.strip().lower()
+        if not email:
+            raise ValueError('Email cannot be empty')
+        # Basic email validation
+        if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+            raise ValueError('Invalid email format')
+        return email
+
+    @field_validator('first_name', 'last_name')
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """
+        Validates that a name field is not empty or whitespace.
+        
+        Raises:
+            ValueError: If the name is empty or contains only whitespace.
+        
+        Returns:
+            The trimmed name string.
+        """
+        if not v or not v.strip():
+            raise ValueError('Name cannot be empty')
+        return v.strip()
+
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        """
+        Validates a phone number.
+
+        The number must contain 10 to 15 digits, and may only include common
+        formatting characters such as spaces, hyphens, parentheses, and a plus
+        sign.
+        
+        Raises:
+            ValueError: If the phone number is missing, contains an invalid number of digits, or includes disallowed characters.
+        """
+        # The 'if not v:' check is redundant because Pydantic ensures required fields are present.
+        # An empty string will be caught by the digit length check.
+        # Remove all non-digit characters for validation
+        digits_only = re.sub(r'[^0-9]', '', v)
+        if len(digits_only) < 10 or len(digits_only) > 15:
+            raise ValueError('Phone number must contain 10-15 digits')
+        # Additional validation: ensure the original string contains only allowed characters
+        allowed_chars_pattern = r'^[\d\s\-\(\)\+]+$'
+        if not re.match(allowed_chars_pattern, v):
+            raise ValueError('Phone number contains invalid characters')
+        return v.strip()
 
 
 class TenantCreate(TenantBase):
     # Allow receiving full_name from frontend for backward compatibility
     full_name: str | None = None
+    # Make all fields required except these optional ones
+    current_property_id: int | None = None
+    user_id: PythonUUID | None = None
 
     @model_validator(mode='before')
     @classmethod
     def split_full_name(cls, data: dict) -> dict:
         """
-        Pre-processes input data to split a combined full name into first and last names.
-
-        If only `full_name` is provided and both `first_name` and `last_name` are missing,
-        splits `full_name` at the first space into `first_name` and `last_name`. Ensures
-        that `first_name` and `last_name` are never None, defaulting to empty strings if
-        necessary.
+        Splits a combined full name into first and last names in input data if separate fields are missing.
+        
+        This pre-validation step ensures backward compatibility by extracting first and last names from a 'full_name' field when 'first_name' and 'last_name' are not provided.
         """
         if isinstance(data, dict):
             full_name = data.get('full_name')
@@ -176,13 +237,7 @@ class TenantCreate(TenantBase):
                 if len(names) > 1:
                     data['last_name'] = names[1]
                 else:
-                    # Or handle as an error if last_name is required
-                    data['last_name'] = ''
-            # Ensure first_name and last_name are not None if not derived
-            if data.get('first_name') is None:
-                data['first_name'] = ''  # Or raise error
-            if data.get('last_name') is None:
-                data['last_name'] = ''  # Or raise error
+                    data['last_name'] = ''  # Will be caught by field validator
         return data
 
 
@@ -258,26 +313,25 @@ async def get_tenants(
     status_filter: TenantStatus | None = None,
     search: str | None = None,
     property_id: int | None = None,  # Allow filtering by property for landlords/admins
+    unassigned_only: bool = False,
     skip: int = 0,
     limit: int = 100,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Retrieves a list of tenants filtered by status, search term, and property, with results 
-    limited by user role and ownership.
-
-    Landlords receive tenants associated with their properties or unassigned tenants. Admins can 
-    view all tenants, optionally filtered by property. Tenants cannot list other tenants and will 
-    receive an empty list. Results include related unit and property information when available.
-
+    Retrieves a list of tenants filtered by status, search term, property, and assignment status, with results limited by user role and ownership.
+    
+    Landlords receive tenants associated with their properties or, if `unassigned_only` is true, only those without active leases. Admins can view all tenants, optionally filtered by property. Tenants cannot list other tenants and will receive an empty list. Each tenant in the result includes related unit and property information when available.
+    
     Args:
         status_filter: Optional filter for tenant status.
         search: Optional search term for tenant name or email.
         property_id: Optional property ID to filter tenants by property.
+        unassigned_only: If true, returns only tenants without active leases for the current landlord.
         skip: Number of records to skip for pagination.
         limit: Maximum number of tenants to return.
-
+    
     Returns:
         A list of TenantResponse objects matching the filters and access permissions.
     """
@@ -298,21 +352,54 @@ async def get_tenants(
     # Build basic filters
     filters = _build_tenant_filters(status_filter, search)
 
-    # Apply user-type specific permission filters
-    if current_user.user_type == UserType.LANDLORD:
-        landlord_filters = _apply_landlord_permissions(
-            current_user, property_id)
-        filters.extend(landlord_filters)
-    elif current_user.is_admin:
-        # Admin can filter by any property_id if provided
-        if property_id:
-            filters.append(or_(
-                col(Lease.property_id) == property_id,
-                col(Tenant.current_property_id) == property_id
-            ))
+    if unassigned_only:
+        # Security First: Always filter by the current landlord.
+        base_query = select(Tenant).where(col(Tenant.landlord_id) == current_user.id)
+        
+        # Find all of the landlord's tenants who already have an active lease.
+        active_lease_subquery = (
+            select(col(Lease.tenant_id))
+            .join(Property, col(Lease.property_id) == col(Property.id))
+            .where(
+                and_(
+                    col(Property.user_id) == current_user.id,
+                    col(Lease.status) == LeaseStatus.ACTIVE
+                )
+            )
+            .distinct()
+        )
+        
+        # Filter out tenants who are in the active list.
+        query = base_query.where(not_(col(Tenant.id).in_(active_lease_subquery)))
 
-    if filters:
-        query = query.where(and_(*filters))
+        # Additionally, allow searching within the unassigned tenants.
+        if search:
+            search_term = f"%{search}%"
+            query = query.where(or_(
+                col(Tenant.first_name).ilike(search_term),
+                col(Tenant.last_name).ilike(search_term),
+                col(Tenant.email).ilike(search_term)
+            ))
+        
+        # The main query is now the one we just built.
+        # The original `filters` are ignored in this mode.
+    else:
+        # Apply user-type specific permission filters if not fetching unassigned
+        if current_user.user_type == UserType.LANDLORD:
+            landlord_filters = _apply_landlord_permissions(
+                current_user, property_id)
+            filters.extend(landlord_filters)
+        elif current_user.is_admin:
+            # Admin can filter by any property_id if provided
+            if property_id:
+                filters.append(or_(
+                    col(Lease.property_id) == property_id,
+                    col(Tenant.current_property_id) == property_id
+                ))
+        
+        # Apply the original filters to the query
+        if filters:
+            query = query.where(and_(*filters))
 
     # Apply pagination and ordering
     query = query.order_by(
@@ -397,16 +484,40 @@ async def create_tenant(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Create a new tenant. Landlords can only assign to their own properties.
-    Tenants cannot create other tenants.
+    Creates a new tenant profile with validated data and appropriate landlord assignment.
+    
+    Landlords can only assign tenants to properties they own. Admins can assign tenants to any property, with the landlord set to the property's owner. Tenants cannot create other tenants. Validates user account linkage, ensures email uniqueness per landlord, and enforces property ownership rules. Returns the created tenant's details on success.
+    
+    Raises:
+        HTTPException: If the user lacks permission, the property or user does not exist, the email is not unique, or validation fails.
     """
-    logger.info("User %s creating tenant: %s", current_user.email, tenant_data)
+    logger.info("User %s creating tenant: %s", current_user.email, tenant_data.model_dump_json())
 
     if current_user.user_type == UserType.TENANT:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail="Tenants cannot create tenants")
 
-    # If assigning to a property, check landlord ownership
+    # For admin users, require explicit landlord assignment via a separate field
+    # For now, admins inherit current_user.id as landlord_id (this may need business logic review)
+    assigned_landlord_id = current_user.id
+    
+    # TODO: Future enhancement - allow admins to specify which landlord owns the tenant
+    # This would require adding a landlord_id field to TenantCreate schema
+    # For now, if admin is creating a tenant with a property, use the property owner as landlord
+    if current_user.is_admin and tenant_data.current_property_id:
+        # Admin assigning to a property - use property owner as landlord
+        property_owner_query = select(col(Property.user_id)).where(
+            col(Property.id) == tenant_data.current_property_id
+        )
+        property_owner_id = await session.scalar(property_owner_query)
+        if property_owner_id:
+            assigned_landlord_id = property_owner_id
+            logger.info("Admin creating tenant for property owner %s", property_owner_id)
+        else:
+            logger.warning("Admin creating tenant but property %s has no owner", 
+                         tenant_data.current_property_id)
+
+    # If assigning to a property, check ownership permissions
     if tenant_data.current_property_id:
         if current_user.user_type == UserType.LANDLORD:
             prop_query = select(col(Property.id)).where(
@@ -417,8 +528,8 @@ async def create_tenant(
             if not prop_exists:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                     detail="Cannot assign tenant to a property you do not own")
-        # Admin doesn't need this check but we need to ensure the property exists
         elif current_user.is_admin:
+            # Admin needs to ensure the property exists
             prop_query = select(col(Property.id)).where(
                 col(Property.id) == tenant_data.current_property_id)
             prop_exists = await session.scalar(prop_query)
@@ -426,7 +537,7 @@ async def create_tenant(
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND, detail="Assigned property not found")
 
-    # Check if user_id is provided and if that user exists and is a Tenant type
+    # Check if user_id is provided and validate user account
     if tenant_data.user_id:
         user_query = select(User).where(col(User.id) == tenant_data.user_id)
         target_user = await session.scalar(user_query)
@@ -436,6 +547,7 @@ async def create_tenant(
         if target_user.user_type != UserType.TENANT:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail=f"User ID {tenant_data.user_id} does not belong to a Tenant")
+        
         # Check if a Tenant record already exists for this user_id
         existing_tenant_query = select(col(Tenant.id)).where(
             col(Tenant.user_id) == tenant_data.user_id)
@@ -444,48 +556,71 @@ async def create_tenant(
             raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                                 detail=f"A tenant profile already exists for user ID {tenant_data.user_id}")
 
-    # Check for duplicate email for the same landlord
-    if tenant_data.email:
-        existing_email_query = select(Tenant).where(
-            and_(
-                col(Tenant.email) == tenant_data.email,
-                col(Tenant.landlord_id) == current_user.id
-            )
-        )
-        existing_email_tenant = await session.scalar(existing_email_query)
-        if existing_email_tenant:
+    # Use database-level constraints for email uniqueness to prevent race conditions
+    # Email is already normalized by Pydantic validator
+    try:
+        # Begin explicit transaction
+        async with session.begin():
+            # The initial check for duplicate email has been removed.
+            # We now rely on the database's unique constraint to prevent race
+            # conditions, catching the IntegrityError if a duplicate is inserted.
+
+            # Exclude full_name before validating with the Tenant model
+            tenant_dict = tenant_data.model_dump(exclude={"full_name"})
+            
+            # Set the landlord_id from the assigned landlord
+            tenant_dict["landlord_id"] = assigned_landlord_id
+            
+            # Create tenant instance - Pydantic validation already done
+            tenant = Tenant.model_validate(tenant_dict)
+            tenant.created_at = create_audit_datetime()
+            tenant.updated_at = create_audit_datetime()
+
+            session.add(tenant)
+            await session.flush()  # Get the ID without committing
+            await session.refresh(tenant)  # Refresh to get generated fields
+
+            logger.info("Tenant %s created successfully by user %s",
+                        tenant.id, current_user.id)
+            
+            # Transaction will be committed automatically by context manager
+            return TenantResponse.model_validate(tenant)
+            
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except ValidationError as e:
+        # Handle Pydantic validation errors specifically
+        logger.warning("Validation error creating tenant for user %s: %s", 
+                      current_user.id, str(e))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Validation error: {str(e)}"
+        ) from e
+    except IntegrityError as e:
+        # Handle database constraint violations
+        logger.warning("Database integrity error creating tenant for user %s: %s", 
+                      current_user.id, str(e))
+        await session.rollback()
+        
+        if "unique constraint" in str(e).lower() and "email" in str(e).lower():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A tenant with this email address already exists."
-            )
-
-    try:
-        # Exclude full_name before validating with the Tenant model
-        tenant_dict = tenant_data.model_dump(exclude={"full_name"})
+            ) from e
         
-        # Set the landlord_id from the currently authenticated user BEFORE validation
-        tenant_dict["landlord_id"] = current_user.id
-        
-        tenant = Tenant.model_validate(tenant_dict)  # Use Pydantic validation
-
-        tenant.created_at = create_audit_datetime()
-        tenant.updated_at = create_audit_datetime()
-
-        session.add(tenant)
-        await session.commit()
-        await session.refresh(tenant)
-
-        logger.info("Tenant %s created successfully by user %s",
-                    tenant.id, current_user.id)
-        return TenantResponse.model_validate(tenant)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Database constraint violation. Please check your data."
+        ) from e
     except Exception as e:
-        logger.exception("Error creating tenant: %s",
-                         tenant_data.email if tenant_data else 'Unknown')
+        # Handle unexpected errors
+        logger.exception("Unexpected error creating tenant for user %s", current_user.id)
         await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create tenant: {str(e)}"
-        )
+            detail="An unexpected error occurred. Please try again."
+        ) from e
 
 
 @router.patch("/{tenant_id}", response_model=TenantResponse)
@@ -541,7 +676,7 @@ async def update_tenant(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update tenant: {str(e)}"
-        )
+        ) from e
 
 
 @router.delete("/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -590,4 +725,4 @@ async def delete_tenant(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete tenant. Check for related records (e.g., historical payments, messages). Error: {str(e)}"
-        )
+        ) from e

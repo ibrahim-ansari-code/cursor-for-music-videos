@@ -9,8 +9,10 @@ import {
 import StatCard from "../components/StatCard"; // Import StatCard
 import UnitTable from "../components/UnitTable"; // Import UnitTable
 import NewUnitModal from "../components/NewUnitModal"; // Import NewUnitModal
-import AssignTenantModal from "../components/AssignTenantModal"; // Import AssignTenantModal
 import LoadingSpinner from "../components/LoadingSpinner"; // Import LoadingSpinner
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import ImportLeaseModal from "../components/ImportLeaseModal"; // Import ImportLeaseModal
 
 // Icons for StatCards
 const UnitIcon = () => <i className="fas fa-door-closed text-blue-600"></i>;
@@ -233,52 +235,20 @@ const PropertyDetail = () => {
   };
 
   // Function to refresh data after tenant assignment
-  const handleTenantAssigned = async (updatedUnitData) => {
+  const handleTenantAssigned = async (createdLease) => {
     console.log(
-      "[PropertyDetail] handleTenantAssigned called with:",
-      updatedUnitData
+      "[PropertyDetail] handleTenantAssigned called with lease:",
+      createdLease
     );
 
-    // Optimistically update the unit in the local state
-    setProperty((prevProperty) => {
-      if (!prevProperty || !prevProperty.units) {
-        return prevProperty; // Should not happen if modal opened
-      }
-      const newUnits = prevProperty.units.map((unit) =>
-        unit.id === updatedUnitData.id ? updatedUnitData : unit
-      );
-      const updatedPropertyState = { ...prevProperty, units: newUnits };
-      console.log(
-        "[PropertyDetail] Optimistically updated property state:",
-        updatedPropertyState
-      );
-
-      // Recalculate stats based on the new state
-      if (updatedPropertyState && updatedPropertyState.units) {
-        const totalUnits = updatedPropertyState.units.length;
-        const vacantUnits = updatedPropertyState.units.filter(
-          (unit) => !unit.is_rented
-        ).length;
-        const monthlyRevenue = updatedPropertyState.units
-          .filter((unit) => unit.is_rented && unit.monthly_rent)
-          .reduce((sum, unit) => sum + unit.monthly_rent, 0);
-
-        setStats({ totalUnits, vacantUnits, monthlyRevenue });
-        console.log("[PropertyDetail] Optimistically updated stats:", {
-          totalUnits,
-          vacantUnits,
-          monthlyRevenue,
-        });
-      }
-
-      return updatedPropertyState;
-    });
-
-    // Show success notification
+    // Show success notification immediately
     setNotification({
       type: "success",
-      message: "Tenant assigned successfully",
+      message: "Lease created and tenant assigned successfully",
     });
+
+    // Refresh property data from server to ensure consistency
+    await loadProperty();
 
     // Clear notification after 3 seconds
     setTimeout(() => {
@@ -479,14 +449,14 @@ const PropertyDetail = () => {
 
       {/* Assign Tenant Modal */}
       {currentUnit && (
-        <AssignTenantModal
+        <ImportLeaseModal
           isOpen={isAssignModalOpen}
           onClose={handleCloseAssignModal}
-          onSubmit={handleTenantAssigned}
-          propertyId={id}
-          unitId={currentUnit.id}
-          unitName={currentUnit.name}
-          isLoading={isSubmitting}
+          onImport={handleTenantAssigned}
+          initialMode="manual"
+          propertyId={id ? Number.parseInt(id, 10) : null}
+          unitId={currentUnit?.id}
+          unitName={currentUnit?.name}
         />
       )}
     </div>

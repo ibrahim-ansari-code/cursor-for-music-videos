@@ -15,6 +15,7 @@ from collections.abc import Iterator, AsyncGenerator
 from typing import Any
 import time
 import aiofiles
+import uuid
 
 # Standard Project Root Setup
 _THIS_SCRIPT_ABSPATH = os.path.abspath(__file__)
@@ -63,75 +64,25 @@ class APITestClient:
 
     async def __aenter__(self):
         """
-        Authenticates the API client and returns itself for use in an async context manager.
+        Enters the asynchronous context manager and returns the API test client instance.
+        
+        Authentication must be performed externally before entering the context.
         """
-        await self._authenticate()
+        # await self._authenticate() # This is now handled by the auth_token fixture
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """
-        Closes the HTTP client when exiting the asynchronous context manager.
+        Closes the underlying HTTP client when exiting the asynchronous context manager.
         """
         await self.client.aclose()
 
-    async def _authenticate(self):
-        """
-        Attempts to authenticate the API client by acquiring a JWT token.
-        
-        Tries to obtain a token using a helper function, then falls back to an environment variable, and finally to a local token file. Sets the token for use in authenticated requests and logs the outcome. If no token is found, logs a critical error.
-        """
-        logger.info(
-            "APITestClient: Attempting to acquire authentication token...")
-
-        # Try to get fresh token from auth helper
-        if get_test_jwt:
-            try:
-                fresh_token = (
-                    await get_test_jwt()
-                    if inspect.iscoroutinefunction(get_test_jwt)
-                    else get_test_jwt()
-                )
-                if fresh_token:
-                    if isinstance(fresh_token, str):
-                        self.auth_token = fresh_token
-                        os.environ["TEST_USER_JWT"] = fresh_token
-                        logger.info(
-                            "✅ Token obtained via get_test_jwt: %s...", self.auth_token[:20])
-                        return
-                    else:
-                        logger.warning("⚠️ Invalid token type received from get_test_jwt")
-            except Exception as e:
-                logger.warning(
-                    "⚠️ Error getting token from auth helper: %s", e)
-
-        # Fallback to environment variable
-        self.auth_token = os.getenv("TEST_USER_JWT")
-        if self.auth_token:
-            logger.info(
-                "✅ Using JWT from TEST_USER_JWT env var: %s...", self.auth_token[:20])
-            return
-
-        # Fallback to token file
-        token_file_path = os.path.join(self.script_dir, '.test_jwt_token')
-        if os.path.exists(token_file_path):
-            try:
-                async with aiofiles.open(token_file_path, 'r', encoding='utf-8') as f:
-                    self.auth_token = (await f.read()).strip()
-                if self.auth_token:
-                    logger.info(
-                        "✅ Loaded JWT from %s: %s...", token_file_path, self.auth_token[:20])
-                    return
-            except OSError:
-                logger.exception(
-                    "⚠️ Error loading token from %s:", token_file_path)
-
-        logger.error("❌ CRITICAL: No JWT token available!")
-
     def _get_headers(self) -> dict[str, str]:
         """
-        Returns HTTP headers for API requests, including authorization if a token is set.
+        Constructs HTTP headers for API requests, including JSON content type and optional bearer authorization.
         
-        The headers always include 'Content-Type: application/json' and add an 'Authorization' header with the bearer token if available.
+        Returns:
+            A dictionary of headers with 'Content-Type: application/json' and, if an authentication token is set, an 'Authorization' header.
         """
         headers = {"Content-Type": "application/json"}
         if self.auth_token:
@@ -231,30 +182,46 @@ class APITestClient:
 
 
 @pytest.fixture(scope="function")
-async def api_client():
+async def auth_token() -> str:
     """
-    Yields an authenticated asynchronous API client for use in tests.
+    Provides a fresh, valid JWT token for the test user before each test function.
     
-    This function-scoped pytest fixture provides an API client with a valid JWT token, verifying authentication before yielding. If authentication fails or no token is available, the test session is aborted immediately. Authentication is cached per session for efficiency. For isolated authentication, use the `fresh_api_client` fixture.
+    Ensures each test runs with an isolated authentication token. Aborts the test session if token retrieval fails.
+    """
+    from Backend.tests.api_tests.test_auth_helper import get_primary_user_jwt
+    logger.info("AUTH_TOKEN FIXTURE: Requesting fresh JWT for test session...")
+    token = await get_primary_user_jwt(prompt_for_password=False) # CI should use env vars
+    if not token:
+        pytest.exit("Failed to get a valid auth token for the test session. Aborting.", returncode=1)
+    
+    logger.info("AUTH_TOKEN FIXTURE: Successfully obtained fresh JWT.")
+    return token
+
+
+@pytest.fixture(scope="function")
+async def api_client(auth_token: str):
+    """
+    Yields an authenticated asynchronous API test client with a valid JWT token.
+    
+    The client is pre-authenticated using the provided token and verified by calling the `/api/auth/me` endpoint. If authentication fails, the test is aborted.
     """
     async with APITestClient(BASE_URL) as client:
-        # Verify authentication works
-        if not client.auth_token:
-            pytest.exit("No JWT token available. Aborting test session.", returncode=1)
-
-        # Test the token with /api/auth/me
+        client.auth_token = auth_token # Set the fresh token
+        
+        # We still verify the user for context, but exit is handled by auth_token fixture
         try:
             me_response = await client.get("/api/auth/me")
-            if me_response.status_code != 200:
-                pytest.exit(
-                    f"Authentication verification failed with status {me_response.status_code}. Aborting test session.", returncode=1)
-
-            user_data = me_response.json()
-            client.current_user = user_data
-            logger.info(f"✅ Authenticated as: {user_data.get('email')}")
+            if me_response.status_code == 200:
+                client.current_user = me_response.json()
+                logger.info(f"✅ API client authenticated as: {client.current_user.get('email') if client.current_user else 'Unknown'}")
+            else:
+                 # This shouldn't happen if auth_token is valid, but good to have a fallback.
+                logger.error(f"Auth token was provided, but /api/auth/me failed with status {me_response.status_code}")
+                pytest.fail("API client could not be authenticated despite receiving a token.")
 
         except Exception as e:
-            pytest.exit(f"Authentication verification failed with an exception: {e}. Aborting test session.", returncode=1)
+            logger.error(f"Exception during api_client setup while verifying user: {e}")
+            pytest.fail("API client setup failed during user verification.")
 
         yield client
 
@@ -383,9 +350,9 @@ def pytest_collection_modifyitems(config, items):
 # Helper functions for tests
 def assert_api_success(response: httpx.Response, expected_status: int | tuple[int, ...] = 200):
     """
-    Asserts that the API response status code matches the expected value or one of the expected values.
+    Asserts that the API response status code matches the expected value or values.
     
-    Raises an assertion error if the response status code does not match.
+    Raises an assertion error with a snippet of the response text if the status code does not match.
     """
     if isinstance(expected_status, tuple):
         assert response.status_code in expected_status, (
@@ -399,16 +366,25 @@ def assert_api_success(response: httpx.Response, expected_status: int | tuple[in
         )
 
 
-def assert_api_error(response: httpx.Response, expected_status: int):
+def assert_api_error(response: httpx.Response, expected_status: int, expected_message: str | None = None):
     """
-    Asserts that the API response indicates an error with a specific status code.
+    Asserts that an API response has the expected error status and, optionally, contains a specific error message.
     
-    Raises an assertion error if the response status code does not match the expected error status.
+    Raises an assertion error if the response status code does not match the expected status, or if the expected message is not found in the JSON error content under "detail" or "message". Fails the test if the response body is not valid JSON when an expected message is provided.
     """
     assert response.status_code == expected_status, (
         f"Expected error status {expected_status}, got {response.status_code}. "
         f"Response: {response.text[:500]}"
     )
+    if expected_message:
+        try:
+            data = response.json()
+            # Handle cases where error is in {"detail": "message"} or {"message": "message"}
+            error_content = str(data.get("detail", "") or data.get("message", ""))
+            assert expected_message in error_content, \
+                f"Expected message '{expected_message}' not found in response: {error_content}"
+        except json.JSONDecodeError:
+            pytest.fail(f"Expected JSON error response but got non-JSON: {response.text[:500]}")
 
 
 def assert_valid_json_response(response: httpx.Response, expected_type=None, expected_status=200):
@@ -557,10 +533,10 @@ async def created_property_id(api_client: APITestClient) -> AsyncGenerator[int, 
 @pytest.fixture
 async def created_property(api_client: APITestClient) -> AsyncGenerator[dict[str, Any], None]:
     """
-    Creates a test property asynchronously for use in API tests and deletes it after the test.
+    Creates a test property for use in API tests and deletes it after the test completes.
     
     Yields:
-        A dictionary representing the created property.
+        dict: The created property's data as a dictionary.
     """
     property_data = {
         "name": f"Test Fixture Property {int(time.time())}",
@@ -574,67 +550,90 @@ async def created_property(api_client: APITestClient) -> AsyncGenerator[dict[str
 
     # Create property
     response = await api_client.post("/api/properties/", json=property_data)
-    property_obj = response.json()
+    property_obj = assert_valid_json_response(response, dict, 201)
 
     yield property_obj
 
     # Cleanup
     try:
         delete_response = await api_client.delete(f"/api/properties/{property_obj['id']}")
-        if delete_response.status_code == 204:
-            logger.info(
-                "✅ Fixture cleanup: deleted property %s", property_obj['id'])
-        elif delete_response.status_code == 404:
-            logger.info(
-                "✅ Fixture cleanup: property %s already deleted", property_obj['id'])
+        if delete_response.status_code in [204, 404]:
+            logger.info("✅ Fixture cleanup: deleted property %s", property_obj['id'])
         else:
-            logger.error(
-                "❌ Fixture cleanup failed: DELETE returned %s", delete_response.status_code)
+            logger.error("❌ Fixture cleanup failed for property: DELETE returned %s", delete_response.status_code)
     except Exception:
-        logger.exception("❌ Fixture cleanup exception:")
+        logger.exception("❌ Fixture cleanup exception for property:")
 
 
 @pytest.fixture
-async def created_lease(api_client: APITestClient, created_property_id: int) -> AsyncGenerator[dict[str, Any], None]:
+async def created_unit(api_client: APITestClient, created_landlord_property: int) -> AsyncGenerator[dict[str, Any], None]:
     """
-    Creates a test tenant and a lease for a property, yielding the lease object.
-    Cleans up the tenant after the test. The property is cleaned up by its own fixture.
+    Creates a test unit associated with a specified property and yields its data.
+    
+    The unit is created with randomized name and default attributes. After the test completes, the unit is deleted to ensure cleanup.
+    
+    Yields:
+        dict: The created unit's data as returned by the API.
     """
-    # 1. Create a tenant
-    tenant_data = {
-        "first_name": "Test",
-        "last_name": "TenantForLease",
-        "email": f"test.tenant.lease.{int(time.time())}@example.com",
-        "phone": "1234567890"
+    unit_data = {
+        "name": f"Unit-{uuid.uuid4().hex[:6]}",
+        "property_id": created_landlord_property,
+        "monthly_rent": 1250.00,
+        "size": 800
     }
-    create_tenant_resp = await api_client.post("/api/tenants/", json=tenant_data)
-    assert create_tenant_resp.status_code == 201
-    tenant = create_tenant_resp.json()
-    tenant_id = tenant["id"]
-    logger.info(f"✅ Fixture: created tenant {tenant_id}")
+    response = await api_client.post(f"/api/properties/{created_landlord_property}/units", json=unit_data)
+    unit = assert_valid_json_response(response, dict, 201)
+    yield unit
+    # Cleanup
+    await api_client.delete(f"/api/units/{unit['id']}")
 
-    # 2. Create a lease for the tenant and property
+
+@pytest.fixture
+async def created_tenant(api_client: APITestClient, created_landlord_property: int) -> AsyncGenerator[dict[str, Any], None]:
+    """
+    Creates a test tenant associated with a landlord property for use in API tests.
+    
+    Yields the created tenant as a dictionary. After the test, attempts to delete the tenant; deletion failures due to existing leases (HTTP 400) are tolerated during cleanup.
+    """
+    tenant_data = {
+        "first_name": "Fixture",
+        "last_name": "Tenant",
+        "email": f"fixture_tenant_{uuid.uuid4()}@example.com",
+        "phone": "555-123-4567",
+        "status": "Active",
+        "current_property_id": created_landlord_property
+    }
+    response = await api_client.post("/api/tenants/", json=tenant_data)
+    tenant = assert_valid_json_response(response, dict, 201)
+    yield tenant
+    # Cleanup - tenant deletion may fail with 400 if tied to a lease, which is acceptable during cleanup.
+    delete_response = await api_client.delete(f"/api/tenants/{tenant['id']}")
+    if delete_response.status_code not in [204, 404, 400]:
+        logger.warning(f"Tenant fixture cleanup may have failed. Status: {delete_response.status_code}")
+
+
+@pytest.fixture
+async def created_lease(api_client: APITestClient, created_landlord_property: int, created_unit: dict, created_tenant: dict) -> AsyncGenerator[dict[str, Any], None]:
+    """
+    Creates a test lease linking a property, unit, and tenant, and yields the lease data.
+    
+    The lease is created with fixed dates and rent values for testing purposes. After the test, the lease is deleted to ensure cleanup.
+    
+    Yields:
+        The created lease as a dictionary.
+    """
     lease_data = {
-        "property_id": created_property_id,
-        "tenant_id": tenant_id,
-        "start_date": "2023-01-01",  # Use date format without time
-        "end_date": "2023-12-31",    # Use date format without time
-        "monthly_rent": 1500.00,
-        "security_deposit": 1000.00,  # Add required field
+        "property_id": created_landlord_property,
+        "unit_id": created_unit["id"],
+        "tenant_id": created_tenant["id"],
+        "start_date": "2024-01-01",
+        "end_date": "2024-12-31",
+        "monthly_rent": 1550.00,
+        "security_deposit": 1550.00,
         "status": "ACTIVE"
     }
-    create_lease_resp = await api_client.post("/api/leases/", json=lease_data)
-    assert create_lease_resp.status_code == 201, f"Failed to create lease: {create_lease_resp.text}"
-    lease = create_lease_resp.json()
-    logger.info(f"✅ Fixture: created lease {lease['id']}")
-
+    response = await api_client.post("/api/leases/", json=lease_data)
+    lease = assert_valid_json_response(response, dict, 201)
     yield lease
-
-    # Cleanup tenant (property is cleaned by its own fixture)
-    logger.info(f"[CLEANUP START] Attempting to delete tenant: ID {tenant_id}")
-    delete_tenant_resp = await api_client.delete(f"/api/tenants/{tenant_id}")
-    if delete_tenant_resp.status_code in [204, 404]:
-        logger.info(f"✅ Fixture cleanup: deleted tenant {tenant_id}")
-    else:
-        logger.error(
-            f"❌ Fixture cleanup failed for tenant {tenant_id}: DELETE returned {delete_tenant_resp.status_code}")
+    # Cleanup
+    await api_client.delete(f"/api/leases/{lease['id']}")
