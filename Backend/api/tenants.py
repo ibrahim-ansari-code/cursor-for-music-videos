@@ -444,13 +444,29 @@ async def create_tenant(
             raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                                 detail=f"A tenant profile already exists for user ID {tenant_data.user_id}")
 
+    # Check for duplicate email for the same landlord
+    if tenant_data.email:
+        existing_email_query = select(Tenant).where(
+            and_(
+                col(Tenant.email) == tenant_data.email,
+                col(Tenant.landlord_id) == current_user.id
+            )
+        )
+        existing_email_tenant = await session.scalar(existing_email_query)
+        if existing_email_tenant:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A tenant with this email address already exists."
+            )
+
     try:
         # Exclude full_name before validating with the Tenant model
         tenant_dict = tenant_data.model_dump(exclude={"full_name"})
-        tenant = Tenant.model_validate(tenant_dict)  # Use Pydantic validation
         
-        # Set the landlord_id from the currently authenticated user
-        tenant.landlord_id = current_user.id
+        # Set the landlord_id from the currently authenticated user BEFORE validation
+        tenant_dict["landlord_id"] = current_user.id
+        
+        tenant = Tenant.model_validate(tenant_dict)  # Use Pydantic validation
 
         tenant.created_at = create_audit_datetime()
         tenant.updated_at = create_audit_datetime()

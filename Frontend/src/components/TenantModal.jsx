@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { createTenant } from "../utils/api";
+import { createTenant, fetchProperties } from "../utils/api";
 import { ModalShell, Label, Input, Button } from "./ui/SharedModalComponents";
 
 const TenantModal = ({
@@ -23,11 +23,12 @@ const TenantModal = ({
     unit_id: unitId || null,
   });
 
+  const [properties, setProperties] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingProperties, setIsLoadingProperties] = useState(false);
   const [error, setError] = useState(null); // General error for ModalShell
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
-  // const [submitAttempted, setSubmitAttempted] = useState(false); // Can be inferred from touched object keys
 
   // Populate form when tenant data is provided
   useEffect(() => {
@@ -56,77 +57,109 @@ const TenantModal = ({
       setFieldErrors({});
       setError(null);
       setTouched({});
-      // setSubmitAttempted(false);
+      
+      // Load properties when modal opens
+      loadProperties();
     }
   }, [isOpen, propertyId, unitId, unitName, JSON.stringify(tenant)]);
+  
+  const loadProperties = async () => {
+    setIsLoadingProperties(true);
+    try {
+      const propertiesData = await fetchProperties();
+      setProperties(propertiesData || []);
+    } catch (err) {
+      console.error("Failed to load properties:", err);
+      // Don't show error to user as properties are optional
+    } finally {
+      setIsLoadingProperties(false);
+    }
+  };
+
+  const validateField = (name, value) => {
+    switch (name) {
+      case "first_name":
+        if (!value || value.trim() === "") return "First name is required";
+        break;
+      case "last_name":
+        if (!value || value.trim() === "") return "Last name is required";
+        break;
+      case "email":
+        if (!value || value.trim() === "") return "Email is required";
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(value.trim())) {
+          return "Please enter a valid email address";
+        }
+        break;
+      case "phone":
+        if (!value || value.trim() === "") return "Phone number is required";
+        const digitsOnly = value.replace(/[^0-9]/g, "");
+        if (digitsOnly.length < 10 || digitsOnly.length > 15) {
+          return "Phone number must contain 10-15 digits";
+        }
+        break;
+      default:
+        break;
+    }
+    return null;
+  };
 
   const handleBlur = (e) => {
-    const { name } = e.target;
+    const { name, value } = e.target;
     setTouched((prev) => ({
       ...prev,
       [name]: true,
     }));
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (fieldErrors[name]) {
+    
+    // Validate on blur
+    const error = validateField(name, value);
+    if (error) {
+      setFieldErrors((prev) => ({ ...prev, [name]: error }));
+    } else {
       setFieldErrors((prev) => {
         const updated = { ...prev };
         delete updated[name];
         return updated;
       });
     }
-    // No need to set touched on change, blur will handle it.
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    // Clear error when user starts typing if field was touched
+    if (touched[name]) {
+      const error = validateField(name, value);
+      if (error) {
+        setFieldErrors((prev) => ({ ...prev, [name]: error }));
+      } else {
+        setFieldErrors((prev) => {
+          const updated = { ...prev };
+          delete updated[name];
+          return updated;
+        });
+      }
+    }
   };
 
   const validateForm = () => {
-    const newErrors = {};
     let isValid = true;
-    const fieldsToTouch = {};
+    const newErrors = {};
 
-    if (!formData.first_name || formData.first_name.trim() === "") {
-      newErrors.first_name = "First name is required";
-      isValid = false;
-      fieldsToTouch.first_name = true;
-    }
-    if (!formData.last_name || formData.last_name.trim() === "") {
-      newErrors.last_name = "Last name is required";
-      isValid = false;
-      fieldsToTouch.last_name = true;
-    }
-    if (!formData.email || formData.email.trim() === "") {
-      newErrors.email = "Email is required";
-      isValid = false;
-      fieldsToTouch.email = true;
-    } else {
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (!emailRegex.test(formData.email.trim())) {
-        newErrors.email = "Please enter a valid email address";
+    for (const fieldName of ["first_name", "last_name", "email", "phone"]) {
+      const error = validateField(fieldName, formData[fieldName]);
+      if (error) {
+        newErrors[fieldName] = error;
         isValid = false;
-        fieldsToTouch.email = true;
       }
     }
-    if (!formData.phone || formData.phone.trim() === "") {
-      newErrors.phone = "Phone number is required";
-      isValid = false;
-      fieldsToTouch.phone = true;
-    } else if (!/^[0-9]{10,15}$/.test(formData.phone.replace(/[^0-9]/g, ""))) {
-      newErrors.phone =
-        "Invalid phone number format (must contain 10-15 digits)";
-      isValid = false;
-      fieldsToTouch.phone = true;
-    }
-
+    
     setFieldErrors(newErrors);
-    setTouched((prev) => ({ ...prev, ...fieldsToTouch })); // Merge with existing touched fields
-    // setSubmitAttempted(true); // Can be inferred if newErrors is not empty after this
-
     if (!isValid) {
       setError("Please correct the highlighted fields.");
     } else {
-      setError(null); // Clear general error if form is valid now
+      setError(null);
     }
     return isValid;
   };
@@ -164,29 +197,40 @@ const TenantModal = ({
     } catch (err) {
       console.error("Failed to create tenant:", err);
       let errorMessage = "Failed to create tenant. Please try again.";
-      if (err.data?.detail) {
-        if (Array.isArray(err.data.detail)) {
-          const validationErrors = {};
-          const backendErrorMessages = [];
-          err.data.detail.forEach((errorItem) => {
-            if (errorItem.loc && errorItem.loc.length > 1) {
-              validationErrors[errorItem.loc[1]] = errorItem.msg;
-            } else {
-              backendErrorMessages.push(errorItem.msg);
-            }
-          });
-          setFieldErrors((prev) => ({ ...prev, ...validationErrors }));
-          if (backendErrorMessages.length > 0) {
-            errorMessage = backendErrorMessages.join(" ");
-          } else if (Object.keys(validationErrors).length > 0) {
-            errorMessage = "Please correct the validation errors below.";
+
+      // Handle specific HTTP status codes
+      if (err.status === 409) {
+        errorMessage = err.data?.detail || "A tenant with this email already exists.";
+        setFieldErrors((prev) => ({...prev, email: "This email is already in use."}));
+      }
+      // Handle structured validation errors from backend
+      else if (err.data?.detail && Array.isArray(err.data.detail)) {
+        const validationErrors = {};
+        const generalErrors = [];
+        
+        err.data.detail.forEach((errorItem) => {
+          if (errorItem.loc && errorItem.loc.length > 1) {
+            const fieldName = errorItem.loc[errorItem.loc.length - 1];
+            validationErrors[fieldName] = errorItem.msg;
+          } else {
+            generalErrors.push(errorItem.msg || errorItem);
           }
-        } else if (typeof err.data.detail === "string") {
-          errorMessage = err.data.detail;
+        });
+        
+        // Apply field-specific errors
+        if (Object.keys(validationErrors).length > 0) {
+          setFieldErrors((prev) => ({ ...prev, ...validationErrors }));
+          errorMessage = "Please correct the validation errors below.";
+        }
+        
+        // Show general errors if any
+        if (generalErrors.length > 0) {
+          errorMessage = generalErrors.join(". ");
         }
       } else if (err.message) {
         errorMessage = err.message;
       }
+      
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -285,6 +329,36 @@ const TenantModal = ({
             <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>
           )}
         </div>
+
+        {/* Show property dropdown only when not already assigned to a property */}
+        {!propertyId && (
+          <div>
+            <Label htmlFor="current_property_id">
+              Assign to Property (Optional)
+            </Label>
+            <select
+              id="current_property_id"
+              name="current_property_id"
+              value={formData.current_property_id || ""}
+              onChange={handleChange}
+              disabled={isLoadingProperties}
+              className="w-full px-3 py-2 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            >
+              {isLoadingProperties ? (
+                <option>Loading properties...</option>
+              ) : (
+                <>
+                  <option value="">Do not assign to a property</option>
+                  {properties.map((property) => (
+                    <option key={property.id} value={property.id}>
+                      {property.name}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="mt-2 mb-4 text-sm text-gray-500">
