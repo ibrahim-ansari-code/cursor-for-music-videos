@@ -221,21 +221,22 @@ const MaintenanceRequestModal = ({
     if (!formData.unit_id) errors.unit_id = "Unit is required";
     if (!formData.issue_title || formData.issue_title.trim() === "")
       errors.issue_title = "Issue title is required";
-    if (!formData.scheduled_date)
-      errors.scheduled_date = "Scheduled date is required";
 
     // Check if estimated_cost is positive
     if (formData.estimated_cost && Number(formData.estimated_cost) <= 0) {
       errors.estimated_cost = "Estimated cost must be a positive number";
     }
 
-    // Check if scheduled_date is not in the past
+    // Check if scheduled_date is not in the past (only if provided)
     if (formData.scheduled_date) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const scheduledDate = new Date(formData.scheduled_date);
+      // Always parse as local midnight to avoid Safari "Invalid Date"
+      const scheduledDate = new Date(`${formData.scheduled_date}T00:00:00`);
 
-      if (scheduledDate < today) {
+      if (isNaN(scheduledDate.getTime())) {
+        errors.scheduled_date = "Invalid date format";
+      } else if (scheduledDate < today) {
         errors.scheduled_date = "Scheduled date cannot be in the past";
       }
     }

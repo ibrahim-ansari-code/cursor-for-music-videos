@@ -140,8 +140,8 @@ async def get_dashboard_data(
     financial_summary AS (
         SELECT 
             COALESCE(SUM(CASE WHEN pay.status IN ('Paid', 'Partial') THEN pay.amount ELSE 0 END), 0) as monthly_revenue,
-            COALESCE(SUM(CASE WHEN exp.category = 'maintenance' THEN exp.total_amount ELSE 0 END), 0) as maintenance_expenses,
-            COALESCE(SUM(exp.total_amount), 0) as monthly_expenses,
+            COALESCE(SUM(CASE WHEN exp.category = 'maintenance' THEN (COALESCE(exp.subtotal_amount, 0) + COALESCE(exp.total_tax_amount, 0)) ELSE 0 END), 0) as maintenance_expenses,
+            COALESCE(SUM(COALESCE(exp.subtotal_amount, 0) + COALESCE(exp.total_tax_amount, 0)), 0) as monthly_expenses,
             COALESCE(SUM(CASE WHEN inv.status IN ('Pending', 'Overdue') THEN inv.amount ELSE 0 END), 0) as outstanding_rent
         FROM 
             properties p
@@ -243,7 +243,7 @@ async def get_dashboard_data(
         SELECT 
             date_trunc('month', m.month_start)::date as month,
             COALESCE(SUM(CASE WHEN pay.status IN ('Paid', 'Partial') THEN pay.amount ELSE 0 END), 0) as revenue,
-            COALESCE(SUM(exp.total_amount), 0) as expenses
+            COALESCE(SUM(COALESCE(exp.subtotal_amount, 0) + COALESCE(exp.total_tax_amount, 0)), 0) as expenses
         FROM 
             months m
         LEFT JOIN 

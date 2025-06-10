@@ -49,6 +49,7 @@ export const Select = ({
   required,
   children,
   className = "",
+  disabled = false,
   ...props
 }) => (
   <div className="relative">
@@ -59,14 +60,19 @@ export const Select = ({
       onChange={onChange}
       onBlur={onBlur}
       required={required}
-      className={`w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm appearance-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 ${className}`}
+      disabled={disabled}
+      className={`w-full px-4 py-2.5 pr-10 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm appearance-none 
+        hover:border-gray-400 
+        focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none 
+        disabled:bg-gray-50 disabled:text-gray-500 disabled:border-gray-200 disabled:cursor-not-allowed
+        transition-all duration-200 ${className}`}
       {...props}
     >
       {children}
     </select>
     <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
       <svg
-        className="w-5 h-5 text-gray-500"
+        className={`w-5 h-5 ${disabled ? 'text-gray-400' : 'text-gray-500'}`}
         fill="currentColor"
         viewBox="0 0 20 20"
         aria-hidden="true"
@@ -286,7 +292,7 @@ export const ModalShell = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm overflow-y-auto h-full w-full z-[9999] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
@@ -297,7 +303,7 @@ export const ModalShell = ({
         exit={{ scale: 0.95, opacity: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         ref={modalRef}
-        className={`relative w-full ${maxWidth} bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden max-h-[calc(100vh-4rem)]`}
+        className={`relative w-full ${maxWidth} bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden max-h-[calc(100vh-4rem)] z-[10000]`}
       >
         {/* Header */}
         <div className="sticky top-0 z-10 px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center flex-shrink-0">

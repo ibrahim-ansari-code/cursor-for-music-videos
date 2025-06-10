@@ -559,32 +559,31 @@ async def create_tenant(
     # Use database-level constraints for email uniqueness to prevent race conditions
     # Email is already normalized by Pydantic validator
     try:
-        # Begin explicit transaction
-        async with session.begin():
-            # The initial check for duplicate email has been removed.
-            # We now rely on the database's unique constraint to prevent race
-            # conditions, catching the IntegrityError if a duplicate is inserted.
+        # We explicitly commit early in this endpoint because we need to return the created tenant
+        # immediately and ensure it's persisted before the response. This is different from endpoints
+        # that can rely on FastAPI's automatic commit at request end.
+        
+        # Exclude full_name before validating with the Tenant model
+        tenant_dict = tenant_data.model_dump(exclude={"full_name"})
+        
+        # Set the landlord_id from the assigned landlord
+        tenant_dict["landlord_id"] = assigned_landlord_id
+        
+        # Create tenant instance - Pydantic validation already done
+        tenant = Tenant.model_validate(tenant_dict)
+        tenant.created_at = create_audit_datetime()
+        tenant.updated_at = create_audit_datetime()
 
-            # Exclude full_name before validating with the Tenant model
-            tenant_dict = tenant_data.model_dump(exclude={"full_name"})
-            
-            # Set the landlord_id from the assigned landlord
-            tenant_dict["landlord_id"] = assigned_landlord_id
-            
-            # Create tenant instance - Pydantic validation already done
-            tenant = Tenant.model_validate(tenant_dict)
-            tenant.created_at = create_audit_datetime()
-            tenant.updated_at = create_audit_datetime()
+        session.add(tenant)
+        await session.flush()  # Get the ID without committing
+        await session.refresh(tenant)  # Refresh to get generated fields
 
-            session.add(tenant)
-            await session.flush()  # Get the ID without committing
-            await session.refresh(tenant)  # Refresh to get generated fields
-
-            logger.info("Tenant %s created successfully by user %s",
-                        tenant.id, current_user.id)
-            
-            # Transaction will be committed automatically by context manager
-            return TenantResponse.model_validate(tenant)
+        logger.info("Tenant %s created successfully by user %s",
+                    tenant.id, current_user.id)
+        
+        # Explicit commit required to ensure data is persisted before returning response
+        await session.commit()
+        return TenantResponse.model_validate(tenant)
             
     except HTTPException:
         # Re-raise HTTP exceptions as-is

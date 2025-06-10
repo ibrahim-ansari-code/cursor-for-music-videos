@@ -506,7 +506,7 @@ async def analyze_lease_text(text: str) -> Dict[str, Any]:
     try:
         logger.info("Starting lease text analysis")
         response = azure_client.chat.completions.create(
-            model=os.getenv("AZURE_OPENAI_DEPLOYMENT", ""),
+            model=os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": text}
