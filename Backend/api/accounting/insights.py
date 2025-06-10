@@ -87,7 +87,7 @@ payment_data AS (
     GROUP BY EXTRACT(MONTH FROM p.payment_date)
 ),
 expense_data AS (
-    SELECT EXTRACT(MONTH FROM e.expense_date) AS month_num, SUM(e.total_amount) AS expenses
+    SELECT EXTRACT(MONTH FROM e.expense_date) AS month_num, SUM(e.subtotal_amount) AS expenses
     FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id
     WHERE EXTRACT(YEAR FROM e.expense_date) = :target_year {expenses_filter}
     GROUP BY EXTRACT(MONTH FROM e.expense_date)
@@ -108,7 +108,7 @@ payment_data AS (
     GROUP BY EXTRACT(YEAR FROM p.payment_date)
 ),
 expense_data AS (
-    SELECT EXTRACT(YEAR FROM e.expense_date) AS year_num, SUM(e.total_amount) AS expenses
+    SELECT EXTRACT(YEAR FROM e.expense_date) AS year_num, SUM(e.subtotal_amount) AS expenses
     FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id
     WHERE 1=1 {expenses_filter}
     GROUP BY EXTRACT(YEAR FROM e.expense_date)
@@ -131,7 +131,7 @@ payment_agg AS (
     GROUP BY 1
 ),
 expense_agg AS (
-    SELECT date_trunc('month', e.expense_date)::date as period_start, SUM(e.total_amount) AS expenses
+    SELECT date_trunc('month', e.expense_date)::date as period_start, SUM(e.subtotal_amount) AS expenses
     FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id
     WHERE 1=1 {expenses_filter} AND e.expense_date >= date_trunc('month', current_date - interval '11 months')
     GROUP BY 1
@@ -386,11 +386,11 @@ async def get_accounting_overview(
     yr_q = text(yr_q_str)
     ytd_revenue = await session.scalar(yr_q, base_params) or 0.0
     # Monthly Expenses
-    me_q_str = f"SELECT COALESCE(SUM(e.total_amount), 0.0) FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id WHERE e.expense_date >= :month_start AND e.expense_date <= :today {expenses_filter}"
+    me_q_str = f"SELECT COALESCE(SUM(e.subtotal_amount), 0.0) FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id WHERE e.expense_date >= :month_start AND e.expense_date <= :today {expenses_filter}"
     me_q = text(me_q_str)
     monthly_expenses = await session.scalar(me_q, base_params) or 0.0
     # YTD Expenses
-    ye_q_str = f"SELECT COALESCE(SUM(e.total_amount), 0.0) FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id WHERE e.expense_date >= :year_start AND e.expense_date <= :today {expenses_filter}"
+    ye_q_str = f"SELECT COALESCE(SUM(e.subtotal_amount), 0.0) FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id WHERE e.expense_date >= :year_start AND e.expense_date <= :today {expenses_filter}"
     ye_q = text(ye_q_str)
     ytd_expenses = await session.scalar(ye_q, base_params) or 0.0
     # Outstanding Payments (count for current month)
