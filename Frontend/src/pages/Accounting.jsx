@@ -200,7 +200,12 @@ const Accounting = () => {
     } catch (err) {
       console.error("Error loading overview data:", err);
       // Check if it's a 404 error (no properties found for new users)
-      if (err.status === 404 || (err.data && err.data.detail && err.data.detail.includes("No accessible properties"))) {
+      if (
+        err.status === 404 ||
+        (err.data &&
+          err.data.detail &&
+          err.data.detail.includes("No accessible properties"))
+      ) {
         // For new users with no properties, set default values
         setOverviewData({
           monthly_revenue: 0,
@@ -211,15 +216,15 @@ const Accounting = () => {
           ytd_net_income: 0,
           occupancy_rate: 0,
           average_rent: 0,
-          revenue_trends: []
+          revenue_trends: [],
         });
-        
+
         setAccountingData({
           monthly: { revenue: 0, expenses: 0, netIncome: 0 },
           ytd: { revenue: 0, expenses: 0, netIncome: 0 },
           snapshot: { occupancyRate: 0, paidRent: 0, totalRent: 0, avgRent: 0 },
         });
-        
+
         setError(null); // Clear error for new users
       } else {
         // Only show error for actual errors, not for new users with no data
@@ -546,7 +551,7 @@ const Accounting = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div>
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           <p>{error}</p>
