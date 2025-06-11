@@ -352,6 +352,7 @@ const ImportLeaseModal = ({
 
       // Call the onImport callback
       onImport(createdLease);
+      onClose();
     } catch (err) {
       console.error("Failed to create lease:", err);
       setError(err.message || "Failed to create lease. Please try again.");

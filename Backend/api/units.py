@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, ValidationError
@@ -27,7 +28,7 @@ class UnitBase(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     description: str | None = None
     size: float | None = None
-    monthly_rent: float | None = None
+    monthly_rent: Decimal | None = None
     is_rented: bool = False
     bedrooms: int | None = None
     bathrooms: float | None = None
@@ -43,7 +44,7 @@ class UnitUpdate(BaseModel):
     name: str | None = None  # Allow partial updates
     description: str | None = None
     size: float | None = None
-    monthly_rent: float | None = None
+    monthly_rent: Decimal | None = None
     is_rented: bool | None = None
     bedrooms: int | None = None
     bathrooms: float | None = None
@@ -92,11 +93,14 @@ async def get_unit_or_404(unit_id: int, session: AsyncSession, current_user: Use
     """Retrieve a unit by ID, ensuring the current user has permission."""
     result = await session.execute(
         select(PropertyUnit)
-        # Load property for permission check
-        .options(joinedload(getattr(PropertyUnit, "property")))
+        # Load property for permission check, and tenant for potential use in response
+        .options(
+            joinedload(getattr(PropertyUnit, "property")),
+            selectinload(getattr(PropertyUnit, "tenant"))
+        )
         .where(col(PropertyUnit.id) == unit_id)
     )
-    unit = result.scalar_one_or_none()
+    unit = result.unique().scalar_one_or_none()
 
     if not unit:
         raise HTTPException(
@@ -321,6 +325,21 @@ async def delete_unit(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while deleting the unit."
         )
+
+
+@router.get("/units/{unit_id}", response_model=UnitResponse, tags=["units"])
+async def get_unit(
+    unit_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+) -> UnitResponse:
+    """
+    Retrieves a single unit by its ID, ensuring the user has permission.
+    """
+    # The helper function performs the fetch, permission check, and eager loads the tenant.
+    unit = await get_unit_or_404(unit_id, session, current_user)
+
+    return UnitResponse.model_validate(unit)
 
 
 @router.get("/properties/{property_id}/units", response_model=list[UnitResponse], tags=["units"])

@@ -1,6 +1,7 @@
 from datetime import datetime, date, timezone, UTC
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID as PythonUUID
+from decimal import Decimal
 
 from sqlalchemy import Column, Integer, String, Text, Numeric, ForeignKey, Date, JSON, TIMESTAMP, Enum as PgEnum
 from sqlmodel import Field, Relationship, SQLModel
@@ -39,9 +40,9 @@ class MaintenanceRequest(SQLModel, table=True):
         sa_column=Column(PgEnum(MaintenanceStatus, name="maintenance_status", create_constraint=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False))
     scheduled_date: date | None = Field(
         default=None, sa_column=Column(Date, nullable=True))
-    estimated_cost: float | None = Field(
+    estimated_cost: Decimal | None = Field(
         default=None, sa_column=Column(Numeric(10, 2), nullable=True))
-    actual_cost: float | None = Field(
+    actual_cost: Decimal | None = Field(
         default=None, sa_column=Column(Numeric(10, 2), nullable=True))
     photos: list[str] | None = Field(
         default=None, sa_column=Column(JSON, nullable=True))

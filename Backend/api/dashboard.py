@@ -1,5 +1,6 @@
 import logging
 from datetime import date, timedelta
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -29,31 +30,31 @@ class DashboardSummary(BaseModel):
     total_properties: int
     total_units: int
     occupied_units: int
-    vacancy_rate: float  # percentage
-    monthly_revenue: float
-    monthly_expenses: float
-    outstanding_rent: float
-    maintenance_expenses: float
+    vacancy_rate: Decimal  # percentage
+    monthly_revenue: Decimal
+    monthly_expenses: Decimal
+    outstanding_rent: Decimal
+    maintenance_expenses: Decimal
 
 
 class OccupancyData(BaseModel):
     total_units: int
     occupied_units: int
     vacant_units: int
-    occupancy_rate: float  # percentage
+    occupancy_rate: Decimal  # percentage
 
 
 class RevenueData(BaseModel):
     months: list[str]
-    revenue: list[float]
-    expenses: list[float]
-    net_income: list[float]
+    revenue: list[Decimal]
+    expenses: list[Decimal]
+    net_income: list[Decimal]
 
 
 class PaymentDue(BaseModel):
     id: int
     tenant_name: str
-    amount: float
+    amount: Decimal
     due_date: date
     days_overdue: int | None = None
     status: PaymentStatus
@@ -165,7 +166,7 @@ async def get_dashboard_data(
         pc.total_units,
         pc.occupied_units,
         CASE WHEN pc.total_units > 0 THEN 
-            CAST((pc.total_units - pc.occupied_units) AS FLOAT) / pc.total_units * 100 
+            CAST((pc.total_units - pc.occupied_units) AS NUMERIC) / pc.total_units * 100 
         ELSE 0 END as vacancy_rate,
         fs.monthly_revenue,
         fs.monthly_expenses,
@@ -203,11 +204,11 @@ async def get_dashboard_data(
             total_properties=summary_row['total_properties'] or 0,
             total_units=summary_row['total_units'] or 0,
             occupied_units=summary_row['occupied_units'] or 0,
-            vacancy_rate=summary_row['vacancy_rate'] or 0.0,
-            monthly_revenue=summary_row['monthly_revenue'] or 0.0,
-            monthly_expenses=summary_row['monthly_expenses'] or 0.0,
-            outstanding_rent=summary_row['outstanding_rent'] or 0.0,
-            maintenance_expenses=summary_row['maintenance_expenses'] or 0.0
+            vacancy_rate=summary_row['vacancy_rate'] or Decimal('0.0'),
+            monthly_revenue=summary_row['monthly_revenue'] or Decimal('0.0'),
+            monthly_expenses=summary_row['monthly_expenses'] or Decimal('0.0'),
+            outstanding_rent=summary_row['outstanding_rent'] or Decimal('0.0'),
+            maintenance_expenses=summary_row['maintenance_expenses'] or Decimal('0.0')
         )
     else:
         # Default values if no data
@@ -215,11 +216,11 @@ async def get_dashboard_data(
             total_properties=0,
             total_units=0,
             occupied_units=0,
-            vacancy_rate=0.0,
-            monthly_revenue=0.0,
-            monthly_expenses=0.0,
-            outstanding_rent=0.0,
-            maintenance_expenses=0.0
+            vacancy_rate=Decimal('0.0'),
+            monthly_revenue=Decimal('0.0'),
+            monthly_expenses=Decimal('0.0'),
+            outstanding_rent=Decimal('0.0'),
+            maintenance_expenses=Decimal('0.0')
         )
 
     # 2. Occupancy data
@@ -227,7 +228,7 @@ async def get_dashboard_data(
         total_units=summary.total_units,
         occupied_units=summary.occupied_units,
         vacant_units=summary.total_units - summary.occupied_units,
-        occupancy_rate=100.0 - summary.vacancy_rate
+        occupancy_rate=Decimal('100.0') - summary.vacancy_rate
     )
 
     # 3. Revenue trends (last 12 months)
@@ -286,9 +287,9 @@ async def get_dashboard_data(
 
     for row in revenue_rows:
         months.append(row['month_name'])
-        revenue_values.append(float(row['revenue']))
-        expense_values.append(float(row['expenses']))
-        net_income_values.append(float(row['net_income']))
+        revenue_values.append(row['revenue'])
+        expense_values.append(row['expenses'])
+        net_income_values.append(row['net_income'])
 
     revenue_data = RevenueData(
         months=months,
@@ -337,7 +338,7 @@ async def get_dashboard_data(
         payments_due.append(PaymentDue(
             id=row['id'],
             tenant_name=row['tenant_name'],
-            amount=float(row['amount']),
+            amount=row['amount'],
             due_date=row['due_date'],
             days_overdue=row['days_overdue'],
             status=PaymentStatus(row['status'])

@@ -4,6 +4,7 @@ import functools
 from datetime import date, datetime, UTC
 from typing import Any
 from enum import Enum
+from decimal import Decimal
 
 # Compile regex pattern once at module level for performance
 _TABLE_ALIAS_PATTERN = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
@@ -172,24 +173,24 @@ class OccupancyResponse(BaseModel):
     total_units: int
     occupied_units: int
     vacant_units: int
-    occupancy_rate: float
+    occupancy_rate: Decimal
 
 class RevenueTrendResponse(BaseModel):
     period: str  # Month or year
-    revenue: float
-    expenses: float
-    net_income: float
+    revenue: Decimal
+    expenses: Decimal
+    net_income: Decimal
 
 class AccountingOverviewResponse(BaseModel):
-    monthly_revenue: float
-    monthly_expenses: float
-    monthly_net_income: float
-    ytd_revenue: float
-    ytd_expenses: float
-    ytd_net_income: float
-    occupancy_rate: float
+    monthly_revenue: Decimal
+    monthly_expenses: Decimal
+    monthly_net_income: Decimal
+    ytd_revenue: Decimal
+    ytd_expenses: Decimal
+    ytd_net_income: Decimal
+    occupancy_rate: Decimal
     outstanding_payments: int
-    average_rent: float
+    average_rent: Decimal
     revenue_trends: list[RevenueTrendResponse]
 
 # === API Endpoints for Insights ===
@@ -251,7 +252,7 @@ async def get_occupancy_rates(
         total = row['total_units'] or 0
         occupied = row['occupied_units'] or 0
         vacant = total - occupied
-        rate = round((occupied / total * 100), 2) if total > 0 else 0.0
+        rate = (Decimal(occupied) / Decimal(total) * 100) if total > 0 else Decimal('0.0')
         response_list.append(
             OccupancyResponse(
                 property_id=row['property_id'], property_name=row['property_name'],
@@ -319,8 +320,8 @@ async def get_revenue_trends(
         return [
             RevenueTrendResponse(
                 period=month_names[int(row['month_num'])-1] + f" {target_year % 100}", # e.g. Jan 23
-                revenue=float(row['revenue']), expenses=float(row['expenses']),
-                net_income=float(row['revenue']) - float(row['expenses'])
+                revenue=Decimal(row['revenue']), expenses=Decimal(row['expenses']),
+                net_income=Decimal(row['revenue']) - Decimal(row['expenses'])
             ) for row in trends_data
         ]
         
@@ -336,8 +337,8 @@ async def get_revenue_trends(
         
         return [
             RevenueTrendResponse(
-                period=str(int(row['year_num'])), revenue=float(row['revenue']), expenses=float(row['expenses']),
-                net_income=float(row['revenue']) - float(row['expenses'])
+                period=str(int(row['year_num'])), revenue=Decimal(row['revenue']), expenses=Decimal(row['expenses']),
+                net_income=Decimal(row['revenue']) - Decimal(row['expenses'])
             ) for row in trends_data
         ]
     # Defensive: should never reach here due to earlier check
@@ -378,33 +379,33 @@ async def get_accounting_overview(
     
     # Static JOIN clauses with dynamic WHERE clauses via the validated filter strings
     # Monthly Revenue
-    mr_q_str = f"SELECT COALESCE(SUM(p.amount), 0.0) FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id WHERE p.payment_date >= :month_start AND p.payment_date <= :today AND p.status IN ('Paid', 'Partial') {payments_filter}"
+    mr_q_str = f"SELECT COALESCE(SUM(p.amount), 0.0)::numeric FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id WHERE p.payment_date >= :month_start AND p.payment_date <= :today AND p.status IN ('Paid', 'Partial') {payments_filter}"
     mr_q = text(mr_q_str)
-    monthly_revenue = await session.scalar(mr_q, base_params) or 0.0
+    monthly_revenue = await session.scalar(mr_q, base_params) or Decimal("0.0")
     # YTD Revenue
-    yr_q_str = f"SELECT COALESCE(SUM(p.amount), 0.0) FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id WHERE p.payment_date >= :year_start AND p.payment_date <= :today AND p.status IN ('Paid', 'Partial') {payments_filter}"
+    yr_q_str = f"SELECT COALESCE(SUM(p.amount), 0.0)::numeric FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id WHERE p.payment_date >= :year_start AND p.payment_date <= :today AND p.status IN ('Paid', 'Partial') {payments_filter}"
     yr_q = text(yr_q_str)
-    ytd_revenue = await session.scalar(yr_q, base_params) or 0.0
+    ytd_revenue = await session.scalar(yr_q, base_params) or Decimal("0.0")
     # Monthly Expenses
-    me_q_str = f"SELECT COALESCE(SUM(e.subtotal_amount), 0.0) FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id WHERE e.expense_date >= :month_start AND e.expense_date <= :today {expenses_filter}"
+    me_q_str = f"SELECT COALESCE(SUM(e.subtotal_amount), 0.0)::numeric FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id WHERE e.expense_date >= :month_start AND e.expense_date <= :today {expenses_filter}"
     me_q = text(me_q_str)
-    monthly_expenses = await session.scalar(me_q, base_params) or 0.0
+    monthly_expenses = await session.scalar(me_q, base_params) or Decimal("0.0")
     # YTD Expenses
-    ye_q_str = f"SELECT COALESCE(SUM(e.subtotal_amount), 0.0) FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id WHERE e.expense_date >= :year_start AND e.expense_date <= :today {expenses_filter}"
+    ye_q_str = f"SELECT COALESCE(SUM(e.subtotal_amount), 0.0)::numeric FROM expenses e JOIN properties exp_prop ON e.property_id = exp_prop.id WHERE e.expense_date >= :year_start AND e.expense_date <= :today {expenses_filter}"
     ye_q = text(ye_q_str)
-    ytd_expenses = await session.scalar(ye_q, base_params) or 0.0
+    ytd_expenses = await session.scalar(ye_q, base_params) or Decimal("0.0")
     # Outstanding Payments (count for current month)
     op_q_str = f"SELECT COUNT(p.id) FROM payments p JOIN leases l ON p.lease_id = l.id JOIN properties prop ON l.property_id = prop.id WHERE p.payment_date >= :month_start AND p.payment_date <= :today AND p.status IN ('Pending', 'Overdue') {payments_filter}"
     op_q = text(op_q_str)
     outstanding_payments = await session.scalar(op_q, base_params) or 0
     # Average Rent (active leases)
-    ar_q_str = f"SELECT COALESCE(AVG(l.monthly_rent), 0.0) FROM leases l JOIN properties prop ON l.property_id = prop.id WHERE l.status = 'ACTIVE' {leases_filter}"
+    ar_q_str = f"SELECT COALESCE(AVG(l.monthly_rent), 0.0)::numeric FROM leases l JOIN properties prop ON l.property_id = prop.id WHERE l.status = 'ACTIVE' {leases_filter}"
     ar_q = text(ar_q_str)
-    average_rent = await session.scalar(ar_q, base_params) or 0.0
+    average_rent = await session.scalar(ar_q, base_params) or Decimal("0.0")
     # Occupancy Rate
-    ocr_q_str = f"SELECT CASE WHEN COUNT(u.id) > 0 THEN CAST(SUM(CASE WHEN u.is_rented THEN 1 ELSE 0 END) AS FLOAT) / COUNT(u.id) * 100 ELSE 0 END FROM property_units u JOIN properties prop ON u.property_id = prop.id WHERE 1=1 {units_filter}"
+    ocr_q_str = f"SELECT CASE WHEN COUNT(u.id) > 0 THEN CAST(SUM(CASE WHEN u.is_rented THEN 1 ELSE 0 END) AS NUMERIC) / COUNT(u.id) * 100 ELSE 0 END FROM property_units u JOIN properties prop ON u.property_id = prop.id WHERE 1=1 {units_filter}"
     ocr_q = text(ocr_q_str)
-    occupancy_rate = await session.scalar(ocr_q, base_params) or 0.0
+    occupancy_rate = await session.scalar(ocr_q, base_params) or Decimal('0.0')
 
     # Revenue Trends (last 12 months including current) - using safe enum-based filters
     trend_params_rt = { "user_id": current_user.id } if current_user.user_type == UserType.LANDLORD else {}
@@ -421,16 +422,16 @@ async def get_accounting_overview(
     trends_query = _build_safe_sql_query(_OVERVIEW_REVENUE_TRENDS_BASE, payments_filter_rt, expenses_filter_rt)
     trends_result = await session.execute(trends_query, trend_params_rt)
     revenue_trends_list = [
-        RevenueTrendResponse(period=row.period_label, revenue=float(row.revenue), expenses=float(row.expenses), 
-                           net_income=float(row.revenue) - float(row.expenses))
+        RevenueTrendResponse(period=row.period_label, revenue=Decimal(row.revenue), expenses=Decimal(row.expenses),
+                           net_income=Decimal(row.revenue) - Decimal(row.expenses))
         for row in trends_result.mappings().all()
     ]
 
     return AccountingOverviewResponse(
-        monthly_revenue=float(monthly_revenue), monthly_expenses=float(monthly_expenses),
-        monthly_net_income=float(monthly_revenue) - float(monthly_expenses),
-        ytd_revenue=float(ytd_revenue), ytd_expenses=float(ytd_expenses),
-        ytd_net_income=float(ytd_revenue) - float(ytd_expenses),
-        occupancy_rate=float(occupancy_rate), outstanding_payments=int(outstanding_payments),
-        average_rent=float(average_rent), revenue_trends=revenue_trends_list
+        monthly_revenue=Decimal(monthly_revenue), monthly_expenses=Decimal(monthly_expenses),
+        monthly_net_income=Decimal(monthly_revenue) - Decimal(monthly_expenses),
+        ytd_revenue=Decimal(ytd_revenue), ytd_expenses=Decimal(ytd_expenses),
+        ytd_net_income=Decimal(ytd_revenue) - Decimal(ytd_expenses),
+        occupancy_rate=occupancy_rate, outstanding_payments=int(outstanding_payments),
+        average_rent=Decimal(average_rent), revenue_trends=revenue_trends_list
     )

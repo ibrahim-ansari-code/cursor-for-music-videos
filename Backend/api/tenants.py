@@ -491,18 +491,14 @@ async def create_tenant(
     Raises:
         HTTPException: If the user lacks permission, the property or user does not exist, the email is not unique, or validation fails.
     """
-    logger.info("User %s creating tenant: %s", current_user.email, tenant_data.model_dump_json())
+    logger.info("User %s creating tenant: %s", current_user.email, tenant_data.first_name + " " + tenant_data.last_name)
 
     if current_user.user_type == UserType.TENANT:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail="Tenants cannot create tenants")
 
-    # For admin users, require explicit landlord assignment via a separate field
-    # For now, admins inherit current_user.id as landlord_id (this may need business logic review)
     assigned_landlord_id = current_user.id
-    
-    # TODO: Future enhancement - allow admins to specify which landlord owns the tenant
-    # This would require adding a landlord_id field to TenantCreate schema
+
     # For now, if admin is creating a tenant with a property, use the property owner as landlord
     if current_user.is_admin and tenant_data.current_property_id:
         # Admin assigning to a property - use property owner as landlord
@@ -512,7 +508,6 @@ async def create_tenant(
         property_owner_id = await session.scalar(property_owner_query)
         if property_owner_id:
             assigned_landlord_id = property_owner_id
-            logger.info("Admin creating tenant for property owner %s", property_owner_id)
         else:
             logger.warning("Admin creating tenant but property %s has no owner", 
                          tenant_data.current_property_id)
@@ -556,13 +551,8 @@ async def create_tenant(
             raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                                 detail=f"A tenant profile already exists for user ID {tenant_data.user_id}")
 
-    # Use database-level constraints for email uniqueness to prevent race conditions
-    # Email is already normalized by Pydantic validator
+    # Create tenant with database-level constraints for email uniqueness
     try:
-        # We explicitly commit early in this endpoint because we need to return the created tenant
-        # immediately and ensure it's persisted before the response. This is different from endpoints
-        # that can rely on FastAPI's automatic commit at request end.
-        
         # Exclude full_name before validating with the Tenant model
         tenant_dict = tenant_data.model_dump(exclude={"full_name"})
         
@@ -575,51 +565,64 @@ async def create_tenant(
         tenant.updated_at = create_audit_datetime()
 
         session.add(tenant)
-        await session.flush()  # Get the ID without committing
-        await session.refresh(tenant)  # Refresh to get generated fields
-
-        logger.info("Tenant %s created successfully by user %s",
-                    tenant.id, current_user.id)
         
-        # Explicit commit required to ensure data is persisted before returning response
-        await session.commit()
-        return TenantResponse.model_validate(tenant)
+        try:
+            await session.flush()  # Get the ID without committing
+            await session.refresh(tenant)  # Refresh to get generated fields
+            await session.commit()
             
-    except HTTPException:
-        # Re-raise HTTP exceptions as-is
-        raise
+            logger.info("Tenant %s created successfully by user %s",
+                        tenant.id, current_user.id)
+            return TenantResponse.model_validate(tenant)
+            
+        except IntegrityError as e:
+            # Handle database constraint violations during flush
+            logger.warning("Database integrity error creating tenant: %s", str(e))
+            await session.rollback()
+            
+            # Check for unique constraint violations on email
+            error_str = str(e).lower()
+            if (("unique constraint" in error_str or "duplicate key" in error_str) and 
+                ("email" in error_str or "idx_tenant_email_unique_per_landlord" in error_str)):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A tenant with this email address already exists."
+                )
+            
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Database constraint violation. Please check your data."
+            )
+        except Exception as e:
+            # Handle SQLAlchemy session state exceptions that wrap IntegrityError
+            error_str = str(e).lower()
+            
+            # Check if this is a session rollback exception wrapping an IntegrityError for duplicate email
+            if ("session's transaction has been rolled back" in error_str and 
+                "integrityerror" in error_str and
+                ("unique constraint" in error_str or "duplicate key" in error_str) and 
+                ("email" in error_str or "idx_tenant_email_unique_per_landlord" in error_str)):
+                # Don't rollback again since SQLAlchemy already did it
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A tenant with this email address already exists."
+                )
+            
+            # For any other exception, rollback and re-raise
+            logger.exception("Unexpected error during tenant creation: %s", str(e))
+            await session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="An unexpected error occurred while creating tenant."
+            )
     except ValidationError as e:
-        # Handle Pydantic validation errors specifically
-        logger.warning("Validation error creating tenant for user %s: %s", 
-                      current_user.id, str(e))
+        # Handle Pydantic validation errors
+        logger.warning("Validation error creating tenant: %s", str(e))
+        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Validation error: {str(e)}"
-        ) from e
-    except IntegrityError as e:
-        # Handle database constraint violations
-        logger.warning("Database integrity error creating tenant for user %s: %s", 
-                      current_user.id, str(e))
-        await session.rollback()
-        
-        if "unique constraint" in str(e).lower() and "email" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A tenant with this email address already exists."
-            ) from e
-        
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Database constraint violation. Please check your data."
-        ) from e
-    except Exception as e:
-        # Handle unexpected errors
-        logger.exception("Unexpected error creating tenant for user %s", current_user.id)
-        await session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred. Please try again."
-        ) from e
+            detail="Validation error occurred while creating tenant."
+        )
 
 
 @router.patch("/{tenant_id}", response_model=TenantResponse)
@@ -675,7 +678,7 @@ async def update_tenant(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update tenant: {str(e)}"
-        ) from e
+        )
 
 
 @router.delete("/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -724,4 +727,4 @@ async def delete_tenant(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete tenant. Check for related records (e.g., historical payments, messages). Error: {str(e)}"
-        ) from e
+        )

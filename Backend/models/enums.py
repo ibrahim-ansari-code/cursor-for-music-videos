@@ -26,6 +26,18 @@ class PropertyStatus(str, Enum):
     INACTIVE = "INACTIVE"
     DRAFT = "DRAFT"
     ARCHIVED = "ARCHIVED"
+    RENTED = "RENTED"
+    VACANT = "VACANT"
+    PARTIALLY_RENTED = "PARTIALLY_RENTED"
+
+    @classmethod
+    def _missing_(cls, value: Any) -> Self | None:
+        if isinstance(value, str):
+            try:
+                return cls(value.upper())
+            except ValueError:
+                pass
+        return super()._missing_(value)
 
 
 class MaintenancePriority(str, Enum):

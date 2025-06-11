@@ -4,37 +4,33 @@ API tests for Dashboard operations.
 
 import pytest
 import logging
+import httpx
 
-# Import helper functions from conftest.py explicitly for clarity
-from .conftest import assert_valid_json_response, APITestClient
+from .conftest import assert_valid_json_response
 
 logger = logging.getLogger(__name__)
 
 
 @pytest.mark.auth
 @pytest.mark.integration
-class TestDashboardAPI:
-    """Test suite for Dashboard API endpoints."""
+@pytest.mark.asyncio
+async def test_dashboard_get_operations(api_client: httpx.AsyncClient) -> None:
+    """
+    Tests that the GET /api/dashboard endpoint returns a valid JSON response with required sections.
+    
+    Asserts that the response is a dictionary containing the keys: "summary", "occupancy", "revenue", and "payments_due".
+    """
+    logger.info("Testing GET /api/dashboard...")
 
-    @pytest.mark.asyncio
-    async def test_dashboard_get_operations(self, api_client: APITestClient) -> None:
-        """
-        Tests that the GET /api/dashboard endpoint returns a valid JSON response with required sections.
-        
-        Asserts that the response is a dictionary containing the keys: "summary", "occupancy", "revenue", and "payments_due".
-        """
-        logger.info("Testing GET /api/dashboard...")
+    response = await api_client.get("/api/dashboard")
+    data = assert_valid_json_response(response, dict)
 
-        # api_client fixture from conftest.py handles authentication and initial checks.
-        response = await api_client.get("/api/dashboard")
-        data = assert_valid_json_response(response, dict)
-
-        logger.info(
-            "✅ GET /api/dashboard successful. Received sections: %s", ', '.join(data.keys()))
-        assert "summary" in data, "Dashboard response missing 'summary' key"
-        assert "occupancy" in data, "Dashboard response missing 'occupancy' key"
-        assert "revenue" in data, "Dashboard response missing 'revenue' key"
-        assert "payments_due" in data, "Dashboard response missing 'payments_due' key"
+    logger.info(
+        "✅ GET /api/dashboard successful. Received sections: %s", ', '.join(data.keys()))
+    assert "summary" in data, "Dashboard response missing 'summary' key"
+    assert "occupancy" in data, "Dashboard response missing 'occupancy' key"
+    assert "revenue" in data, "Dashboard response missing 'revenue' key"
+    assert "payments_due" in data, "Dashboard response missing 'payments_due' key"
 
     # TODO: Add tests for /api/dashboard with query parameters if applicable (e.g., property_id, time_period)
     # Example:

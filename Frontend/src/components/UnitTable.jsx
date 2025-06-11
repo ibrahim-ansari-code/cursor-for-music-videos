@@ -53,7 +53,7 @@ const UnitTable = ({ units, loading, error, onEdit, onDelete, onAssign }) => {
             </th>
             <th
               scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
               Rent
             </th>
@@ -91,7 +91,7 @@ const UnitTable = ({ units, loading, error, onEdit, onDelete, onAssign }) => {
                   {formatCurrency(unit.monthly_rent)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-left">
-                  <div className="truncate max-w-xs mx-auto">
+                  <div className="truncate max-w-xs">
                     {getTenantName(unit)}
                   </div>
                 </td>

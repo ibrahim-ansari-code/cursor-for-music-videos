@@ -92,7 +92,7 @@ const Sidebar = () => {
                 {!collapsed && (
                   <NavLink key={"Logo-Dashboard"} to={"/dashboard"}>
                     <img
-                      src="BrikliLogoSidebar.png"
+                      src="/BrikliLogoSidebar.png"
                       alt="Brikli Logo"
                       className="h-9 w-auto mx-auto my-4"
                     />

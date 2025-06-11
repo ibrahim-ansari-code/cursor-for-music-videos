@@ -1,6 +1,7 @@
 import logging
 from datetime import date, timedelta
 from enum import Enum
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -42,9 +43,9 @@ class RentTrackingEntry(BaseModel):
     lease_id: int
     tenant_name: str
     property_name: str
-    monthly_rent: float
-    amount_paid: float
-    remaining_due: float
+    monthly_rent: Decimal
+    amount_paid: Decimal
+    remaining_due: Decimal
     status: RentStatus
 
     class Config:
@@ -58,9 +59,9 @@ async def _calculate_payments_for_lease(
     lease_id: int,
     month_start: date,
     month_end: date
-) -> float:
+) -> Decimal:
     """Calculate total payments made for a lease in the given month."""
-    payments_query = select(func.coalesce(func.sum(Payment.amount), 0.0)).where(
+    payments_query = select(func.coalesce(func.sum(Payment.amount), Decimal("0.0"))).where(
         and_(
             col(Payment.lease_id) == lease_id,
             col(Payment.payment_date) >= month_start,
@@ -71,10 +72,10 @@ async def _calculate_payments_for_lease(
     )
 
     payment_result = await session.execute(payments_query)
-    return payment_result.scalar() or 0.0
+    return payment_result.scalar() or Decimal("0.0")
 
 
-def _determine_rent_status(monthly_rent: float, amount_paid: float) -> RentStatus:
+def _determine_rent_status(monthly_rent: Decimal, amount_paid: Decimal) -> RentStatus:
     """Determine rent status based on monthly rent and amount paid."""
     remaining_due = monthly_rent - amount_paid
 
@@ -133,9 +134,9 @@ async def _create_rent_tracking_entry(
         lease_id=lease.id,
         tenant_name=tenant_name,
         property_name=property_name,
-        monthly_rent=float(lease.monthly_rent),
-        amount_paid=float(amount_paid),
-        remaining_due=float(remaining_due),
+        monthly_rent=lease.monthly_rent,
+        amount_paid=amount_paid,
+        remaining_due=remaining_due,
         status=rent_payment_status
     )
 

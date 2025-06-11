@@ -7,8 +7,9 @@ from datetime import date, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID as PythonUUID
+from decimal import Decimal
 
-from sqlalchemy import Column, DateTime
+from sqlalchemy import Column, DateTime, Numeric
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, ForeignKey, Integer, Relationship, SQLModel
 
@@ -40,15 +41,15 @@ class Lease(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     start_date: date
     end_date: date
-    monthly_rent: float
-    security_deposit: float
+    monthly_rent: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    security_deposit: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     status: LeaseStatus = Field(default=LeaseStatus.DRAFT, index=True)
 
     # Additional lease terms
     is_renewable: bool = Field(default=True)
     auto_renew: bool = Field(default=False)
     rent_due_day: int = Field(default=1)  # Day of month rent is due
-    late_fee_amount: float | None = None
+    late_fee_amount: Decimal | None = Field(default=None, sa_column=Column(Numeric(12, 2)))
     late_fee_after_days: int | None = None
     special_terms: str | None = None
 
@@ -112,8 +113,8 @@ class LeaseCreate(SQLModel):
     unit_id: int | None = None
     start_date: date
     end_date: date
-    monthly_rent: float
-    security_deposit: float
+    monthly_rent: Decimal
+    security_deposit: Decimal
     status: LeaseStatus | None = LeaseStatus.DRAFT
     file_url: str | None = None
 
@@ -129,10 +130,10 @@ class LeaseUpdate(SQLModel):
     """
     start_date: date | None = None
     end_date: date | None = None
-    monthly_rent: float | None = None
-    security_deposit: float | None = None
+    monthly_rent: Decimal | None = None
+    security_deposit: Decimal | None = None
     rent_due_day: int | None = None
-    late_fee_amount: float | None = Field(default=None)
+    late_fee_amount: Decimal | None = Field(default=None)
     late_fee_after_days: int | None = Field(default=None)
     special_terms: str | None = Field(default=None)
     # Consider if status updates should be part of this or a separate endpoint

@@ -300,13 +300,19 @@ async def parse_expense_receipt(
         
         # Ensure required fields for ExpenseReceiptParseDetails are present.
         # The LLM can sometimes fail to find all fields, so we provide safe defaults.
-        subtotal = parsed_data_dict.get('subtotal_amount', 0.0)
-        total = parsed_data_dict.get('total_amount', 0.0)
-        
-        # Calculate total_tax_amount if it's missing, ensuring it's not negative.
-        parsed_data_dict.setdefault('total_tax_amount', max(0, float(total) - float(subtotal)))
+        subtotal = quantize_2dp(Decimal(str(parsed_data_dict.get('subtotal_amount', '0.0'))))
+        total = quantize_2dp(Decimal(str(parsed_data_dict.get('total_amount', '0.0'))))
+
+        # Calculate total_tax_amount if it's missing, ensuring it's not negative, and quantize.
+        default_tax_amount = quantize_2dp(max(Decimal('0.00'), total - subtotal))
+        parsed_data_dict.setdefault('total_tax_amount', default_tax_amount)
+
         # Ensure total_amount has a default if missing.
         parsed_data_dict.setdefault('total_amount', total)
+
+        # Re-quantize to be safe, as setdefault does not overwrite existing (but potentially unquantized) values.
+        parsed_data_dict['total_tax_amount'] = quantize_2dp(Decimal(str(parsed_data_dict['total_tax_amount'])))
+        parsed_data_dict['total_amount'] = quantize_2dp(Decimal(str(parsed_data_dict['total_amount'])))
 
         parsed_details = ExpenseReceiptParseDetails(**parsed_data_dict)
         return ExpenseReceiptParseResponse(

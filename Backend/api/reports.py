@@ -1,5 +1,6 @@
 import logging
 from datetime import UTC, date, datetime, time, timedelta
+from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -215,28 +216,30 @@ async def get_report_summary(
     ).group_by(text('month'))
 
     payments_result = await session.execute(payments_query)
-    monthly_income_data = {row.month.date(): float(row.total_income)
+    monthly_income_data = {row.month.date(): (row.total_income or Decimal('0.0'))
                            for row in payments_result.all()}
 
     expenses_result = await session.execute(expenses_query)
-    monthly_expense_data = {row.month.date(): float(
-        row.total_expenses) for row in expenses_result.all()}
+    monthly_expense_data = {row.month.date(): (row.total_expenses or Decimal('0.0'))
+                            for row in expenses_result.all()}
 
     # Assemble chart data
     monthly_chart_data = MonthlyChartData(
         months=month_strs,
         # Assuming all income is rental for now
         rental_income=[monthly_income_data.get(
-            m, 0.0) for m in months_in_range],
+            m, Decimal('0.0')) for m in months_in_range],
         # Placeholder for other income
-        other_income=[0.0] * len(months_in_range),
-        expenses=[monthly_expense_data.get(m, 0.0) for m in months_in_range]
+        other_income=[Decimal('0.0')] * len(months_in_range),
+        expenses=[monthly_expense_data.get(
+            m, Decimal('0.0')) for m in months_in_range]
     )
 
     # --- 3. Calculate Summary Data ---
     # Total Monthly Revenue (for the *last* month of the range)
     last_month_start = end_date.replace(day=1)
-    last_month_revenue = monthly_income_data.get(last_month_start, 0.0)
+    last_month_revenue = monthly_income_data.get(
+        last_month_start, Decimal('0.0'))
 
     # Average Rent (across active leases in selected properties)
     avg_rent_query = select(func.avg(Lease.monthly_rent))\
@@ -245,7 +248,7 @@ async def get_report_summary(
             col(Lease.property_id).in_(accessible_property_ids)
     )
     avg_rent_result = await session.execute(avg_rent_query)
-    avg_rent = float(avg_rent_result.scalar_one_or_none() or 0.0)
+    avg_rent = avg_rent_result.scalar_one_or_none() or Decimal('0.0')
 
     summary_data = ReportSummary(
         total_monthly_revenue=last_month_revenue,
@@ -282,10 +285,10 @@ async def get_report_summary(
     all_payments_res = await session.execute(all_payments_query)
     all_expenses_res = await session.execute(all_expenses_query)
 
-    prop_revenue_map = {p.property_id: float(
-        p.total_revenue) for p in all_payments_res.all()}
-    prop_expense_map = {p.property_id: float(
-        p.total_expenses) for p in all_expenses_res.all()}
+    prop_revenue_map = {p.property_id: p.total_revenue
+                        for p in all_payments_res.all()}
+    prop_expense_map = {p.property_id: p.total_expenses
+                        for p in all_expenses_res.all()}
 
     # Fetch average rent per property for active leases
     prop_avg_rent_query = select(col(Lease.property_id), func.avg(Lease.monthly_rent).label('avg_rent'))\
@@ -294,8 +297,8 @@ async def get_report_summary(
             col(Lease.property_id).in_(accessible_property_ids)
     ).group_by(col(Lease.property_id))
     prop_avg_rent_res = await session.execute(prop_avg_rent_query)
-    prop_avg_rent_map = {p.property_id: float(
-        p.avg_rent or 0.0) for p in prop_avg_rent_res.all()}
+    prop_avg_rent_map = {p.property_id: p.avg_rent or Decimal(
+        '0.0') for p in prop_avg_rent_res.all()}
 
     for prop in properties:
         if prop.id is None:
@@ -308,9 +311,9 @@ async def get_report_summary(
             occupied_units / total_units * 100) if total_units > 0 else 0
         occupancy_rate_str = f"{occupancy_rate_num:.0f}%"
 
-        prop_revenue = prop_revenue_map.get(prop.id, 0.0)
-        prop_expenses = prop_expense_map.get(prop.id, 0.0)
-        prop_avg_rent = prop_avg_rent_map.get(prop.id, 0.0)
+        prop_revenue = prop_revenue_map.get(prop.id, Decimal('0.0'))
+        prop_expenses = prop_expense_map.get(prop.id, Decimal('0.0'))
+        prop_avg_rent = prop_avg_rent_map.get(prop.id, Decimal('0.0'))
 
         financial_table.append(
             FinancialTableRow(
@@ -318,7 +321,7 @@ async def get_report_summary(
                 property_id=prop.id,
                 units=total_units,
                 occupied_units=occupied_units,
-                occupancy_rate=occupancy_rate_str,
+                occupancy_rate=Decimal(f"{occupancy_rate_num:.2f}"),
                 # Note: This is total revenue for the period, not monthly
                 monthly_revenue=prop_revenue,
                 avg_rent=prop_avg_rent,
@@ -353,8 +356,8 @@ async def get_report_summary(
 
     last_month_payments_res = await session.execute(last_month_payments_query)
     # Map needs property_id now
-    last_month_income_map = {p.property_id: float(
-        p.last_month_income) for p in last_month_payments_res.all()}
+    last_month_income_map = {p.property_id: p.last_month_income
+                               for p in last_month_payments_res.all()}
 
     for prop in properties:
         if prop.id is None:
@@ -366,14 +369,15 @@ async def get_report_summary(
         occupancy_rate_num = (
             occupied_units / total_units * 100) if total_units > 0 else 0
 
-        prop_last_month_income = last_month_income_map.get(prop.id, 0.0)
+        prop_last_month_income = last_month_income_map.get(
+            prop.id, Decimal('0.0'))
 
         income_by_property.append(
             IncomeByProperty(
                 property=prop.name,
                 property_id=prop.id,
                 monthly_income=prop_last_month_income,
-                occupancy_rate=occupancy_rate_num
+                occupancy_rate=Decimal(f"{occupancy_rate_num:.2f}")
             )
         )
 

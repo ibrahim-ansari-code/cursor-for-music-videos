@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, date
 from typing import List
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from pydantic import BaseModel
@@ -97,8 +98,8 @@ class MaintenanceRequestCreate(BaseModel):
     tenant_id: int | None = None
     priority: MaintenancePriority
     scheduled_date: date | None = None
-    estimated_cost: float | None = None
-    actual_cost: float | None = None
+    estimated_cost: Decimal | None = None
+    actual_cost: Decimal | None = None
     photos: list[str] | None = None
     assigned_to: str | None = None
 
@@ -112,8 +113,8 @@ class MaintenanceRequestUpdate(BaseModel):
     priority: MaintenancePriority | None = None
     status: MaintenanceStatus | None = None
     scheduled_date: date | None = None
-    estimated_cost: float | None = None
-    actual_cost: float | None = None
+    estimated_cost: Decimal | None = None
+    actual_cost: Decimal | None = None
     photos: list[str] | None = None
     assigned_to: str | None = None
 
@@ -145,8 +146,8 @@ class MaintenanceRequestResponse(BaseModel):
     priority: MaintenancePriority
     status: MaintenanceStatus
     scheduled_date: date | None
-    estimated_cost: float | None
-    actual_cost: float | None
+    estimated_cost: Decimal | None
+    actual_cost: Decimal | None
     photos: list[str] | None
     created_at: datetime
     updated_at: datetime
@@ -360,7 +361,7 @@ async def create_maintenance_request(
                 )
 
         await _validate_unit_for_maintenance(data, current_user, session)
-        await _validate_tenant_for_maintenance(data, session)
+        # await _validate_tenant_for_maintenance(data, session)
 
         # Manually construct the MaintenanceRequest object
         db_request = MaintenanceRequest(

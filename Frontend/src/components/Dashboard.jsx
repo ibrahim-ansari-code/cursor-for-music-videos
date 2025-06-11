@@ -84,8 +84,18 @@ const Dashboard = () => {
 
   // Calculate percentage change
   const calculatePercentChange = (current, previous) => {
-    if (!previous || previous === 0) return 0;
-    return ((current - previous) / previous) * 100;
+    const currentNum = parseFloat(current);
+    const previousNum = parseFloat(previous);
+
+    if (isNaN(currentNum) || isNaN(previousNum)) {
+      return 0;
+    }
+
+    if (previousNum === 0) {
+      return currentNum > 0 ? 100 : currentNum < 0 ? -100 : 0;
+    }
+
+    return ((currentNum - previousNum) / previousNum) * 100;
   };
 
   // Fetch tenant count based on property selection

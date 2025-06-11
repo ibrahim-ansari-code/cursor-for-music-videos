@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from sqlmodel import col
+from decimal import Decimal
 
 from Backend.api.auth import get_current_user
 # Local application imports
@@ -250,12 +251,12 @@ async def check_lease_permission(
 class LeaseBase(BaseModel):
     start_date: date
     end_date: date
-    monthly_rent: float
-    security_deposit: float
+    monthly_rent: Decimal
+    security_deposit: Decimal
     is_renewable: bool = True
     auto_renew: bool = False
     rent_due_day: int = 1
-    late_fee_amount: float | None = None
+    late_fee_amount: Decimal | None = None
     late_fee_after_days: int | None = None
     special_terms: str | None = None
     property_id: int
@@ -288,19 +289,15 @@ class LeaseDocumentResponse(BaseModel):
 
 
 class LeaseAnalysisResponse(BaseModel):
-    monthly_rent: float
+    monthly_rent: Decimal
     start_date: date | None = None
     end_date: date | None = None
-    security_deposit: float
-    tenant_name: str
-    unit: str | None = None
+    security_deposit: Decimal
+    late_fee_amount: Decimal | None = None
 
 
 class LeaseUploadResponse(BaseModel):
     file_url: str
-
-# New route for uploading lease PDFs to Azure Blob Storage
-
 
 @router.post("/upload-lease", response_model=LeaseUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_lease(
@@ -865,11 +862,11 @@ async def analyze_lease(
             # Remove currency symbols, commas, and whitespace
             cleaned_str = re.sub(r"[$,\s]", "", value_str)
             try:
-                return float(cleaned_str)
-            except ValueError:
+                return Decimal(cleaned_str)
+            except Exception:
                 logger.warning(
                     f"Could not parse currency value: {value_str!r}")
-                return 0.0  # Default to 0 if parsing fails
+                return Decimal("0.0")  # Default to 0 if parsing fails
 
         response_data = {
             "monthly_rent": parse_currency(monthly_rent_raw),
@@ -963,13 +960,13 @@ async def parse_lease(
                 if not cleaned_str or not re.match(r"^\d*\.?\d+$", cleaned_str):
                     logger.warning(
                         f"Could not parse currency value: {value_str!r}. Defaulting to 0.0")
-                    return 0.0
+                    return Decimal("0.0")
                 try:
-                    return float(cleaned_str)
-                except ValueError:
+                    return Decimal(cleaned_str)
+                except Exception:
                     logger.warning(
                         f"Could not convert cleaned currency value to float: {cleaned_str!r}. Defaulting to 0.0")
-                    return 0.0
+                    return Decimal("0.0")
 
             parsed_data['monthly_rent'] = parse_currency(
                 raw_parsed_data.get('rent_payment', {}).get('monthly_rent', '0'))

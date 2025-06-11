@@ -2,8 +2,9 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID as PythonUUID
+from decimal import Decimal
 
-from sqlalchemy import DateTime
+from sqlalchemy import DateTime, Numeric
 from sqlalchemy import Enum as PgEnum
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -131,7 +132,7 @@ class PropertyUnit(SQLModel, table=True):
     name: str = Field(index=True)
     description: Optional[str] = None
     size: Optional[float] = None
-    monthly_rent: Optional[float] = None
+    monthly_rent: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))
     is_rented: bool = Field(default=False)
     bedrooms: Optional[int] = None
     bathrooms: Optional[float] = None

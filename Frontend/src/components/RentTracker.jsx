@@ -7,6 +7,7 @@ const RentTracker = ({ onDataLoaded }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [rentData, setRentData] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1); // JavaScript months are 0-indexed
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
@@ -36,6 +37,7 @@ const RentTracker = ({ onDataLoaded }) => {
   // Load data on component mount and when month/year changes
   useEffect(() => {
     loadRentTrackerData();
+    setSearchTerm(""); // Clear search when date changes
   }, [currentMonth, currentYear]);
 
   // Get proper CSS class for status badge
@@ -77,6 +79,17 @@ const RentTracker = ({ onDataLoaded }) => {
     currentYearNum + 1,
     currentYearNum + 2,
   ];
+
+  // Filter rent data based on search term
+  const filteredRentData = rentData.filter((rent) => {
+    if (!searchTerm) return true;
+
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      rent.tenant_name?.toLowerCase().includes(searchLower) ||
+      rent.property_name?.toLowerCase().includes(searchLower)
+    );
+  });
 
   if (loading) {
     return <LoadingSpinner message="Loading rent tracker..." />;
@@ -148,6 +161,8 @@ const RentTracker = ({ onDataLoaded }) => {
             <input
               type="search"
               placeholder="Search tenants..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 pr-3 py-2 border-gray-300 rounded-md text-sm"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -177,21 +192,21 @@ const RentTracker = ({ onDataLoaded }) => {
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
                   Monthly Rent
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
                   Paid This Month
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  Due
+                  Amount Due
                 </th>
                 <th
                   scope="col"
@@ -199,76 +214,71 @@ const RentTracker = ({ onDataLoaded }) => {
                 >
                   Status
                 </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Actions
-                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {rentData.length > 0 ? (
-                rentData.map((rent) => (
+              {filteredRentData.length > 0 ? (
+                filteredRentData.map((rent) => (
                   <tr key={rent.lease_id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 text-left">
+                      <div className="text-sm font-medium text-gray-900">
                         {rent.tenant_name}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 text-left">
-                        {rent.property_name}
+                    <td className="px-6 py-4 whitespace-nowrap max-w-xs">
+                      <div
+                        className="text-sm text-gray-900 truncate"
+                        title={rent.property_name}
+                      >
+                        {rent.property_name?.length > 30
+                          ? `${rent.property_name.substring(0, 30)}...`
+                          : rent.property_name || "N/A"}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 text-right">
-                        ${rent.monthly_rent.toFixed(2)}
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="text-sm text-gray-900">
+                        ${Number.parseFloat(rent.monthly_rent || 0).toFixed(2)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 text-right">
-                        ${rent.amount_paid.toFixed(2)}
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="text-sm text-gray-900">
+                        ${Number.parseFloat(rent.amount_paid || 0).toFixed(2)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 text-right">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div
+                        className={`text-sm ${
+                          Number.parseFloat(rent.remaining_due || 0) > 0
+                            ? "text-red-600"
+                            : "text-gray-500"
+                        }`}
+                      >
                         $
-                        {rent.remaining_due > 0
-                          ? rent.remaining_due.toFixed(2)
+                        {Number.parseFloat(rent.remaining_due || 0) > 0
+                          ? Number.parseFloat(rent.remaining_due).toFixed(2)
                           : "0.00"}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-center ${getStatusBadgeClass(
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(
                           rent.status
                         )}`}
                       >
                         {rent.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        className="text-indigo-600 hover:text-indigo-900"
-                        title="Record Payment"
-                        onClick={() => {
-                          /* Record Payment action */
-                        }}
-                      >
-                        <i className="fas fa-dollar-sign mr-1"></i>
-                        Record
-                      </button>
-                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan="7"
+                    colSpan="6"
                     className="px-6 py-4 text-center text-sm text-gray-500"
                   >
-                    No rent tracking entries found
+                    {searchTerm
+                      ? `No results found for "${searchTerm}"`
+                      : "No rent tracking entries found"}
                   </td>
                 </tr>
               )}

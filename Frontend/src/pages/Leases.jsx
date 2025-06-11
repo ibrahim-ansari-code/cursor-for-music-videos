@@ -322,12 +322,15 @@ const Leases = () => {
       return;
     }
 
+    const originalLeases = [...leases];
+    setLeases((prevLeases) => prevLeases.filter((lease) => lease.id !== leaseId));
+
     try {
       await apiDeleteLease(leaseId);
       toast.success("Lease deleted successfully.");
-      loadLeases(); // Refresh the list
     } catch (err) {
       console.error("Error deleting lease:", err);
+      setLeases(originalLeases);
       const errorMessage =
         err.data?.detail ||
         err.message ||
@@ -392,7 +395,12 @@ const Leases = () => {
         </div>
       )}
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+      <div className="bg-white shadow rounded-lg overflow-hidden relative">
+        {loading && (
+          <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-20">
+            <LoadingSpinner message="Loading leases..." />
+          </div>
+        )}
         <div
           ref={tableScrollContainerRef}
           className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-20rem)]"
@@ -442,28 +450,28 @@ const Leases = () => {
               {leases.length > 0 ? (
                 leases.map((lease) => (
                   <tr key={lease.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-left">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
                           {/* Tenant initials */}
                           {getTenantInitials(lease.tenant)}
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900 text-left">
+                          <div className="text-sm font-medium text-gray-900">
                             {getTenantName(lease.tenant)}
                           </div>
-                          <div className="text-sm text-gray-500 text-left">
+                          <div className="text-sm text-gray-500">
                             {lease.tenant?.email || ""}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 text-left">
+                    <td className="px-6 py-4 whitespace-nowrap text-left">
+                      <div className="text-sm text-gray-900">
                         {lease.property?.name ||
                           `Property #${lease.property_id}`}
                       </div>
-                      <div className="text-sm text-gray-500 text-left">
+                      <div className="text-sm text-gray-500">
                         {lease.unit?.name
                           ? `Unit: ${lease.unit.name}`
                           : lease.unit_id
@@ -471,12 +479,12 @@ const Leases = () => {
                           : "No unit specified"}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 text-left">
+                    <td className="px-6 py-4 whitespace-nowrap text-left">
+                      <div className="text-sm text-gray-900">
                         {new Date(lease.start_date).toLocaleDateString()} -{" "}
                         {new Date(lease.end_date).toLocaleDateString()}
                       </div>
-                      <div className="text-sm text-gray-500 text-left">
+                      <div className="text-sm text-gray-500">
                         {Math.round(
                           (new Date(lease.end_date) -
                             new Date(lease.start_date)) /
@@ -485,25 +493,25 @@ const Leases = () => {
                         months
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 text-left">
-                        ${lease.monthly_rent.toFixed(2)}/month
+                    <td className="px-6 py-4 whitespace-nowrap text-left">
+                      <div className="text-sm text-gray-900">
+                        ${Number(lease.monthly_rent).toFixed(2)}/month
                       </div>
-                      <div className="text-sm text-gray-500 text-left">
+                      <div className="text-sm text-gray-500">
                         Due: Day {lease.rent_due_day}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`badge ${getStatusBadgeClass(
-                          lease.status
-                        )} text-center`}
-                      >
-                        {lease.status.charAt(0).toUpperCase() +
-                          lease.status.slice(1).toLowerCase()}
-                      </span>
+                      <div className="flex items-center justify-center">
+                        <span
+                          className={`badge ${getStatusBadgeClass(lease.status)}`}
+                        >
+                          {lease.status.charAt(0).toUpperCase() +
+                            lease.status.slice(1).toLowerCase()}
+                        </span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                       <div className="flex items-center justify-center space-x-2">
                         {/* Documents dropdown or upload button */}
                         {lease.documents && lease.documents.length > 0 ? (

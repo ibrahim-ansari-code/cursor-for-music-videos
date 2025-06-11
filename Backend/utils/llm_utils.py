@@ -147,8 +147,8 @@ Do not return any markdown, commentary, or explanation. Your response must **onl
 
 Use empty strings `""` for any missing fields.
 The `payment_date` must be in ISO format (YYYY-MM-DD). If the year is missing, assume the current year. If the full date cannot be determined, use an empty string.
-The `subtotal_amount` (amount before taxes) must be a float (e.g., 100.00). If not found or not applicable, use 0.0 or try to calculate if total and taxes are obvious.
-The `total_amount` (final amount paid, including all taxes) must be a float (e.g., 112.00). If not found, use 0.0.
+The `subtotal_amount` (amount before taxes) must be a string representing a decimal number (e.g., "100.00"). If not found or not applicable, use "0.0" or try to calculate if total and taxes are obvious.
+The `total_amount` (final amount paid, including all taxes) must be a string representing a decimal number (e.g., "112.00"). If not found, use "0.0".
 The `currency` should be the currency code (e.g., USD, CAD, EUR) if identifiable, otherwise an empty string.
 The `payment_method` could be 'Cash', 'Credit Card', 'Debit Card', 'Bank Transfer', 'Check', or other common methods. If not clear, use 'Other' or an empty string.
 The `description_notes` should capture any line items, notes, or memo relevant to the payment.
@@ -158,8 +158,8 @@ The output must match this structure exactly:
 ```json
 {
   "payment_date": "<string, YYYY-MM-DD format or empty string>",
-  "subtotal_amount": "<float, e.g., 70.00>",
-  "total_amount": "<float, e.g., 75.00>",
+  "subtotal_amount": "<string, e.g., '70.00'>",
+  "total_amount": "<string, e.g., '75.00'>",
   "currency": "<string, e.g., USD, CAD>",
   "payment_method": "<string, e.g., Credit Card>",
   "description_notes": "<string, relevant notes or line items>",
@@ -177,8 +177,8 @@ Do not return any markdown, commentary, or explanation. Your response must **onl
 
 Use empty strings `""` for any missing fields.
 The `payment_date` (expense date) must be in ISO format (YYYY-MM-DD). If the year is missing, assume the current year. If the full date cannot be determined, use an empty string.
-The `subtotal_amount` (amount before taxes) must be a float (e.g., 100.00). If not found, try to calculate by subtracting taxes from total.
-The `total_amount` (final amount including all taxes and fees) must be a float (e.g., 112.00). If not found, use 0.0.
+The `subtotal_amount` (amount before taxes) must be a string representing a decimal number (e.g., "100.00"). If not found, try to calculate by subtracting taxes from total.
+The `total_amount` (final amount including all taxes and fees) must be a string representing a decimal number (e.g., "112.00"). If not found, use "0.0".
 The `currency` should be the currency code (e.g., USD, CAD, EUR) if identifiable, otherwise an empty string.
 The `payment_method` could be 'Cash', 'Credit Card', 'Debit Card', 'Bank Transfer', 'Check', or other common methods. If not clear, use 'Other' or an empty string.
 The `description_notes` should capture the vendor name, expense category, line items, or any relevant notes about the expense.
@@ -190,8 +190,8 @@ The output must match this structure exactly:
 ```json
 {
   "payment_date": "<string, YYYY-MM-DD format or empty string>",
-  "subtotal_amount": "<float, e.g., 70.00>",
-  "total_amount": "<float, e.g., 75.00>",
+  "subtotal_amount": "<string, e.g., '70.00'>",
+  "total_amount": "<string, e.g., '75.00'>",
   "currency": "<string, e.g., USD, CAD>",
   "payment_method": "<string, e.g., Credit Card>",
   "description_notes": "<string, vendor name, category, line items, or notes>",
@@ -428,7 +428,7 @@ async def analyze_lease_text(text: str) -> Dict[str, Any]:
         "renewal_terms": "<string, specific terms for lease renewal, if any>"
       },
       "rent_payment": {
-        "monthly_rent": "<float, base monthly rent amount, e.g., 1500.00, mandatory>",
+        "monthly_rent": "<string, base monthly rent amount, e.g., '1500.00', mandatory>",
         "rent_frequency": "<string, e.g., Monthly, Weekly>",
         "due_date": "<string, e.g., 1st of the month, day of the month rent is due>",
         "payment_methods": "<string, accepted payment methods, e.g., Check, Online Portal, Bank Transfer>",
@@ -437,8 +437,8 @@ async def analyze_lease_text(text: str) -> Dict[str, Any]:
         "deposit_usage_policy": "<string, how security deposit can be used or applied to rent>"
       },
       "deposits": {
-        "security_deposit": "<float, amount of security deposit, e.g., 1500.00, mandatory if mentioned, otherwise 0.0>",
-        "pet_deposit": "<float, amount of pet deposit, if any, e.g., 250.00, otherwise empty string or 0.0>",
+        "security_deposit": "<string, amount of security deposit, e.g., '1500.00', mandatory if mentioned, otherwise '0.0'>",
+        "pet_deposit": "<string, amount of pet deposit, if any, e.g., '250.00', otherwise empty string or '0.0'>",
         "deposit_due_date": "<string, YYYY-MM-DD format, when deposits are due>",
         "interest_on_deposit": "<string, policy on interest paid on deposit, if any>",
         "return_terms": "<string, conditions for deposit return, e.g., within 30 days of move-out>",

@@ -1,5 +1,6 @@
 import logging
 from datetime import date, datetime
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -30,7 +31,7 @@ router = APIRouter()
 # === API Models for Invoices ===
 class InvoiceBase(BaseModel):
     invoice_number: str
-    amount: float
+    amount: Decimal
     description: str
     issue_date: datetime
     due_date: datetime
@@ -42,7 +43,7 @@ class InvoiceCreate(InvoiceBase):
     pass
 
 class InvoiceUpdate(BaseModel):
-    amount: float | None = None
+    amount: Decimal | None = None
     description: str | None = None
     issue_date: datetime | None = None
     due_date: datetime | None = None

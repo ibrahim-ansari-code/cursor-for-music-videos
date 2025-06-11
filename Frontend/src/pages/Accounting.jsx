@@ -623,7 +623,7 @@ const Accounting = () => {
           </button>
         </nav>
 
-        {activeTab !== "overview" && activeTab !== "invoices" && (
+        {activeTab !== "overview" && activeTab !== "invoices" && activeTab !== "rent-tracker" && (
           <div className="flex space-x-3">
             <button
               onClick={() =>
@@ -749,7 +749,7 @@ const Accounting = () => {
                           {payment.tenant_name}
                         </div>
                         <div className="text-sm font-medium text-gray-900 text-right">
-                          ${payment.remaining_due.toFixed(2)}
+                          ${Number.parseFloat(payment.remaining_due).toFixed(2)}
                         </div>
                       </div>
                     ))}
@@ -919,7 +919,7 @@ const Accounting = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
-                            ${payment.amount.toFixed(2)}
+                            ${Number.parseFloat(payment.amount).toFixed(2)}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">

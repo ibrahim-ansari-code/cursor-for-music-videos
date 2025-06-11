@@ -494,7 +494,7 @@ def _build_payment_response_from_orm(payment_orm: Payment) -> PaymentResponse | 
     Returns:
         A PaymentResponse with populated fields, or None if the payment has no ID.
     """
-    if payment_orm.id is None:
+    if payment_orm.id is None or payment_orm.lease_id is None:
         return None
     
     tenant_name = _get_tenant_display_name(payment_orm.lease.tenant if payment_orm.lease else None)
@@ -578,7 +578,7 @@ async def parse_payment_receipt(
         logger.exception("Error parsing payment receipt for user %s", current_user.id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to parse payment receipt due to an internal error.") from e
 
-@router.post("", response_model=PaymentResponse) # Corresponds to POST /accounting/payments
+@router.post("", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED) # Corresponds to POST /accounting/payments
 async def create_payment(
     payment: PaymentCreate,
     session: AsyncSession = Depends(get_session),

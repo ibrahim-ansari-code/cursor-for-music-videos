@@ -2,9 +2,10 @@ import logging
 from datetime import datetime
 from typing import Annotated
 from uuid import UUID as PythonUUID
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -29,6 +30,31 @@ router = APIRouter(
     tags=["properties"],
 )
 
+# === Helper Functions ===
+
+
+def _derive_property_status(property_obj: Property) -> PropertyStatus:
+    """Derives property status based on unit occupancy."""
+    # Default to the property's stored status, or ACTIVE if not set.
+    current_status = property_obj.status or PropertyStatus.ACTIVE
+
+    if not property_obj.units:
+        return current_status
+
+    occupied_units_count = sum(1 for unit in property_obj.units if unit.is_rented)
+    total_units = len(property_obj.units)
+
+    if total_units > 0:
+        if occupied_units_count == 0:
+            return PropertyStatus.VACANT
+        elif occupied_units_count == total_units:
+            return PropertyStatus.RENTED
+        else:  # This covers occupied_units_count > 0 and < total_units
+            return PropertyStatus.PARTIALLY_RENTED
+
+    return current_status
+
+
 # === Models ===
 
 
@@ -44,6 +70,13 @@ class PropertyCreate(BaseModel):
     status: PropertyStatus | None = PropertyStatus.ACTIVE
     units: list[str] | None = None
 
+    # Validator to ensure 'name' is not empty or whitespace only
+    @field_validator('name')
+    def name_must_not_be_empty(cls, value):
+        if not value or not value.strip():
+            raise ValueError('name must not be empty')
+        return value
+
 # New Model for Property Updates (Excludes units and potentially immutable fields like property_type)
 
 
@@ -57,6 +90,12 @@ class PropertyUpdate(BaseModel):
     description: str | None = None
     year_built: int | None = None
     status: PropertyStatus | None = None
+
+    @field_validator('name')
+    def name_must_not_be_empty(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError('name must not be an empty string')
+        return value
 
     class Config:
         extra = 'forbid'  # Prevent unexpected fields like 'units'
@@ -98,7 +137,7 @@ class UnitResponse(BaseModel):
     name: str
     description: str | None = None
     size: float | None = None
-    monthly_rent: float | None = None
+    monthly_rent: Decimal | None = None
     is_rented: bool
     bedrooms: int | None = None
     bathrooms: float | None = None
@@ -122,7 +161,7 @@ class PropertyDetailResponse_Standalone(BaseModel):
     property_type: str
     description: str | None = None
     year_built: int | None = None
-    status: str
+    status: PropertyStatus
     user_id: PythonUUID
     created_at: datetime
     updated_at: datetime
@@ -190,19 +229,7 @@ async def get_property(
             )
 
         # Use the property's database status as the default
-        response_status = property_orm.status
-
-        # Determine property status based on units if they exist (using already loaded units)
-        if property_orm.units:
-            occupied_units = [
-                unit for unit in property_orm.units if unit.is_rented]
-            if not occupied_units:
-                response_status = "vacant"  # Override if units exist but none are rented
-            elif len(occupied_units) == len(property_orm.units):
-                response_status = "rented"
-            elif len(occupied_units) > 0:
-                response_status = "partially_rented"
-            # If units exist but logic doesn't set rented/partially_rented/vacant, keep original property.status
+        response_status = _derive_property_status(property_orm)
 
         # Explicitly serialize units
         serialized_units_models = []  # Store Pydantic models
@@ -278,6 +305,8 @@ async def get_properties(
         description="Filter by property status")] = None,
     property_type: Annotated[str | None, Query(
         description="Filter by property type")] = None,
+    owner_id: Annotated[PythonUUID | None, Query(
+        description="Filter by owner's user ID (for admins)")] = None,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
@@ -305,6 +334,9 @@ async def get_properties(
         if not current_user.is_admin:
             # Regular users can only see their own properties
             query = query.where(col(Property.user_id) == current_user.id)
+        elif owner_id:
+            # Admins can filter by owner
+            query = query.where(col(Property.user_id) == owner_id)
 
         result = await session.execute(query)
         properties = result.scalars().all()
@@ -351,21 +383,13 @@ async def create_property(
             updated_at=create_audit_datetime()
         )
 
-        # Add to database
         session.add(new_property)
-        await session.commit()
-        await session.refresh(new_property)
 
-        # Remember the created property ID
-        property_id = new_property.id
-
-        # Create units if provided
+        # Create units if provided and add them to the session before committing
         if property_data.units:
             now = create_audit_datetime()
-            # Create unit objects
             for unit_name in property_data.units:
-                # Extract floor from unit name if possible (e.g., "101" => floor 1)
-                floor = 0  # Default floor
+                floor = 0
                 if unit_name and unit_name[0].isdigit():
                     try:
                         floor = int(unit_name[0])
@@ -373,16 +397,19 @@ async def create_property(
                         pass
 
                 new_unit = PropertyUnit(
-                    property_id=property_id,
+                    property=new_property,  # Associate with the property object
                     name=unit_name,
                     floor=floor,
-                    is_rented=False,  # Default to vacant
+                    is_rented=False,
                     created_at=now,
                     updated_at=now
                 )
                 session.add(new_unit)
 
-            await session.commit()
+        # Commit everything in one transaction
+        await session.commit()
+        await session.refresh(new_property)
+        property_id = new_property.id # ID is now available
 
         # After creating everything, do a fresh query with proper relationship loading
         # to ensure all related data is included in response
@@ -489,17 +516,7 @@ async def update_property(
             )
 
         # Manually construct the response to recalculate status if needed
-        # (similar logic as get_property)
-        response_status = updated_property_orm.status
-        if updated_property_orm.units:
-            occupied_units = [
-                unit for unit in updated_property_orm.units if unit.is_rented]
-            if not occupied_units:
-                response_status = "vacant"
-            elif len(occupied_units) == len(updated_property_orm.units):
-                response_status = "rented"
-            elif len(occupied_units) > 0:
-                response_status = "partially_rented"
+        response_status = _derive_property_status(updated_property_orm)
 
         serialized_units = []
         if updated_property_orm.units:
