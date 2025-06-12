@@ -1,3 +1,43 @@
+import React from "react";
+import { TrendingUp } from "lucide-react";
+
+// Move translations to module level to prevent recreation on each render
+const translations = {
+  "reports.title": "Coming Soon",
+  "reports.description":
+    "We're working on building a comprehensive reporting system to help you gain insights into your property portfolio performance.",
+  "reports.availability":
+    "This feature will be available in the near future. Stay tuned!",
+};
+
+// Placeholder for future i18n implementation
+const t = (key) => {
+  return translations[key] || key;
+};
+
+const Reports = () => {
+  return (
+    <main className="text-center py-16 px-4">
+      <div className="bg-white rounded-lg shadow-sm p-10 max-w-lg mx-auto">
+        <div className="text-blue-600 text-6xl mb-6">
+          <TrendingUp size={64} className="mx-auto" aria-hidden="true" />
+        </div>
+        <h1 className="text-2xl font-semibold text-gray-800 mb-4">
+          {t("reports.title")}
+        </h1>
+        <div className="text-gray-600">
+          <p>{t("reports.description")}</p>
+          <p className="mt-4">{t("reports.availability")}</p>
+        </div>
+      </div>
+    </main>
+  );
+};
+
+export default Reports;
+
+/* FUTURE IMPLEMENTATION - UNCOMMENT WHEN READY
+
 import React, { useState, useEffect } from "react";
 import {
   ChevronDown,
@@ -47,7 +87,7 @@ const MonthlyRevenueChart = ({ data }) => {
   );
 };
 
-const Reports = () => {
+const ReportsImplementation = () => {
   // State for form controls
   const [reportType, setReportType] = useState("Financial Summary");
   const [dateRange, setDateRange] = useState("Current Month");
@@ -117,7 +157,6 @@ const Reports = () => {
 
   return (
     <div className="flex flex-col space-y-6">
-      {/* Header with export buttons */}
       <div className="flex justify-end">
         <div className="flex gap-2">
           <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-teal">
@@ -135,9 +174,7 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* Filters Section */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-        {/* Report Type */}
         <div className="col-span-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Report Type
@@ -148,12 +185,7 @@ const Reports = () => {
               onChange={(e) => setReportType(e.target.value)}
               className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-brand-teal focus:border-brand-teal block w-full p-2.5 pr-8 appearance-none"
             >
-              <option value="Financial Summary">Financial Summary</option>
-              {/* Add other report types later if needed */}
-              {/* <option value="Occupancy & Vacancy">Occupancy & Vacancy</option>
-              <option value="Maintenance Activity">Maintenance Activity</option>
-              <option value="Leasing Activity">Leasing Activity</option>
-              <option value="Custom Report">Custom Report</option> */}
+              <option value="Financial Summary">Financial Summary</option> 
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
               <ChevronDown className="h-4 w-4" />
@@ -161,7 +193,6 @@ const Reports = () => {
           </div>
         </div>
 
-        {/* Date Range */}
         <div className="col-span-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Date Range
@@ -177,7 +208,6 @@ const Reports = () => {
               <option value="Last Quarter">Last Quarter</option>
               <option value="Year to Date">Year to Date</option>
               <option value="Last Year">Last Year</option>
-              {/* <option value="Custom Range">Custom Range</option> */}
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
               <ChevronDown className="h-4 w-4" />
@@ -185,7 +215,6 @@ const Reports = () => {
           </div>
         </div>
 
-        {/* Property Dropdown */}
         <div className="col-span-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Property
@@ -247,7 +276,6 @@ const Reports = () => {
           </div>
         </div>
 
-        {/* Generate Report Button */}
         <div className="col-span-1">
           <button
             onClick={handleGenerateReport}
@@ -266,7 +294,6 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* Selected properties badges */}
       {selectedProperties.length > 0 && (
         <div className="flex flex-wrap gap-2 -mt-2">
           {selectedProperties.map((property) => (
@@ -286,42 +313,31 @@ const Reports = () => {
         </div>
       )}
 
-      {/* Error Message */}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           <p>{error}</p>
         </div>
       )}
 
-      {/* Main Content Area */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Monthly Revenue Overview */}
         <div className="lg:col-span-2 bg-white rounded-lg shadow overflow-hidden">
           <div className="p-6">
             <h2 className="text-lg font-medium mb-4">
               Monthly Revenue Overview
             </h2>
 
-            {/* Tabs - Keep UI but data comes from one source now */}
             <div className="inline-flex rounded-md bg-gray-200 p-1 mb-6">
               <button
                 className={`px-4 py-1.5 text-sm font-medium rounded-md bg-white text-gray-900 shadow`}
               >
-                {dateRange} {/* Display selected date range */}
+                {dateRange} 
               </button>
-              {/* Removed Monthly/Quarterly/Yearly tabs as data depends on date_range filter 
-               <button className={...} onClick={() => setActiveTab('Monthly')}>Monthly</button>
-               <button className={...} onClick={() => setActiveTab('Quarterly')}>Quarterly</button>
-               <button className={...} onClick={() => setActiveTab('Yearly')}>Yearly</button>
-               */}
             </div>
 
-            {/* Revenue Chart - Pass data */}
             <MonthlyRevenueChart data={reportData?.monthly_chart} />
           </div>
         </div>
 
-        {/* Right Column - Financial Highlights */}
         <div className="bg-white rounded-lg shadow">
           <div className="p-6">
             <h2 className="text-lg font-medium mb-6">
@@ -329,9 +345,7 @@ const Reports = () => {
             </h2>
 
             <div className="flex flex-col items-center space-y-6">
-              {/* Key metrics in a grid layout */}
               <div className="grid grid-cols-2 gap-6 w-full">
-                {/* Total Revenue */}
                 <div className="flex flex-col items-center p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-500 mb-1">Total Revenue</p>
                   <p className="text-2xl font-bold">
@@ -343,7 +357,6 @@ const Reports = () => {
                   </p>
                 </div>
 
-                {/* Average Rent */}
                 <div className="flex flex-col items-center p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-500 mb-1">Average Rent</p>
                   <p className="text-2xl font-bold">
@@ -353,7 +366,6 @@ const Reports = () => {
                   </p>
                 </div>
 
-                {/* Occupancy Rate */}
                 <div className="flex flex-col items-center p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-500 mb-1">Occupancy Rate</p>
                   <p className="text-2xl font-bold">
@@ -363,7 +375,6 @@ const Reports = () => {
                   </p>
                 </div>
 
-                {/* Revenue per Unit */}
                 <div className="flex flex-col items-center p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-500 mb-1">Revenue/Unit</p>
                   <p className="text-2xl font-bold">
@@ -374,7 +385,6 @@ const Reports = () => {
                 </div>
               </div>
 
-              {/* Summary comparison section */}
               {reportData && reportData.summary.period_comparison && (
                 <div className="border-t border-gray-200 pt-4 w-full">
                   <h3 className="text-sm font-medium text-gray-700 mb-3 text-center">
@@ -433,7 +443,6 @@ const Reports = () => {
                 </div>
               )}
 
-              {/* If no data available, show a message */}
               {!reportData && (
                 <div className="text-center text-gray-500 text-sm mt-4">
                   <p>Generate a report to see financial highlights</p>
@@ -444,7 +453,6 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* Financial Details Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-6 border-b flex justify-between items-center">
           <h2 className="text-lg font-medium">
@@ -569,4 +577,4 @@ const Reports = () => {
   );
 };
 
-export default Reports;
+*/
