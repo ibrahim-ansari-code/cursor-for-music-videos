@@ -187,7 +187,7 @@ const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-left">
-                {capitalize(property.property_type)}
+                {property.property_type}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-left">
                 <div
@@ -909,7 +909,7 @@ const Properties = () => {
                   {statusFilter && <StatusBadge status={statusFilter} />}
                   {filterOptions.propertyType && (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                      Type: {capitalize(filterOptions.propertyType)}
+                      Type: {filterOptions.propertyType}
                     </span>
                   )}
                   {filterOptions.status && (
@@ -966,11 +966,14 @@ const Properties = () => {
                       </h3>
                       <div className="space-y-1">
                         {[
-                          "residential",
-                          "commercial",
-                          "industrial",
-                          "mixed-use",
-                          "apartment-complex",
+                          "Residential",
+                          "Commercial",
+                          "Industrial",
+                          "Mixed-Use",
+                          "Apartment Complex",
+                          "Land",
+                          "Special Purpose",
+                          "Other",
                         ].map((type) => (
                           <button
                             key={type}
@@ -996,7 +999,7 @@ const Properties = () => {
                                 />
                               </svg>
                             )}
-                            {capitalize(type)}
+                            {type}
                           </button>
                         ))}
                       </div>

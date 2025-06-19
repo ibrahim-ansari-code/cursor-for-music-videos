@@ -16,19 +16,23 @@ if (!API_BASE_URL) {
 const formatQueryString = (queryString) => {
   // Type check to ensure input is safely convertible to string
   if (queryString == null) return "";
-  
+
   let processedString = queryString;
   if (typeof processedString !== "string") {
     // Convert to string if possible, otherwise throw clear error
     try {
       processedString = String(processedString);
     } catch (error) {
-      throw new Error(`formatQueryString expects a string or convertible value, received: ${typeof queryString}`);
+      throw new Error(
+        `formatQueryString expects a string or convertible value, received: ${typeof queryString}`
+      );
     }
   }
-  
+
   if (!processedString) return "";
-  return processedString.startsWith("?") ? processedString : `?${processedString}`;
+  return processedString.startsWith("?")
+    ? processedString
+    : `?${processedString}`;
 };
 
 // Helper function to handle API responses
@@ -48,8 +52,8 @@ const handleResponse = async (response) => {
       // Handle auth errors
       if (response.status === 401) {
         // For /auth/me calls, don't redirect automatically - let the caller handle it
-        if (response.url.includes("/auth/me")) {
-          console.error("Authentication error on /auth/me:", errorData);
+        if (response.url.toLowerCase().includes("/auth/me/")) {
+          console.error("Authentication error on /auth/me/:", errorData);
           throw Object.assign(
             new Error("Authentication failed. Session expired."),
             errorObj
@@ -92,7 +96,7 @@ const handleResponse = async (response) => {
 
       if (response.status === 401) {
         // For /auth/me calls, don't redirect automatically
-        if (response.url.includes("/auth/me")) {
+        if (response.url.toLowerCase().includes("/auth/me")) {
           throw Object.assign(
             new Error("Authentication failed. Session expired."),
             errorObj
@@ -186,6 +190,7 @@ const apiRequest = async (endpoint, options = {}) => {
 
   // Debug logging for request data
   if (
+    import.meta.env.MODE !== 'production' &&
     endpoint.includes("/accounting/payments") &&
     options.method === "POST" &&
     typeof options.body === "string"
@@ -276,7 +281,7 @@ export const login = async (email, password) => {
 };
 
 export const register = async (userData) => {
-  return apiRequest("/auth/register", {
+  return apiRequest("/auth/register/", {
     method: "POST",
     body: JSON.stringify(userData),
   });
@@ -284,7 +289,7 @@ export const register = async (userData) => {
 
 export const getCurrentUser = async () => {
   try {
-    return await apiRequest("/auth/me");
+    return await apiRequest("/auth/me/");
   } catch (error) {
     // If it's an authentication error, clear local storage and don't redirect
     // Let the App.jsx handle the redirect logic
@@ -311,7 +316,7 @@ export const fetchDashboardData = async (params = {}) => {
   if (params.time_period) queryParams.append("time_period", params.time_period);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/dashboard${formatQueryString(queryString)}`);
+  return apiRequest(`/dashboard/${formatQueryString(queryString)}`);
 };
 
 // Leases API Functions
@@ -323,35 +328,35 @@ export const fetchLeases = async (params = {}) => {
   if (params.tenant_id) queryParams.append("tenant_id", params.tenant_id);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/leases${formatQueryString(queryString)}`);
+  return apiRequest(`/leases/${formatQueryString(queryString)}`);
 };
 
 export const fetchLease = async (leaseId) => {
-  return apiRequest(`/leases/${leaseId}`);
+  return apiRequest(`/leases/${leaseId}/`);
 };
 
 export const createLease = async (leaseData) => {
-  return apiRequest("/leases", {
+  return apiRequest("/leases/", {
     method: "POST",
     body: JSON.stringify(leaseData),
   });
 };
 
 export const updateLease = async (leaseId, leaseData) => {
-  return apiRequest(`/leases/${leaseId}`, {
+  return apiRequest(`/leases/${leaseId}/`, {
     method: "PUT",
     body: JSON.stringify(leaseData),
   });
 };
 
 export const deleteLease = async (leaseId) => {
-  return apiRequest(`/leases/${leaseId}`, {
+  return apiRequest(`/leases/${leaseId}/`, {
     method: "DELETE",
   });
 };
 
 export const validateLease = async (leaseId) => {
-  return apiRequest(`/leases/${leaseId}/validate`, {
+  return apiRequest(`/leases/${leaseId}/validate/`, {
     method: "POST",
   });
 };
@@ -379,7 +384,7 @@ export const updateLeaseStatus = async (leaseId, status) => {
 
     // First attempt using apiRequest helper
     try {
-      return await apiRequest(`/leases/${leaseId}/status`, {
+      return await apiRequest(`/leases/${leaseId}/status/`, {
         method: "POST",
         body: JSON.stringify({ status }),
       });
@@ -395,7 +400,7 @@ export const updateLeaseStatus = async (leaseId, status) => {
         console.log("Attempting direct fetch as fallback...");
         const token = localStorage.getItem("token");
         const response = await fetch(
-          `${API_BASE_URL}/api/leases/${leaseId}/status`,
+          `${API_BASE_URL}/api/leases/${leaseId}/status/`,
           {
             method: "POST",
             headers: {
@@ -432,13 +437,13 @@ export const updateLeaseStatus = async (leaseId, status) => {
 };
 
 export const uploadLeaseDocument = async (leaseId, formData) => {
-  return uploadFile(`/api/leases/${leaseId}/upload`, formData, {
+  return uploadFile(`/api/leases/${leaseId}/upload/`, formData, {
     errorMsg: "Failed to upload lease document.",
   });
 };
 
 export const fetchLeaseDocuments = async (leaseId) => {
-  return apiRequest(`/leases/${leaseId}/documents`);
+  return apiRequest(`/leases/${leaseId}/documents/`);
 };
 
 // Vendors API Functions
@@ -450,52 +455,52 @@ export const fetchVendors = async (params = {}) => {
     queryParams.append("business_type", params.business_type);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/vendors${formatQueryString(queryString)}`);
+  return apiRequest(`/vendors/${formatQueryString(queryString)}`);
 };
 
 export const fetchVendor = async (vendorId) => {
-  return apiRequest(`/vendors/${vendorId}`);
+  return apiRequest(`/vendors/${vendorId}/`);
 };
 
 export const createVendor = async (vendorData) => {
-  return apiRequest("/vendors", {
+  return apiRequest("/vendors/", {
     method: "POST",
     body: JSON.stringify(vendorData),
   });
 };
 
 export const updateVendor = async (vendorId, vendorData) => {
-  return apiRequest(`/vendors/${vendorId}`, {
+  return apiRequest(`/vendors/${vendorId}/`, {
     method: "PUT",
     body: JSON.stringify(vendorData),
   });
 };
 
 export const updateVendorStatus = async (vendorId, status) => {
-  return apiRequest(`/vendors/${vendorId}/status?status=${status}`, {
+  return apiRequest(`/vendors/${vendorId}/status/?status=${status}`, {
     method: "POST",
   });
 };
 
 export const uploadVendorDocument = async (vendorId, formData) => {
-  return uploadFile(`/api/vendors/${vendorId}/upload`, formData, {
+  return uploadFile(`/api/vendors/${vendorId}/upload/`, formData, {
     errorMsg: "Failed to upload vendor document.",
   });
 };
 
 export const fetchVendorDocuments = async (vendorId) => {
-  return apiRequest(`/vendors/${vendorId}/documents`);
+  return apiRequest(`/vendors/${vendorId}/documents/`);
 };
 
 export const assignVendorToProperty = async (vendorId, assignmentData) => {
-  return apiRequest(`/vendors/${vendorId}/properties`, {
+  return apiRequest(`/vendors/${vendorId}/properties/`, {
     method: "POST",
     body: JSON.stringify(assignmentData),
   });
 };
 
 export const getVendorOnboardingHelp = async (query) => {
-  return apiRequest("/vendors/ai/onboarding-help", {
+  return apiRequest("/vendors/ai/onboarding-help/", {
     method: "POST",
     body: JSON.stringify({ query }),
   });
@@ -515,27 +520,25 @@ export const fetchPayments = async (params = {}) => {
   if (params.offset) queryParams.append("offset", params.offset);
 
   const queryString = queryParams.toString();
-  return apiRequest(
-    `/accounting/payments${formatQueryString(queryString)}`
-  );
+  return apiRequest(`/accounting/payments/${formatQueryString(queryString)}`);
 };
 
 export const createPayment = async (paymentData) => {
-  return apiRequest("/accounting/payments", {
+  return apiRequest("/accounting/payments/", {
     method: "POST",
     body: JSON.stringify(paymentData),
   });
 };
 
 export const updatePayment = async (paymentId, paymentData) => {
-  return apiRequest(`/accounting/payments/${paymentId}`, {
+  return apiRequest(`/accounting/payments/${paymentId}/`, {
     method: "PUT",
     body: JSON.stringify(paymentData),
   });
 };
 
 export const deletePaymentAPI = async (paymentId) => {
-  return apiRequest(`/accounting/payments/${paymentId}`, {
+  return apiRequest(`/accounting/payments/${paymentId}/`, {
     method: "DELETE",
   });
 };
@@ -550,13 +553,11 @@ export const fetchInvoices = async (params = {}) => {
   if (params.end_date) queryParams.append("end_date", params.end_date);
 
   const queryString = queryParams.toString();
-  return apiRequest(
-    `/accounting/invoices${formatQueryString(queryString)}`
-  );
+  return apiRequest(`/accounting/invoices/${formatQueryString(queryString)}`);
 };
 
 export const createInvoice = async (invoiceData) => {
-  return apiRequest("/accounting/invoices", {
+  return apiRequest("/accounting/invoices/", {
     method: "POST",
     body: JSON.stringify(invoiceData),
   });
@@ -571,13 +572,11 @@ export const fetchExpenses = async (params = {}) => {
   if (params.end_date) queryParams.append("end_date", params.end_date);
 
   const queryString = queryParams.toString();
-  return apiRequest(
-    `/accounting/expenses${formatQueryString(queryString)}`
-  );
+  return apiRequest(`/accounting/expenses/${formatQueryString(queryString)}`);
 };
 
 export const createExpense = async (expenseData) => {
-  return apiRequest("/accounting/expenses", {
+  return apiRequest("/accounting/expenses/", {
     method: "POST",
     body: JSON.stringify(expenseData),
   });
@@ -585,7 +584,7 @@ export const createExpense = async (expenseData) => {
 
 export const getOccupancyRates = async (propertyId) => {
   const queryParams = propertyId ? `?property_id=${propertyId}` : "";
-  return apiRequest(`/accounting/insights/occupancy${queryParams}`);
+  return apiRequest(`/accounting/insights/occupancy/${queryParams}`);
 };
 
 export const getRevenueTrends = async (params = {}) => {
@@ -597,21 +596,21 @@ export const getRevenueTrends = async (params = {}) => {
 
   const queryString = queryParams.toString();
   return apiRequest(
-    `/accounting/insights/revenue-trends${formatQueryString(queryString)}`
+    `/accounting/insights/revenue-trends/${formatQueryString(queryString)}`
   );
 };
 
 export const getAccountingOverview = async () => {
-  return apiRequest("/accounting/insights/overview");
+  return apiRequest("/accounting/insights/overview/");
 };
 
 // Communication API Functions
 export const fetchConversations = async () => {
-  return apiRequest("/messages/conversations");
+  return apiRequest("/messages/conversations/");
 };
 
 export const createConversation = async (conversationData) => {
-  return apiRequest("/messages/conversations", {
+  return apiRequest("/messages/conversations/", {
     method: "POST",
     body: JSON.stringify(conversationData),
   });
@@ -625,26 +624,28 @@ export const fetchMessages = async (conversationId, params = {}) => {
 
   const queryString = queryParams.toString();
   return apiRequest(
-    `/messages/conversations/${conversationId}/messages${formatQueryString(queryString)}`
+    `/messages/conversations/${conversationId}/messages/${formatQueryString(
+      queryString
+    )}`
   );
 };
 
 export const sendMessage = async (messageData) => {
-  return apiRequest("/messages/messages", {
+  return apiRequest("/messages/messages/", {
     method: "POST",
     body: JSON.stringify(messageData),
   });
 };
 
 export const markMessageAsRead = async (messageId) => {
-  return apiRequest(`/messages/messages/${messageId}/read`, {
+  return apiRequest(`/messages/messages/${messageId}/read/`, {
     method: "PUT",
   });
 };
 
 export const sendAnnouncement = async (content, recipientType) => {
   const queryParams = recipientType ? `?recipient_type=${recipientType}` : "";
-  return apiRequest(`/messages/announcements${queryParams}`, {
+  return apiRequest(`/messages/announcements/${queryParams}`, {
     method: "POST",
     body: JSON.stringify({ content }),
   });
@@ -652,7 +653,7 @@ export const sendAnnouncement = async (content, recipientType) => {
 
 // AI Chatbot API Functions
 export const sendChatMessage = async (messages, context, documentIds) => {
-  return apiRequest("/ai/chat", {
+  return apiRequest("/ai/chat/", {
     method: "POST",
     body: JSON.stringify({
       messages,
@@ -663,7 +664,7 @@ export const sendChatMessage = async (messages, context, documentIds) => {
 };
 
 export const documentQA = async (messages, documentIds, context) => {
-  return apiRequest("/ai/document-qa", {
+  return apiRequest("/ai/document-qa/", {
     method: "POST",
     body: JSON.stringify({
       messages,
@@ -674,7 +675,7 @@ export const documentQA = async (messages, documentIds, context) => {
 };
 
 export const getTenantSupport = async (messages, context) => {
-  return apiRequest("/ai/tenant-support", {
+  return apiRequest("/ai/tenant-support/", {
     method: "POST",
     body: JSON.stringify({
       messages,
@@ -700,44 +701,44 @@ export const fetchProperties = async (params = {}, options = {}) => {
     queryParams.append("property_type", params.property_type);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/properties${formatQueryString(queryString)}`, options);
+  return apiRequest(`/properties/${formatQueryString(queryString)}`, options);
 };
 
 export const fetchPropertyById = async (propertyId) => {
-  return apiRequest(`/properties/${propertyId}`);
+  return apiRequest(`/properties/${propertyId}/`);
 };
 
 export const fetchProperty = async (propertyId) => {
-  return apiRequest(`/properties/${propertyId}`);
+  return apiRequest(`/properties/${propertyId}/`);
 };
 
 export const createProperty = async (propertyData) => {
-  return apiRequest("/properties", {
+  return apiRequest("/properties/", {
     method: "POST",
     body: JSON.stringify(propertyData),
   });
 };
 
 export const updateProperty = async (propertyId, propertyData) => {
-  return apiRequest(`/properties/${propertyId}`, {
+  return apiRequest(`/properties/${propertyId}/`, {
     method: "PUT",
     body: JSON.stringify(propertyData),
   });
 };
 
 export const deleteProperty = async (propertyId) => {
-  return apiRequest(`/properties/${propertyId}`, {
+  return apiRequest(`/properties/${propertyId}/`, {
     method: "DELETE",
   });
 };
 
 export const fetchPropertyUnits = async (propertyId) => {
-  return apiRequest(`/properties/${propertyId}/units`);
+  return apiRequest(`/properties/${propertyId}/units/`);
 };
 
 export const createUnit = async (propertyId, unitData) => {
   console.log(`Creating unit for property ${propertyId} with data:`, unitData);
-  return apiRequest(`/properties/${propertyId}/units`, {
+  return apiRequest(`/properties/${propertyId}/units/`, {
     method: "POST",
     body: JSON.stringify(unitData),
   });
@@ -760,7 +761,7 @@ export const updateUnit = async (unitId, unitData) => {
       tenant_id: unitData.tenant_id || null,
     };
 
-    const response = await apiRequest(`/units/${unitId}`, {
+    const response = await apiRequest(`/units/${unitId}/`, {
       method: "PUT",
       body: JSON.stringify(formattedData),
     });
@@ -781,7 +782,7 @@ export const deleteUnit = async (unitId) => {
   console.log(`Deleting unit with ID: ${unitId}`);
 
   try {
-    const response = await apiRequest(`/units/${unitId}`, {
+    const response = await apiRequest(`/units/${unitId}/`, {
       method: "DELETE",
     });
     // The response will be null for 204 status, which is OK
@@ -799,7 +800,7 @@ export const fetchUnitById = async (unitId) => {
   }
   try {
     console.log(`Fetching unit with ID: ${unitId}`);
-    return await apiRequest(`/units/${unitId}`);
+    return await apiRequest(`/units/${unitId}/`);
   } catch (error) {
     console.error(`Error fetching unit ${unitId}:`, error);
     throw error;
@@ -816,20 +817,19 @@ export const fetchTenants = async (params = {}) => {
   if (params.unassigned_only) queryParams.append("unassigned_only", "true");
 
   const queryString = queryParams.toString();
-  return apiRequest(`/tenants${formatQueryString(queryString)}`);
+  return apiRequest(`/tenants/${formatQueryString(queryString)}`);
 };
 
 export const fetchTenant = async (tenantId) => {
-  return apiRequest(`/tenants/${tenantId}`);
+  return apiRequest(`/tenants/${tenantId}/`);
 };
 
 export const createTenant = async (tenantData) => {
   console.log("Creating tenant with data:", tenantData);
-  
+
   // Backend now handles all normalization and validation.
-  
   // Use the standardized apiRequest helper for consistency
-  return apiRequest("/tenants", {
+  return apiRequest("/tenants/", {
     method: "POST",
     body: JSON.stringify(tenantData),
   });
@@ -837,17 +837,17 @@ export const createTenant = async (tenantData) => {
 
 export const updateTenant = async (tenantId, tenantData) => {
   console.log(`Updating tenant ${tenantId} with data:`, tenantData);
-  
+
   // Backend now handles all validation and normalization via Pydantic validators
   // No need for frontend data manipulation that could introduce bugs
-  return apiRequest(`/tenants/${tenantId}`, {
+  return apiRequest(`/tenants/${tenantId}/`, {
     method: "PATCH",
     body: JSON.stringify(tenantData),
   });
 };
 
 export const deleteTenant = async (tenantId) => {
-  return apiRequest(`/tenants/${tenantId}`, {
+  return apiRequest(`/tenants/${tenantId}/`, {
     method: "DELETE",
   });
 };
@@ -860,7 +860,7 @@ export const fetchTenantsByProperty = async (propertyId) => {
 
   try {
     const queryParams = new URLSearchParams({ property_id: propertyId });
-    const data = await apiRequest(`/tenants?${queryParams.toString()}`);
+    const data = await apiRequest(`/tenants/?${queryParams.toString()}`);
 
     console.log("Tenants fetched successfully:", data);
 
@@ -885,22 +885,22 @@ export const fetchTenantsByProperty = async (propertyId) => {
 
 // Landlord Management API Functions
 export const fetchLandlords = async () => {
-  return apiRequest("/landlords");
+  return apiRequest("/landlords/");
 };
 
 export const fetchLandlord = async (landlordId) => {
-  return apiRequest(`/landlords/${landlordId}`);
+  return apiRequest(`/landlords/${landlordId}/`);
 };
 
 export const createLandlord = async (landlordData) => {
-  return apiRequest("/landlords", {
+  return apiRequest("/landlords/", {
     method: "POST",
     body: JSON.stringify(landlordData),
   });
 };
 
 export const updateLandlord = async (landlordId, landlordData) => {
-  return apiRequest(`/landlords/${landlordId}`, {
+  return apiRequest(`/landlords/${landlordId}/`, {
     method: "PUT",
     body: JSON.stringify(landlordData),
   });
@@ -908,7 +908,7 @@ export const updateLandlord = async (landlordId, landlordData) => {
 
 // Maintenance API Functions
 export const getMaintenanceSummary = async () => {
-  return apiRequest("/maintenance/summary");
+  return apiRequest("/maintenance/summary/");
 };
 
 export const fetchMaintenanceRequests = async (params = {}) => {
@@ -926,31 +926,29 @@ export const fetchMaintenanceRequests = async (params = {}) => {
   });
 
   const queryString = queryParams.toString();
-  return apiRequest(
-    `/maintenance/requests${formatQueryString(queryString)}`
-  );
+  return apiRequest(`/maintenance/requests/${formatQueryString(queryString)}`);
 };
 
 export const createMaintenanceRequest = async (requestData) => {
-  return apiRequest("/maintenance/requests", {
+  return apiRequest("/maintenance/requests/", {
     method: "POST",
     body: JSON.stringify(requestData),
   });
 };
 
 export const getMaintenanceRequest = async (requestId) => {
-  return apiRequest(`/maintenance/requests/${requestId}`);
+  return apiRequest(`/maintenance/requests/${requestId}/`);
 };
 
 export const updateMaintenanceRequest = async (requestId, requestData) => {
-  return apiRequest(`/maintenance/requests/${requestId}`, {
+  return apiRequest(`/maintenance/requests/${requestId}/`, {
     method: "PUT",
     body: JSON.stringify(requestData),
   });
 };
 
 export const deleteMaintenanceRequest = async (requestId) => {
-  return apiRequest(`/maintenance/requests/${requestId}`, {
+  return apiRequest(`/maintenance/requests/${requestId}/`, {
     method: "DELETE",
   });
 };
@@ -958,7 +956,7 @@ export const deleteMaintenanceRequest = async (requestId) => {
 export const analyzeLease = async (formData) => {
   const token = localStorage.getItem("token");
 
-  const response = await fetch(`${API_BASE_URL}/api/leases/analyze`, {
+  const response = await fetch(`${API_BASE_URL}/api/leases/analyze/`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -987,7 +985,7 @@ export const parseLease = async (formData) => {
     console.log("Calling parseLease API endpoint...");
     // Ensure URL is correctly formatted - normalize the URL to not have a trailing slash
     const baseUrl = API_BASE_URL.replace(/\/$/, "");
-    const url = `${baseUrl}/api/leases/parse`;
+    const url = `${baseUrl}/api/leases/parse/`;
 
     console.log("API URL:", url);
 
@@ -1029,13 +1027,13 @@ export const parseLease = async (formData) => {
 // Add these functions after the existing accounting API functions
 
 export const generateDuePayments = async () => {
-  return apiRequest("/accounting/payments/generate-due", {
+  return apiRequest("/accounting/payments/generate-due/", {
     method: "POST",
   });
 };
 
 export const fetchOutstandingPayments = async () => {
-  return apiRequest("/accounting/payments/outstanding");
+  return apiRequest("/accounting/payments/outstanding/");
 };
 
 export const fetchRentTracker = async (params = {}) => {
@@ -1045,7 +1043,7 @@ export const fetchRentTracker = async (params = {}) => {
   if (params.year) queryParams.append("year", params.year);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/rent-tracker${formatQueryString(queryString)}`);
+  return apiRequest(`/rent-tracker/${formatQueryString(queryString)}`);
 };
 
 // User Settings API Functions
@@ -1058,7 +1056,7 @@ export const fetchRentTracker = async (params = {}) => {
  */
 export const updateUserProfile = async (userId, profileData) => {
   if (!userId) throw new Error("User ID is required to update profile.");
-  return apiRequest(`/users/${userId}/profile`, {
+  return apiRequest(`/users/${userId}/profile/`, {
     method: "PUT", // Or PATCH depending on your backend implementation
     body: JSON.stringify(profileData),
   });
@@ -1072,7 +1070,7 @@ export const updateUserProfile = async (userId, profileData) => {
  */
 export const changeUserPassword = async (userId, newPassword) => {
   if (!userId) throw new Error("User ID is required to change password.");
-  return apiRequest(`/users/${userId}/password`, {
+  return apiRequest(`/users/${userId}/password/`, {
     method: "POST",
     body: JSON.stringify({ password: newPassword }),
   });
@@ -1087,7 +1085,7 @@ export const changeUserPassword = async (userId, newPassword) => {
 export const uploadUserAvatar = async (userId, formData) => {
   if (!userId) throw new Error("User ID is required to upload avatar.");
   // Assume formData contains the avatar under the key 'avatar'
-  return uploadFile(`/api/auth/users/${userId}/avatar`, formData, {
+  return uploadFile(`/api/auth/users/${userId}/avatar/`, formData, {
     errorMsg: "Failed to upload avatar.",
   });
 };
@@ -1104,12 +1102,12 @@ export const fetchReportSummary = async (params = {}) => {
 
   const queryString = queryParams.toString();
   console.log(`Fetching report summary with query: ${queryString}`); // Debug log
-  return apiRequest(`/reports/summary?${queryString}`);
+  return apiRequest(`/reports/summary/?${queryString}`);
 };
 
 // New function to upload lease PDF to blob storage
 export const uploadLeasePDF = async (file) => {
-  const data = await uploadFile("/api/leases/upload-lease", file, {
+  const data = await uploadFile("/api/leases/upload-lease/", file, {
     errorMsg: "Failed to upload lease PDF.",
   });
   return data.file_url;
@@ -1119,7 +1117,7 @@ export const uploadLeasePDF = async (file) => {
 export const parsePaymentReceiptAPI = async (fileFormData) => {
   // Note: apiRequest is a generic helper. For FormData, we don't set Content-Type header manually.
   // The browser will set it to multipart/form-data with the correct boundary.
-  return apiRequest("/accounting/payments/parse-receipt", {
+  return apiRequest("/accounting/payments/parse-receipt/", {
     method: "POST",
     body: fileFormData, // Pass FormData directly
     // headers: {} // Do not set Content-Type for FormData
@@ -1128,7 +1126,7 @@ export const parsePaymentReceiptAPI = async (fileFormData) => {
 
 // New/Updated Expense API functions
 export const parseExpenseReceiptAPI = async (fileFormData, options = {}) => {
-  return apiRequest("/accounting/expenses/parse-receipt", {
+  return apiRequest("/accounting/expenses/parse-receipt/", {
     method: "POST",
     body: fileFormData,
     ...options, // Spread additional options like signal for AbortController
@@ -1136,20 +1134,20 @@ export const parseExpenseReceiptAPI = async (fileFormData, options = {}) => {
 };
 
 export const updateExpenseAPI = async (expenseId, expenseData) => {
-  return apiRequest(`/accounting/expenses/${expenseId}`, {
+  return apiRequest(`/accounting/expenses/${expenseId}/`, {
     method: "PUT",
     body: JSON.stringify(expenseData),
   });
 };
 
 export const deleteExpenseAPI = async (expenseId) => {
-  return apiRequest(`/accounting/expenses/${expenseId}`, {
+  return apiRequest(`/accounting/expenses/${expenseId}/`, {
     method: "DELETE",
   });
 };
 
 export const uploadMaintenancePhoto = async (file) => {
-  const data = await uploadFile("/api/maintenance/upload-photo", file, {
+  const data = await uploadFile("/api/maintenance/upload-photo/", file, {
     formKey: "upload_file",
     errorMsg: "Failed to upload maintenance photo.",
   });
@@ -1197,15 +1195,39 @@ export const uploadFile = async (endpoint, fileOrFormData, options = {}) => {
 // --- QuickBooks Integration API Functions ---
 
 export const connectToQuickBooks = async () => {
-  return apiRequest("/accounting/quickbooks/connect");
+  return apiRequest("/quickbooks/connect/");
 };
 
 export const getQuickBooksStatus = async () => {
-  return apiRequest("/accounting/quickbooks/status");
+  return apiRequest("/quickbooks/status/");
 };
 
 export const disconnectQuickBooks = async () => {
-  return apiRequest("/accounting/quickbooks/disconnect", {
+  return apiRequest("/quickbooks/disconnect/", {
+    method: "POST",
+  });
+};
+
+export const initialQuickBooksSync = async () => {
+  return apiRequest("/quickbooks/initial-sync/", {
+    method: "POST",
+  });
+};
+
+export const syncQuickBooksPayments = async () => {
+  return apiRequest("/quickbooks/sync/payments/", {
+    method: "POST",
+  });
+};
+
+export const syncQuickBooksInvoices = async () => {
+  return apiRequest("/quickbooks/sync/invoices/", {
+    method: "POST",
+  });
+};
+
+export const syncQuickBooksExpenses = async () => {
+  return apiRequest("/quickbooks/sync/expenses/", {
     method: "POST",
   });
 };

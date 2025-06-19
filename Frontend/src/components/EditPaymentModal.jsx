@@ -11,8 +11,11 @@ import {
   Select,
   TextArea,
   Button,
+  ReceiptUploadAndPreview,
+  useReceiptUpload,
+  createReceiptFileChangeHandler,
 } from "./ui/SharedModalComponents";
-import { AnimatePresence, motion } from "framer-motion";
+import { extractPaymentReceiptDataForEdit } from "../utils/receiptUtils";
 
 import { PAYMENT_METHODS, PAYMENT_STATUSES } from "../utils/constants";
 
@@ -28,10 +31,9 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
   const [formData, setFormData] = useState(initialFormData);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [isParsingReceipt, setIsParsingReceipt] = useState(false);
-  const [receiptParseError, setReceiptParseError] = useState(null);
-  // currentReceiptUrl is now directly managed in formData.receipt_url for simplicity upon successful parse
-  const [showReceiptPreview, setShowReceiptPreview] = useState(false);
+
+  // Receipt upload state using shared hook
+  const receiptState = useReceiptUpload();
 
   useEffect(() => {
     if (isOpen && paymentData) {
@@ -43,19 +45,19 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
         payment_method: paymentData.payment_method || "",
         status: paymentData.status || "Paid",
         notes: paymentData.description || "",
-        receipt_url: paymentData.receipt_url || null, // Initialize with existing URL
+        receipt_url: paymentData.receipt_url || null,
       });
-      setError(null); // Clear previous errors
-      setReceiptParseError(null);
-      setShowReceiptPreview(false);
-      setIsParsingReceipt(false); // Ensure parsing state is reset
+      setError(null);
+      receiptState.resetReceiptState();
+      // Set the current receipt URL if editing existing payment with receipt
+      if (paymentData.receipt_url) {
+        receiptState.setCurrentReceiptUrl(paymentData.receipt_url);
+      }
     } else if (!isOpen) {
-      // Reset form when modal is closed and not just re-rendered
+      // Reset form when modal is closed
       setFormData(initialFormData);
       setError(null);
-      setReceiptParseError(null);
-      setShowReceiptPreview(false);
-      setIsParsingReceipt(false);
+      receiptState.resetReceiptState();
     }
   }, [isOpen, paymentData]); // Re-run if isOpen or paymentData changes
 
@@ -64,46 +66,26 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleReceiptFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // File size validation (10MB max)
-      if (file.size > 10 * 1024 * 1024) {
-        setReceiptParseError("File is too large. Maximum allowed size is 10MB.");
-        return;
-      }
-      setReceiptParseError(null);
-      setIsParsingReceipt(true);
-      // No need to clear formData.receipt_url here, let it hold the old one until successful parse
-      const formDataForApi = new FormData();
-      formDataForApi.append("file", file);
-      try {
-        const response = await parsePaymentReceiptAPI(formDataForApi);
-        if (response && response.parsed_details) {
-          const { parsed_details, receipt_url: parsedReceiptUrl } = response;
-          setFormData((prev) => ({
-            ...prev,
-            // Optionally update other fields if desired, e.g., amount, date from receipt
-            // amount: parsed_details.total_amount?.toString() || prev.amount,
-            // payment_date: parsed_details.payment_date || prev.payment_date,
-            receipt_url: parsedReceiptUrl, // Update with the new URL
-          }));
-          toast.success(
-            response.message || "New receipt parsed and ready to save."
-          );
-        } else {
-          throw new Error("Invalid response from receipt parser.");
-        }
-      } catch (err) {
-        setReceiptParseError(
-          err.message || "Failed to parse new receipt. Please try again."
-        );
-        toast.error(err.message || "Failed to parse new receipt.");
-      } finally {
-        setIsParsingReceipt(false);
-      }
+  // Create receipt file change handler using shared components
+  const handleReceiptFileChange = createReceiptFileChangeHandler(
+    parsePaymentReceiptAPI,
+    receiptState,
+    (parsedDetails, receiptUrl) => {
+      // Use utility functions for conservative edit mode data extraction
+      const extractedData = extractPaymentReceiptDataForEdit(
+        parsedDetails,
+        formData
+      );
+
+      setFormData((prev) => ({
+        ...prev,
+        ...extractedData,
+        receipt_url: receiptUrl,
+      }));
+
+      toast.success("New receipt parsed and ready to save.");
     }
-  };
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -118,14 +100,16 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
 
     const payload = {
       amount:
-        formData.amount !== "" && !isNaN(parsedAmount) ? parsedAmount : undefined,
+        formData.amount !== "" && !isNaN(parsedAmount)
+          ? parsedAmount
+          : undefined,
       payment_date: formData.payment_date
         ? `${formData.payment_date}T00:00:00Z`
         : undefined, // Ensure UTC
       payment_method: formData.payment_method || undefined,
       status: formData.status || undefined,
       description: formData.notes || undefined,
-      receipt_url: formData.receipt_url, // This now holds new or original URL
+      receipt_url: receiptState.currentReceiptUrl || formData.receipt_url, // Use shared state with fallback
     };
 
     const cleanedPayload = Object.entries(payload).reduce(
@@ -169,6 +153,15 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
       onSubmit={handleSubmit}
       className="space-y-5 w-full"
     >
+      {/* Receipt Upload with Parse Option - At top of form */}
+      <ReceiptUploadAndPreview
+        {...receiptState}
+        onReceiptFileChange={handleReceiptFileChange}
+        title="Upload and Parse Receipt (Optional)"
+        subtitle="Auto-extracts amount, date & payment method"
+        disabled={isLoading}
+      />
+
       {(paymentData?.tenant_name || paymentData?.property_name) && (
         <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
           {paymentData?.tenant_name && (
@@ -268,118 +261,6 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
           placeholder="Optional payment notes..."
         />
       </div>
-      <div>
-        <Label htmlFor={`payment-receipt-upload-${paymentData?.id}`}>
-          Payment Receipt (Optional)
-        </Label>
-        <Input
-          type="file"
-          id={`payment-receipt-upload-${paymentData?.id}`}
-          accept=".pdf,.png,.jpg,.jpeg"
-          onChange={handleReceiptFileChange}
-          disabled={isParsingReceipt}
-          className="block w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 disabled:opacity-50"
-        />
-        {isParsingReceipt && (
-          <p className="mt-1.5 text-sm text-blue-600">Parsing new receipt...</p>
-        )}
-        {receiptParseError && (
-          <p className="mt-1.5 text-sm text-red-600">
-            Error: {receiptParseError}
-          </p>
-        )}
-        {formData.receipt_url && !isParsingReceipt && (
-          <div className="mt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowReceiptPreview(!showReceiptPreview)}
-              className="text-sm py-1.5"
-            >
-              {showReceiptPreview ? (
-                <>
-                  <i className="fas fa-eye-slash mr-2" />
-                  Hide Preview
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-eye mr-2" />
-                  Preview Current
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-        <AnimatePresence>
-          {showReceiptPreview && formData.receipt_url && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "24rem" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="mt-3 border rounded-lg overflow-hidden shadow bg-gray-50"
-            >
-              {(() => {
-                // URL validation function
-                function isValidUrl(url) {
-                  try {
-                    const parsed = new URL(url);
-                    // Only allow http(s) protocols
-                    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
-                    // Optionally restrict domains here
-                    // Example: only allow URLs from your own domain
-                    // if (!parsed.hostname.endsWith("yourdomain.com")) return false;
-                    return true;
-                  } catch {
-                    return false;
-                  }
-                }
-                const url = formData.receipt_url;
-                if (!isValidUrl(url)) {
-                  return (
-                    <div className="p-4 text-red-600">Invalid or unsafe receipt URL. Preview not available.</div>
-                  );
-                }
-                const lowerUrl = url.toLowerCase();
-                if (
-                  lowerUrl.endsWith(".png") ||
-                  lowerUrl.endsWith(".jpg") ||
-                  lowerUrl.endsWith(".jpeg") ||
-                  lowerUrl.endsWith(".gif")
-                ) {
-                  return (
-                    <img
-                      src={url}
-                      alt="Receipt Preview"
-                      className="w-full h-full object-contain p-1"
-                    />
-                  );
-                } else if (lowerUrl.endsWith(".pdf")) {
-                  // Try to hint the PDF viewer to fit the content
-                  const pdfDisplayUrl = `${url}#view=FitH`;
-                  return (
-                    <iframe
-                      src={pdfDisplayUrl}
-                      title="Receipt Preview"
-                      className="w-full h-full border-0"
-                      sandbox="allow-same-origin"
-                    />
-                  );
-                } else {
-                  return (
-                    <iframe
-                      src={url}
-                      title="Receipt Preview"
-                      className="w-full h-full border-0"
-                      sandbox="allow-scripts allow-same-origin"
-                    />
-                  );
-                }
-              })()}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
     </form>
   );
 
@@ -392,11 +273,11 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
         type="submit"
         form="edit-payment-form"
         variant="primary"
-        isLoading={isLoading || isParsingReceipt}
+        isLoading={isLoading || receiptState.isParsingReceipt}
         loadingText={
           isLoading
             ? "Updating..."
-            : isParsingReceipt
+            : receiptState.isParsingReceipt
             ? "Parsing..."
             : "Saving..."
         }

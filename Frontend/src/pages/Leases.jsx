@@ -273,6 +273,19 @@ const Leases = () => {
       setOpenDocumentDropdown(null);
       return;
     }
+
+    const fileUrl = document.file_path;
+    console.log('[handlePreviewDocument] Attempting to preview URL:', fileUrl);
+    
+    // Check if the URL is just the backend URL without a proper file path
+    if (fileUrl === window.location.origin || fileUrl === import.meta.env.VITE_API_URL || fileUrl.includes('localhost:') || fileUrl === fileUrl.match(/^https?:\/\/[^\/]+\/?$/)) {
+      console.error('Invalid file URL - appears to be just the backend URL:', fileUrl);
+      toast.error('Document URL is invalid. Please re-upload the document.');
+      setOpenDocumentDropdown(null);
+      return;
+    }
+
+    // Open the preview modal with the document
     setFileToPreviewUrl(document.file_path);
     const tenantName = getTenantName(lease.tenant) || "N/A";
     const propertyName =

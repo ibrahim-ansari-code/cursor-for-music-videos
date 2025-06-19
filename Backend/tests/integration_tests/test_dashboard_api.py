@@ -22,7 +22,7 @@ async def test_dashboard_get_operations(api_client: httpx.AsyncClient) -> None:
     """
     logger.info("Testing GET /api/dashboard...")
 
-    response = await api_client.get("/api/dashboard")
+    response = await api_client.get("/api/dashboard/")
     data = assert_valid_json_response(response, dict)
 
     logger.info(
@@ -36,7 +36,7 @@ async def test_dashboard_get_operations(api_client: httpx.AsyncClient) -> None:
     # Example:
     # async def test_dashboard_with_property_filter(self, api_client, test_property_id):
     #     logger.info(f"Testing GET /api/dashboard?property_id={test_property_id}...")
-    #     response = await api_client.get(f"/api/dashboard?property_id={test_property_id}")
+    #     response = await api_client.get(f"/api/dashboard/?property_id={test_property_id}")
     #     data = assert_valid_json_response(response, dict)
     #     logger.info("✅ GET /api/dashboard with property filter successful")
     #     # Add assertions specific to filtered data

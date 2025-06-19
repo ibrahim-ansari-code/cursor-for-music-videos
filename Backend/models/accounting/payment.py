@@ -13,6 +13,7 @@ from sqlalchemy import (
     Numeric,
     ForeignKey,
     Integer,
+    Index,
 )
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -34,6 +35,10 @@ class Payment(SQLModel, table=True):
     """Payment model for rent payments from tenants"""
 
     __tablename__ = "payments"  # type: ignore
+    __table_args__ = (
+        Index("ix_payments_tenant_id", "tenant_id"),
+        Index("ix_payments_lease_id", "lease_id"),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
@@ -77,6 +82,17 @@ class Payment(SQLModel, table=True):
         foreign_key="tenants.id"
     )
 
+    # QuickBooks specific fields
+    quickbooks_id: str | None = Field(
+        default=None,
+        sa_column=Column(String(length=64), nullable=True, unique=True),
+    )
+
+    last_synced_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+
     created_at: datetime = Field(
         default_factory=create_audit_datetime,
         sa_column=Column(DateTime(timezone=True), nullable=False)
@@ -88,6 +104,6 @@ class Payment(SQLModel, table=True):
 
     lease: "Lease" = Relationship(back_populates="payments")
     tenant: Optional["Tenant"] = Relationship(
-    back_populates="payments",
-    sa_relationship_kwargs={"lazy": "selectin"}
-)
+        back_populates="payments",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )

@@ -8,6 +8,9 @@ class PaymentStatus(str, Enum):
     OVERDUE = "Overdue"
     CANCELLED = "Cancelled"
     REFUNDED = "Refunded"
+    DRAFT = "Draft"
+    VOID = "Void"
+    UNCOLLECTIBLE = "Uncollectible"
 
 class IntegrationStatus(str, Enum):
     """Represents the connection status of a third-party integration."""

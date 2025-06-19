@@ -277,7 +277,25 @@ const ImportLeaseModal = ({
       setShowParsedResults(true);
     } catch (err) {
       console.error("Failed to analyze lease:", err);
-      setError(err.message || "Failed to analyze lease file. Please try again.");
+      
+      // Provide more user-friendly error messages
+      let errorMessage = "Failed to analyze lease file. Please try again.";
+      
+      if (err.message) {
+        if (err.message.includes("No text could be extracted")) {
+          errorMessage = "This PDF appears to be an image or doesn't contain selectable text. Please try uploading a different PDF file with selectable text.";
+        } else if (err.message.includes("document could not be processed")) {
+          errorMessage = err.message; // Already user-friendly
+        } else if (err.message.includes("Failed to parse JSON")) {
+          errorMessage = "The document analysis service is temporarily unavailable. Please try again in a few moments.";
+        } else if (err.message.includes("Authentication") || err.message.includes("401")) {
+          errorMessage = "Session expired. Please refresh the page and try again.";
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

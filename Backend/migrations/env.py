@@ -22,23 +22,12 @@ Key Considerations:
   for compatibility with Alembic's synchronous operations.
 """
 import logging
-from Backend.config import settings
 from logging.config import fileConfig
 import sys
 from pathlib import Path
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
-from alembic import context
-
-# Import your models' metadata
-from sqlmodel import SQLModel
-
-target_metadata = SQLModel.metadata
-
 # ───────────────────────────────────────────────
-# Ensure project root is in sys.path
+# Ensure project root is in sys.path so that Backend modules can be imported
 try:
     # Assumes env.py is in Backend/migrations/
     # parents[0] is the 'migrations' dir
@@ -51,7 +40,20 @@ except IndexError:
     # Fallback or error if the directory structure is not as expected
     raise RuntimeError("Could not determine project root from migrations env.py.")
 
-# Import settings and swap driver to psycopg2 for Alembic
+from Backend.config import settings
+from sqlalchemy import engine_from_config
+from sqlalchemy import pool
+
+from alembic import context
+
+# Import your models' metadata
+from sqlmodel import SQLModel
+
+# IMPORTANT: Import all models so they are registered with SQLModel
+# This ensures Alembic can see all tables for autogenerate
+from Backend import models  # This imports all models via __init__.py
+
+target_metadata = SQLModel.metadata
 
 # This is the Alembic Config object
 config = context.config

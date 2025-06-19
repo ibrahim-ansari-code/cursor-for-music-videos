@@ -12,8 +12,12 @@ import {
   Select,
   TextArea,
   Button,
+  ReceiptUploadAndPreview,
+  useReceiptUpload,
+  createReceiptFileChangeHandler,
 } from "./ui/SharedModalComponents";
-import { AnimatePresence, motion } from "framer-motion";
+import { extractExpenseReceiptDataForEdit } from "../utils/receiptUtils";
+import { filterValidTaxes } from "../utils/taxValidation";
 
 // Reusing PAYMENT_METHODS and PAYMENT_STATUSES if expense categories/statuses are similar,
 // otherwise define EXPENSE_CATEGORIES, EXPENSE_STATUSES
@@ -29,12 +33,12 @@ const EXPENSE_CATEGORIES = [
 const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
   const initialFormData = {
     category: "",
-    amount: "", // Subtotal (before tax)
+    amount: "",
     expense_date: "",
     description: "",
     receipt_url: null,
     property_id: "",
-    property_name: "", // For displaying property name
+    property_name: "",
     taxes: [{ tax_name: "", tax_rate: "" }],
   };
   const [formData, setFormData] = useState(initialFormData);
@@ -42,20 +46,9 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
   const [properties, setProperties] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [isParsingReceipt, setIsParsingReceipt] = useState(false);
-  const [receiptParseError, setReceiptParseError] = useState(null);
-  const [currentReceiptUrl, setCurrentReceiptUrl] = useState(null);
-  const [showReceiptPreview, setShowReceiptPreview] = useState(false);
-  const receiptParseAbortControllerRef = useRef(null);
 
-  // Cleanup effect to abort receipt parsing on unmount
-  useEffect(() => {
-    return () => {
-      if (receiptParseAbortControllerRef.current) {
-        receiptParseAbortControllerRef.current.abort();
-      }
-    };
-  }, []);
+  // Receipt upload state using shared hook
+  const receiptState = useReceiptUpload();
 
   useEffect(() => {
     if (isOpen && expenseData) {
@@ -85,7 +78,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
           description: expenseData.description || "",
           receipt_url: expenseData.receipt_url || null,
           property_id: expenseData.property_id || "",
-          property_name: currentPropertyName, // Set fetched or default property name
+          property_name: currentPropertyName,
           taxes:
             expenseData.taxes && expenseData.taxes.length > 0
               ? expenseData.taxes.map((tax) => ({
@@ -94,36 +87,43 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
                 }))
               : [{ tax_name: "", tax_rate: "" }],
         });
-        setCurrentReceiptUrl(expenseData.receipt_url || null);
+        receiptState.resetReceiptState();
+        // Set the current receipt URL if editing existing expense with receipt
+        if (expenseData.receipt_url) {
+          receiptState.setCurrentReceiptUrl(expenseData.receipt_url);
+        }
         setError(null); // Clear any previous errors
-        setReceiptParseError(null);
-        setShowReceiptPreview(false);
       };
       loadPropertiesAndSetForm();
     } else if (!isOpen) {
-      // Reset form if modal is closed (e.g. if not saved)
+      // Reset form if modal is closed
       setFormData(initialFormData);
-      setCurrentReceiptUrl(null);
+      receiptState.resetReceiptState();
       setError(null);
-      setReceiptParseError(null);
-      setShowReceiptPreview(false);
     }
   }, [isOpen, expenseData]);
 
   const { totalTax, totalAmount } = useMemo(() => {
     const subtotal = Number.parseFloat(formData.amount) || 0;
     let newTotalTax = 0;
+    
     if (subtotal > 0) {
       formData.taxes.forEach((tax) => {
         const rate = Number.parseFloat(tax.tax_rate);
-        if (tax.tax_name && !isNaN(rate) && rate > 0) {
+        // Validate tax rate is numeric and within bounds before calculation
+        if (tax.tax_name && !isNaN(rate) && rate >= 0 && rate <= 100) {
           newTotalTax += (subtotal * rate) / 100;
         }
       });
     }
+    
+    // Ensure calculated values are reasonable and round to 2 decimal places to avoid floating point issues
+    const finalTotalTax = parseFloat(Math.max(0, newTotalTax).toFixed(2));
+    const finalTotalAmount = parseFloat((subtotal + finalTotalTax).toFixed(2));
+    
     return {
-      totalTax: newTotalTax,
-      totalAmount: subtotal + newTotalTax,
+      totalTax: finalTotalTax,
+      totalAmount: finalTotalAmount,
     };
   }, [formData.amount, formData.taxes]);
 
@@ -131,8 +131,8 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
 
   const decimalFormatter = useMemo(
     () =>
-      new Intl.NumberFormat('en-US', {
-        style: 'decimal',
+      new Intl.NumberFormat("en-US", {
+        style: "decimal",
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }),
@@ -166,46 +166,26 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
     }));
   };
 
-  const handleReceiptFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setReceiptParseError(null);
-      setIsParsingReceipt(true);
+  // Create receipt file change handler using shared components
+  const handleReceiptFileChange = createReceiptFileChangeHandler(
+    parseExpenseReceiptAPI,
+    receiptState,
+    (parsedDetails, receiptUrl) => {
+      // Use utility functions for conservative edit mode data extraction
+      const extractedData = extractExpenseReceiptDataForEdit(
+        parsedDetails,
+        formData
+      );
 
-      // Abort previous request if it exists
-      if (receiptParseAbortControllerRef.current) {
-        receiptParseAbortControllerRef.current.abort();
-      }
+      setFormData((prev) => ({
+        ...prev,
+        ...extractedData,
+        receipt_url: receiptUrl,
+      }));
 
-      const abortController = new AbortController();
-      receiptParseAbortControllerRef.current = abortController;
-      
-      const formDataForApi = new FormData();
-      formDataForApi.append("file", file);
-      try {
-        const response = await parseExpenseReceiptAPI(formDataForApi, { signal: abortController.signal });
-        if (response?.parsed_details) {
-          const { parsed_details, receipt_url: parsedReceiptUrl } = response;
-          setCurrentReceiptUrl(parsedReceiptUrl); // Set new receipt URL immediately
-          setFormData((prev) => ({ ...prev, receipt_url: parsedReceiptUrl })); // Keep formData in sync
-          toast.success(
-            response.message || "New receipt parsed and ready to save."
-          );
-        } else {
-          throw new Error("Invalid response from receipt parser.");
-        }
-      } catch (err) {
-        if (err.name === 'AbortError') {
-          console.log('Receipt parse request was cancelled');
-          return;
-        }
-        setReceiptParseError(err.message || "Failed to parse new receipt.");
-        toast.error(err.message || "Failed to parse new receipt.");
-      } finally {
-        setIsParsingReceipt(false);
-      }
+      toast.success("New receipt parsed and ready to save.");
     }
-  };
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -223,20 +203,13 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
         ? `${formData.expense_date}T00:00:00Z`
         : undefined, // Ensure UTC for backend
       description: formData.description || undefined,
-      receipt_url: currentReceiptUrl,
+      receipt_url: receiptState.currentReceiptUrl || formData.receipt_url,
       // property_id: formData.property_id ? parseInt(formData.property_id) : undefined, // Property ID is not editable
-      taxes: formData.taxes
-        .filter(
-          (tax) =>
-            tax.tax_name &&
-            tax.tax_rate !== "" &&
-            !isNaN(Number.parseFloat(tax.tax_rate)) &&
-            Number.parseFloat(tax.tax_rate) >= 0
-        )
-        .map((tax) => ({
-          tax_name: tax.tax_name,
-          tax_rate: Number.parseFloat(tax.tax_rate),
-        })),
+      taxes: filterValidTaxes(formData.taxes)
+          .map((tax) => ({
+            tax_name: tax.tax_name.trim(),
+            tax_rate: Number.parseFloat(tax.tax_rate),
+          })),
     };
 
     // Clean payload: remove undefined fields to avoid overwriting with nothing
@@ -281,6 +254,15 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
 
   const formContent = (
     <form onSubmit={handleSubmit} className="space-y-5 w-full">
+      {/* Receipt Upload with Parse Option - At top of form */}
+      <ReceiptUploadAndPreview
+        {...receiptState}
+        onReceiptFileChange={handleReceiptFileChange}
+        title="Upload and Parse Receipt (Optional)"
+        subtitle="Auto-extracts tax, amount, date & description"
+        disabled={isLoading}
+      />
+
       {formData.property_name && (
         <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-700">
@@ -357,6 +339,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
                 value={tax.tax_rate}
                 onChange={(e) => handleTaxInputChange(index, e)}
                 min="0"
+                max="100"
                 step="0.01"
                 placeholder="Rate"
                 className="text-sm py-2 pr-6"
@@ -444,98 +427,6 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
           placeholder="Optional description of the expense"
         />
       </div>
-      <div>
-        <Label>Receipt (Optional)</Label>
-        <Input
-          type="file"
-          accept=".pdf,.png,.jpg,.jpeg"
-          onChange={handleReceiptFileChange}
-          disabled={isParsingReceipt}
-          className="block w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 disabled:opacity-50"
-        />
-        {isParsingReceipt && (
-          <p className="mt-1.5 text-sm text-blue-600">Parsing new receipt...</p>
-        )}
-        {receiptParseError && (
-          <p className="mt-1.5 text-sm text-red-600">
-            Error: {receiptParseError}
-          </p>
-        )}
-        {currentReceiptUrl && !isParsingReceipt && (
-          <div className="mt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowReceiptPreview(!showReceiptPreview)}
-              className="text-sm py-1.5"
-              disabled={isParsingReceipt}
-            >
-              {showReceiptPreview ? (
-                <>
-                  <i className="fas fa-eye-slash mr-2" />
-                  Hide Preview
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-eye mr-2" />
-                  Preview Current
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-        <AnimatePresence>
-          {showReceiptPreview && currentReceiptUrl && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "24rem" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="mt-3 border rounded-lg overflow-hidden shadow bg-gray-50"
-            >
-              {(() => {
-                const url = currentReceiptUrl;
-                const lowerUrl = url.toLowerCase();
-                if (
-                  lowerUrl.endsWith(".png") ||
-                  lowerUrl.endsWith(".jpg") ||
-                  lowerUrl.endsWith(".jpeg") ||
-                  lowerUrl.endsWith(".gif")
-                ) {
-                  return (
-                    <img
-                      src={url}
-                      alt="Receipt Preview"
-                      className="w-full h-full object-contain p-1"
-                    />
-                  );
-                } else if (lowerUrl.endsWith(".pdf")) {
-                  const pdfDisplayUrl = `${url}#view=FitH`;
-                  return (
-                    <iframe
-                      src={pdfDisplayUrl}
-                      title="Receipt Preview"
-                      className="w-full h-full border-0"
-                      sandbox="allow-same-origin"
-                      referrerPolicy="no-referrer"
-                    />
-                  );
-                } else {
-                  return (
-                    <iframe
-                      src={url}
-                      title="Receipt Preview"
-                      className="w-full h-full border-0"
-                      sandbox="allow-same-origin"
-                      referrerPolicy="no-referrer"
-                    />
-                  );
-                }
-              })()}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
     </form>
   );
 
@@ -547,11 +438,11 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
       <Button
         type="submit"
         variant="primary"
-        isLoading={isLoading || isParsingReceipt}
+        isLoading={isLoading || receiptState.isParsingReceipt}
         loadingText={
           isLoading
             ? "Updating..."
-            : isParsingReceipt
+            : receiptState.isParsingReceipt
             ? "Parsing..."
             : "Saving..."
         }

@@ -167,7 +167,10 @@ async def test_create_tenant_case_insensitive_email(created_tenant: dict, api_cl
 @pytest.mark.parametrize("invalid_phone", ["not-a-phone", "12345", "1234567890123456", "aaaaaaaaaa1234567890"])
 async def test_create_tenant_invalid_phone(api_client: httpx.AsyncClient, invalid_phone: str):
     """
-    Tests that tenant creation fails with an invalid phone number.
+    Tests tenant creation with an invalid phone number and expects a 422 validation error.
+    
+    Args:
+        invalid_phone: The phone number value to test for validation failure.
     """
     logger.info(f"Testing invalid phone number: {invalid_phone}")
     tenant_data = {
@@ -175,7 +178,7 @@ async def test_create_tenant_invalid_phone(api_client: httpx.AsyncClient, invali
         "email": f"invalid_phone_{uuid.uuid4()}@example.com",
     }
     response = await api_client.post("/api/tenants/", json=tenant_data)
-    assert_api_error(response, 422, "phone number")
+    assert_api_error(response, 422, "Phone number")
     logger.info(f"✅ Correctly received 422 for invalid phone number '{invalid_phone}'")
     
 @pytest.mark.auth
@@ -184,12 +187,17 @@ async def test_create_tenant_invalid_phone(api_client: httpx.AsyncClient, invali
 @pytest.mark.parametrize("invalid_field, value, error_part", [
     ("first_name", "", "cannot be empty"),
     ("last_name", "  ", "cannot be empty"),
-    ("email", "not-an-email", "Invalid email format"),
-    ("email", "", "is required"),
+    ("email", "not-an-email", "invalid email format"),
+    ("email", "", "cannot be empty"),
 ])
 async def test_create_tenant_validation_errors(api_client: httpx.AsyncClient, invalid_field: str, value: str, error_part: str):
     """
-    Tests tenant creation with various invalid field values.
+    Tests tenant creation with invalid values for a specific field and verifies validation errors.
+    
+    Args:
+        invalid_field: The tenant field to set with an invalid value.
+        value: The invalid value to assign to the field.
+        error_part: Substring expected in the validation error message.
     """
     logger.info(f"Testing validation for field '{invalid_field}' with value '{value}'")
     tenant_data = {

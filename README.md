@@ -22,8 +22,15 @@ Brikli-V2/
 - **Database Migration**: Alembic
 - **Auth**: Supabase Auth (handles JWTs)
 - **DB**: Supabase PostgreSQL (primary), Azure PostgreSQL (legacy/phasing out)
+- **Integrations**: Apideck (for QuickBooks Online)
 - **AI**: Azure OpenAI (for lease parsing and future features)
 - **Storage**: Azure Blob Storage (for lease documents, avatars, etc.)
+
+---
+
+## 📚 Documentation
+
+- **[Frontend Architecture](Frontend/ARCHITECTURE.md)**: Detailed documentation of frontend patterns, shared components, and architectural decisions including the shared receipt upload pattern.
 
 ---
 
@@ -38,9 +45,9 @@ cd Brikli-V2
 
 ### 2. Environment Variables
 
-Create a `.env` file in your root directory and one in your Frontend/ folder. Refer to the #private-keys channel on Slack for the contents of both, and shoot me a message for the protected keys.
+Create a `.env` file in your root directory and one in your Frontend/ folder. Refer to the #private-keys channel on Slack for the contents of both, and shoot Zubin (zubin.singh@brikli.com) a message for the protected keys.
 
-### 3. Starting up local Backend
+### 3. Installing Backend Dependencies and Running Local Backend
 
 ```bash
 
@@ -66,9 +73,9 @@ Frontend runs at `http://localhost:5173` by default.
 
 ---
 
-## Database Migrations (Alembic)
+## Database Migrations (Supabase MCP + Alembic)
 
-Database schema changes are managed using Alembic.
+Database schema changes are made individually using Supabase MCP on a new DB Branch and are sync'd and managed using Alembic. This workflow ensures that direct schema changes in the Supabase UI can be captured and version-controlled as migration scripts.
 
 - **Ensure `Backend/.env` `DATABASE_URL` is correct before running Alembic commands.**
 - Alembic's `env.py` is configured to use `DATABASE_URL`.
@@ -100,38 +107,22 @@ poetry run alembic downgrade -1 # Downgrade one revision
 
 ## 🚀 Deployment
 
-### Porter Deployment (Backend)
+### Branching Strategy & CI/CD
 
-The backend is deployed to Porter using a Docker container.
+The project follows a `feature -> dev -> main` branching strategy:
 
-**Automated Deployment**
+1.  **Feature Branches**: All new features and bug fixes are developed in `feature/*` branches.
+2.  **Development Branch (`dev`)**: Completed features are merged into the `dev` branch for consolidation and integration testing.
+3.  **Main Branch (`main`)**: After the `dev` branch is stable, it is merged into `main`, which represents the production-ready state.
 
-- Push to `main` branch, triggers the "Deploy to brikli-backend-prod" GitHub Actions workflow which uses the "porter_app_brikli-backend-prod_4829.yml" workflow file in the .github\workflows folder.
+### Porter Deployment (Backend & Frontend)
 
-- The workflow automatically copies the Poetry files (`pyproject.toml`, `poetry.lock`) from the root to the `Backend/` directory before building the Docker image.
-- Porter builds and deploys the Docker container.
+Both the frontend and backend are deployed to the same cluster on **Porter**.
 
-**Manual Deployment**
-If deploying manually through Porter UI or CLI:
+-   **Production Deployment**: A push to the `main` branch automatically triggers the respective production deployment workflows on Porter for both the frontend and backend.
+-   **Preview Environments**: When a Pull Request is opened against the `main` branch, Porter automatically spins up **preview environments** for both the frontend (`brikli-frontend-prod`) and backend (`brikli-backend-prod`). This allows for comprehensive, on-cluster testing of changes before they are merged into production.
 
-1. Ensure the `pyproject.toml` and `poetry.lock` in the `Backend/` directory are up-to-date (sync from root if needed).
-   ```bash
-   # On Windows
-   # ./sync-poetry-files.ps1
-   # On macOS/Linux
-   # ./sync-poetry-files.sh
-   ```
-2. Deploy using Porter, ensuring it uses the Dockerfile in `Backend/`.
-
-Deployment configurations (example for Porter):
-
-- Application root path: `/Backend` (relative to where Porter checks out the repo)
-- Dockerfile path: `Backend/Dockerfile` (relative to repo root)
-- Start command (from Dockerfile): `gunicorn -w 2 -k uvicorn.workers.UvicornWorker Backend.api.app:app`
-
-### Frontend Deployment
-
-#### CURRENTLY NOT DEPLOYED
+The backend deployment workflow includes a step to copy the root `pyproject.toml` and `poetry.lock` files into the `Backend/` directory to ensure the Docker build has the correct dependencies.
 
 ---
 

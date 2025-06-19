@@ -41,13 +41,13 @@ const UnitTable = ({ units, loading, error, onEdit, onDelete, onAssign }) => {
           <tr>
             <th
               scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
               Unit Number
             </th>
             <th
               scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
               Floor
             </th>
@@ -59,7 +59,7 @@ const UnitTable = ({ units, loading, error, onEdit, onDelete, onAssign }) => {
             </th>
             <th
               scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
               Tenant
             </th>
@@ -81,21 +81,21 @@ const UnitTable = ({ units, loading, error, onEdit, onDelete, onAssign }) => {
           {units && units.length > 0 ? (
             units.map((unit) => (
               <tr key={unit.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-left">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
                   {unit.name || unit.id}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-left">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                   {unit.floor ?? "N/A"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
                   {formatCurrency(unit.monthly_rent)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-left">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                   <div className="truncate max-w-xs">
                     {getTenantName(unit)}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-left">
+                <td className="px-6 py-4 whitespace-nowrap text-center">
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       unit.is_rented

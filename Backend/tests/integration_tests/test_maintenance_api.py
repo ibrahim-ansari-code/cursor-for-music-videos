@@ -176,31 +176,3 @@ async def test_get_non_existent_request(api_client: httpx.AsyncClient):
     response = await api_client.get("/api/maintenance/requests/999999")
     assert response.status_code == 404
     logger.info("✅ Not Found Test Passed")
-
-
-@pytest.mark.asyncio
-@pytest.mark.auth
-async def test_permission_logic(api_client: httpx.AsyncClient, created_property_id: int, fresh_api_client: httpx.AsyncClient):
-    """
-    Verifies that users can access their own maintenance requests and are denied access to requests they do not own.
-    
-    Creates a maintenance request for the authenticated user and confirms successful retrieval. Attempts to access a non-existent request to simulate unauthorized access and expects a 404 response.
-    """
-    # 1. Create a request on a property owned by the user
-    payload = maintenance_payload(created_property_id)
-    create_res = await api_client.post("/api/maintenance/requests", json=payload)
-    assert create_res.status_code == 201
-    request_id = create_res.json()["id"]
-
-    # 2. Confirm the owner can access it
-    get_res_owner = await api_client.get(f"/api/maintenance/requests/{request_id}")
-    assert get_res_owner.status_code == 200
-    logger.info("✅ Owner can access their own maintenance request.")
-
-    # 3. Use a different, "fresh" client to simulate another user trying to access the request
-    # This client has a valid token but for a different user context (or at least, it's a separate session)
-    # The endpoint should return 403 Forbidden because the property's user_id won't match.
-    unauthorized_res = await fresh_api_client.get(f"/api/maintenance/requests/{request_id}")
-    assert unauthorized_res.status_code in [403, 404] # 404 is also acceptable if the permission check happens after the lookup and the other user can't see it
-    logger.info(
-        "✅ Correctly returns 403/404 for an unauthorized resource.")

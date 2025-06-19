@@ -5,6 +5,10 @@ import {
   connectToQuickBooks,
   getQuickBooksStatus,
   disconnectQuickBooks,
+  initialQuickBooksSync,
+  syncQuickBooksPayments,
+  syncQuickBooksInvoices,
+  syncQuickBooksExpenses,
 } from '../utils/api';
 import { ModalShell, Button } from '../components/ui/SharedModalComponents';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -36,7 +40,7 @@ const ErrorMessage = ({ error, onRetry }) => {
   );
 };
 
-const QuickBooksCard = ({ status, actionLoading, onConnect, onDisconnect }) => {
+const QuickBooksCard = ({ status, actionLoading, onConnect, onDisconnect, onSyncPayments, onSyncInvoices, onSyncExpenses, paymentsLoading, invoicesLoading, expensesLoading }) => {
   const isConnected = status?.connected;
   const connectionStatusId = `quickbooks-status-${Date.now()}`;
   const connectionDateId = `quickbooks-date-${Date.now()}`;
@@ -57,19 +61,19 @@ const QuickBooksCard = ({ status, actionLoading, onConnect, onDisconnect }) => {
             role="img"
           />
           <div>
-            <h3 id="quickbooks-heading" className="text-xl font-semibold text-gray-800">
+            <h3 id="quickbooks-heading" className="text-lg font-semibold text-gray-800">
               QuickBooks Online
             </h3>
-            <p id="quickbooks-description" className="text-gray-500 mt-1">
-              Sync your invoices, payments, and expenses with your QuickBooks account.
+            <p id="quickbooks-description" className="text-xs text-gray-500 mt-0.5">
+              Sync payments, expenses and invoices with QuickBooks
             </p>
           </div>
         </div>
         
-        <div className="flex items-center space-x-4">
-          <div className="text-right">
+        <div className="flex items-center space-x-6">
+          <div className="min-w-[120px]">
             {isConnected ? (
-              <>
+              <div className="flex flex-col items-center">
                 <span 
                   className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
                   role="status"
@@ -80,45 +84,73 @@ const QuickBooksCard = ({ status, actionLoading, onConnect, onDisconnect }) => {
                   Connected
                 </span>
                 {status.connected_at && (
-                  <p className="text-xs text-gray-500 mt-1" id={connectionDateId}>
+                  <p className="text-xs text-gray-500 mt-1 text-center" id={connectionDateId}>
                     <span className="sr-only">Connected on: </span>
                     On: {new Date(status.connected_at).toLocaleDateString()}
                   </p>
                 )}
-              </>
+              </div>
             ) : (
-              <span 
-                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800"
-                role="status"
-                aria-label="QuickBooks integration status"
-                id={connectionStatusId}
-              >
-                <i className="fas fa-times-circle mr-2" aria-hidden="true"></i>
-                Not Connected
-              </span>
+              <div className="flex justify-center">
+                <span 
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800"
+                  role="status"
+                  aria-label="QuickBooks integration status"
+                  id={connectionStatusId}
+                >
+                  <i className="fas fa-times-circle mr-2" aria-hidden="true"></i>
+                  Not Connected
+                </span>
+              </div>
             )}
           </div>
           
           <div>
             {isConnected ? (
-              <button
-                type="button"
-                onClick={onDisconnect}
-                disabled={actionLoading}
-                className="inline-flex items-center justify-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                aria-describedby={connectionStatusId}
-                aria-label={actionLoading ? "Disconnecting from QuickBooks" : "Disconnect from QuickBooks integration"}
-              >
-                {actionLoading ? (
-                  <>
-                    <i className="fas fa-spinner fa-spin mr-2" aria-hidden="true"></i>
-                    <span>Disconnecting...</span>
-                    <span className="sr-only">Please wait</span>
-                  </>
-                ) : (
-                  'Disconnect'
-                )}
-              </button>
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  onClick={onSyncPayments}
+                  disabled={actionLoading || paymentsLoading}
+                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 transition-colors"
+                >
+                  <i className="fas fa-sync-alt mr-2"></i> Sync Payments
+                </button>
+                <button
+                  type="button"
+                  onClick={onSyncInvoices}
+                  disabled={actionLoading || invoicesLoading}
+                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
+                >
+                  <i className="fas fa-file-invoice mr-2"></i> Sync Invoices
+                </button>
+                <button
+                  type="button"
+                  onClick={onSyncExpenses}
+                  disabled={actionLoading || expensesLoading}
+                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                >
+                  <i className="fas fa-receipt mr-2"></i> Sync Expenses
+                </button>
+                <button
+                  type="button"
+                  onClick={onDisconnect}
+                  disabled={actionLoading || paymentsLoading || invoicesLoading || expensesLoading}
+                  className="inline-flex items-center justify-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-describedby={connectionStatusId}
+                  aria-label={actionLoading ? "Disconnecting from QuickBooks" : "Disconnect from QuickBooks integration"}
+                >
+                  {actionLoading ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin mr-2" aria-hidden="true"></i>
+                      <span>Disconnecting...</span>
+                      <span className="sr-only">Please wait</span>
+                    </>
+                  ) : (
+                    'Disconnect'
+                  )}
+                </button>
+              </div>
             ) : (
               <button
                 type="button"
@@ -226,11 +258,33 @@ const Integrations = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [quickBooksStatus, setQuickBooksStatus] = useState({ connected: false });
-  const [actionLoading, setActionLoading] = useState(false);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [expensesLoading, setExpensesLoading] = useState(false);
   const [showConfirmDisconnect, setShowConfirmDisconnect] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
-    fetchQuickBooksStatus();
+    // Check for a redirect from Apideck and trigger initial sync
+    const queryParams = new URLSearchParams(window.location.search);
+    const code = queryParams.get('code');
+    const oauthError = queryParams.get('error');
+    
+    if (code) {
+        handleInitialSync();
+    } else if (oauthError) {
+        toast.error('OAuth authorization failed. Please try again.');
+        // Clean up URL params
+        window.history.replaceState({}, document.title, "/integrations");
+    } else if (queryParams.has('error_description')) {
+        const oauthErrorDescription = queryParams.get('error_description');
+        setError(oauthErrorDescription);
+        toast.error(oauthErrorDescription);
+        // Clean up URL params
+        window.history.replaceState({}, document.title, "/integrations");
+     } else {
+         fetchQuickBooksStatus();
+     }
   }, []);
 
   const fetchQuickBooksStatus = async () => {
@@ -247,9 +301,29 @@ const Integrations = () => {
     }
   };
 
+  const handleInitialSync = async () => {
+    setIsSyncing(true);
+    toast.info("Connection successful! Starting initial sync with QuickBooks...");
+    try {
+        const syncResult = await initialQuickBooksSync();
+        toast.success(syncResult.message);
+    } catch (err) {
+        const errorMessage = err.message || "Initial sync failed. Please try again from the settings page.";
+        setError(errorMessage);
+        toast.error(errorMessage);
+        console.error('Error during initial sync:', err);
+    } finally {
+        setIsSyncing(false);
+        // Always refresh status regardless of sync success/failure
+        fetchQuickBooksStatus();
+        // Clean up URL params
+        window.history.replaceState({}, document.title, "/integrations");
+    }
+  };
+
   const handleConnect = async () => {
     try {
-      setActionLoading(true);
+      setLoading(true);
       setError(null);
       const response = await connectToQuickBooks();
       if (response?.redirect_url) {
@@ -273,9 +347,32 @@ const Integrations = () => {
       toast.error(errorMessage);
       console.error('Error connecting to QuickBooks:', err);
     } finally {
-      setActionLoading(false);
+      setLoading(false);
     }
   };
+
+  const runSync = async (apiFunc, displayName, setLoadingState) => {
+    setLoadingState(true);
+    toast.info(`Starting ${displayName} sync with QuickBooks...`);
+    try {
+      const result = await apiFunc();
+      if (result.success) {
+        toast.success(result.message);
+        await fetchQuickBooksStatus();
+      } else {
+        toast.error(result.message || `An unknown error occurred during ${displayName} sync.`);
+      }
+    } catch (err) {
+      toast.error(err.message || `Failed to sync ${displayName}.`);
+      console.error(`Error syncing ${displayName}:`, err);
+    } finally {
+      setLoadingState(false);
+    }
+  };
+
+  const handleSyncPayments = () => runSync(syncQuickBooksPayments, 'payment', setPaymentsLoading);
+  const handleSyncInvoices = () => runSync(syncQuickBooksInvoices, 'invoice', setInvoicesLoading);
+  const handleSyncExpenses = () => runSync(syncQuickBooksExpenses, 'expense', setExpensesLoading);
 
   const handleDisconnect = () => {
     setShowConfirmDisconnect(true);
@@ -285,7 +382,7 @@ const Integrations = () => {
     setShowConfirmDisconnect(false);
     
     try {
-      setActionLoading(true);
+      setLoading(true);
       setError(null);
       await disconnectQuickBooks();
       toast.success('Successfully disconnected from QuickBooks.');
@@ -296,7 +393,7 @@ const Integrations = () => {
       toast.error(errorMessage);
       console.error('Error disconnecting from QuickBooks:', err);
     } finally {
-      setActionLoading(false);
+      setLoading(false);
     }
   };
 
@@ -306,6 +403,10 @@ const Integrations = () => {
 
   if (loading) {
     return <LoadingSpinner message="Loading Integrations..." />;
+  }
+  
+  if (isSyncing) {
+    return <LoadingSpinner message="Performing initial sync with QuickBooks... This may take a moment." />;
   }
 
   return (
@@ -323,9 +424,15 @@ const Integrations = () => {
 
           <QuickBooksCard
             status={quickBooksStatus}
-            actionLoading={actionLoading}
+            actionLoading={loading || isSyncing}
+            paymentsLoading={paymentsLoading}
+            invoicesLoading={invoicesLoading}
+            expensesLoading={expensesLoading}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
+            onSyncPayments={handleSyncPayments}
+            onSyncInvoices={handleSyncInvoices}
+            onSyncExpenses={handleSyncExpenses}
           />
 
           <PlaceholderCard />

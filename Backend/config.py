@@ -3,55 +3,59 @@ import warnings
 
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
-from pydantic import field_validator, Field
+from pydantic import field_validator
 
 # Load from .env by default
 env_path = os.getenv("DOTENV_KEY", ".env")
 load_dotenv(dotenv_path=env_path)
 
-
 class Settings(BaseSettings):
     """Application settings"""
 
-    # PostgreSQL Database Settings
+    # === Database Settings ===
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
-    # JWT Settings
-    SECRET_KEY: str = Field(min_length=1, description="JWT secret key - must not be empty")
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 day
-    DEBUG: bool = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
-
-    # AI Integration (placeholder for future integration)
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-
-    # Azure Storage
-    AZURE_STORAGE_CONNECTION_STRING: str = os.getenv(
-        "AZURE_STORAGE_CONNECTION_STRING", "")
+    # === Azure Storage ===
+    AZURE_STORAGE_CONNECTION_STRING: str = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "")
     AZURE_BLOB_PUBLIC_URL: str = os.getenv("AZURE_BLOB_PUBLIC_URL", "")
 
-    # Supabase Webhook Security
-    # This secret is used to secure webhook endpoints. It is required for production.
-    SUPABASE_WEBHOOK_SECRET: str = os.getenv("SUPABASE_WEBHOOK_SECRET", "")
+    # === OpenAI API ===
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 
-    # Apideck Integration Settings (REQUIRED for QuickBooks/Xero integrations)
-    # To enable accounting integrations, you must set these environment variables:
-    # - APIDECK_API_KEY: Your Apideck API key (get from https://app.apideck.com)
-    # - APIDECK_APP_ID: Your Apideck Application ID
-    # Without these values, accounting integrations will fail at runtime.
+    # === JWT Settings ===
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "a_very_secret_key")
+    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+
+    # === File Upload Settings ===
+    MAX_FILE_SIZE: int = int(os.getenv("MAX_FILE_SIZE", 10 * 1024 * 1024))  # 10MB default
+    ALLOWED_RECEIPT_MIME_TYPES: set[str] = {
+        'application/pdf', 'image/jpeg', 'image/png', 'image/jpg'
+    }
+
+    # === Blob Storage Settings ===
+    BLOB_CONTAINER_RECEIPTS: str = os.getenv("BLOB_CONTAINER_RECEIPTS", "receipts")
+    BLOB_CONTAINER_PAYMENTS: str = os.getenv("BLOB_CONTAINER_PAYMENTS", "payment-receipts")
+
+    # === Apideck API ===
     APIDECK_API_KEY: str = os.getenv("APIDECK_API_KEY", "")
     APIDECK_APP_ID: str = os.getenv("APIDECK_APP_ID", "")
-    APIDECK_ENVIRONMENT: str = os.getenv("APIDECK_ENVIRONMENT", "sandbox")  # sandbox or production
+    APIDECK_ENVIRONMENT: str = os.getenv(
+        "APIDECK_ENVIRONMENT", "sandbox")  # sandbox or production
+
+    # === Supabase Webhook Security ===
+    # This secret is used to secure webhook endpoints. It is required for production.
+    SUPABASE_WEBHOOK_SECRET: str = os.getenv("SUPABASE_WEBHOOK_SECRET", "")
 
     @field_validator('APIDECK_ENVIRONMENT')
     @classmethod
     def validate_apideck_environment(cls, v: str) -> str:
         """
         Validates that the APIDECK_ENVIRONMENT value is either 'sandbox' or 'production'.
-        
+
         Raises:
             ValueError: If the provided value is not 'sandbox' or 'production'.
-        
+
         Returns:
             The validated APIDECK_ENVIRONMENT value.
         """
@@ -65,7 +69,7 @@ class Settings(BaseSettings):
     def model_post_init(self, __context) -> None:
         """
         Emits a runtime warning if Apideck API credentials are not configured.
-        
+
         A warning is issued if either `APIDECK_API_KEY` or `APIDECK_APP_ID` is missing, indicating that accounting integrations such as QuickBooks will be unavailable until both are set.
         """
         # Validate Apideck configuration (warning - optional feature)
@@ -87,9 +91,15 @@ class Settings(BaseSettings):
                 stacklevel=2,
             )
 
+    # === Additional Settings ===
+    AZURE_OPENAI_ENDPOINT: str = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+
+    DEBUG: bool = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
+
     class Config:
         env_file = env_path
         extra = "allow"
+
 
 # Initialize settings with default values
 settings = Settings(

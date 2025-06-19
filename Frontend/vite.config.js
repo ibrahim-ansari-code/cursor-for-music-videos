@@ -13,4 +13,16 @@ export default defineConfig({
       usePolling: true,
     },
   },
+  optimizeDeps: {
+    include: ['pdfjs-dist'],
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'pdf-worker': ['pdfjs-dist/build/pdf.worker.entry'],
+        },
+      },
+    },
+  },
 });

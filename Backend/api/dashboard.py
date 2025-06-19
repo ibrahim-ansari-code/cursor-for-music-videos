@@ -69,7 +69,7 @@ class DashboardResponse(BaseModel):
 # API endpoints
 
 
-@router.get("", response_model=DashboardResponse)
+@router.get("/", response_model=DashboardResponse)
 async def get_dashboard_data(
     property_id: int | None = None,
     time_period: str = "month",  # Options: week, month, quarter, year

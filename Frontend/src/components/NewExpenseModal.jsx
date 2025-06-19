@@ -12,10 +12,12 @@ import {
   Select,
   TextArea,
   Button,
-  // ErrorMessage, // General error is now handled by ModalShell's error prop
+  ReceiptUploadAndPreview,
+  useReceiptUpload,
+  createReceiptFileChangeHandler,
 } from "./ui/SharedModalComponents";
-import { AnimatePresence } from "framer-motion";
-import { motion } from "framer-motion";
+import { extractExpenseReceiptData } from "../utils/receiptUtils";
+import { filterValidTaxes } from "../utils/taxValidation";
 
 const EXPENSE_CATEGORIES = [
   "maintenance",
@@ -29,7 +31,7 @@ const EXPENSE_CATEGORIES = [
 const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
   const initialFormData = {
     property_id: "",
-    property_name: "", // For displaying in search input after selection
+    property_name: "",
     category: "",
     amount: "",
     expense_date: new Date().toISOString().split("T")[0],
@@ -43,15 +45,12 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
   const [properties, setProperties] = useState([]);
   const [isLoading, setIsLoading] = useState(false); // For main form submission
   const [error, setError] = useState(null); // General modal error
-  const [receiptFile, setReceiptFile] = useState(null);
-  const [isParsingReceipt, setIsParsingReceipt] = useState(false);
-  const [receiptParseError, setReceiptParseError] = useState(null); // Specific error for receipt parsing
-  const [currentReceiptUrl, setCurrentReceiptUrl] = useState(null);
-  const [showReceiptPreview, setShowReceiptPreview] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState("");
+
+  // Receipt upload state using shared hook
+  const receiptState = useReceiptUpload();
+
   const propertySearchInputRef = useRef(null);
-  
-  // Add AbortController ref for receipt parsing
   const receiptParseAbortControllerRef = useRef(null);
 
   useEffect(() => {
@@ -61,30 +60,22 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
         setProperties(data);
       } catch (err) {
         console.error("Failed to load properties:", err);
-        // setError("Failed to load properties. Please try again."); // Potentially set general modal error
         toast.error("Failed to load properties for dropdown.");
       }
     };
     if (isOpen) {
       loadProperties();
-      // Reset form when modal opens
       setFormData(initialFormData);
       setCalculatedTotalTaxAmount(0);
       setCalculatedTotalAmount(0);
       setError(null);
-      setReceiptFile(null);
-      setIsParsingReceipt(false);
-      setReceiptParseError(null);
-      setCurrentReceiptUrl(null);
-      setShowReceiptPreview(false);
+      receiptState.resetReceiptState();
       setDropdownOpen("");
     }
   }, [isOpen]);
 
-  // Cleanup function for aborting receipt parsing when modal closes or component unmounts
   useEffect(() => {
     return () => {
-      // Abort any ongoing receipt parsing request when component unmounts
       if (receiptParseAbortControllerRef.current) {
         receiptParseAbortControllerRef.current.abort();
         receiptParseAbortControllerRef.current = null;
@@ -92,30 +83,33 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
     };
   }, []);
 
-  // Additional cleanup when modal closes
   useEffect(() => {
-    if (!isOpen) {
-      // Abort any ongoing receipt parsing request when modal closes
-      if (receiptParseAbortControllerRef.current) {
-        receiptParseAbortControllerRef.current.abort();
-        receiptParseAbortControllerRef.current = null;
-      }
+    if (!isOpen && receiptParseAbortControllerRef.current) {
+      receiptParseAbortControllerRef.current.abort();
+      receiptParseAbortControllerRef.current = null;
     }
   }, [isOpen]);
 
   useEffect(() => {
     const subtotal = Number.parseFloat(formData.amount) || 0;
-    let totalTax = 0;
+    let newTotalTax = 0;
+    
     if (subtotal > 0) {
       formData.taxes.forEach((tax) => {
         const rate = Number.parseFloat(tax.tax_rate);
-        if (tax.tax_name && !isNaN(rate) && rate > 0) {
-          totalTax += (subtotal * rate) / 100;
+        // Validate tax rate is numeric and within bounds before calculation
+        if (tax.tax_name && tax.tax_name.trim() && !isNaN(rate) && rate > 0 && rate <= 100) {
+          newTotalTax += (subtotal * rate) / 100;
         }
       });
     }
-    setCalculatedTotalTaxAmount(totalTax);
-    setCalculatedTotalAmount(subtotal + totalTax);
+    
+    // Ensure calculated values are reasonable
+    newTotalTax = Math.max(0, newTotalTax);
+    const totalAmount = subtotal + newTotalTax;
+    
+    setCalculatedTotalTaxAmount(newTotalTax);
+    setCalculatedTotalAmount(totalAmount);
   }, [formData.amount, formData.taxes]);
 
   const handleInputChange = (e) => {
@@ -128,7 +122,6 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleTaxInputChange = (index, e) => {
     const { name, value } = e.target;
-    // Ensure immutable update by creating a completely new array
     const updatedTaxes = formData.taxes.map((tax, i) =>
       i === index ? { ...tax, [name]: value } : tax
     );
@@ -136,7 +129,6 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const addTaxItem = () => {
-    // Ensure immutable update by creating a new array with spread operator
     setFormData((prev) => ({
       ...prev,
       taxes: [...prev.taxes, { tax_name: "", tax_rate: "" }],
@@ -144,118 +136,36 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const removeTaxItem = (index) => {
-    // Ensure immutable update by creating a new array with filter
     setFormData((prev) => ({
       ...prev,
       taxes: prev.taxes.filter((_, i) => i !== index),
     }));
   };
 
-  const handleReceiptFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Abort any existing receipt parsing request
-      if (receiptParseAbortControllerRef.current) {
-        receiptParseAbortControllerRef.current.abort();
-      }
+  // Create receipt file change handler using shared components
+  const handleReceiptFileChange = createReceiptFileChangeHandler(
+    parseExpenseReceiptAPI,
+    receiptState,
+    (parsedDetails, receiptUrl) => {
+      // Use functional form of setFormData to access latest state and avoid stale closure
+      setFormData((prev) => {
+        // Use utility functions for clean, maintainable data extraction with latest form state
+        const extractedData = extractExpenseReceiptData(parsedDetails, prev);
 
-      // Create new AbortController for this request
-      const abortController = new AbortController();
-      receiptParseAbortControllerRef.current = abortController;
+        // Show success message using extracted data
+        toast.success(extractedData.successMessage);
 
-      setReceiptFile(file);
-      setReceiptParseError(null);
-      setIsParsingReceipt(true);
-      setCurrentReceiptUrl(null);
-      setShowReceiptPreview(false);
-      const formDataForApi = new FormData();
-      formDataForApi.append("file", file);
-      try {
-        const response = await parseExpenseReceiptAPI(formDataForApi, {
-          signal: abortController.signal, // Pass abort signal to API call
-        });
-        
-        // Check if request was aborted
-        if (abortController.signal.aborted) {
-          return; // Don't process the response if aborted
-        }
-
-        if (response && response.parsed_details) {
-          const { parsed_details, receipt_url: parsedReceiptUrl } = response;
-          let updatedAmount = formData.amount;
-          let updatedTaxes = [...formData.taxes]; // Create new array reference
-
-          if (
-            parsed_details.subtotal_amount !== null &&
-            parsed_details.subtotal_amount > 0
-          ) {
-            updatedAmount = parsed_details.subtotal_amount.toString();
-            if (
-              parsed_details.total_amount !== null &&
-              parsed_details.total_amount > parsed_details.subtotal_amount
-            ) {
-              const totalTaxParsed =
-                parsed_details.total_amount - parsed_details.subtotal_amount;
-              const taxRate =
-                (totalTaxParsed / parsed_details.subtotal_amount) * 100;
-              if (taxRate > 0) {
-                // Create new array with new tax object
-                updatedTaxes = [
-                  {
-                    tax_name: "Sales Tax (auto)",
-                    tax_rate: taxRate.toFixed(2),
-                  },
-                ];
-              } else {
-                // Create new array with default tax object
-                updatedTaxes = [{ tax_name: "", tax_rate: "" }];
-              }
-            } else {
-              // Create new array with default tax object
-              updatedTaxes = [{ tax_name: "", tax_rate: "" }];
-            }
-          } else if (parsed_details.total_amount !== null) {
-            updatedAmount = parsed_details.total_amount.toString();
-            // Create new array with default tax object
-            updatedTaxes = [{ tax_name: "", tax_rate: "" }];
-          }
-
-          setFormData((prev) => ({
-            ...prev,
-            amount: updatedAmount,
-            taxes: updatedTaxes, // Assign the new array reference
-            expense_date:
-              parsed_details.payment_date ||
-              prev.expense_date ||
-              new Date().toISOString().split("T")[0],
-            description:
-              parsed_details.description_notes || prev.description || "",
-          }));
-          setCurrentReceiptUrl(parsedReceiptUrl);
-          toast.success(response.message || "Receipt parsed successfully!");
-        } else {
-          throw new Error("Invalid response from receipt parser.");
-        }
-      } catch (err) {
-        // Don't show error if request was aborted (modal closed)
-        if (err.name === 'AbortError' || abortController.signal.aborted) {
-          console.log("Receipt parsing was aborted");
-          return;
-        }
-        setReceiptParseError(err.message || "Failed to parse receipt.");
-        toast.error(err.message || "Failed to parse receipt.");
-      } finally {
-        // Only update loading state if request wasn't aborted
-        if (!abortController.signal.aborted) {
-          setIsParsingReceipt(false);
-        }
-        // Clear the abort controller reference
-        if (receiptParseAbortControllerRef.current === abortController) {
-          receiptParseAbortControllerRef.current = null;
-        }
-      }
+        // Return updated form data with extracted information
+        return {
+          ...prev,
+          amount: extractedData.amount,
+          taxes: extractedData.taxes,
+          expense_date: extractedData.expense_date,
+          description: extractedData.description,
+        };
+      });
     }
-  };
+  );
 
   const handleExpensePropertySelect = (property) => {
     setFormData((prev) => ({
@@ -275,7 +185,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null); // Clear previous general errors
+    setError(null);
 
     if (!formData.property_id) {
       setError("Please select a property.");
@@ -298,24 +208,22 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
         subtotal_amount: Number.parseFloat(formData.amount),
         expense_date: formData.expense_date,
         description: formData.description || "",
-        receipt_url: currentReceiptUrl,
-        taxes: formData.taxes
-          .filter(
-            (tax) =>
-              tax.tax_name &&
-              tax.tax_rate &&
-              Number.parseFloat(tax.tax_rate) >= 0
-          )
+        receipt_url: receiptState.currentReceiptUrl,
+        taxes: filterValidTaxes(formData.taxes)
           .map((tax) => ({
-            tax_name: tax.tax_name,
+            tax_name: tax.tax_name.trim(),
             tax_rate: Number.parseFloat(tax.tax_rate),
-          })),
+          }))
+          .filter((tax) => {
+            const rate = tax.tax_rate;
+            return !isNaN(rate) && rate > 0 && rate <= 100;
+          }),
       };
 
       await createExpense(expenseData);
       toast.success("Expense created successfully!");
       onSuccess?.();
-      onClose(); // This will trigger useEffect to reset form state
+      onClose();
     } catch (err) {
       console.error("Failed to create expense:", err);
       const errorMsg =
@@ -329,13 +237,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
     }
   };
 
-  // Close dropdown when clicking outside
   useEffect(() => {
-    /**
-     * Closes the property search dropdown when a click occurs outside the input container.
-     *
-     * @param {MouseEvent} event - The mouse event triggered by the user's click.
-     */
     function handleClickOutside(event) {
       if (
         propertySearchInputRef.current &&
@@ -356,6 +258,14 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
       onSubmit={handleSubmit}
       className="space-y-5 w-full"
     >
+      {/* Receipt Upload with Parse Option - Moved to top of form */}
+      <ReceiptUploadAndPreview
+        {...receiptState}
+        onReceiptFileChange={handleReceiptFileChange}
+        title="Upload and Parse Receipt (Optional)"
+        subtitle="Auto-extracts tax, amount, date & description"
+        disabled={isLoading}
+      />
       <div>
         <Label htmlFor="property_id" required>
           Property
@@ -479,9 +389,10 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
                 value={tax.tax_rate}
                 onChange={(e) => handleTaxInputChange(index, e)}
                 min="0"
+                max="100"
                 step="0.01"
                 placeholder="Rate"
-                className="text-sm py-2 pr-6" // Added pr-6 for percent sign
+                className="text-sm py-2 pr-6"
               />
               <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
                 <span className="text-gray-500 text-sm">%</span>
@@ -565,96 +476,6 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
           placeholder="Optional description of the expense..."
         />
       </div>
-
-      <div>
-        <Label>Receipt (Optional)</Label>
-        <Input
-          type="file"
-          id="receipt_file"
-          name="receipt_file"
-          accept=".pdf,.png,.jpg,.jpeg"
-          onChange={handleReceiptFileChange}
-          disabled={isParsingReceipt}
-          className="block w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 disabled:opacity-50"
-        />
-        {isParsingReceipt && (
-          <p className="mt-1.5 text-sm text-blue-600">Parsing receipt...</p>
-        )}
-        {receiptParseError && (
-          <p className="mt-1.5 text-sm text-red-600">
-            Error: {receiptParseError}
-          </p>
-        )}
-        {currentReceiptUrl && !isParsingReceipt && !receiptParseError && (
-          <div className="mt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowReceiptPreview(!showReceiptPreview)}
-              className="text-sm py-1.5"
-            >
-              {showReceiptPreview ? (
-                <>
-                  <i className="fas fa-eye-slash mr-2" />
-                  Hide Preview
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-eye mr-2" />
-                  Preview Receipt
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-        <AnimatePresence>
-          {showReceiptPreview && currentReceiptUrl && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "24rem" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="mt-3 border rounded-lg overflow-hidden shadow bg-gray-50"
-            >
-              {(() => {
-                const url = currentReceiptUrl;
-                const lowerUrl = url.toLowerCase();
-                if (
-                  lowerUrl.endsWith(".png") ||
-                  lowerUrl.endsWith(".jpg") ||
-                  lowerUrl.endsWith(".jpeg") ||
-                  lowerUrl.endsWith(".gif")
-                ) {
-                  return (
-                    <img
-                      src={url}
-                      alt="Receipt Preview"
-                      className="w-full h-full object-contain p-1"
-                    />
-                  );
-                } else if (lowerUrl.endsWith(".pdf")) {
-                  const pdfDisplayUrl = `${url}#view=FitH`;
-                  return (
-                  <iframe
-                    src={pdfDisplayUrl}
-                    title="Receipt Preview"
-                    className="w-full h-full border-0"
-                    sandbox="allow-same-origin allow-scripts"
-                  />);
-                } else {
-                  return (
-                    <iframe
-                      src={url}
-                      title="Receipt Preview"
-                      className="w-full h-full border-0"
-                    />
-                  );
-                }
-              })()}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
     </form>
   );
 
@@ -667,7 +488,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
         type="submit"
         form="new-expense-form"
         variant="primary"
-        isLoading={isLoading || isParsingReceipt}
+        isLoading={isLoading || receiptState.isParsingReceipt}
         loadingText={isLoading ? "Creating..." : "Parsing..."}
       >
         Create Expense

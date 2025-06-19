@@ -26,6 +26,25 @@ import IncomeByPropertyCard from "../components/IncomeByPropertyCard";
 import EditExpenseModal from "../components/EditExpenseModal";
 import LoadingSpinner from "../components/LoadingSpinner";
 
+const paymentTableColumns = [
+  { key: "tenant", label: "Tenant", align: "left" },
+  { key: "amount", label: "Amount", align: "left" },
+  { key: "date", label: "Date", align: "left" },
+  { key: "method", label: "Method", align: "left" },
+  { key: "status", label: "Status", align: "center" },
+  { key: "source", label: "Source", align: "center" },
+  { key: "actions", label: "Actions", align: "center" },
+];
+
+const expenseTableColumns = [
+  { key: "property", label: "Property", align: "left" },
+  { key: "category", label: "Category", align: "left" },
+  { key: "amount", label: "Amount", align: "left" },
+  { key: "date", label: "Date", align: "left" },
+  { key: "source", label: "Source", align: "left" },
+  { key: "actions", label: "Actions", align: "center" },
+];
+
 // Reusable loading spinner row for tables
 const LoadingRow = ({ colSpan, loadingText }) => (
   <tr>
@@ -848,47 +867,22 @@ const Accounting = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Tenant
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Amount
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Date
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Method
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Status
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Actions
-                    </th>
+                    {paymentTableColumns.map((col) => (
+                      <th
+                        key={col.key}
+                        scope="col"
+                        className={`px-6 py-3 ${
+                          col.align === "center" ? "text-center" : "text-left"
+                        } text-xs font-medium text-gray-500 uppercase tracking-wider`}
+                      >
+                        {col.label}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {loading && activeTab === "payments" ? (
-                    <LoadingRow colSpan={6} loadingText="Loading payments..." />
+                    <LoadingRow colSpan={paymentTableColumns.length} loadingText="Loading payments..." />
                   ) : payments.length > 0 ? (
                     payments.map((payment) => (
                       <tr key={payment.id} className="hover:bg-gray-50">
@@ -949,6 +943,11 @@ const Accounting = () => {
                             </span>
                           </div>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {payment.quickbooks_id != null
+                            ? "QuickBooks"
+                            : "Brikli"}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                           <div className="flex justify-center space-x-2">
                             {payment.receipt_url && (
@@ -996,7 +995,7 @@ const Accounting = () => {
                   ) : (
                     <tr>
                       <td
-                        colSpan="6"
+                        colSpan={paymentTableColumns.length}
                         className="px-6 py-4 text-center text-sm text-gray-500"
                       >
                         No payments found
@@ -1136,60 +1135,58 @@ const Accounting = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Property
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Category
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Amount
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Date
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Actions
-                    </th>
+                    {expenseTableColumns.map((col) => (
+                      <th
+                        key={col.key}
+                        scope="col"
+                        className={`px-6 py-3 ${
+                          col.align === "left"
+                            ? "text-left"
+                            : col.align === "center"
+                            ? "text-center"
+                            : "text-right"
+                        } text-xs font-medium text-gray-500 uppercase tracking-wider`}
+                      >
+                        {col.label}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {loading && activeTab === "expenses" ? (
-                    <LoadingRow colSpan={5} loadingText="Loading expenses..." />
+                    <LoadingRow colSpan={expenseTableColumns.length} loadingText="Loading expenses..." />
                   ) : expenses.length > 0 ? (
                     expenses.map((expense) => (
                       <tr key={expense.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {expense.property_name ||
-                            `Property #${expense.property_id}` ||
-                            "Unknown Property"}
+                        <td className="px-6 py-4 whitespace-nowrap text-left">
+                          <div className="text-sm font-medium text-gray-900">
+                            {expense.property_name ||
+                              `Property #${expense.property_id}` ||
+                              "Unknown Property"}
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {expense.category.charAt(0).toUpperCase() +
-                            expense.category.slice(1)}
+                        <td className="px-6 py-4 whitespace-nowrap text-left">
+                          <div className="text-sm text-gray-500">
+                            {expense.category.charAt(0).toUpperCase() +
+                              expense.category.slice(1)}
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ${parseFloat(expense.total_amount).toFixed(2)}
+                        <td className="px-6 py-4 whitespace-nowrap text-left">
+                          <div className="text-sm text-gray-900">
+                            ${parseFloat(expense.total_amount).toFixed(2)}
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(expense.expense_date).toLocaleDateString()}
+                        <td className="px-6 py-4 whitespace-nowrap text-left">
+                          <div className="text-sm text-gray-500">
+                            {new Date(expense.expense_date).toLocaleDateString()}
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <td className="px-6 py-4 whitespace-nowrap text-left">
+                          <div className="text-sm text-gray-500">
+                            {expense.quickbooks_id != null ? 'QuickBooks' : 'Brikli'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
                           <div className="flex justify-center space-x-2">
                             {expense.receipt_url && (
                               <button
@@ -1234,7 +1231,7 @@ const Accounting = () => {
                   ) : (
                     <tr>
                       <td
-                        colSpan="5"
+                        colSpan={expenseTableColumns.length}
                         className="px-6 py-4 text-center text-sm text-gray-500"
                       >
                         No expenses found

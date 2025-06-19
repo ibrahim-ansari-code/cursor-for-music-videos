@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from uuid import UUID as PythonUUID
 from decimal import Decimal
 
-from sqlalchemy import Column, Integer, String, Text, Numeric, ForeignKey, Date, JSON, TIMESTAMP, Enum as PgEnum
+from sqlalchemy import Column, Integer, String, Text, Numeric, ForeignKey, Date, JSON, TIMESTAMP, Enum as PgEnum, Index
 from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 import sqlalchemy as sa
@@ -18,6 +18,13 @@ if TYPE_CHECKING:
 
 class MaintenanceRequest(SQLModel, table=True):
     __tablename__ = "maintenance_requests"  # type: ignore
+
+    __table_args__ = (
+        Index("ix_maintenance_requests_property_id", "property_id"),
+        Index("ix_maintenance_requests_unit_id", "unit_id"),
+        Index("ix_maintenance_requests_tenant_id", "tenant_id"),
+        Index("ix_maintenance_requests_user_id", "user_id"),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     issue_title: str = Field(sa_column=Column(String(255), nullable=False))

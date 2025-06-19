@@ -519,125 +519,6 @@ def _build_payment_response_from_orm(payment_orm: Payment) -> PaymentResponse | 
 
 # === API Endpoints for Payments ===
 
-@router.post("/parse-receipt", response_model=PaymentReceiptParseResponse) # Renamed from /parse-payment-receipt
-async def parse_payment_receipt(
-    file: Annotated[UploadFile, File()],
-    current_user: Annotated[User, Depends(get_current_user)]
-) -> PaymentReceiptParseResponse:
-    """
-    Parses an uploaded payment receipt file and extracts structured payment details.
-    
-    Only landlords and admins are authorized to use this endpoint. Accepts PDF, JPG, or PNG files, uploads the receipt to cloud storage, and uses an external utility to extract payment information such as date, amount, and method. Returns the receipt URL and parsed details. Raises HTTP errors for unauthorized access, unsupported file types, invalid data, or external service failures.
-    """
-    if current_user.user_type not in [UserType.LANDLORD, UserType.ADMIN]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to parse payment receipts."
-        )
-
-    # File size validation (e.g., 10 MB limit)
-    MAX_FILE_SIZE = 10 * 1024 * 1024
-    
-    # Read the file content to determine its size and for later processing
-    file_content = await file.read()
-    if len(file_content) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File size exceeds the limit of {MAX_FILE_SIZE / 1024 / 1024} MB."
-        )
-    # Reset file pointer after reading
-    await file.seek(0)
-
-    allowed_content_types = ["application/pdf", "image/jpeg", "image/png", "image/jpg"]
-    if file.content_type not in allowed_content_types:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file type: {file.content_type}. Allowed types are PDF, JPG, PNG."
-        )
-    try:
-        receipt_url = await upload_payment_receipt_to_blob(file, current_user.id)
-        
-        parsed_data_dict: dict[str, Any] = await analyze_payment_receipt_content(
-            file_content=file_content,
-            filename=file.filename if file.filename is not None else "uploaded_receipt"
-        )
-        
-        parsed_details = PaymentReceiptParseDetails(**parsed_data_dict)
-        return PaymentReceiptParseResponse(
-            receipt_url=receipt_url,
-            parsed_details=parsed_details,
-            message="Receipt processed. Review extracted details."
-        )
-    except ValueError as ve:
-        logger.exception("Validation error during receipt parsing for user %s: %s", current_user.id, ve)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid receipt data provided.") from ve
-    except ConnectionError as ce:
-        logger.exception("Azure Blob Storage connection error for user %s: %s", current_user.id, ce)
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="External service is unavailable.") from ce
-    except Exception as e:
-        logger.exception("Error parsing payment receipt for user %s", current_user.id)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to parse payment receipt due to an internal error.") from e
-
-@router.post("", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED) # Corresponds to POST /accounting/payments
-async def create_payment(
-    payment: PaymentCreate,
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-) -> PaymentResponse:
-    """
-    Creates a new payment record for a specified lease.
-    
-    Only landlords and admins can create payments. Validates lease ownership, sets the payment date to the provided value or the current UTC time, and assigns the tenant from the lease. Commits the new payment to the database and returns the created payment details.
-    
-    Raises:
-        HTTPException: If the user is a tenant, lease ownership is invalid, or a database error occurs.
-        
-    Returns:
-        The created payment as a PaymentResponse.
-    """
-    if current_user.user_type == UserType.TENANT:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenants cannot directly create payment records.")
-    lease = await check_lease_ownership(payment.lease_id, session, current_user)
-    actual_tenant_id_for_payment = lease.tenant.id if lease.tenant else None
-    final_payment_date: datetime
-    if payment.payment_date:
-        final_payment_date = validate_business_datetime(payment.payment_date)
-    else:
-        final_payment_date = utc_now()
-
-    payment_obj = Payment(
-        lease_id=payment.lease_id,
-        tenant_id=actual_tenant_id_for_payment,
-        amount=payment.amount,
-        payment_date=final_payment_date,
-        status=payment.status or PaymentStatus.PENDING,
-        description=payment.description,
-        payment_method=_get_payment_method_enum(payment.payment_method),
-        transaction_reference=payment.transaction_reference,
-        receipt_url=payment.receipt_url
-    )
-    try:
-        session.add(payment_obj)
-        await session.commit()
-        await session.refresh(payment_obj)
-        _ensure_id_is_not_none(payment_obj.id, "Payment", "after database commit")
-        
-        # Eagerly load relationships on the new payment object for the response
-        await session.refresh(payment_obj, attribute_names=["lease"])
-        if payment_obj.lease:
-            await session.refresh(payment_obj.lease, attribute_names=["property", "tenant"])
-
-        payment_response = _build_payment_response_from_orm(payment_obj)
-        if not payment_response:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Payment data integrity error")
-        
-        logger.info("Payment %s created for lease %s by user %s", payment_obj.id, lease.id, current_user.id)
-        return payment_response
-    except Exception as e:
-        await session.rollback()
-        logger.exception("Error creating payment for lease %s", payment.lease_id)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create payment.") from e
-
 @router.get("", response_model=PaginatedPaymentsResponse) # Corresponds to GET /accounting/payments
 async def get_payments(
     lease_id: int | None = None,
@@ -655,7 +536,7 @@ async def get_payments(
     Retrieves a paginated list of payments filtered by user role and query parameters.
     
     Applies role-based access control and filters by lease, property, tenant, payment status, and date range. Returns payments ordered by payment date in descending order, with pagination support. Only authorized users can access relevant payments; unauthorized users receive an empty result.
-     
+    
     Args:
         lease_id: Filter payments by lease ID.
         property_id: Filter payments by property ID.
@@ -703,49 +584,62 @@ async def get_payments(
         logger.exception("Error fetching payments for user %s", current_user.id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to fetch payments.") from e
 
-@router.get("/diagnostics/run-integrity-check", status_code=status.HTTP_200_OK, summary="Run Orphaned Payments Integrity Check")
-async def run_orphaned_payments_check(
+@router.post("", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED) # Corresponds to POST /accounting/payments
+async def create_payment(
+    payment: PaymentCreate,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
-) -> Any:
+) -> PaymentResponse:
     """
-    Runs an integrity check to identify orphaned payments with missing lease or property records.
+    Creates a new payment record for a specified lease.
     
-    Only accessible to admin users. Returns a summary report indicating whether orphaned payments exist and details about affected records. Raises HTTP 403 if the user is not an admin and HTTP 500 on internal errors.
-    """
-    logger.info("Admin user %s initiated orphaned payments integrity check", current_user.id)
-    """
-    (Admin-Only)
-    This endpoint runs an integrity check to find 'orphaned' payments.
-    Orphaned payments are those that have a `lease_id` but the corresponding
-    lease or property record is missing, indicating a data integrity issue.
+    Only landlords and admins are permitted to create payments. Validates lease ownership, assigns the tenant from the lease, and sets the payment date to the provided value or the current UTC time. Commits the new payment to the database and returns the created payment details as a PaymentResponse.
     
-    Note: This is an expensive operation that may time out under heavy load.
-    Consider implementing background task processing for production use.
+    Raises an HTTP 403 error if the user is a tenant, and an HTTP 500 error if a database or data integrity issue occurs.
     """
-    if not current_user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized for this operation.")
-    
-    try:
-        # We pass the full user object to the check function now
-        report = await _check_for_orphaned_payments(session, current_user, run_for_all_users=True)
-        
-        if not report.get("orphaned_payments"):
-            return {"status": "ok", "message": "No orphaned payments found."}
-            
-        return {
-            "status": "warning",
-            "message": f"Found {report['total_orphaned_count']} orphaned payment(s) across {report['users_with_orphans']} user(s).",
-            "details": report
-        }
-    except Exception as e:
-        logger.exception("Error during integrity check")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Integrity check failed due to internal error"
-        ) from e
+    if current_user.user_type == UserType.TENANT:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenants cannot directly create payment records.")
+    lease = await check_lease_ownership(payment.lease_id, session, current_user)
+    actual_tenant_id_for_payment = lease.tenant.id if lease.tenant else None
+    final_payment_date: datetime
+    if payment.payment_date:
+        final_payment_date = validate_business_datetime(payment.payment_date)
+    else:
+        final_payment_date = utc_now()
 
-@router.get("/outstanding", response_model=list[PaymentResponse]) # Renamed from /outstanding-payments
+    payment_obj = Payment(
+        lease_id=payment.lease_id,
+        tenant_id=actual_tenant_id_for_payment,
+        amount=payment.amount,
+        payment_date=final_payment_date,
+        status=payment.status or PaymentStatus.PENDING,
+        description=payment.description,
+        payment_method=_get_payment_method_enum(payment.payment_method),
+        transaction_reference=payment.transaction_reference,
+        receipt_url=payment.receipt_url
+    )
+    try:
+        session.add(payment_obj)
+        # Commit and refresh moved outside loop for batch processing
+        await session.commit()
+        await session.refresh(payment_obj)
+        _ensure_id_is_not_none(payment_obj.id, "Payment", "after database commit")
+        await session.refresh(payment_obj, attribute_names=["lease"])
+        if payment_obj.lease:
+            await session.refresh(payment_obj.lease, attribute_names=["property", "tenant"])
+
+        payment_response = _build_payment_response_from_orm(payment_obj)
+        if not payment_response:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Payment data integrity error")
+
+        logger.info("Payment %s created for lease %s by user %s", payment_obj.id, lease.id, current_user.id)
+        return payment_response
+    except Exception as e:
+        await session.rollback()
+        logger.exception("Error creating payment for lease %s", payment.lease_id)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create payment.") from e
+
+@router.get("/outstanding/", response_model=list[PaymentResponse]) # Renamed from /outstanding-payments
 async def get_outstanding_payments_for_month( # Renamed function
     response: Response,
     limit: int = 100,  # Default limit of 100 records to prevent excessive data retrieval
@@ -754,9 +648,9 @@ async def get_outstanding_payments_for_month( # Renamed function
 ) -> list[PaymentResponse]:
     # Validate and cap the limit parameter to prevent excessive data retrieval
     """
-    Retrieves outstanding payments for the current month, filtered by user role.
+    Retrieves outstanding payments for the current month based on user role.
     
-    Returns a list of payments with status PENDING or OVERDUE for the current month, limited to a maximum of 500 records. Tenants receive only their payments, landlords receive payments for their properties, and other users receive an empty list. Response headers indicate if the requested limit was adjusted.
+    Returns a list of payments with status PENDING or OVERDUE for the current month, limited to a maximum of 500 records. Tenants receive only their own payments, landlords receive payments for their properties, and other users receive an empty list. Response headers indicate if the requested limit was adjusted.
     """
     original_limit = limit
     limit = max(1, min(limit, 500))
@@ -807,6 +701,158 @@ async def get_outstanding_payments_for_month( # Renamed function
         logger.exception("Error fetching outstanding payments for user %s", current_user.id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to fetch outstanding payments.") from e 
 
+@router.post("/generate-due", response_model=list[PaymentResponse]) # Renamed from /generate-due-payments
+async def generate_due_payments_for_month( # Renamed function
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+) -> list[PaymentResponse]:
+    """
+    Generates pending payments for the current month's rent for all active leases without existing payments.
+    
+    Accessible only to landlords and admins. For each active lease owned by the user (or all leases for admins), creates a pending payment for the current month if one does not already exist. Returns a list of created payment responses. Raises HTTP 403 if the user is unauthorized and HTTP 500 on processing errors.
+    """
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    today = utc_now().date() # Ensure today is timezone aware like utc_now()
+    current_month = date(today.year, today.month, 1)
+    logger.info("Generating payments for %s by user %s", current_month, current_user.id)
+
+    lease_query = select(Lease).options(
+        selectinload(getattr(Lease, "property")),
+        selectinload(getattr(Lease, "tenant"))
+    ).where(
+        and_(
+            col(Lease.start_date) <= today,
+            or_(col(Lease.end_date) >= today, col(Lease.end_date).is_(None)),
+            col(Lease.status) == LeaseStatus.ACTIVE
+        )
+    )
+    if current_user.user_type == UserType.LANDLORD:
+        lease_query = lease_query.join(Property, col(Lease.property_id) == col(Property.id)).where(col(Property.user_id) == current_user.id)
+
+    try:
+        active_leases = (await session.execute(lease_query)).scalars().unique().all()
+        logger.info("Found %s active leases for user %s", len(active_leases), current_user.id)
+        
+        payments_to_add = []
+        for lease in active_leases:
+            if lease.id is None:
+                continue
+            if await get_month_payments(session, lease.id, current_month):
+                logger.info("Payment exists for lease %s, skipping.", lease.id)
+                continue
+
+            actual_tenant_id_for_payment = lease.tenant.id if lease.tenant and lease.tenant.id else None
+            if not actual_tenant_id_for_payment:
+                logger.warning("Tenant or tenant ID missing for lease %s. Skipping.", lease.id)
+                continue
+            
+            tenant_name = _get_tenant_display_name(lease.tenant)
+            
+            new_payment = Payment(
+                lease_id=lease.id,
+                tenant_id=actual_tenant_id_for_payment,
+                amount=quantize_2dp(Decimal(str(lease.monthly_rent))),
+                payment_date=utc_now(),
+                status=PaymentStatus.PENDING,
+                description=f"Monthly rent payment for {tenant_name}",
+                payment_method=PaymentMethod.OTHER,
+            )
+            session.add(new_payment)
+            payments_to_add.append(new_payment)
+
+        if not payments_to_add:
+            return []
+
+        created_payments_responses = []
+        try:
+            await session.commit()
+            for payment in payments_to_add:
+                await session.refresh(payment)
+                _ensure_id_is_not_none(payment.id, "Payment", "after commit")
+                
+                await session.refresh(payment, attribute_names=["lease"])
+                if payment.lease:
+                    await session.refresh(payment.lease, attribute_names=["property", "tenant"])
+
+                payment_response = _build_payment_response_from_orm(payment)
+                if payment_response:
+                    created_payments_responses.append(payment_response)
+                logger.info("Created payment %s for lease %s", payment.id, payment.lease_id)
+        except Exception:
+            logger.exception("Error during batch commit of generated payments for user %s", current_user.id)
+            await session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create one or more due payments during database commit.",
+            )
+        
+        logger.info("Generated %d payments for user %s", len(created_payments_responses), current_user.id)
+        return created_payments_responses
+    except Exception as lease_proc_err:
+        logger.exception("Error processing leases for payment generation for user %s", current_user.id)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to generate due payments.") from lease_proc_err
+
+@router.post("/parse-receipt", response_model=PaymentReceiptParseResponse) # Renamed from /parse-payment-receipt
+async def parse_payment_receipt(
+    file: Annotated[UploadFile, File()],
+    current_user: Annotated[User, Depends(get_current_user)]
+) -> PaymentReceiptParseResponse:
+    """
+    Parses an uploaded payment receipt file and extracts structured payment details.
+    
+    Only landlords and admins are authorized to use this endpoint. Accepts PDF, JPG, or PNG files up to 10 MB, uploads the receipt to cloud storage, and analyzes its content to extract payment information such as date, amount, and method. Returns the receipt URL and parsed details in a structured response.
+    """
+    if current_user.user_type not in [UserType.LANDLORD, UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to parse payment receipts."
+        )
+
+    # File size validation (e.g., 10 MB limit)
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    
+    # Read the file content to determine its size and for later processing
+    file_content = await file.read()
+    if len(file_content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size exceeds the limit of {MAX_FILE_SIZE / 1024 / 1024} MB."
+        )
+    # Reset file pointer after reading
+    await file.seek(0)
+
+    allowed_content_types = ["application/pdf", "image/jpeg", "image/png", "image/jpg"]
+    if file.content_type not in allowed_content_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type: {file.content_type}. Allowed types are PDF, JPG, PNG."
+        )
+    try:
+        receipt_url = await upload_payment_receipt_to_blob(file, current_user.id)
+        
+        parsed_data_dict: dict[str, Any] = await analyze_payment_receipt_content(
+            file_content=file_content,
+            filename=file.filename if file.filename is not None else "uploaded_receipt"
+        )
+        
+        parsed_details = PaymentReceiptParseDetails(**parsed_data_dict)
+        return PaymentReceiptParseResponse(
+            receipt_url=receipt_url,
+            parsed_details=parsed_details,
+            message="Receipt processed. Review extracted details."
+        )
+    except ValueError as ve:
+        logger.exception("Validation error during receipt parsing for user %s: %s", current_user.id, ve)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid receipt data provided.") from ve
+    except ConnectionError as ce:
+        logger.exception("Azure Blob Storage connection error for user %s: %s", current_user.id, ce)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="External service is unavailable.") from ce
+    except Exception as e:
+        logger.exception("Error parsing payment receipt for user %s", current_user.id)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to parse payment receipt due to an internal error.") from e
+
 @router.get("/{payment_id}", response_model=PaymentResponse) # Corresponds to GET /accounting/payments/{payment_id}
 async def get_payment(
     payment_id: int,
@@ -814,12 +860,12 @@ async def get_payment(
     current_user: User = Depends(get_current_user)
 ) -> PaymentResponse:
     """
-    Retrieves a payment by its ID with related lease, property, and tenant details.
+    Retrieves a payment by ID with related lease, property, and tenant information.
     
     Enforces role-based access control: tenants can access only their own payments, landlords only payments for their properties, and admins have unrestricted access. Raises HTTP 404 if the payment does not exist, HTTP 403 if access is unauthorized, and HTTP 500 if payment data integrity is compromised.
     
     Returns:
-        PaymentResponse: The payment details including related lease, property, and tenant information.
+        The payment details as a PaymentResponse, including related lease, property, and tenant information.
     """
     query = select(Payment).options(
         selectinload(getattr(Payment, "lease")).options(
@@ -930,10 +976,10 @@ async def delete_payment(
     current_user: User = Depends(get_current_user)
 ) -> None:
     """
-    Deletes a payment record by its ID after verifying user authorization.
+    Deletes a payment by its ID after verifying user authorization.
     
-    Raises:
-        HTTPException: If the payment does not exist, the user is not authorized, or a deletion error occurs.
+    Removes the payment record from the database if the current user is authorized. If the payment has an associated receipt file, schedules its deletion in the background after successful removal.
+    Raises HTTP 404 if the payment does not exist, HTTP 403 if the user is not authorized, and HTTP 500 on deletion errors.
     """
     query = select(Payment).options(
         selectinload(getattr(Payment, "lease")).options(
@@ -966,84 +1012,40 @@ async def delete_payment(
         if commit_succeeded and receipt_url_to_delete:
             background_tasks.add_task(delete_blob_in_background, receipt_url_to_delete)
 
-@router.post("/generate-due", response_model=list[PaymentResponse]) # Renamed from /generate-due-payments
-async def generate_due_payments_for_month( # Renamed function
+@router.get("/diagnostics/run-integrity-check", status_code=status.HTTP_200_OK, summary="Run Orphaned Payments Integrity Check")
+async def run_orphaned_payments_check(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
-) -> list[PaymentResponse]:
+) -> Any:
     """
-    Generates due payments for the current month for all active leases without existing payments.
+    (Admin-Only)
+    This endpoint runs an integrity check to find 'orphaned' payments.
+    Orphaned payments are those that have a `lease_id` but the corresponding
+    lease or property record is missing, indicating a data integrity issue.
     
-    Only accessible to landlords and admins. For each active lease owned by the user (or all leases for admins), creates a pending payment for the current month's rent if one does not already exist. Returns a list of created payment responses. Raises HTTP 403 if unauthorized and HTTP 500 on processing errors.
+    Note: This is an expensive operation that may time out under heavy load.
+    Consider implementing background task processing for production use.
     """
-    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    logger.info("Admin user %s initiated orphaned payments integrity check", current_user.id)
 
-    today = utc_now().date() # Ensure today is timezone aware like utc_now()
-    current_month = date(today.year, today.month, 1)
-    logger.info("Generating payments for %s by user %s", current_month, current_user.id)
-
-    lease_query = select(Lease).options(
-        selectinload(getattr(Lease, "property")),
-        selectinload(getattr(Lease, "tenant"))
-    ).where(
-        and_(
-            col(Lease.start_date) <= today,
-            or_(col(Lease.end_date) >= today, col(Lease.end_date).is_(None)),
-            col(Lease.status) == LeaseStatus.ACTIVE
-        )
-    )
-    if current_user.user_type == UserType.LANDLORD:
-        lease_query = lease_query.join(Property, col(Lease.property_id) == col(Property.id)).where(col(Property.user_id) == current_user.id)
-
+    if not current_user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized for this operation.")
+    
     try:
-        active_leases = (await session.execute(lease_query)).scalars().unique().all()
-        logger.info("Found %s active leases for user %s", len(active_leases), current_user.id)
-        created_payments_responses = []
-
-        for lease in active_leases:
-            if lease.id is None:
-                continue
-            if await get_month_payments(session, lease.id, current_month):
-                logger.info("Payment exists for lease %s, skipping.", lease.id)
-                continue
-
-            tenant_name = "Unknown Tenant"
-            actual_tenant_id_for_payment: int | None = None
-            if lease.tenant and lease.tenant.id:
-                actual_tenant_id_for_payment = lease.tenant.id
-                tenant_name = _get_tenant_display_name(lease.tenant)
-            else:
-                logger.warning("Tenant or tenant ID missing for lease %s. Skipping.", lease.id)
-                continue
-            
-            new_payment = Payment(
-                lease_id=lease.id, tenant_id=actual_tenant_id_for_payment, amount=quantize_2dp(Decimal(str(lease.monthly_rent))),
-                payment_date=utc_now(), status=PaymentStatus.PENDING,
-                description=f"Monthly rent payment for {tenant_name}",
-                payment_method=PaymentMethod.OTHER
-            )
-            session.add(new_payment)
-            try:
-                await session.commit()
-                await session.refresh(new_payment)
-                _ensure_id_is_not_none(new_payment.id, "Payment", "after commit")
-                
-                # Eagerly load relationships for the response
-                await session.refresh(new_payment, attribute_names=["lease"])
-                if new_payment.lease:
-                    await session.refresh(new_payment.lease, attribute_names=["property", "tenant"])
-
-                payment_response = _build_payment_response_from_orm(new_payment)
-                if payment_response:
-                    created_payments_responses.append(payment_response)
-                logger.info("Created payment %s for lease %s", new_payment.id, lease.id)
-            except Exception:
-                logger.exception("Error committing payment for lease %s", lease.id)
-                await session.rollback()
+        # We pass the full user object to the check function now
+        report = await _check_for_orphaned_payments(session, current_user, run_for_all_users=True)
         
-        logger.info("Generated %s payments for user %s", len(created_payments_responses), current_user.id)
-        return created_payments_responses
-    except Exception as lease_proc_err:
-        logger.exception("Error processing leases for payment generation for user %s", current_user.id)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to generate due payments.") from lease_proc_err
+        if not report.get("orphaned_payments"):
+            return {"status": "ok", "message": "No orphaned payments found."}
+            
+        return {
+            "status": "warning",
+            "message": f"Found {report['total_orphaned_count']} orphaned payment(s) across {report['users_with_orphans']} user(s).",
+            "details": report
+        }
+    except Exception as e:
+        logger.exception("Error during integrity check")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Integrity check failed due to internal error"
+        ) from e

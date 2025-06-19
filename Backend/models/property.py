@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID as PythonUUID
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Numeric
+from sqlalchemy import DateTime, Numeric, Index
 from sqlalchemy import Enum as PgEnum
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -30,6 +30,7 @@ class PropertyType(str, Enum):
     LAND = "Land"
     SPECIAL_PURPOSE = "Special Purpose"
     MIXED_USE = "Mixed-Use"
+    APARTMENT_COMPLEX = "Apartment Complex"
     OTHER = "Other"  # Added an "Other" category
 
 
@@ -115,11 +116,18 @@ class Property(SQLModel, table=True):
         sa_relationship_kwargs={'cascade': 'all, delete-orphan'}
     )
 
+    __table_args__ = (Index("ix_properties_user_id", "user_id"),)
+
 
 class PropertyUnit(SQLModel, table=True):
     """Unit model representing individual units within a property"""
 
     __tablename__ = "property_units"  # type: ignore
+    __table_args__ = (
+        # Composite index for queries filtering by both property and tenant
+        Index("ix_property_units_property_tenant", "property_id", "tenant_id"),
+        Index("ix_property_units_name", "name"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     property_id: Optional[int] = Field(
@@ -129,7 +137,7 @@ class PropertyUnit(SQLModel, table=True):
     )
     # Foreign key to the assigned tenant
     tenant_id: Optional[int] = Field(default=None, foreign_key="tenants.id")
-    name: str = Field(index=True)
+    name: str
     description: Optional[str] = None
     size: Optional[float] = None
     monthly_rent: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))

@@ -297,7 +297,7 @@ const NewPropertyModal = ({
       "postal_code",
       "property_type",
     ];
-    if (formData.property_type === "apartment-complex" && !isEditing) {
+    if (formData.property_type === "Apartment Complex" && !isEditing) {
       requiredFields = [...requiredFields, "num_floors", "units_per_floor"];
       if (!formData.auto_generate_units) {
         requiredFields.push("manual_units");
@@ -332,7 +332,7 @@ const NewPropertyModal = ({
         cleanPayload = editableFields;
       } else {
         cleanPayload = { ...propertyPayloadBase };
-        if (formData.property_type === "apartment-complex") {
+        if (formData.property_type === "Apartment Complex") {
           let units = [];
           if (formData.auto_generate_units) {
             units = generateUnits(
@@ -383,7 +383,7 @@ const NewPropertyModal = ({
     }
   };
 
-  const isApartmentComplex = formData.property_type === "apartment-complex";
+  const isApartmentComplex = formData.property_type === "Apartment Complex";
 
   const formContent = (
     <form onSubmit={handleSubmit} className="space-y-8" id="new-property-form">
@@ -419,11 +419,14 @@ const NewPropertyModal = ({
               disabled={isEditing}
             >
               <option value="">Select type</option>
-              <option value="residential">Residential</option>
-              <option value="commercial">Commercial</option>
-              <option value="industrial">Industrial</option>
-              <option value="mixed-use">Mixed Use</option>
-              <option value="apartment-complex">Apartment Complex</option>
+              <option value="Residential">Residential</option>
+              <option value="Commercial">Commercial</option>
+              <option value="Industrial">Industrial</option>
+              <option value="Mixed-Use">Mixed Use</option>
+              <option value="Apartment Complex">Apartment Complex</option>
+              <option value="Land">Land</option>
+              <option value="Special Purpose">Special Purpose</option>
+              <option value="Other">Other</option>
             </Select>
           </div>
         </div>

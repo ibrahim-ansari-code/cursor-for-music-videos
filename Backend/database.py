@@ -3,6 +3,7 @@ import ssl  # Import the ssl module
 from typing import AsyncGenerator
 from urllib.parse import (parse_qs, urlencode,  # For URL manipulation
                           urlparse, urlunparse)
+import os
 
 from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
                                     create_async_engine)
@@ -111,9 +112,15 @@ logger.info(f"Parsed hostname for connection: {parsed_url.hostname}")
 logger.info(f"Parsed port for connection: {parsed_url.port}")
 logger.info(f"SSL connect_args to be used: {ssl_connect_args}")
 
+# Determine if SQL queries should be logged
+# Only enable SQL echoing when explicitly requested via SQL_DEBUG environment variable
+sql_echo = os.getenv('SQL_DEBUG', '').lower() in ('true', '1', 'yes')
+if sql_echo:
+    logger.info("🔍 SQL query logging enabled via SQL_DEBUG environment variable")
+
 engine = create_async_engine(
     db_url_to_use,
-    echo=settings.DEBUG,
+    echo=sql_echo,  # Only log SQL when SQL_DEBUG is set
     future=True,
     connect_args=ssl_connect_args  # Pass SSL context here
 )

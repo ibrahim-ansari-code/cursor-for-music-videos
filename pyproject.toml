@@ -1,8 +1,14 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
 [project]
-package-mode = false
 name = "brikli-backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "Brikli Backend API"
+authors = [
+    {name = "Zubin", email = "zubin.singh@brikli.com"},
+]
 requires-python = ">=3.11,<4.0"
 dependencies = [
     "asyncpg>=0.30.0",
@@ -17,7 +23,7 @@ dependencies = [
     "pydantic>=2.11.1",
     "python-jose>=3.4.0",
     "python-multipart>=0.0.20",
-    "sqlalchemy>=2.0.40",
+    "sqlalchemy[mypy]>=2.0.40",
     "sqlmodel>=0.0.24",
     "psycopg[binary,pool]>=3.2.6",
     "python-dotenv>=1.1.0,<2.0.0",
@@ -37,28 +43,25 @@ dependencies = [
     "supabase>=2.15.1",
     "apideck-unify>=0.17.2,<0.18.0",
     "cachetools>=5.3.0,<6.0.0",
-    "pytest (>=8.4.0,<9.0.0)",
-    "pytest-xdist (>=3.7.0,<4.0.0)",
-    "regex (>=2024.11.6,<2025.0.0)"
+    "regex>=2024.11.6,<2025.0.0",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-xdist>=3.0.0",
+    "pytest-json-report>=1.5.0",
+    "httpx>=0.25.0",
+    "pytest-cov>=6.2.1,<7.0.0",
+    "mypy>=1.11.0,<2.0.0"
+]
+
+[tool.mypy]
+plugins = ["sqlalchemy.ext.mypy.plugin"]
+
 [tool.poetry]
-name = "brikli-backend"
-version = "0.1.0"
-description = ""
-authors = ["Zubin <zubin.singh@brikli.com>"]
-
-# Include the Backend folder as your top‐level package:
+# Poetry-specific package configuration
 packages = [
-  { include = "Backend" }
+    { include = "Backend" }
 ]
-
-[tool.poetry.group.dev.dependencies]
-pytest = ">=8.0.0"
-pytest-asyncio = ">=0.23.0"
-pytest-xdist = ">=3.0.0"        # For parallel test execution
-pytest-json-report = ">=1.5.0"  # For structured test reporting
-httpx = ">=0.25.0"
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"

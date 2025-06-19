@@ -50,7 +50,7 @@ except ImportError:
 @pytest.fixture(scope="session")
 def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
     """
-    Provides a session-scoped asyncio event loop for pytest.
+    Provides a session-scoped asyncio event loop for pytest tests.
     
     On Windows, sets a compatible event loop policy for stability. Closes the event loop after the test session.
     """
@@ -65,11 +65,15 @@ def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
     loop.close()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 async def shared_auth_token(event_loop) -> str:
     """
-    Provides a single, valid JWT for the entire test session.
-    This speeds up tests by avoiding re-authentication for every test function.
+    Obtains a valid JWT token to be shared across all tests in the session.
+    
+    Returns:
+        The JWT token string for authenticating API requests during the test session.
+    
+    Exits pytest if token retrieval fails.
     """
     from Backend.tests.api_tests.test_auth_helper import get_primary_user_jwt
     logger.info("SHARED_AUTH_TOKEN FIXTURE: Requesting single JWT for test session...")
@@ -155,29 +159,30 @@ async def created_landlord_property(api_client: httpx.AsyncClient, current_user_
     created_property = response.json()
     property_id = created_property["id"]
     logger.info(
-        f"✅ Landlord property created: ID {property_id}, Name: {property_name}")
+        "✅ Landlord property created: ID %s, Name: %s", property_id, property_name)
 
     yield property_id
 
     # Cleanup
     logger.info(
-        f"[CLEANUP START] Attempting to delete landlord property: ID {property_id}")
+        "[CLEANUP START] Attempting to delete landlord property: ID %s", property_id)
     try:
         delete_response = await api_client.delete(f"/api/properties/{property_id}")
         if delete_response.status_code == 204:
             logger.info(
-                f"✅ Fixture cleanup: deleted landlord property {property_id}")
+                "✅ Fixture cleanup: deleted landlord property %s", property_id)
         elif delete_response.status_code == 404:
             logger.info(
-                f"✅ Fixture cleanup: landlord property {property_id} already deleted.")
+                "✅ Fixture cleanup: landlord property %s already deleted.", property_id)
         else:
             logger.error(
-                f"❌ Fixture cleanup failed for landlord property {property_id}: DELETE returned {delete_response.status_code} - {delete_response.text[:200]}")
-    except Exception as e:
-        logger.error(
-            f"❌ Fixture cleanup exception for landlord property {property_id}: {e}")
+                "❌ Fixture cleanup failed for landlord property %s: DELETE returned %s - %s",
+                property_id, delete_response.status_code, delete_response.text[:200])
+    except Exception:
+        logger.exception(
+            "❌ Fixture cleanup exception for landlord property %s", property_id)
     logger.info(
-        f"[CLEANUP END] Finished attempt to delete landlord property: ID {property_id}")
+        "[CLEANUP END] Finished attempt to delete landlord property: ID %s", property_id)
 
 
 @pytest.fixture(autouse=True)
@@ -288,9 +293,9 @@ def assert_valid_json_response(response: httpx.Response, expected_type=None, exp
 
 async def cleanup_test_data(api_client: httpx.AsyncClient):
     """
-    Asynchronously deletes test tenants and properties created during testing.
+    Deletes test tenants and properties created during testing that match specific naming or email patterns.
     
-    Identifies and removes tenants and properties whose names or emails match test patterns, while skipping protected accounts. Logs the outcome of each deletion attempt and handles network or request errors gracefully.
+    Identifies and removes tenants and properties used for tests, skipping protected accounts. Logs the outcome of each deletion attempt and handles network or request errors gracefully.
     """
     logger.info("🧹 Starting test data cleanup...")
 
@@ -361,10 +366,41 @@ async def cleanup_test_data(api_client: httpx.AsyncClient):
         logger.exception("⚠️ Global test data cleanup failed:")
 
 
+@pytest.fixture(scope="session", autouse=True)
+async def session_cleanup(shared_auth_token: str):
+    """
+    Performs a final cleanup of test data after all tests in the session have completed.
+    
+    This session-scoped, autouse fixture ensures that any orphaned test tenants and properties created during testing are deleted from the database at the end of the test session.
+    """
+    # This part of the fixture does nothing and yields control to the tests.
+    yield
+
+    # This part runs after all tests in the session have completed.
+    logger.info("---" * 10)
+    logger.info("🏁 FINAL SESSION CLEANUP: Deleting all test data...")
+    logger.info("---" * 10)
+
+    headers = {
+        "Authorization": f"Bearer {shared_auth_token}",
+        "Content-Type": "application/json"
+    }
+    timeout = httpx.Timeout(60.0, connect=10.0)
+    
+    async with httpx.AsyncClient(base_url=BASE_URL, headers=headers, timeout=timeout) as client:
+        await cleanup_test_data(client)
+    
+    logger.info("---" * 10)
+    logger.info("✅ FINAL SESSION CLEANUP COMPLETE.")
+    logger.info("---" * 10)
+
+
 @pytest.fixture
 async def created_property_id(api_client: httpx.AsyncClient) -> AsyncGenerator[int, None]:
     """
-    Creates a test property and yields its ID, deleting the property after the test.
+    Creates a test property and yields its ID for use in tests.
+    
+    After the test completes, deletes the created property to ensure cleanup.
     
     Yields:
         The ID of the created test property.
@@ -450,9 +486,10 @@ async def created_unit(api_client: httpx.AsyncClient, created_landlord_property:
 @pytest.fixture
 async def created_tenant(api_client: httpx.AsyncClient, created_landlord_property: int) -> AsyncGenerator[dict[str, Any], None]:
     """
-    Creates a test tenant associated with a landlord property for use in API tests.
+    Creates a test tenant linked to a landlord property for use in API tests.
     
-    Yields the created tenant as a dictionary. After the test, attempts to delete the tenant; deletion failures due to existing leases (HTTP 400) are tolerated during cleanup.
+    Yields:
+        The created tenant as a dictionary. After the test, attempts to delete the tenant; deletion failures due to existing leases (HTTP 400) are tolerated and logged.
     """
     tenant_data = {
         "first_name": "Fixture",
@@ -466,9 +503,15 @@ async def created_tenant(api_client: httpx.AsyncClient, created_landlord_propert
     tenant = assert_valid_json_response(response, dict, 201)
     yield tenant
     # Cleanup - tenant deletion may fail with 400 if tied to a lease, which is acceptable during cleanup.
-    delete_response = await api_client.delete(f"/api/tenants/{tenant['id']}")
-    if delete_response.status_code not in [204, 404, 400]:
-        logger.warning(f"Tenant fixture cleanup may have failed. Status: {delete_response.status_code}")
+    logger.info("[CLEANUP] Deleting tenant fixture: ID %s", tenant['id'])
+    try:
+        delete_response = await api_client.delete(f"/api/tenants/{tenant['id']}")
+        if delete_response.status_code not in [204, 404, 400]:
+            logger.warning("Tenant fixture cleanup for ID %s failed. Status: %s", tenant['id'], delete_response.status_code)
+        else:
+            logger.info("Tenant fixture cleanup for ID %s successful (Status: %s)", tenant['id'], delete_response.status_code)
+    except Exception:
+        logger.exception("Error during tenant fixture %s cleanup", tenant['id'])
 
 
 @pytest.fixture
@@ -476,10 +519,10 @@ async def created_lease(api_client: httpx.AsyncClient, created_landlord_property
     """
     Creates a test lease linking a property, unit, and tenant, and yields the lease data.
     
-    The lease is created with fixed dates and rent values for testing purposes. After the test, the lease is deleted to ensure cleanup.
+    The lease is created with fixed start and end dates, rent, and deposit values for testing. After yielding the lease dictionary, the fixture attempts to delete the lease to ensure test data cleanup.
     
     Yields:
-        The created lease as a dictionary.
+        dict: The created lease object.
     """
     start_date = datetime.now(UTC) - timedelta(days=30)
     end_date = datetime.now(UTC) + timedelta(days=365)
@@ -498,4 +541,12 @@ async def created_lease(api_client: httpx.AsyncClient, created_landlord_property
     lease = assert_valid_json_response(response, dict, 201)
     yield lease
     # Cleanup
-    await api_client.delete(f"/api/leases/{lease['id']}")
+    logger.info("[CLEANUP] Deleting lease fixture: ID %s", lease['id'])
+    try:
+        delete_response = await api_client.delete(f"/api/leases/{lease['id']}")
+        if delete_response.status_code not in [204, 404]:
+             logger.warning("Lease fixture cleanup for ID %s failed. Status: %s", lease['id'], delete_response.status_code)
+        else:
+            logger.info("Lease fixture cleanup for ID %s successful (Status: %s)", lease['id'], delete_response.status_code)
+    except Exception:
+        logger.exception("Error during lease fixture %s cleanup", lease['id'])

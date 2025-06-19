@@ -3,9 +3,11 @@ from enum import Enum
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID as PythonUUID
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer
+from sqlalchemy import (Column, DateTime, ForeignKey, Index, Integer, String,
+                        text)
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy.sql import func
+from sqlmodel import Field, Relationship, SQLModel, col
 
 from Backend.utils.datetime_utils import create_audit_datetime
 
@@ -31,10 +33,14 @@ class TenantStatus(str, Enum):
 
 class TenantUnitLink(SQLModel, table=True):
     __tablename__ = "tenant_unit_link"  # type: ignore
+    __table_args__ = (Index("ix_tenant_unit_link_unit_id", "unit_id"),)
+
     tenant_id: int | None = Field(
-        default=None, foreign_key="tenants.id", primary_key=True)
+        default=None, foreign_key="tenants.id", primary_key=True
+    )
     unit_id: int | None = Field(
-        default=None, foreign_key="property_units.id", primary_key=True)
+        default=None, foreign_key="property_units.id", primary_key=True
+    )
     start_date: datetime | None = Field(default_factory=create_audit_datetime)
     end_date: datetime | None = None
 
@@ -45,21 +51,24 @@ class Tenant(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: PythonUUID | None = Field(
         default=None,
-        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey(
-            "users.id", ondelete="SET NULL"), index=True)
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="SET NULL"),
+            index=True,
+        ),
     )
     first_name: str = Field(max_length=100)
     last_name: str = Field(max_length=100)
     phone: str | None = None
     email: str | None = None
-    status: TenantStatus = Field(default=TenantStatus.ACTIVE, index=True)
+    status: TenantStatus = Field(default=TenantStatus.ACTIVE)
     created_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=True), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     updated_at: datetime = Field(
         default_factory=create_audit_datetime,
-        sa_column=Column(DateTime(timezone=True), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     current_property_id: int | None = Field(
         default=None,
@@ -67,12 +76,23 @@ class Tenant(SQLModel, table=True):
             "properties.id", ondelete="SET NULL"))
     )
     landlord_id: PythonUUID = Field(foreign_key="users.id")
+    profile_image_url: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+
+    # QuickBooks specific fields
+    quickbooks_id: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    last_synced_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
 
     # --- Relationships Defined Directly ---
 
     user: Optional["User"] = Relationship(
         back_populates="tenant_details",
-        sa_relationship_kwargs={"foreign_keys": "[Tenant.user_id]"}
+        sa_relationship_kwargs={"foreign_keys": "[Tenant.user_id]"},
     )
     current_property: Optional["Property"] = Relationship(
         back_populates="current_tenants")
@@ -101,4 +121,13 @@ class Tenant(SQLModel, table=True):
     invoices: list["Invoice"] = Relationship(
         back_populates="tenant",
         sa_relationship_kwargs={"lazy": "selectin"}
+    )
+
+    __table_args__ = (
+        Index('idx_tenant_email_unique_per_landlord', "landlord_id", text("lower(email)"), unique=True, postgresql_where=text("email IS NOT NULL")),
+        Index("ix_tenants_status", "status"),
+        Index("idx_tenants_email_lower", text("lower(email)"),
+              postgresql_where=text("email IS NOT NULL")),
+        Index("ix_tenants_current_property_id", "current_property_id"),
+        Index("idx_tenants_landlord_id", "landlord_id"),
     )

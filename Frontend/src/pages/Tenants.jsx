@@ -4,62 +4,105 @@ import {
   deleteTenant,
   fetchDashboardData,
   fetchOutstandingPayments,
+  fetchLeases,
 } from "../utils/api";
 import TenantModal from "../components/TenantModal";
 import UpdateTenantModal from "../components/UpdateTenantModal";
 import LoadingSpinner from "../components/LoadingSpinner";
+import useDebounce from "../hooks/useDebounce";
+import {
+    countActiveLeases,
+    getExpiringLeases,
+    getInitials,
+    formatDate,
+    getStatusBadgeClass,
+} from "../utils/tenantUtils";
 
 const Tenants = () => {
   const [tenants, setTenants] = useState([]);
+  const [allLeases, setAllLeases] = useState([]);
   const [dashboardData, setDashboardData] = useState({
     totalTenants: 0,
     activeLeases: 0,
     expiringSoon: 0,
     overduePayments: 0,
   });
+  const [expiringLeases, setExpiringLeases] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [notification, setNotification] = useState(null);
   const [actionMenuOpen, setActionMenuOpen] = useState(null);
+  const [leasesLoaded, setLeasesLoaded] = useState(false);
+
+  // Fetch all leases once on component mount
+  useEffect(() => {
+    const fetchAllLeases = async () => {
+      try {
+        const leasesData = await fetchLeases();
+        setAllLeases(leasesData);
+      } catch (err) {
+        console.error("Failed to fetch leases:", err);
+        setError((prevError) => prevError || "Failed to load lease data.");
+      } finally {
+        setLeasesLoaded(true);
+      }
+    };
+    fetchAllLeases();
+  }, []);
 
   // Fetch tenants and dashboard data
   useEffect(() => {
+    if (!leasesLoaded) {
+      return;
+    }
+
     const fetchData = async () => {
       setIsLoading(true);
       setError(null);
       try {
         // Fetch tenants
         const tenantParams = {};
-        if (searchTerm) {
-          tenantParams.search = searchTerm;
+        if (debouncedSearchTerm) {
+          tenantParams.search = debouncedSearchTerm;
         }
 
-        console.log("Fetching tenants with params:", tenantParams);
         const tenantsData = await fetchTenants(tenantParams);
-        console.log("Tenants data received:", tenantsData);
-        setTenants(tenantsData);
+
+        // Combine tenant and lease data
+        const tenantsWithLeases = tenantsData.map((tenant) => {
+          // Find all leases belonging to this tenant
+          const tenantLeases = allLeases.filter(
+            (lease) => lease.tenant_id === tenant.id
+          );
+          // Return a new tenant object with leases array
+          return {
+            ...tenant,
+            leases: tenantLeases,
+          };
+        });
+
+        setTenants(tenantsWithLeases);
 
         // Check active leases count based on tenant leases
-        const activeLeaseCount = countActiveLeases(tenantsData);
-        console.log("Active leases count:", activeLeaseCount);
+        const activeLeaseCount = countActiveLeases(tenantsWithLeases);
 
-        // Check expiring leases count
-        const expiringLeaseCount = countExpiringLeases(tenantsData);
-        console.log("Expiring leases count:", expiringLeaseCount);
+        // Check expiring leases count and get the list
+        const expiringLeasesList = getExpiringLeases(tenantsWithLeases);
+        setExpiringLeases(expiringLeasesList);
 
         // Try to fetch dashboard data from API
         try {
           const dashData = await fetchDashboardData();
-          console.log("Dashboard data received:", dashData);
 
           // Try to fetch outstanding payments data
           let overduePayments = 0;
           try {
             const outstandingPayments = await fetchOutstandingPayments();
-            console.log("Outstanding payments data:", outstandingPayments);
             overduePayments = outstandingPayments?.length || 0;
           } catch (paymentsError) {
             console.warn("Failed to fetch overdue payments:", paymentsError);
@@ -69,7 +112,7 @@ const Tenants = () => {
             totalTenants:
               dashData.summary?.total_tenants || tenantsData.length || 0,
             activeLeases: activeLeaseCount,
-            expiringSoon: expiringLeaseCount,
+            expiringSoon: expiringLeasesList.length,
             overduePayments:
               overduePayments || dashData.payments_due?.length || 0,
           });
@@ -92,7 +135,7 @@ const Tenants = () => {
           setDashboardData({
             totalTenants: tenantsData.length,
             activeLeases: activeLeaseCount,
-            expiringSoon: expiringLeaseCount,
+            expiringSoon: expiringLeasesList.length,
             overduePayments: overduePayments,
           });
         }
@@ -103,6 +146,7 @@ const Tenants = () => {
 
         // Set empty data on error
         setTenants([]);
+        setExpiringLeases([]);
         setDashboardData({
           totalTenants: 0,
           activeLeases: 0,
@@ -115,54 +159,27 @@ const Tenants = () => {
     };
 
     fetchData();
-  }, [searchTerm]);
+  }, [debouncedSearchTerm, leasesLoaded]);
 
-  // Count active leases from tenant data
-  const countActiveLeases = (tenantList) => {
-    if (!tenantList) return 0;
-
-    // Count unique tenants with at least one active lease
-    const tenantsWithActiveLeases = tenantList.filter((tenant) => {
-      if (!tenant.leases || tenant.leases.length === 0) {
-        return false;
-      }
-
-      const today = new Date();
-
-      // Check if any lease is active and current
-      return tenant.leases.some((lease) => {
-        const startDate = new Date(lease.start_date);
-        const endDate = new Date(lease.end_date);
-        return (
-          lease.status === "ACTIVE" && startDate <= today && endDate >= today
-        );
+  // Handle sending renewal email via email client
+  const handleSendRenewal = (tenantName, tenantEmail, expiryDate, unitInfo) => {
+    if (!tenantEmail) {
+      setNotification({
+        type: "error",
+        message: "This tenant doesn't have an email address.",
       });
-    });
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
 
-    return tenantsWithActiveLeases.length;
-  };
+    const formattedDate = new Date(expiryDate).toLocaleDateString();
+    const subject = `Lease Renewal - ${unitInfo}`;
+    const body = `Dear ${tenantName},\n\nYour lease for ${unitInfo} is set to expire on ${formattedDate}.\n\nWe wanted to reach out to discuss your renewal options. Please let us know if you would like to renew your lease.\n\nBest regards,\nProperty Management`;
 
-  // Count leases expiring this month
-  const countExpiringLeases = (tenantList) => {
-    if (!tenantList) return 0;
-
-    const today = new Date();
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-    // Count unique tenants with leases expiring this month
-    const tenantsWithExpiringLeases = tenantList.filter((tenant) => {
-      if (!tenant.leases || tenant.leases.length === 0) {
-        return false;
-      }
-
-      // Check if any lease is expiring this month
-      return tenant.leases.some((lease) => {
-        const endDate = new Date(lease.end_date);
-        return endDate >= today && endDate <= endOfMonth;
-      });
-    });
-
-    return tenantsWithExpiringLeases.length;
+    // Open email client with prefilled data
+    window.location.href = `mailto:${tenantEmail}?subject=${encodeURIComponent(
+      subject
+    )}&body=${encodeURIComponent(body)}`;
   };
 
   // Handle adding a tenant
@@ -189,7 +206,7 @@ const Tenants = () => {
         ...prev,
         totalTenants: updatedTenants.length,
         activeLeases: countActiveLeases(updatedTenants),
-        expiringSoon: countExpiringLeases(updatedTenants),
+        expiringSoon: getExpiringLeases(updatedTenants).length,
       }));
 
       // Close modals
@@ -215,7 +232,7 @@ const Tenants = () => {
           ...prev,
           totalTenants: updatedTenants.length,
           activeLeases: countActiveLeases(updatedTenants),
-          expiringSoon: countExpiringLeases(updatedTenants),
+          expiringSoon: getExpiringLeases(updatedTenants).length,
         }));
       } catch (err) {
         console.error("Failed to delete tenant:", err);
@@ -234,65 +251,6 @@ const Tenants = () => {
   // Handle search input
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
-  };
-
-  // Generate initials for avatar
-  const getInitials = (tenant) => {
-    if (!tenant) return "--";
-
-    // Check if we have first_name and last_name fields
-    if (tenant.first_name || tenant.last_name) {
-      const first = tenant.first_name ? tenant.first_name[0] : "";
-      const last = tenant.last_name ? tenant.last_name[0] : "";
-      return (first + last).toUpperCase();
-    }
-
-    // Fall back to full_name if that's what we have
-    if (tenant.full_name) {
-      return tenant.full_name
-        .split(" ")
-        .map((part) => part[0])
-        .join("")
-        .toUpperCase()
-        .substring(0, 2);
-    }
-
-    return "--";
-  };
-
-  // Format currency
-  const formatCurrency = (amount) => {
-    if (amount === null || amount === undefined) return "--";
-    return `$${parseFloat(amount).toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-  };
-
-  // Format date
-  const formatDate = (dateString) => {
-    if (!dateString) return "--";
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  // Get status badge class
-  const getStatusBadgeClass = (status) => {
-    if (!status) return "bg-gray-200 text-gray-800";
-
-    switch (status.toLowerCase()) {
-      case "active":
-        return "bg-green-100 text-green-800";
-      case "inactive":
-        return "bg-red-100 text-red-800";
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "evicted":
-        return "bg-red-100 text-red-800";
-      case "moved out":
-        return "bg-gray-100 text-gray-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
   };
 
   return (
@@ -394,7 +352,7 @@ const Tenants = () => {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    Expiring This Month
+                    Expiring in 30 Days
                   </dt>
                   <dd>
                     <div className="text-lg font-medium text-gray-900">
@@ -444,6 +402,56 @@ const Tenants = () => {
         </div>
       </div>
 
+      {/* Notification */}
+      {notification && (
+        <div
+          className={`mb-6 p-4 rounded-lg ${
+            notification.type === "success"
+              ? "bg-green-50 border border-green-200 text-green-700"
+              : "bg-red-50 border border-red-200 text-red-700"
+          }`}
+        >
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              {notification.type === "success" ? (
+                <svg
+                  className="h-5 w-5 text-green-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  role="img"
+                  aria-label="Success notification icon"
+                >
+                  <title>Success icon</title>
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="h-5 w-5 text-red-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  role="img"
+                  aria-label="Error notification icon"
+                >
+                  <title>Error icon</title>
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              )}
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium">{notification.message}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tenant Directory - Moved section title directly above table */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
@@ -452,6 +460,7 @@ const Tenants = () => {
           </h2>
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={handleAddTenant}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
@@ -549,6 +558,7 @@ const Tenants = () => {
               Start by adding your first tenant.
             </p>
             <button
+              type="button"
               onClick={handleAddTenant}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
@@ -584,25 +594,25 @@ const Tenants = () => {
                     </th>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                     >
                       Property
                     </th>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                     >
                       Unit
                     </th>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                     >
                       Email
                     </th>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                     >
                       Phone
                     </th>
@@ -643,24 +653,24 @@ const Tenants = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 text-left">
+                        <div className="text-sm text-gray-900 text-center">
                           {tenant.property?.name ??
                             tenant.unit?.property?.name ??
                             "--"}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 text-left">
+                        <div className="text-sm text-gray-900 text-center">
                           {tenant.unit ? tenant.unit.name : "--"}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 text-left">
+                        <div className="text-sm text-gray-900 text-center">
                           {tenant.email || "--"}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 text-left">
+                        <div className="text-sm text-gray-900 text-center">
                           {tenant.phone || "--"}
                         </div>
                       </td>
@@ -704,30 +714,127 @@ const Tenants = () => {
           <h2 className="text-lg font-medium text-gray-900 mb-4">
             Leases Expiring Soon
           </h2>
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg
-                  className="h-5 w-5 text-yellow-400"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-yellow-700">
-                  You have {dashboardData.expiringSoon}{" "}
-                  {dashboardData.expiringSoon === 1 ? "lease" : "leases"}{" "}
-                  expiring this month. Consider reaching out to these tenants
-                  for renewal.
-                </p>
-              </div>
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-4">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Tenant
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Unit
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Expiry Date
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Days Remaining
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {expiringLeases.map((lease) => (
+                    <tr
+                      key={lease.leaseId}
+                      className="hover:bg-gray-50 transition-colors duration-150"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10">
+                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                              <span className="text-gray-700 font-medium">
+                                {getInitials({ full_name: lease.tenantName })}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">
+                              {lease.tenantName}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 text-center">
+                          {lease.unitInfo || "--"}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 text-left">
+                          {formatDate(lease.expiryDate)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            lease.daysRemaining <= 7
+                              ? "bg-red-100 text-red-800"
+                              : lease.daysRemaining <= 14
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-green-100 text-green-800"
+                          }`}
+                        >
+                          {lease.daysRemaining} days
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() => {
+                              // Find tenant from tenants list
+                              const tenant = tenants.find(
+                                (t) => t.id === lease.tenantId
+                              );
+                              const tenantEmail = tenant?.email;
+                              handleSendRenewal(
+                                lease.tenantName,
+                                tenantEmail,
+                                lease.expiryDate,
+                                lease.unitInfo
+                              );
+                            }}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          >
+                            <svg
+                              className="h-4 w-4 mr-1"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                              />
+                            </svg>
+                            Send Reminder Email
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

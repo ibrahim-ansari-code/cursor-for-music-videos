@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Optional
 from uuid import UUID as PythonUUID
 from decimal import Decimal
 
-from sqlalchemy import Column, DateTime, Numeric
+from sqlalchemy import Column, DateTime, Numeric, Index
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, ForeignKey, Integer, Relationship, SQLModel
 
@@ -37,13 +37,19 @@ class Lease(SQLModel, table=True):
     """Lease model representing a rental agreement between landlord and tenant"""
 
     __tablename__ = "leases"  # type: ignore
+    __table_args__ = (
+        Index("ix_leases_property_id", "property_id"),
+        Index("ix_leases_tenant_id", "tenant_id"),
+        Index("ix_leases_unit_id", "unit_id"),
+        Index("ix_leases_status", "status"),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     start_date: date
     end_date: date
     monthly_rent: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     security_deposit: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
-    status: LeaseStatus = Field(default=LeaseStatus.DRAFT, index=True)
+    status: LeaseStatus = Field(default=LeaseStatus.DRAFT)
 
     # Additional lease terms
     is_renewable: bool = Field(default=True)
@@ -54,9 +60,9 @@ class Lease(SQLModel, table=True):
     special_terms: str | None = None
 
     # Foreign keys
-    property_id: int = Field(foreign_key="properties.id", index=True)
+    property_id: int = Field(foreign_key="properties.id")
     unit_id: int | None = Field(default=None, foreign_key="property_units.id")
-    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    tenant_id: int = Field(foreign_key="tenants.id")
 
     # Timestamps
     created_at: datetime = Field(
@@ -79,10 +85,12 @@ class Lease(SQLModel, table=True):
     payments: list["Payment"] = Relationship(back_populates="lease")
 
 
+
 class LeaseDocument(SQLModel, table=True):
     """Document associated with a lease (contract, addendums, etc.)"""
 
     __tablename__ = "lease_documents"  # type: ignore
+    __table_args__ = (Index("ix_lease_documents_lease_id", "lease_id"),)
 
     id: int | None = Field(default=None, primary_key=True)
     name: str
@@ -105,43 +113,3 @@ class LeaseDocument(SQLModel, table=True):
     # Relationships
     lease: "Lease" = Relationship(back_populates="documents")
     uploaded_by: "User" = Relationship()
-
-
-class LeaseCreate(SQLModel):
-    tenant_id: int
-    property_id: int
-    unit_id: int | None = None
-    start_date: date
-    end_date: date
-    monthly_rent: Decimal
-    security_deposit: Decimal
-    status: LeaseStatus | None = LeaseStatus.DRAFT
-    file_url: str | None = None
-
-
-class LeaseUpdate(SQLModel):
-    """
-    Model for applying partial updates to an existing Lease object.
-
-    All fields are optional, allowing clients to send only the data points
-    that need to be modified. Status updates (e.g., activating or
-    terminating a lease) are handled via a separate mechanism to maintain
-    a clear distinction in API operations and business logic.
-    """
-    start_date: date | None = None
-    end_date: date | None = None
-    monthly_rent: Decimal | None = None
-    security_deposit: Decimal | None = None
-    rent_due_day: int | None = None
-    late_fee_amount: Decimal | None = Field(default=None)
-    late_fee_after_days: int | None = Field(default=None)
-    special_terms: str | None = Field(default=None)
-    # Consider if status updates should be part of this or a separate endpoint
-    # status: LeaseStatus | None = None
-
-# Ensure all Field imports from sqlmodel are correct if this class uses them.
-# If only Pydantic BaseModel is needed, adjust SQLModel inheritance.
-# For now, assuming SQLModel is appropriate for consistency or future ORM use.
-# If it's purely for API data validation, from pydantic import BaseModel would be more standard.
-# However, to keep it consistent with LeaseCreate, using SQLModel.
-# Added default=None to optional fields to be more explicit.

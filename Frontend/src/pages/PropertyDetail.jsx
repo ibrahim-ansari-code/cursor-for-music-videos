@@ -63,7 +63,10 @@ const PropertyDetail = () => {
         const vacantUnits = data.units.filter((unit) => !unit.is_rented).length;
         const monthlyRevenue = data.units
           .filter((unit) => unit.is_rented && unit.monthly_rent)
-          .reduce((sum, unit) => sum + unit.monthly_rent, 0);
+          .reduce((sum, unit) => {
+            const rent = parseFloat(unit.monthly_rent);
+            return sum + (isNaN(rent) ? 0 : rent);
+          }, 0);
 
         setStats({ totalUnits, vacantUnits, monthlyRevenue });
       }

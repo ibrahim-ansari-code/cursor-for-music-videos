@@ -38,7 +38,7 @@ async def test_get_outstanding_payments(api_client: httpx.AsyncClient):
     """
     logger.info("Testing GET /api/accounting/payments/outstanding...")
     
-    response = await api_client.get("/api/accounting/payments/outstanding")
+    response = await api_client.get("/api/accounting/payments/outstanding/")
     outstanding = assert_valid_json_response(response, list)
     
     logger.info(f"✅ GET /api/accounting/payments/outstanding successful, status 200, returned {len(outstanding)} items")

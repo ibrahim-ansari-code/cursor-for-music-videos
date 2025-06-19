@@ -12,6 +12,7 @@ import Layout from "./components/Layout";
 import Dashboard from "./components/Dashboard";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import ResetPassword from "./pages/ResetPassword";
 
 // Pages
 import Leases from "./pages/Leases";
@@ -295,6 +296,10 @@ function App() {
           <Route
             path="/register"
             element={!user ? <RegisterPage /> : <Navigate to="/dashboard" />}
+          />
+          <Route
+            path="/reset-password"
+            element={!user ? <ResetPassword /> : <Navigate to="/dashboard" />}
           />
           <Route
             path="*"
