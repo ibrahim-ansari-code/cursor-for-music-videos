@@ -15,9 +15,6 @@ const FilePreviewModal = ({
     if (isOpen) {
       setPreviewError(false);
       setIframeLoaded(false);
-      console.log('[FilePreviewModal] Opening with URL:', fileUrl);
-      console.log('[FilePreviewModal] Current page URL:', window.location.href);
-      console.log('[FilePreviewModal] Is secure context:', window.isSecureContext);
     }
   }, [isOpen, fileUrl]);
 
@@ -40,7 +37,6 @@ const FilePreviewModal = ({
   };
 
   const handleIframeError = (e) => {
-    console.error("Iframe loading failed. This may be a CORS issue or the file URL is invalid.", e);
     setPreviewError(true);
     setIframeLoaded(true);
   };
@@ -54,21 +50,16 @@ const FilePreviewModal = ({
         // If we can't access the content, it might be blocked
         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
         if (!iframeDoc || iframeDoc.body.innerHTML === '') {
-          console.warn('Iframe loaded but body is empty - content may be blocked');
           setPreviewError(true);
-        } else {
-          console.log('Iframe loaded successfully with content');
         }
       }
     } catch (e) {
       // Cross-origin error - likely blocked
-      console.warn('Preview blocked by browser security policy:', e.message);
       setPreviewError(true);
     }
   };
 
   const handlePdfError = (error) => {
-    console.error('PDF loading error:', error);
     setPreviewError(true);
   };
 

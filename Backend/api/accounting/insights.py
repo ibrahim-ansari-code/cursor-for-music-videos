@@ -346,6 +346,7 @@ async def get_revenue_trends(
 
 @router.get("/overview", response_model=AccountingOverviewResponse)
 async def get_accounting_overview(
+    property_id: int | None = None,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> AccountingOverviewResponse:
@@ -353,6 +354,9 @@ async def get_accounting_overview(
     Retrieves a comprehensive accounting overview for the current user.
     
     Returns aggregated financial and occupancy metrics for the current month and year-to-date, including revenue, expenses, net income, occupancy rate, outstanding payments, average rent, and revenue trends for the last 12 months. Only accessible to admin and landlord users.
+    
+    Args:
+        property_id: Optional property ID to filter results to a specific property. Landlords can only filter their owned properties, while admins can filter any property.
     
     Returns:
         An AccountingOverviewResponse containing all aggregated metrics and revenue trends.
@@ -366,10 +370,20 @@ async def get_accounting_overview(
     
     base_params: dict[str, Any] = {"month_start": month_start, "year_start": year_start, "today": today}
     
-    # Determine the correct filter type based on user role
-    filter_type = FilterType.LANDLORD_OWNED if current_user.user_type == UserType.LANDLORD else FilterType.EMPTY
+    # Determine the correct filter type based on user role and property_id parameter
+    filter_type = FilterType.EMPTY
+    
     if current_user.user_type == UserType.LANDLORD:
         base_params["user_id"] = current_user.id
+        if property_id:  # Landlord requests specific owned property
+            filter_type = FilterType.LANDLORD_PROPERTY_SPECIFIC
+            base_params["property_id_filter"] = property_id
+        else:
+            filter_type = FilterType.LANDLORD_OWNED
+    elif current_user.user_type == UserType.ADMIN:
+        if property_id:  # Admin requests specific property
+            filter_type = FilterType.ADMIN_PROPERTY_SPECIFIC
+            base_params["property_id_filter"] = property_id
 
     # Build safe, reusable filter strings for different table aliases
     payments_filter = _build_safe_ownership_filter(filter_type, table_alias="prop")
@@ -407,12 +421,21 @@ async def get_accounting_overview(
     ocr_q = text(ocr_q_str)
     occupancy_rate = await session.scalar(ocr_q, base_params) or Decimal('0.0')
 
-    # Revenue Trends (last 12 months including current) - using safe enum-based filters
-    trend_params_rt = { "user_id": current_user.id } if current_user.user_type == UserType.LANDLORD else {}
+    # Revenue Trends (last 12 months including current) - using same filter logic as main overview
+    trend_params_rt = {}
     
-    # Use enum-based filter building for overview trends
-    trend_payment_filter_type = FilterType.LANDLORD_OWNED if current_user.user_type == UserType.LANDLORD else FilterType.EMPTY
-    trend_expense_filter_type = FilterType.LANDLORD_OWNED if current_user.user_type == UserType.LANDLORD else FilterType.EMPTY
+    # Use the same filter type as the main overview calculations
+    trend_payment_filter_type = filter_type
+    trend_expense_filter_type = filter_type
+    
+    # Copy the same parameters used for main queries
+    if current_user.user_type == UserType.LANDLORD:
+        trend_params_rt["user_id"] = current_user.id
+        if property_id:
+            trend_params_rt["property_id_filter"] = property_id
+    elif current_user.user_type == UserType.ADMIN:
+        if property_id:
+            trend_params_rt["property_id_filter"] = property_id
     
     # Build safe filters with appropriate table aliases
     payments_filter_rt = _build_safe_ownership_filter(trend_payment_filter_type, table_alias="prop")

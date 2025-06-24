@@ -19,10 +19,31 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'pdf-worker': ['pdfjs-dist/build/pdf.worker.entry'],
+        manualChunks: (id) => {
+          // Split vendor chunks
+          if (id.includes('node_modules')) {
+            // Create a separate chunk for pdfjs-dist
+            if (id.includes('pdfjs-dist')) {
+              return 'pdf-lib';
+            }
+            // Create a separate chunk for React and related libraries
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+              return 'react-vendor';
+            }
+            // Create a separate chunk for chart.js
+            if (id.includes('chart.js')) {
+              return 'charts';
+            }
+            // Create a separate chunk for Supabase
+            if (id.includes('@supabase')) {
+              return 'supabase';
+            }
+            // Other vendor libraries
+            return 'vendor';
+          }
         },
       },
     },
+    chunkSizeWarningLimit: 600, // Increase warning limit slightly
   },
 });

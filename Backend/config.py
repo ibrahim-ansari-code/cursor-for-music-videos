@@ -2,7 +2,7 @@ import os
 import warnings
 
 from dotenv import load_dotenv
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
 
 # Load from .env by default
@@ -96,9 +96,7 @@ class Settings(BaseSettings):
 
     DEBUG: bool = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
 
-    class Config:
-        env_file = env_path
-        extra = "allow"
+    model_config = SettingsConfigDict(env_file=env_path, extra="allow")
 
 
 # Initialize settings with default values

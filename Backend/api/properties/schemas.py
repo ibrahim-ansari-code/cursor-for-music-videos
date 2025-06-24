@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID as PythonUUID
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from Backend.api.units import TenantInfo
 from Backend.models.enums import PropertyStatus
@@ -48,8 +48,7 @@ class PropertyUpdate(BaseModel):
             raise ValueError("name must not be an empty string")
         return value
 
-    class Config:
-        extra = "forbid"  # Prevent unexpected fields like 'units'
+    model_config = ConfigDict(extra="forbid")  # Prevent unexpected fields like 'units'
 
 
 class PropertyResponse(BaseModel):
@@ -67,8 +66,7 @@ class PropertyResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OwnerResponse(BaseModel):
@@ -79,8 +77,7 @@ class OwnerResponse(BaseModel):
     phone: str | None = None
     profile_image_url: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UnitResponse(BaseModel):
@@ -97,8 +94,7 @@ class UnitResponse(BaseModel):
     updated_at: datetime
     tenant: TenantInfo | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PropertyDetailResponse_Standalone(BaseModel):
@@ -120,10 +116,7 @@ class PropertyDetailResponse_Standalone(BaseModel):
     owner: OwnerResponse | None = None
     units: list[UnitResponse] = []  # Changed from List[UnitResponse]
 
-    class Config:
-        from_attributes = True
-        # Ensure status default logic if needed, but we calculate it
-
+    model_config = ConfigDict(from_attributes=True)
 
 class PropertyDetailResponse(PropertyResponse):
     owner: OwnerResponse | None = None

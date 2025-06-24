@@ -4,7 +4,7 @@ from typing import List
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
@@ -153,8 +153,7 @@ class MaintenanceRequestResponse(BaseModel):
     updated_at: datetime
     assigned_to: str | None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MaintenanceSummaryResponse(BaseModel):

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
-import { AuthContext } from "../App";
+import { AuthContext } from "../contexts/AuthContext";
 import {
   updateUserProfile,
   changeUserPassword,

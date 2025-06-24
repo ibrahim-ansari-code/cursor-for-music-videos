@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import {
-  updateExpenseAPI,
+  updateExpense,
   fetchProperties,
-  parseExpenseReceiptAPI,
+  parseExpenseReceipt,
 } from "../utils/api";
 import {
   ModalShell,
@@ -168,7 +168,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
 
   // Create receipt file change handler using shared components
   const handleReceiptFileChange = createReceiptFileChangeHandler(
-    parseExpenseReceiptAPI,
+    parseExpenseReceipt,
     receiptState,
     (parsedDetails, receiptUrl) => {
       // Use utility functions for conservative edit mode data extraction
@@ -222,7 +222,7 @@ const EditExpenseModal = ({ isOpen, onClose, onSuccess, expenseData }) => {
     );
 
     try {
-      await updateExpenseAPI(expenseData.id, cleanedPayload);
+      await updateExpense(expenseData.id, cleanedPayload);
       toast.success("Expense updated successfully!");
       onSuccess?.();
       onClose(); // This will trigger form reset via useEffect on isOpen change

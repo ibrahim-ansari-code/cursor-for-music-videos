@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, ConfigDict
 from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -58,8 +58,7 @@ class TenantInfo(BaseModel):
     last_name: str
     email: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Specific response model for creating a unit (omits tenant)
 
@@ -70,8 +69,7 @@ class UnitCreateResponse(UnitBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Standard response model including optional tenant info
 
@@ -83,8 +81,7 @@ class UnitResponse(UnitBase):
     updated_at: datetime
     tenant: TenantInfo | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # === Helper Function ===
 

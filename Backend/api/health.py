@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from Backend.utils.llm_utils import test_azure_openai_connection
+from Backend.llm.client import test_azure_openai_connection
 
 router = APIRouter(tags=["health"])
 

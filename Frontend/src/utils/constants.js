@@ -16,3 +16,15 @@ export const PAYMENT_STATUSES = [
   "Cancelled",
   "Refunded",
 ];
+
+export const INVOICE_STATUSES = [
+  "Pending",
+  "Paid",
+  "Partial",
+  "Overdue",
+  "Cancelled",
+  "Refunded",
+  "Draft",
+  "Void",
+  "Uncollectible",
+];

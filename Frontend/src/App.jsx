@@ -18,6 +18,11 @@ import ResetPassword from "./pages/ResetPassword";
 import Leases from "./pages/Leases";
 import Vendors from "./pages/Vendors";
 import Accounting from "./pages/Accounting";
+import OverviewTab from "./components/accounting/OverviewTab";
+import PaymentsTab from "./components/accounting/PaymentsTab";
+import ExpensesTab from "./components/accounting/ExpensesTab";
+import RentTrackerTab from "./components/accounting/RentTrackerTab";
+import InvoicesTab from "./components/accounting/InvoicesTab";
 import Messages from "./pages/Messages";
 import Properties from "./pages/Properties";
 import PropertyDetail from "./pages/PropertyDetail";
@@ -31,9 +36,7 @@ import Integrations from "./pages/Integrations";
 import { getCurrentUser } from "./utils/api";
 import { supabase } from "./supabaseClient"; // Import Supabase client
 import LoadingSpinner from "./components/LoadingSpinner";
-
-// Auth Context
-export const AuthContext = createContext(null);
+import { AuthContext } from "./contexts/AuthContext";
 
 /**
  * Main application component that manages authentication state, session persistence, and protected routing.
@@ -281,7 +284,14 @@ function App() {
             <Route path="properties/:id" element={<PropertyDetail />} />
             <Route path="leases" element={<Leases />} />
             <Route path="vendors" element={<Vendors />} />
-            <Route path="accounting" element={<Accounting />} />
+            <Route path="accounting/*" element={<Accounting />}>
+              <Route index element={<Navigate to="overview" />} />
+              <Route path="overview" element={<OverviewTab />} />
+              <Route path="payments" element={<PaymentsTab />} />
+              <Route path="expenses" element={<ExpensesTab />} />
+              <Route path="invoices" element={<InvoicesTab />} />
+              <Route path="rent-tracker" element={<RentTrackerTab />} />
+            </Route>
             <Route path="messages" element={<Messages />} />
             <Route path="tenants" element={<Tenants />} />
             <Route path="maintenance" element={<Maintenance />} />

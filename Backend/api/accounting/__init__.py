@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
-from .payments import router as payments_router
-from .expenses import router as expenses_router
-from .invoices import router as invoices_router
+from .payments.router import router as payments_router
+from .expenses.router import router as expenses_router
+from .invoices.router import router as invoices_router
 from .insights import router as insights_router
 
 accounting_api_router = APIRouter()

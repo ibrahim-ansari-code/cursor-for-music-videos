@@ -7,7 +7,7 @@ from sqlalchemy import Column, DateTime, Index, Numeric, String
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.expression import cast
 from sqlmodel import Field, Relationship, SQLModel
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from Backend.models.property import Property
 from Backend.utils.datetime_utils import create_audit_datetime
@@ -25,10 +25,24 @@ class TaxDetailItem(BaseModel):
 class ExpenseTaxDetailBase(BaseModel):
     tax_name: str
     tax_rate: Decimal
+    
+    @field_validator('tax_rate')
+    @classmethod
+    def validate_tax_rate(cls, v: Decimal) -> Decimal:
+        if v < 0 or v > 100:
+            raise ValueError('Tax rate must be between 0 and 100')
+        return v
 
 
 class ExpenseTaxDetailCreate(ExpenseTaxDetailBase):
     tax_amount: Decimal | None = None  # Optional: calculated if not provided
+    
+    @field_validator('tax_amount')
+    @classmethod
+    def validate_tax_amount(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None and v < 0:
+            raise ValueError('Tax amount must be non-negative')
+        return v
 
 
 class ExpenseTaxDetailResponse(ExpenseTaxDetailBase):
@@ -36,8 +50,7 @@ class ExpenseTaxDetailResponse(ExpenseTaxDetailBase):
     tax_amount: Decimal
     expense_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ExpenseBase(BaseModel):
@@ -57,6 +70,13 @@ class ExpenseCreate(BaseModel):
     description: str | None = None
     receipt_url: str | None = None
     taxes: list[ExpenseTaxDetailCreate] | None = None
+    
+    @field_validator('subtotal_amount')
+    @classmethod
+    def validate_subtotal_amount(cls, v: Decimal) -> Decimal:
+        if v < 0:
+            raise ValueError('Subtotal amount must be greater than or equal to 0')
+        return v
 
 
 class ExpenseUpdate(BaseModel):
@@ -67,6 +87,13 @@ class ExpenseUpdate(BaseModel):
     description: str | None = None
     receipt_url: str | None = None
     taxes: list[ExpenseTaxDetailCreate] | None = None
+    
+    @field_validator('subtotal_amount')
+    @classmethod
+    def validate_subtotal_amount(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None and v < 0:
+            raise ValueError('Subtotal amount must be greater than or equal to 0')
+        return v
 
 
 class ExpenseResponse(ExpenseBase):
@@ -77,8 +104,7 @@ class ExpenseResponse(ExpenseBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ExpenseReceiptParseDetails(BaseModel):

@@ -3,7 +3,7 @@ import { toast } from "react-toastify";
 import {
   fetchProperties,
   createExpense,
-  parseExpenseReceiptAPI,
+  parseExpenseReceipt,
 } from "../utils/api";
 import {
   ModalShell,
@@ -144,7 +144,7 @@ const NewExpenseModal = ({ isOpen, onClose, onSuccess }) => {
 
   // Create receipt file change handler using shared components
   const handleReceiptFileChange = createReceiptFileChangeHandler(
-    parseExpenseReceiptAPI,
+    parseExpenseReceipt,
     receiptState,
     (parsedDetails, receiptUrl) => {
       // Use functional form of setFormData to access latest state and avoid stale closure

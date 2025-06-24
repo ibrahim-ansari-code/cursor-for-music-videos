@@ -4,7 +4,7 @@ from enum import Enum
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import and_, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -48,8 +48,7 @@ class RentTrackingEntry(BaseModel):
     remaining_due: Decimal
     status: RentStatus
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Helper functions for rent tracker
 
@@ -145,6 +144,7 @@ async def _create_rent_tracking_entry(
 async def get_rent_tracker(
     month: int | None = None,
     year: int | None = None,
+    property_id: int | None = None,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ) -> list[RentTrackingEntry]:
@@ -162,6 +162,9 @@ async def get_rent_tracker(
             tracking data. Defaults to the current month if not provided.
         year (int | None): The year for which to retrieve rent tracking data.
             Defaults to the current year if not provided.
+        property_id (int | None): Optional property ID to filter results to a 
+            specific property. Landlords can only filter their owned properties,
+            while admins can filter any property.
 
     Returns:
         list[RentTrackingEntry]: A list of RentTrackingEntry objects, each
@@ -202,16 +205,22 @@ async def get_rent_tracker(
 
         # Get all active leases with related tenant and property information
         # IMPORTANT: Filter by current user's properties to prevent data leakage
+        where_conditions = [
+            col(Property.user_id) == current_user.id,  # Filter by current user's properties
+            col(Lease.start_date) <= month_end,
+            or_(col(Lease.end_date) >= month_start,
+                col(Lease.end_date).is_(None)),
+            col(Lease.status) == LeaseStatus.ACTIVE
+        ]
+        
+        # Add property-specific filter if property_id is provided
+        if property_id is not None:
+            where_conditions.append(col(Property.id) == property_id)
+        
         query = select(Lease).join(
             Property, col(Lease.property_id) == col(Property.id)
         ).where(
-            and_(
-                col(Property.user_id) == current_user.id,  # Filter by current user's properties
-                col(Lease.start_date) <= month_end,
-                or_(col(Lease.end_date) >= month_start,
-                    col(Lease.end_date).is_(None)),
-                col(Lease.status) == LeaseStatus.ACTIVE
-            )
+            and_(*where_conditions)
         ).options(
             selectinload(getattr(Lease, "property")),
             selectinload(getattr(Lease, "tenant"))

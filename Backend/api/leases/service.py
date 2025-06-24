@@ -25,7 +25,7 @@ from Backend.models.tenant import Tenant
 from Backend.models.user import User
 from Backend.utils.azure_blob import upload_lease_to_blob
 from Backend.utils.datetime_utils import create_audit_datetime
-from Backend.utils.llm_utils import analyze_lease_text
+from Backend.llm.lease_parser import analyze_lease_text
 
 # Configure logging
 logger = logging.getLogger(__name__)

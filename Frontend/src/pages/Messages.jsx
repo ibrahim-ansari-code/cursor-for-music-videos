@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
-import { AuthContext } from "../App";
+import { AuthContext } from "../contexts/AuthContext";
 import {
   fetchConversations,
   fetchMessages,

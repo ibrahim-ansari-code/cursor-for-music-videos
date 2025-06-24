@@ -367,13 +367,13 @@ export const ModalShell = ({
 //   useReceiptUpload,
 //   createReceiptFileChangeHandler
 // } from './ui/SharedModalComponents';
-// import { parseExpenseReceiptAPI } from '../api/expenses';
+// import { parseExpenseReceipt } from '../api/expenses';
 //
 // function MyExpenseModal() {
 //   const receiptState = useReceiptUpload(existingReceiptUrl);
 //
 //   const handleReceiptFileChange = createReceiptFileChangeHandler(
-//     parseExpenseReceiptAPI,
+//     parseExpenseReceipt,
 //     receiptState,
 //     (parsedDetails, receiptUrl) => {
 //       // Handle extracted data for expenses
@@ -398,13 +398,13 @@ export const ModalShell = ({
 //
 // Usage Example for Payments:
 //
-// import { parsePaymentReceiptAPI } from '../api/payments';
+// import { parsePaymentReceipt } from '../api/payments';
 //
 // function MyPaymentModal() {
 //   const receiptState = useReceiptUpload(existingReceiptUrl);
 //
 //   const handleReceiptFileChange = createReceiptFileChangeHandler(
-//     parsePaymentReceiptAPI,
+//     parsePaymentReceipt,
 //     receiptState,
 //     (parsedDetails, receiptUrl) => {
 //       // Handle extracted data for payments

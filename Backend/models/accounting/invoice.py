@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DateTime, Numeric, Column, String, Index
+from sqlalchemy import DateTime, Numeric, Column, String, Index, Enum as PgEnum
 from sqlmodel import Field, Relationship, SQLModel
 
 from Backend.utils.datetime_utils import create_audit_datetime
@@ -32,7 +32,11 @@ class Invoice(SQLModel, table=True):
     due_date: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False)
     )
-    status: PaymentStatus = Field(default=PaymentStatus.PENDING)
+    status: PaymentStatus = Field(
+        default=PaymentStatus.PENDING,
+        sa_column=Column(PgEnum(PaymentStatus, name="paymentstatus",
+                         create_constraint=True, values_callable=lambda x: [e.value for e in x]))
+    )
 
     property_id: int | None = Field(default=None, foreign_key="properties.id")
     tenant_id: int | None = Field(

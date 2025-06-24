@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { AuthContext } from "../App";
+import { AuthContext } from "../contexts/AuthContext";
 import GoogleSignInButton from "./GoogleSignInButton";
 import { supabase } from "../supabaseClient";
 

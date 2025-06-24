@@ -6,12 +6,13 @@ const RevenueChart = ({ data }) => {
   const chartInstance = useRef(null);
 
   useEffect(() => {
-    // If no data or chart already exists, return
+    // If no data or chart ref not ready, return
     if (!data || !data.months || !chartRef.current) return;
 
     // Destroy previous chart if it exists
     if (chartInstance.current) {
       chartInstance.current.destroy();
+      chartInstance.current = null;
     }
 
     const ctx = chartRef.current.getContext("2d");
@@ -175,6 +176,18 @@ const RevenueChart = ({ data }) => {
       net_income: netIncome.slice(firstActivityIndex),
     };
   };
+
+  // Show a placeholder while data is loading or empty
+  if (!data || !data.months || data.months.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col justify-center items-center h-64">
+        <div className="text-center text-gray-500">
+          <div className="text-sm">Revenue chart will appear here</div>
+          <div className="text-xs mt-1">Loading data...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col justify-center">

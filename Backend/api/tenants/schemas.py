@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from uuid import UUID as PythonUUID
 
-from pydantic import BaseModel, computed_field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator, model_validator
 
 from Backend.models.tenant import TenantStatus
 
@@ -12,8 +12,7 @@ class PropertyResponseSimple(BaseModel):
     id: int
     name: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UnitResponseSimple(BaseModel):
@@ -21,8 +20,7 @@ class UnitResponseSimple(BaseModel):
     name: str  # Assuming unit has a 'name' or 'unit_number' field
     property: PropertyResponseSimple | None = None  # Nested property info
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TenantBase(BaseModel):
@@ -229,8 +227,7 @@ class TenantResponse(BaseModel):
     unit: UnitResponseSimple | None = None
     property: PropertyResponseSimple | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @computed_field
     def full_name(self) -> str:

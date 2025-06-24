@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import {
   updatePayment, // To update the payment
-  parsePaymentReceiptAPI,
+  parsePaymentReceipt,
 } from "../utils/api";
 import {
   ModalShell,
@@ -68,7 +68,7 @@ const EditPaymentModal = ({ isOpen, onClose, onSuccess, paymentData }) => {
 
   // Create receipt file change handler using shared components
   const handleReceiptFileChange = createReceiptFileChangeHandler(
-    parsePaymentReceiptAPI,
+    parsePaymentReceipt,
     receiptState,
     (parsedDetails, receiptUrl) => {
       // Use utility functions for conservative edit mode data extraction

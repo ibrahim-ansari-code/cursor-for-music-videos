@@ -10,4 +10,4 @@ if (!supabaseUrl || !supabaseAnonKey) {
   // You might want to throw an error here or handle this case more gracefully
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey); 

@@ -5,7 +5,7 @@ import {
   fetchTenantsByProperty,
   createPayment,
   fetchLeases,
-  parsePaymentReceiptAPI,
+  parsePaymentReceipt,
 } from "../utils/api";
 import {
   ModalShell,
@@ -175,7 +175,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
 
   // Create receipt file change handler using shared components
   const handleReceiptFileChange = createReceiptFileChangeHandler(
-    parsePaymentReceiptAPI,
+    parsePaymentReceipt,
     receiptState,
     (parsedDetails, receiptUrl) => {
       // Use utility functions for clean data extraction

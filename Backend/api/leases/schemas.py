@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Optional
 from uuid import UUID as PythonUUID
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from Backend.models.lease import LeaseStatus
 
@@ -74,8 +74,7 @@ class LeaseResponse(LeaseBase):
     tenant: Optional[Tenant] = None
     property: Optional[Property] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LeaseDocumentResponse(BaseModel):
@@ -86,8 +85,7 @@ class LeaseDocumentResponse(BaseModel):
     upload_date: datetime
     uploaded_by_id: PythonUUID | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LeaseAnalysisResponse(BaseModel):

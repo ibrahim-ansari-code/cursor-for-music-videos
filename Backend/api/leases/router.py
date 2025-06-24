@@ -137,6 +137,25 @@ async def get_leases_endpoint(
     return leases
 
 
+@router.get("/{lease_id}/documents", response_model=list[LeaseDocumentResponse])
+async def get_lease_documents_endpoint(
+    lease_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Retrieves all documents associated with a specific lease after verifying user permissions.
+
+    Args:
+        lease_id: The ID of the lease whose documents are to be retrieved.
+
+    Returns:
+        A list of LeaseDocument objects linked to the specified lease.
+    """
+    documents = await get_lease_documents(lease_id, current_user, session)
+    return documents
+
+
 @router.put("/{lease_id}", response_model=LeaseResponse)
 async def update_lease_endpoint(
     lease_id: int,
@@ -164,6 +183,35 @@ async def update_lease_endpoint(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update lease: {str(e)}",
         ) from e
+    
+
+@router.post("/{lease_id}/status", response_model=LeaseResponse)
+async def update_lease_status_endpoint(
+    lease_id: int,
+    status_data: dict = Body(...),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Updates the status of a lease after verifying user permissions.
+    
+    Validates the requested status change, applies or revokes side effects on related tenant and property unit records
+    when transitioning to or from ACTIVE status, and commits the update. Returns the updated lease object. 
+    Raises HTTP 422 if the status is missing or invalid, and HTTP 500 for database errors.
+    """
+    try:
+        lease = await update_lease_status(lease_id, status_data, current_user, session)
+        return lease
+    except HTTPException:
+        # Re-raise HTTPExceptions as-is
+        raise
+    except Exception as db_error:
+        await session.rollback()
+        logger.exception("Database error during lease status update for lease %s", lease_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error updating lease status: {str(db_error)}"
+        )
 
 
 @router.post("/{lease_id}/validate", response_model=LeaseResponse)
@@ -193,35 +241,6 @@ async def validate_lease_endpoint(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to validate lease: {str(e)}"
-        )
-
-
-@router.post("/{lease_id}/status", response_model=LeaseResponse)
-async def update_lease_status_endpoint(
-    lease_id: int,
-    status_data: dict = Body(...),
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Updates the status of a lease after verifying user permissions.
-    
-    Validates the requested status change, applies or revokes side effects on related tenant and property unit records
-    when transitioning to or from ACTIVE status, and commits the update. Returns the updated lease object. 
-    Raises HTTP 422 if the status is missing or invalid, and HTTP 500 for database errors.
-    """
-    try:
-        lease = await update_lease_status(lease_id, status_data, current_user, session)
-        return lease
-    except HTTPException:
-        # Re-raise HTTPExceptions as-is
-        raise
-    except Exception as db_error:
-        await session.rollback()
-        logger.exception("Database error during lease status update for lease %s", lease_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error updating lease status: {str(db_error)}"
         )
 
 
@@ -258,25 +277,6 @@ async def upload_lease_document_endpoint(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save document record: {str(e)}"
         )
-
-
-@router.get("/{lease_id}/documents", response_model=list[LeaseDocumentResponse])
-async def get_lease_documents_endpoint(
-    lease_id: int,
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Retrieves all documents associated with a specific lease after verifying user permissions.
-
-    Args:
-        lease_id: The ID of the lease whose documents are to be retrieved.
-
-    Returns:
-        A list of LeaseDocument objects linked to the specified lease.
-    """
-    documents = await get_lease_documents(lease_id, current_user, session)
-    return documents
 
 
 @router.post("/analyze", response_model=LeaseAnalysisResponse)

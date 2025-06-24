@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { AuthContext } from "../App";
+import { AuthContext } from "../contexts/AuthContext";
 import { supabase } from "../supabaseClient"; // Import Supabase client
 import GoogleSignInButton from "./GoogleSignInButton"; // Import the new component
 import { motion, AnimatePresence } from "framer-motion";

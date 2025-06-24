@@ -6,7 +6,7 @@ from uuid import UUID as PythonUUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, EmailStr, field_validator, Field
+from pydantic import BaseModel, EmailStr, field_validator, Field, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlmodel import col
@@ -71,8 +71,7 @@ class UserResponse(BaseModel):
     is_active: bool
     is_admin: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @field_validator('user_type', mode='before')
     def convert_user_type_to_upper(cls, v):
