@@ -14,31 +14,33 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['pdfjs-dist'],
+    include: ['react', 'react-dom', 'react-router-dom', 'pdfjs-dist'],
   },
   build: {
+    sourcemap: true, // Enable source maps for production debugging
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // Split vendor chunks
+          // Ensure React is always in its own chunk and loaded first
+          if (id.includes('react') && !id.includes('react-') && !id.includes('@')) {
+            return 'react-core';
+          }
+          if (id.includes('react-dom')) {
+            return 'react-dom';
+          }
+          if (id.includes('react-router')) {
+            return 'react-router';
+          }
+          if (id.includes('pdfjs-dist')) {
+            return 'pdf-lib';
+          }
+          if (id.includes('chart.js') || id.includes('react-chartjs')) {
+            return 'charts';
+          }
+          if (id.includes('@supabase')) {
+            return 'supabase';
+          }
           if (id.includes('node_modules')) {
-            // Create a separate chunk for pdfjs-dist
-            if (id.includes('pdfjs-dist')) {
-              return 'pdf-lib';
-            }
-            // Create a separate chunk for React and related libraries
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-              return 'react-vendor';
-            }
-            // Create a separate chunk for chart.js
-            if (id.includes('chart.js')) {
-              return 'charts';
-            }
-            // Create a separate chunk for Supabase
-            if (id.includes('@supabase')) {
-              return 'supabase';
-            }
-            // Other vendor libraries
             return 'vendor';
           }
         },
