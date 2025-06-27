@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import RevenueChart from "./RevenueChart";
+import RevenueChart from "./charts/RevenueChart";
 import {
   fetchDashboardData,
   fetchRentTracker,
@@ -608,25 +608,8 @@ const Dashboard = () => {
 
       {/* Revenue Chart */}
       <div className="dashboard-card">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-medium text-gray-900">Revenue Trends</h2>
-          <div className="flex space-x-2">
-            <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full bg-blue-500 mr-1"></div>
-              <span className="text-xs text-gray-600">Revenue</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
-              <span className="text-xs text-gray-600">Expenses</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full bg-purple-500 mr-1"></div>
-              <span className="text-xs text-gray-600">Net Income</span>
-            </div>
-          </div>
-        </div>
-
-        <RevenueChart data={dashboardData?.revenue} />
+        <h2 className="text-lg font-medium text-gray-900 mb-4">Revenue Trends</h2>
+        <RevenueChart data={dashboardData?.revenue} isLoading={loading} />
       </div>
     </div>
   );

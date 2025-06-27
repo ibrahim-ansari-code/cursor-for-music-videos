@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   fetchExpenses, 
   fetchProperties, 
@@ -44,6 +44,11 @@ const ExpensesTab = () => {
   // Local state for expenses tab
   const [expenses, setExpenses] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [expensesPagination, setExpensesPagination] = useState({
+    currentPage: 0,
+    limit: 15,
+    hasMore: true,
+  });
   const [expenseFilters, setExpenseFilters] = useState({
     category: "all",
     dateRange: "month",
@@ -54,17 +59,37 @@ const ExpensesTab = () => {
   const [showEditExpenseModal, setShowEditExpenseModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
+  // Effect for handling filter changes on the expenses tab
+  useEffect(() => {
+    // When filters change, reset to the first page.
+    // The pagination effect will then trigger the data load.
+    setExpensesPagination((prev) => ({ ...prev, currentPage: 0 }));
+  }, [expenseFilters]);
+
+  // Effect for handling data loading when pagination changes
   useEffect(() => {
     loadExpensesData();
-  }, [expenseFilters]);
+    // The dependency array correctly triggers this effect when either the
+    // page or the active tab changes, ensuring data is loaded when needed.
+  }, [expensesPagination.currentPage]);
 
   const loadExpensesData = async () => {
     try {
       setLoading(true);
 
       const params = {};
+
       if (expenseFilters.category !== "all") {
         params.category = expenseFilters.category;
+      }
+
+      // Add pagination params
+      params.limit = expensesPagination.limit;
+      params.offset = expensesPagination.currentPage * expensesPagination.limit;
+
+      // Add search query if present
+      if (searchQuery.trim()) {
+        params.search = searchQuery.trim();
       }
 
       // Convert date range to actual date params using utility function
@@ -83,12 +108,11 @@ const ExpensesTab = () => {
           return map;
         }, {});
       } catch (propErr) {
-        console.log("No properties found, using property IDs instead of names");
-        // Continue without property names
+        // Continue without property names - user may not have properties yet
       }
 
       // Enhance expense data with property names
-      const enhancedExpenses = data.map((expense) => ({
+      const enhancedExpenses = data.items.map((expense) => ({
         ...expense,
         property_name:
           propertyMap[expense.property_id] ||
@@ -96,6 +120,7 @@ const ExpensesTab = () => {
       }));
 
       setExpenses(enhancedExpenses);
+      setExpensesPagination((prev) => ({ ...prev, hasMore: data.has_more }));
       setError(null);
     } catch (err) {
       console.error("Error loading expenses data:", err);
@@ -136,6 +161,20 @@ const ExpensesTab = () => {
     }
   };
 
+  const handleNextPage = () => {
+    setExpensesPagination((prev) => ({
+      ...prev,
+      currentPage: prev.currentPage + 1,
+    }));
+  };
+
+  const handlePreviousPage = () => {
+    setExpensesPagination((prev) => ({
+      ...prev,
+      currentPage: Math.max(0, prev.currentPage - 1),
+    }));
+  };
+
   const handleShowModal = () => {
     setShowNewExpenseModal(true);
   };
@@ -146,25 +185,16 @@ const ExpensesTab = () => {
     setSelectedItem(null);
   };
 
-  // Filter expenses based on search query
-  const filteredExpenses = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return expenses;
-    }
+  // Handle search with debouncing to avoid too many API calls
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      // Reset to first page when search changes
+      setExpensesPagination((prev) => ({ ...prev, currentPage: 0 }));
+      // Note: The pagination effect will trigger loadExpensesData with the new search term
+    }, 500);
 
-    const query = searchQuery.toLowerCase();
-    return expenses.filter(expense => {
-      const propertyName = (expense.property_name || `Property #${expense.property_id}` || "").toLowerCase();
-      const category = (expense.category || "").toLowerCase();
-      const amount = expense.total_amount ? parseFloat(expense.total_amount).toFixed(2) : "";
-      const date = expense.expense_date ? new Date(expense.expense_date).toLocaleDateString() : "";
-      
-      return propertyName.includes(query) ||
-             category.includes(query) ||
-             amount.includes(query) ||
-             date.includes(query);
-    });
-  }, [expenses, searchQuery]);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   return (
     <div className="space-y-4">
@@ -298,9 +328,12 @@ const ExpensesTab = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
-                <LoadingRow colSpan={expenseTableColumns.length} loadingText="Loading expenses..." />
-              ) : filteredExpenses.length > 0 ? (
-                filteredExpenses.map((expense) => (
+                <LoadingRow
+                  colSpan={expenseTableColumns.length}
+                  loadingText="Loading expenses..."
+                />
+              ) : expenses.length > 0 ? (
+                expenses.map((expense) => (
                   <tr key={expense.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-left">
                       <div className="text-sm font-medium text-gray-900">
@@ -327,7 +360,9 @@ const ExpensesTab = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-left">
                       <div className="text-sm text-gray-500">
-                        {expense.quickbooks_id != null ? 'QuickBooks' : 'Brikli'}
+                        {expense.quickbooks_id != null
+                          ? "QuickBooks"
+                          : "Brikli"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -378,12 +413,40 @@ const ExpensesTab = () => {
                     colSpan={expenseTableColumns.length}
                     className="px-6 py-4 text-center text-sm text-gray-500"
                   >
-                    {searchQuery.trim() ? `No expenses found matching "${searchQuery}"` : "No expenses found"}
+                    {searchQuery.trim()
+                      ? `No expenses found matching "${searchQuery}"`
+                      : "No expenses found"}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+        {/* Pagination Controls */}
+        <div className="flex justify-between items-center mt-4 p-4">
+          <button
+            type="button"
+            onClick={handlePreviousPage}
+            disabled={expensesPagination.currentPage === 0 || loading}
+            className="btn btn-secondary disabled:opacity-50"
+            aria-label="Go to previous page"
+          >
+            <i className="fas fa-arrow-left mr-2" aria-hidden="true" />
+            Previous
+          </button>
+          <span className="text-sm text-gray-700">
+            Page {expensesPagination.currentPage + 1}
+          </span>
+          <button
+            type="button"
+            onClick={handleNextPage}
+            disabled={!expensesPagination.hasMore || loading}
+            className="btn btn-secondary disabled:opacity-50"
+            aria-label="Go to next page"
+          >
+            Next
+            <i className="fas fa-arrow-right ml-2" aria-hidden="true" />
+          </button>
         </div>
       </div>
 

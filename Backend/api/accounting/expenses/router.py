@@ -9,7 +9,7 @@ import logging
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Backend.api.auth import get_current_user
@@ -20,7 +20,7 @@ from Backend.models.accounting.expense import (
 from Backend.models.user import User
 
 from . import service
-from .schemas import ExpenseReceiptParseResponse
+from .schemas import ExpenseReceiptParseResponse, PaginatedExpensesResponse
 from .helpers import delete_blob_with_error_handling
 
 logger = logging.getLogger(__name__)
@@ -63,17 +63,20 @@ async def create_expense(
     return await service.create_expense(expense_data, session, current_user)
 
 
-@router.get("", response_model=list[ExpenseResponse])
+@router.get("", response_model=PaginatedExpensesResponse)
 async def get_expenses(
     property_id: int | None = None,
     category: str | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
+    search: str | None = None,
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
-) -> list[ExpenseResponse]:
+) -> PaginatedExpensesResponse:
     """
-    Retrieves a list of expenses filtered by property, category, and date range.
+    Retrieves a paginated list of expenses filtered by property, category, date range, and search.
 
     Only landlords and admins are authorized to access this endpoint. Landlords can view
     expenses for their own properties, while admins can view all expenses or filter by property.
@@ -84,13 +87,17 @@ async def get_expenses(
         category: Optional category substring to filter expenses.
         start_date: Optional start date to filter expenses from.
         end_date: Optional end date to filter expenses to.
+        search: Optional search term to filter expenses.
+        limit: Maximum number of expenses to return (default 100, max 500).
+        offset: Number of expenses to skip for pagination.
 
     Returns:
-        A list of expense responses matching the provided filters.
+        A paginated response with expense items and pagination info.
     """
-    return await service.get_expenses(
-        session, current_user, property_id, category, start_date, end_date
+    result = await service.get_expenses(
+        session, current_user, property_id, category, start_date, end_date, search, limit, offset
     )
+    return PaginatedExpensesResponse(**result)
 
 
 @router.get("/{expense_id}", response_model=ExpenseResponse)
@@ -139,11 +146,12 @@ async def update_expense(
     expense_response, blob_to_delete = await service.update_expense(
         expense_id, expense_data, session, current_user
     )
-    
+
     # Schedule blob deletion if needed
     if blob_to_delete:
-        background_tasks.add_task(delete_blob_with_error_handling, blob_to_delete)
-    
+        background_tasks.add_task(
+            delete_blob_with_error_handling, blob_to_delete)
+
     return expense_response
 
 
@@ -161,7 +169,8 @@ async def delete_expense(
     Upon successful deletion, schedules background removal of the associated receipt file from blob storage.
     """
     receipt_url_to_delete = await service.delete_expense(expense_id, session, current_user)
-    
+
     # Schedule blob deletion if needed
     if receipt_url_to_delete:
-        background_tasks.add_task(delete_blob_with_error_handling, receipt_url_to_delete)
+        background_tasks.add_task(
+            delete_blob_with_error_handling, receipt_url_to_delete)

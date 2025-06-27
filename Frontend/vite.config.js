@@ -6,42 +6,44 @@ export default defineConfig({
   server: {
     port: 5173,
     open: true,
-
-    // ⚠️ This part is critical
     middlewareMode: false,
     watch: {
       usePolling: true,
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'pdfjs-dist'],
+    include: ['react', 'react-dom', 'react-router-dom', 'pdfjs-dist', 'recharts'],
     exclude: [],
     esbuildOptions: {
       target: 'es2020'
     }
   },
   build: {
-    sourcemap: true, // Enable source maps for production debugging
+    sourcemap: true,
     target: 'es2020',
     minify: 'esbuild',
     rollupOptions: {
       output: {
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+        // ✅ Strategic chunking for largest libraries only
         manualChunks: {
-          // Bundle all React-related packages together to avoid loading order issues
-          'react-vendor': [
-            'react',
-            'react/jsx-runtime',
-            'react/jsx-dev-runtime',
-            'react-dom',
-            'react-dom/client',
-            'react-router-dom'
-          ],
-          'pdf-lib': ['pdfjs-dist'],
-          'charts': ['chart.js', 'react-chartjs-2'],
-          'supabase': ['@supabase/supabase-js']
-        },
+          // Core React ecosystem
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          // Large PDF library (500KB+)
+          'pdfjs': ['pdfjs-dist'],
+          // Database client
+          'supabase': ['@supabase/supabase-js'],
+          // Charts library (400KB+)
+          'charts': ['recharts'],
+          // Animations
+          'animation': ['framer-motion'],
+          // Monitoring
+          'monitoring': ['@sentry/react'],
+        }
       },
     },
-    chunkSizeWarningLimit: 600, // Increase warning limit slightly
+    chunkSizeWarningLimit: 600,
   },
 });

@@ -1,0 +1,86 @@
+# Brikli-V2 Cursor Rules
+
+## Tech Stack & Architecture
+- Backend: FastAPI + SQLModel + PostgreSQL + Alembic
+- Frontend: React 18 + Vite + Tailwind CSS + React Router v7
+- Database: Supabase PostgreSQL with dual migration system
+- Auth: Supabase JWT with user sync
+- Storage: Azure Blob Storage
+- AI: OpenAI for receipt parsing
+
+## Code Patterns & Conventions
+
+### Backend Patterns
+- Use async/await for ALL database operations
+- Follow domain-driven design: each domain has `router.py`, `schemas.py`, `service.py`, `helpers.py`
+- API routes organized by domain: `/api/accounting`, `/api/properties`, etc.
+- Use UUID primary keys across all models
+- Add `created_at`/`updated_at` timestamps to all entities
+- Use Pydantic schemas for request/response validation
+- Implement circuit breakers for external service calls
+
+### Frontend Patterns
+- Use shared receipt upload pattern from `Frontend/src/components/ui/SharedModalComponents.jsx`
+- Implement functional setState to avoid stale closures
+- Use domain-specific API modules in `src/utils/api/`
+- Handle loading states and error boundaries consistently
+- Follow modal pattern with shared components
+
+### Database Migration Strategy
+**CRITICAL: Dual migration system**
+- **Alembic migrations** (primary for production): Use for SQLModel changes
+  - Generate: `poetry run alembic revision --autogenerate -m "description"`
+- **Supabase migrations** (local dev): Use for RLS policies, functions, triggers
+  - Generate: `supabase db diff --use-migra -f migration_name`
+- Always test migrations locally before deploying
+- Commit both types of migration files
+
+## File Structure Rules
+- Backend API routes: `Backend/api/[domain]/router.py`
+- Database models: `Backend/models/`
+- Frontend components: `Frontend/src/components/`
+- Shared UI components: `Frontend/src/components/ui/`
+- API utilities: `Frontend/src/utils/api/`
+
+## Development Commands
+```bash
+# Backend
+poetry install
+poetry run uvicorn Backend.api.app:app --reload
+poetry run alembic revision --autogenerate -m "description"
+poetry run alembic upgrade head
+
+# Frontend
+cd Frontend && npm install && npm run dev
+
+# Supabase
+supabase start
+supabase db diff --use-migra -f migration_name
+supabase db push
+
+# Testing
+cd Backend/tests && python run_all_api_tests_pytest.py
+```
+
+## Testing Requirements
+- Backend server must be running at `http://localhost:8000`
+- Valid `.test_credentials.json` file required in `Backend/tests/`
+- Run tests from `Backend/tests` directory
+- Use session-scoped authentication tokens
+
+## Key Integrations
+- Supabase: Auth and user management
+- QuickBooks: Via Apideck for accounting
+- Azure Blob Storage: File storage for receipts
+- OpenAI: AI-powered receipt parsing
+
+## Environment Setup
+- Use local Supabase instance for development
+- Environment files: `.env` (backend) and `Frontend/.env` (frontend)
+- Point to local Supabase: `http://127.0.0.1:54321`
+
+## Deployment
+- Branching: `feature/*` → `dev` → `main`
+- Platform: Porter for both frontend and backend
+- Alembic migrations run automatically in production
+- Commit all migration files to version control

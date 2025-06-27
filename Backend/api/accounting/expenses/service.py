@@ -26,7 +26,7 @@ from Backend.utils.azure_blob import upload_expense_receipt_to_blob
 from Backend.utils.datetime_utils import (
     create_audit_datetime, date_to_utc_range, validate_business_datetime
 )
-from Backend.llm.receipt_parser import analyze_expense_receipt_content
+from Backend.llm import analyze_expense_receipt_content
 from Backend.utils.tax_utils import (
     quantize_2dp, finalize_parsed_receipt_data
 )
@@ -39,7 +39,8 @@ from .helpers import (
     calculate_expense_taxes,
     create_expense_tax_orm_list,
     update_expense_basic_fields,
-    update_expense_taxes
+    update_expense_taxes,
+    delete_blob_with_error_handling
 )
 
 logger = logging.getLogger(__name__)
@@ -73,8 +74,9 @@ async def parse_expense_receipt(
     try:
         # Use secure file validation with magic number checking
         file_content, validated_mime_type = await validate_file_from_upload(file, file.content_type)
-        logger.info("File validated: declared=%s, detected=%s", file.content_type, validated_mime_type)
-        
+        logger.info("File validated: declared=%s, detected=%s",
+                    file.content_type, validated_mime_type)
+
         receipt_url = await upload_expense_receipt_to_blob(file, current_user.id)
 
         parsed_data_dict: dict[str, Any] = await analyze_expense_receipt_content(
@@ -100,7 +102,8 @@ async def parse_expense_receipt(
             message="Expense receipt processed. Review extracted details."
         )
     except ValueError as ve:
-        logger.exception("File validation or data parsing error during expense receipt parsing")
+        logger.exception(
+            "File validation or data parsing error during expense receipt parsing")
         # Check if it's a file validation error (more specific error message)
         if "file" in str(ve).lower() or "mime" in str(ve).lower() or "size" in str(ve).lower():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
@@ -146,19 +149,21 @@ async def create_expense(
     if current_user.user_type not in [UserType.LANDLORD, UserType.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-    
+
     await check_property_ownership(expense_data.property_id, session, current_user)
 
     subtotal = quantize_2dp(Decimal(str(expense_data.subtotal_amount)))
-    
+
     try:
-        tax_details_dto, total_tax_amount = calculate_expense_taxes(expense_data, subtotal)
+        tax_details_dto, total_tax_amount = calculate_expense_taxes(
+            expense_data, subtotal)
     except (ValueError, HTTPException) as e:
         # Re-raise HTTPException as-is to preserve status code and detail
         if isinstance(e, HTTPException):
             raise
         # Convert ValueError to HTTPException with 400 status
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     tax_orm_objects = create_expense_tax_orm_list(tax_details_dto, subtotal)
 
@@ -176,12 +181,12 @@ async def create_expense(
     try:
         async with db_transaction(session) as tx:
             tx.add(db_expense)
-        
+
         await session.refresh(db_expense, attribute_names=['taxes'])
-        
+
         logger.info("Expense %s created for property %s by user %s",
-                   db_expense.id, db_expense.property_id, current_user.id)
-        
+                    db_expense.id, db_expense.property_id, current_user.id)
+
         return ExpenseResponse.model_validate(db_expense)
     except Exception as e:
         logger.exception("Error creating expense")
@@ -195,10 +200,13 @@ async def get_expenses(
     property_id: int | None = None,
     category: str | None = None,
     start_date: date | None = None,
-    end_date: date | None = None
-) -> list[ExpenseResponse]:
+    end_date: date | None = None,
+    search: str | None = None,
+    limit: int = 100,
+    offset: int = 0
+) -> dict[str, Any]:
     """
-    Retrieves a list of expenses filtered by property, category, and date range.
+    Retrieves a paginated list of expenses filtered by property, category, date range, and search.
 
     Only landlords and admins are authorized to access this endpoint. Landlords can view
     expenses for their own properties, while admins can view all expenses or filter by property.
@@ -211,9 +219,12 @@ async def get_expenses(
         category: Optional category substring to filter expenses.
         start_date: Optional start date to filter expenses from.
         end_date: Optional end date to filter expenses to.
+        search: Optional search term to filter expenses.
+        limit: Maximum number of expenses to return.
+        offset: Number of expenses to skip for pagination.
 
     Returns:
-        A list of expense responses matching the provided filters.
+        A paginated response with expense items and pagination info.
 
     Raises:
         HTTPException: If the user is not authorized.
@@ -234,6 +245,19 @@ async def get_expenses(
         filters.append(col(Expense.expense_date) <=
                        date_to_utc_range(end_date, end_date)[1])
 
+    # Add search filtering
+    if search:
+        # Escape special SQL LIKE pattern characters to prevent injection
+        # Note: SQLAlchemy's .ilike() method uses parameterized queries internally,
+        # so this is safe from SQL injection. The escaping here is for LIKE patterns,
+        # not SQL injection prevention.
+        escaped_search = search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        search_term = f"%{escaped_search}%"
+        filters.append(
+            col(Expense.description).ilike(search_term) |
+            col(Expense.category).ilike(search_term)
+        )
+
     if current_user.user_type == UserType.LANDLORD:
         query = query.join(Property, col(Expense.property_id)
                            == col(Property.id))  # Ensure join
@@ -246,8 +270,24 @@ async def get_expenses(
     if filters:
         query = query.where(and_(*filters))
     query = query.order_by(col(Expense.expense_date).desc())
+
+    # Add pagination
+    query = query.offset(offset).limit(
+        limit + 1)  # +1 to check if there's more
     expenses_orm = (await session.execute(query)).scalars().unique().all()
-    return [ExpenseResponse.model_validate(exp) for exp in expenses_orm]
+
+    # Check if there are more items
+    has_more = len(expenses_orm) > limit
+    if has_more:
+        expenses_orm = expenses_orm[:limit]  # Remove the extra item
+
+    expense_responses = [ExpenseResponse.model_validate(
+        exp) for exp in expenses_orm]
+
+    return {
+        "items": expense_responses,
+        "has_more": has_more
+    }
 
 
 async def get_expense_by_id(

@@ -70,6 +70,7 @@ class UserResponse(BaseModel):
     updated_at: datetime
     is_active: bool
     is_admin: bool
+    is_email_verified: bool
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -84,6 +85,10 @@ class ProfileUpdateRequest(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     phone: str | None = None
+    address: str | None = None
+    city: str | None = None
+    province: str | None = None
+    postal_code: str | None = None
 
 
 class AvatarUploadResponse(BaseModel):

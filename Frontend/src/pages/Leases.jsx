@@ -367,8 +367,8 @@ const Leases = () => {
   }
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end">
+    <div className="p-6 flex flex-col">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end mb-6">
         <div className="mt-3 sm:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
           <div className="relative">
             <select
@@ -397,7 +397,7 @@ const Leases = () => {
       </div>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           <p>{error}</p>
           <button
             onClick={loadLeases}
@@ -416,9 +416,9 @@ const Leases = () => {
         )}
         <div
           ref={tableScrollContainerRef}
-          className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-20rem)]"
+          className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-300px)] sm:max-h-[calc(100vh-250px)] lg:max-h-[calc(100vh-200px)]"
         >
-          <table className="min-w-full divide-y divide-gray-200 relative">
+          <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th

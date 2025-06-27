@@ -8,7 +8,7 @@ and are separate from the core expense models defined in Backend/models/accounti
 from decimal import Decimal
 from pydantic import BaseModel
 
-from Backend.models.accounting.expense import TaxDetailItem
+from Backend.models.accounting.expense import TaxDetailItem, ExpenseResponse
 
 
 class ExpenseReceiptParseDetails(BaseModel):
@@ -29,3 +29,8 @@ class ExpenseReceiptParseResponse(BaseModel):
     receipt_url: str
     parsed_details: ExpenseReceiptParseDetails
     message: str | None = None
+
+
+class PaginatedExpensesResponse(BaseModel):
+    items: list[ExpenseResponse]
+    has_more: bool

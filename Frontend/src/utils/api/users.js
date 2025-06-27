@@ -9,37 +9,29 @@ import { apiRequest, uploadFile } from './core';
  */
 export const updateUserProfile = async (userId, profileData) => {
   if (!userId) throw new Error("User ID is required to update profile.");
-  return apiRequest(`/users/${userId}/profile/`, {
+  return apiRequest(`/auth/users/${userId}/profile`, {
     method: "PUT", // PUT for full resource replacement
     body: JSON.stringify(profileData),
   });
 };
 
 /**
- * Change the user's password.
- * @param {string} userId - The ID of the user.
- * @param {string} newPassword - The new password.
- * @returns {Promise<object>} Success message or error.
+ * Note: Password changes are handled directly through Supabase Auth.
+ * Use supabase.auth.updateUser({ password: newPassword }) instead.
+ * This requires the user to be authenticated with their current password first.
  */
-export const changeUserPassword = async (userId, newPassword) => {
-  if (!userId) throw new Error("User ID is required to change password.");
-  return apiRequest(`/users/${userId}/password/`, {
-    method: "PUT", // PUT for idempotent password updates
-    body: JSON.stringify({ password: newPassword }),
-  });
-};
 
 /**
  * Upload a new avatar for the user.
  * @param {string} userId - The ID of the user.
- * @param {FormData} formData - FormData object containing the avatar file under the key 'avatar'.
- *                               The FormData should be created as: formData.append('avatar', file)
+ * @param {FormData} formData - FormData object containing the image file under the key 'file'.
+ *                               The FormData should be created as: formData.append('file', file)
  * @returns {Promise<object>} Object containing the new profile_image_url.
  */
 export const uploadUserAvatar = async (userId, formData) => {
   if (!userId) throw new Error("User ID is required to upload avatar.");
-  // FormData should contain the avatar file under the key 'avatar'
-  return uploadFile(`/users/${userId}/avatar/`, formData, {
+  // FormData should contain the image file under the key 'file'
+  return uploadFile(`/auth/users/${userId}/avatar`, formData, {
     errorMsg: "Failed to upload avatar.",
   });
 };
