@@ -41,7 +41,7 @@ BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 # Import authentication helper
 try:
-    from Backend.tests.api_tests.test_auth_helper import get_test_jwt
+    from Backend.tests.integration_tests.test_auth_helper import get_test_jwt
 except ImportError:
     logger.warning("Failed to import get_test_jwt from test_auth_helper")
     get_test_jwt = None
@@ -75,7 +75,7 @@ async def shared_auth_token(event_loop) -> str:
     
     Exits pytest if token retrieval fails.
     """
-    from Backend.tests.api_tests.test_auth_helper import get_primary_user_jwt
+    from Backend.tests.integration_tests.test_auth_helper import get_primary_user_jwt
     logger.info("SHARED_AUTH_TOKEN FIXTURE: Requesting single JWT for test session...")
     token = await get_primary_user_jwt(prompt_for_password=False) # CI should use env vars
     if not token:

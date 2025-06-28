@@ -1,5 +1,5 @@
 import React from "react";
-import { supabase } from "../supabaseClient"; // Ensure this path is correct
+import { supabase } from "../../supabaseClient"; // Ensure this path is correct
 
 // Google SVG Icon (inline or imported)
 const GoogleIcon = () => (

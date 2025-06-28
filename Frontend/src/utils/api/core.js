@@ -260,7 +260,7 @@ export const login = async (email, password) => {
 };
 
 export const register = async (userData) => {
-  return apiRequest("/auth/register/", {
+  return apiRequest("/auth/register", {
     method: "POST",
     body: JSON.stringify(userData),
   });
@@ -268,7 +268,7 @@ export const register = async (userData) => {
 
 export const getCurrentUser = async () => {
   try {
-    return await apiRequest("/auth/me/");
+    return await apiRequest("/auth/me");
   } catch (error) {
     // If it's an authentication error, clear local storage and don't redirect
     // Let the App.jsx handle the redirect logic

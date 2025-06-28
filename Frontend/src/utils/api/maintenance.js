@@ -6,7 +6,7 @@ import { apiRequest, formatQueryString, uploadFile } from './core';
  * @returns {Promise<Object>} A promise that resolves to the maintenance summary object
  */
 export const getMaintenanceSummary = async () => {
-  return apiRequest("/maintenance/summary/");
+  return apiRequest("/maintenance/summary");
 };
 
 /**
@@ -33,7 +33,7 @@ export const fetchMaintenanceRequests = async (params = {}) => {
   });
 
   const queryString = queryParams.toString();
-  return apiRequest(`/maintenance/requests/${formatQueryString(queryString)}`);
+  return apiRequest(`/maintenance/requests${formatQueryString(queryString)}`);
 };
 
 /**
@@ -47,7 +47,7 @@ export const fetchMaintenanceRequests = async (params = {}) => {
  * @returns {Promise<Object>} A promise that resolves to the created maintenance request object
  */
 export const createMaintenanceRequest = async (requestData) => {
-  return apiRequest("/maintenance/requests/", {
+  return apiRequest("/maintenance/requests", {
     method: "POST",
     body: JSON.stringify(requestData),
   });
@@ -59,7 +59,7 @@ export const createMaintenanceRequest = async (requestData) => {
  * @returns {Promise<Object>} A promise that resolves to the maintenance request object
  */
 export const getMaintenanceRequest = async (requestId) => {
-  return apiRequest(`/maintenance/requests/${requestId}/`);
+  return apiRequest(`/maintenance/requests/${requestId}`);
 };
 
 /**
@@ -69,7 +69,7 @@ export const getMaintenanceRequest = async (requestId) => {
  * @returns {Promise<Object>} A promise that resolves to the updated maintenance request object
  */
 export const updateMaintenanceRequest = async (requestId, requestData) => {
-  return apiRequest(`/maintenance/requests/${requestId}/`, {
+  return apiRequest(`/maintenance/requests/${requestId}`, {
     method: "PUT",
     body: JSON.stringify(requestData),
   });
@@ -81,7 +81,7 @@ export const updateMaintenanceRequest = async (requestId, requestData) => {
  * @returns {Promise<void>} A promise that resolves when the request is deleted
  */
 export const deleteMaintenanceRequest = async (requestId) => {
-  return apiRequest(`/maintenance/requests/${requestId}/`, {
+  return apiRequest(`/maintenance/requests/${requestId}`, {
     method: "DELETE",
   });
 };
@@ -92,7 +92,7 @@ export const deleteMaintenanceRequest = async (requestId) => {
  * @returns {Promise<string>} A promise that resolves to the uploaded photo URL
  */
 export const uploadMaintenancePhoto = async (file) => {
-  const data = await uploadFile("/maintenance/upload-photo/", file, {
+  const data = await uploadFile("/maintenance/upload-photo", file, {
     formKey: "upload_file",
     errorMsg: "Failed to upload maintenance photo.",
   });

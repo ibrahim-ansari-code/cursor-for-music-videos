@@ -8,5 +8,5 @@ export const fetchDashboardData = async (params = {}) => {
   if (params.time_period) queryParams.append("time_period", params.time_period);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/dashboard${formatQueryString(queryString)}`);
+  return apiRequest(`/dashboard/${formatQueryString(queryString)}`);
 }; 

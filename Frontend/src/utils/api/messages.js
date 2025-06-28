@@ -2,11 +2,11 @@
 import { apiRequest, formatQueryString } from './core';
 
 export const fetchConversations = async () => {
-  return apiRequest("/messages/conversations/");
+  return apiRequest("/messages/conversations");
 };
 
 export const createConversation = async (conversationData) => {
-  return apiRequest("/messages/conversations/", {
+  return apiRequest("/messages/conversations", {
     method: "POST",
     body: JSON.stringify(conversationData),
   });
@@ -27,14 +27,14 @@ export const fetchMessages = async (conversationId, params = {}) => {
 };
 
 export const sendMessage = async (messageData) => {
-  return apiRequest("/messages/messages/", {
+  return apiRequest("/messages/messages", {
     method: "POST",
     body: JSON.stringify(messageData),
   });
 };
 
 export const markMessageAsRead = async (messageId) => {
-  return apiRequest(`/messages/messages/${messageId}/read/`, {
+  return apiRequest(`/messages/messages/${messageId}/read`, {
     method: "PUT",
   });
 };

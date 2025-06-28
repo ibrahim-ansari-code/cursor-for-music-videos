@@ -38,5 +38,5 @@ export const fetchRentTracker = async (params = {}) => {
   if (params.property_id) queryParams.append("property_id", params.property_id);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/rent-tracker${formatQueryString(queryString)}`);
+  return apiRequest(`/rent-tracker/${formatQueryString(queryString)}`);
 }; 

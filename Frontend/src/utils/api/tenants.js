@@ -14,7 +14,7 @@ export const fetchTenants = async (params = {}) => {
 };
 
 export const fetchTenant = async (tenantId) => {
-  return apiRequest(`/tenants/${tenantId}/`);
+  return apiRequest(`/tenants/${tenantId}`);
 };
 
 export const createTenant = async (tenantData) => {
@@ -29,14 +29,14 @@ export const createTenant = async (tenantData) => {
 export const updateTenant = async (tenantId, tenantData) => {
   // Backend now handles all validation and normalization via Pydantic validators
   // No need for frontend data manipulation that could introduce bugs
-  return apiRequest(`/tenants/${tenantId}/`, {
+  return apiRequest(`/tenants/${tenantId}`, {
     method: "PATCH",
     body: JSON.stringify(tenantData),
   });
 };
 
 export const deleteTenant = async (tenantId) => {
-  return apiRequest(`/tenants/${tenantId}/`, {
+  return apiRequest(`/tenants/${tenantId}`, {
     method: "DELETE",
   });
 };

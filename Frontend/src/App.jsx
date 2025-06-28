@@ -35,7 +35,7 @@ import Integrations from "./pages/Integrations";
 // Import the login API function
 import { getCurrentUser } from "./utils/api";
 import { supabase } from "./supabaseClient"; // Import Supabase client
-import LoadingSpinner from "./components/LoadingSpinner";
+import AuthLoadingSkeleton from "./components/auth/AuthLoadingSkeleton";
 import { AuthContext } from "./contexts/AuthContext";
 
 /**
@@ -266,11 +266,7 @@ function App() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <LoadingSpinner message="Loading app..." />
-      </div>
-    );
+    return <AuthLoadingSkeleton />;
   }
 
   return (
@@ -311,10 +307,7 @@ function App() {
             path="/register"
             element={!user ? <RegisterPage /> : <Navigate to="/dashboard" />}
           />
-          <Route
-            path="/reset-password"
-            element={!user ? <ResetPassword /> : <Navigate to="/dashboard" />}
-          />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route
             path="*"
             element={<Navigate to={user ? "/dashboard" : "/login"} />}

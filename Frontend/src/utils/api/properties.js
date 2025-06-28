@@ -21,7 +21,7 @@ export const fetchProperties = async (params = {}, options = {}) => {
 };
 
 export const fetchPropertyById = async (propertyId) => {
-  return apiRequest(`/properties/${propertyId}/`);
+  return apiRequest(`/properties/${propertyId}`);
 };
 
 export const createProperty = async (propertyData) => {
@@ -32,24 +32,24 @@ export const createProperty = async (propertyData) => {
 };
 
 export const updateProperty = async (propertyId, propertyData) => {
-  return apiRequest(`/properties/${propertyId}/`, {
+  return apiRequest(`/properties/${propertyId}`, {
     method: "PUT",
     body: JSON.stringify(propertyData),
   });
 };
 
 export const deleteProperty = async (propertyId) => {
-  return apiRequest(`/properties/${propertyId}/`, {
+  return apiRequest(`/properties/${propertyId}`, {
     method: "DELETE",
   });
 };
 
 export const fetchPropertyUnits = async (propertyId) => {
-  return apiRequest(`/properties/${propertyId}/units/`);
+  return apiRequest(`/properties/${propertyId}/units`);
 };
 
 export const createUnit = async (propertyId, unitData) => {
-  return apiRequest(`/properties/${propertyId}/units/`, {
+  return apiRequest(`/properties/${propertyId}/units`, {
     method: "POST",
     body: JSON.stringify(unitData),
   });
@@ -69,7 +69,7 @@ export const updateUnit = async (unitId, unitData) => {
     tenant_id: unitData.tenant_id || null,
   };
 
-  return apiRequest(`/units/${unitId}/`, {
+  return apiRequest(`/units/${unitId}`, {
     method: "PUT",
     body: JSON.stringify(formattedData),
   });
@@ -77,7 +77,7 @@ export const updateUnit = async (unitId, unitData) => {
 
 export const deleteUnit = async (unitId) => {
   // The response will be null for 204 status, which is OK
-  return apiRequest(`/units/${unitId}/`, {
+  return apiRequest(`/units/${unitId}`, {
     method: "DELETE",
   });
 };
@@ -86,5 +86,5 @@ export const fetchUnitById = async (unitId) => {
   if (!unitId) {
     throw new Error("Unit ID is required to fetch unit details.");
   }
-  return apiRequest(`/units/${unitId}/`);
+  return apiRequest(`/units/${unitId}`);
 }; 

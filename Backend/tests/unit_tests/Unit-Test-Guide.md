@@ -25,6 +25,9 @@ Unit tests are designed to:
 
 ```
 unit_tests/
+├── auth/
+│   ├── __init__.py
+│   └── test_service.py    # Tests for auth service functions
 ├── leases/
 │   ├── test_service.py    # Tests for lease service functions
 │   └── test_router.py     # Tests for lease router functions
@@ -32,7 +35,24 @@ unit_tests/
 │   └── test_service.py    # Tests for property service functions
 ├── tenants/
 │   └── test_router.py     # Tests for tenant router functions
-└── README.md
+└── Unit-Test-Guide.md
+```
+
+### Test Organization
+
+Unit tests should be organized as **standalone functions**, not classes. This matches pytest's discovery patterns and keeps tests simple:
+
+```python
+# ✅ Good - standalone function
+@pytest.mark.asyncio
+async def test_get_user_by_id_success(mock_session, sample_user):
+    """Test successful user retrieval by ID."""
+    # test implementation
+
+# ❌ Avoid - class-based structure
+class TestUserService:
+    async def test_get_user_by_id_success(self):
+        # test implementation
 ```
 
 ## Writing Unit Tests
@@ -132,6 +152,26 @@ mock_session.execute.return_value.scalars.return_value.all.return_value = [obj1,
 ```python
 mocker.patch("Backend.utils.azure_blob.upload_file", return_value="https://blob.url/file.pdf")
 mocker.patch("Backend.utils.llm_utils.parse_lease", return_value={"rent": 1500})
+```
+
+### External Service Exceptions
+When mocking exceptions from external services (like Supabase's GoTrueApiError), create proper mock exceptions:
+
+```python
+def create_gotrue_api_error(message, status=None):
+    """Create a mock GoTrueApiError that matches the service's expectations."""
+    class GoTrueApiError(Exception):
+        def __init__(self, msg, status_code=None):
+            super().__init__(msg)
+            self.message = msg
+            if status_code:
+                self.status = status_code
+    
+    return GoTrueApiError(message, status)
+
+# Usage in tests
+mock_error = create_gotrue_api_error("Too many requests", status=429)
+mock_auth.resend.side_effect = mock_error
 ```
 
 ### Background Tasks

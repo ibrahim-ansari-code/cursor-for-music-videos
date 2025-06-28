@@ -15,31 +15,31 @@ export const fetchPayments = async (params = {}) => {
   if (params.offset) queryParams.append("offset", params.offset);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/accounting/payments/${queryString ? '?' + queryString : ''}`);
+  return apiRequest(`/accounting/payments${queryString ? '?' + queryString : ''}`);
 };
 
 export const createPayment = async (paymentData) => {
-  return apiRequest("/accounting/payments/", {
+  return apiRequest("/accounting/payments", {
     method: "POST",
     body: JSON.stringify(paymentData),
   });
 };
 
 export const updatePayment = async (paymentId, paymentData) => {
-  return apiRequest(`/accounting/payments/${paymentId}/`, {
+  return apiRequest(`/accounting/payments/${paymentId}`, {
     method: "PUT",
     body: JSON.stringify(paymentData),
   });
 };
 
 export const deletePayment = async (paymentId) => {
-  return apiRequest(`/accounting/payments/${paymentId}/`, {
+  return apiRequest(`/accounting/payments/${paymentId}`, {
     method: "DELETE",
   });
 };
 
 export const generateDuePayments = async () => {
-  return apiRequest("/accounting/payments/generate-due/", {
+  return apiRequest("/accounting/payments/generate/monthly-rent", {
     method: "POST",
   });
 };
@@ -50,11 +50,11 @@ export const fetchOutstandingPayments = async (params = {}) => {
   if (params.property_id) queryParams.append("property_id", params.property_id);
   
   const queryString = queryParams.toString();
-  return apiRequest(`/accounting/payments/outstanding/current-month/${queryString ? '?' + queryString : ''}`);
+  return apiRequest(`/accounting/payments/outstanding/current-month${queryString ? '?' + queryString : ''}`);
 };
 
 export const parsePaymentReceipt = async (fileFormData) => {
-  return apiRequest("/accounting/payments/parse-receipt/", {
+  return apiRequest("/accounting/payments/receipts/parse", {
     method: "POST",
     body: fileFormData,
   });
@@ -73,35 +73,35 @@ export const fetchInvoices = async (params = {}) => {
   if (params.offset) queryParams.append("offset", params.offset);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/accounting/invoices/${queryString ? '?' + queryString : ''}`);
+  return apiRequest(`/accounting/invoices${queryString ? '?' + queryString : ''}`);
 };
 
 export const createInvoice = async (invoiceData) => {
-  return apiRequest("/accounting/invoices/", {
+  return apiRequest("/accounting/invoices", {
     method: "POST",
     body: JSON.stringify(invoiceData),
   });
 };
 
 export const fetchInvoice = async (invoiceId) => {
-  return apiRequest(`/accounting/invoices/${invoiceId}/`);
+  return apiRequest(`/accounting/invoices/${invoiceId}`);
 };
 
 export const updateInvoice = async (invoiceId, invoiceData) => {
-  return apiRequest(`/accounting/invoices/${invoiceId}/`, {
+  return apiRequest(`/accounting/invoices/${invoiceId}`, {
     method: "PUT",
     body: JSON.stringify(invoiceData),
   });
 };
 
 export const deleteInvoice = async (invoiceId) => {
-  return apiRequest(`/accounting/invoices/${invoiceId}/`, {
+  return apiRequest(`/accounting/invoices/${invoiceId}`, {
     method: "DELETE",
   });
 };
 
 export const markInvoicePaid = async (invoiceId) => {
-  return apiRequest(`/accounting/invoices/mark-paid/${invoiceId}/`, {
+  return apiRequest(`/accounting/invoices/mark-paid/${invoiceId}`, {
     method: "POST",
   });
 };
@@ -118,18 +118,18 @@ export const fetchExpenses = async (params = {}) => {
   if (params.offset) queryParams.append("offset", params.offset);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/accounting/expenses/${queryString ? '?' + queryString : ''}`);
+  return apiRequest(`/accounting/expenses${queryString ? '?' + queryString : ''}`);
 };
 
 export const createExpense = async (expenseData) => {
-  return apiRequest("/accounting/expenses/", {
+  return apiRequest("/accounting/expenses", {
     method: "POST",
     body: JSON.stringify(expenseData),
   });
 };
 
 export const parseExpenseReceipt = async (fileFormData, options = {}) => {
-  return apiRequest("/accounting/expenses/parse-receipt/", {
+  return apiRequest("/accounting/expenses/parse-receipt", {
     method: "POST",
     body: fileFormData,
     ...options,
@@ -137,14 +137,14 @@ export const parseExpenseReceipt = async (fileFormData, options = {}) => {
 };
 
 export const updateExpense = async (expenseId, expenseData) => {
-  return apiRequest(`/accounting/expenses/${expenseId}/`, {
+  return apiRequest(`/accounting/expenses/${expenseId}`, {
     method: "PUT",
     body: JSON.stringify(expenseData),
   });
 };
 
 export const deleteExpense = async (expenseId) => {
-  return apiRequest(`/accounting/expenses/${expenseId}/`, {
+  return apiRequest(`/accounting/expenses/${expenseId}`, {
     method: "DELETE",
   });
 };
@@ -166,7 +166,7 @@ export const getRevenueTrends = async (params = {}) => {
   if (params.property_id) queryParams.append("property_id", params.property_id);
 
   const queryString = queryParams.toString();
-  return apiRequest(`/accounting/insights/revenue-trends/${queryString ? '?' + queryString : ''}`);
+  return apiRequest(`/accounting/insights/revenue-trends${queryString ? '?' + queryString : ''}`);
 };
 
 export const getAccountingOverview = async (params = {}) => {
@@ -175,5 +175,5 @@ export const getAccountingOverview = async (params = {}) => {
   if (params.property_id) queryParams.append("property_id", params.property_id);
   
   const queryString = queryParams.toString();
-  return apiRequest(`/accounting/insights/overview/${queryString ? '?' + queryString : ''}`);
+  return apiRequest(`/accounting/insights/overview${queryString ? '?' + queryString : ''}`);
 }; 
