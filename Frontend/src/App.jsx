@@ -49,7 +49,6 @@ import { AuthContext } from "./contexts/AuthContext";
  * If authentication or user profile fetching fails, the user is signed out and local authentication data is cleared.
  */
 function App() {
-  console.log(`[App] Effective VITE_API_URL: ${import.meta.env.VITE_API_URL}`);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 

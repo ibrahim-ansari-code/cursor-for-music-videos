@@ -5,8 +5,6 @@ const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 
 if (!API_BASE_URL) {
   throw new Error("CRITICAL: VITE_API_URL environment variable is not defined! Cannot initialize API client.");
-} else {
-  console.log(`API Base URL: ${API_BASE_URL}`);
 }
 
 // Helper function to format query strings with proper URL formatting

@@ -54,19 +54,28 @@ const BrandingPanel = () => {
   ];
 
   return (
-    <div className="hidden md:flex flex-col h-full w-full bg-gradient-to-br from-brand-green to-brand-teal p-14 text-white relative overflow-hidden">
+    <div className="hidden md:flex flex-col h-full w-full bg-gradient-to-br from-brand-green to-brand-teal text-white relative overflow-hidden"
+         style={{ padding: 'calc(32px + 1.5625vw)' }}>
       {/* Background effects */}
       <BackgroundEffects />
       
       {/* Main content */}
-      <div className="flex flex-col h-full max-w-xl mx-auto w-full relative z-10 pt-20">
-        <div className="space-y-16">
+      <div className="flex flex-col h-full max-w-xl mx-auto w-full relative z-10"
+           style={{ paddingTop: 'calc(40px + 2.5vh)' }}>
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: 'calc(48px + 1.5625vw)' 
+        }}>
           {/* Header section */}
-          <div className="text-center space-y-8">
+          <div className="text-center"
+               style={{ 
+                 display: 'flex', 
+                 flexDirection: 'column', 
+                 gap: 'calc(24px + 0.78125vw)' 
+               }}>
             <img
               src="/BrikliTransparentWhite.png"
-              srcSet="/BrikliTransparentWhite.png 1x, /BrikliTransparentWhite@2x.png 2x, /BrikliTransparentWhite@3x.png 3x"
-              sizes="(max-width: 768px) 150px, (max-width: 1024px) 192px, 192px"
               alt="Brikli - AI-Powered Property Management Platform"
               width={192}
               height={96}
@@ -84,7 +93,11 @@ const BrandingPanel = () => {
           </div>
           
           {/* Features list */}
-          <div className="space-y-8">
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: 'calc(24px + 0.78125vw)' 
+          }}>
             {features.map((feature, index) => (
               <FeatureItem key={index} {...feature} />
             ))}
@@ -119,7 +132,8 @@ const BackgroundEffects = () => (
 );
 
 const FeatureItem = ({ icon, title, description }) => (
-  <div className="flex gap-8 group cursor-default items-start">
+  <div className="flex group cursor-default items-start"
+       style={{ gap: 'calc(24px + 0.78125vw)' }}>
     <div className="flex-shrink-0 mt-3.5">
       <div className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center group-hover:bg-white/20 transition-all duration-300 group-hover:scale-105 shadow-sm">
         {icon}

@@ -80,7 +80,7 @@ const Register = () => {
       <div className="max-w-md w-full space-y-8">
         <div className="flex justify-center">
           <img
-            src="BrikliTransparentWhite.png"
+            src="/BrikliTransparentWhite.png"
             alt="Brikli Logo"
             className="h-12 w-auto"
           />
