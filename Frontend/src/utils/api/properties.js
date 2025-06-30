@@ -44,47 +44,4 @@ export const deleteProperty = async (propertyId) => {
   });
 };
 
-export const fetchPropertyUnits = async (propertyId) => {
-  return apiRequest(`/properties/${propertyId}/units`);
-};
-
-export const createUnit = async (propertyId, unitData) => {
-  return apiRequest(`/properties/${propertyId}/units`, {
-    method: "POST",
-    body: JSON.stringify(unitData),
-  });
-};
-
-export const updateUnit = async (unitId, unitData) => {
-  // Ensure numeric values are properly formatted
-  const formattedData = {
-    ...unitData,
-    monthly_rent: unitData.monthly_rent
-      ? parseFloat(unitData.monthly_rent)
-      : null,
-    size: unitData.size ? parseFloat(unitData.size) : null,
-    bedrooms: unitData.bedrooms ? parseInt(unitData.bedrooms, 10) : null,
-    bathrooms: unitData.bathrooms ? parseFloat(unitData.bathrooms) : null,
-    floor: unitData.floor ? parseInt(unitData.floor, 10) : null,
-    tenant_id: unitData.tenant_id || null,
-  };
-
-  return apiRequest(`/units/${unitId}`, {
-    method: "PUT",
-    body: JSON.stringify(formattedData),
-  });
-};
-
-export const deleteUnit = async (unitId) => {
-  // The response will be null for 204 status, which is OK
-  return apiRequest(`/units/${unitId}`, {
-    method: "DELETE",
-  });
-};
-
-export const fetchUnitById = async (unitId) => {
-  if (!unitId) {
-    throw new Error("Unit ID is required to fetch unit details.");
-  }
-  return apiRequest(`/units/${unitId}`);
-}; 
+ 

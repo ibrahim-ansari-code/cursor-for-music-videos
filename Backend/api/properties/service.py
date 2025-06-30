@@ -8,17 +8,20 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, selectinload
 from sqlmodel import col
 
-from Backend.api.units import TenantInfo
+from Backend.api.units.schemas import TenantInfo
 from Backend.models.enums import PropertyStatus
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.property import Property, PropertyUnit, PropertyType
 from Backend.models.user import User
 from Backend.utils.datetime_utils import create_audit_datetime
 
+from decimal import Decimal, InvalidOperation
+
 from .schemas import (
     OwnerResponse,
     PropertyCreate,
     PropertyDetailResponse_Standalone,
+    PropertyStats,
     PropertyUpdate,
     UnitResponse,
 )
@@ -27,6 +30,33 @@ logger = logging.getLogger(__name__)
 
 
 class PropertyService:
+    @staticmethod
+    def calculate_property_stats(units: list[PropertyUnit]) -> PropertyStats:
+        """Calculate statistics for a property based on its units."""
+        total_units = len(units)
+        vacant_units = sum(1 for unit in units if not unit.is_rented)
+        occupied_units = total_units - vacant_units
+        
+        # Calculate monthly revenue with error handling for invalid data
+        monthly_revenue = Decimal("0.00")
+        for unit in units:
+            if unit.is_rented and unit.monthly_rent:
+                try:
+                    monthly_revenue += Decimal(str(unit.monthly_rent))
+                except (TypeError, ValueError, InvalidOperation) as e:
+                    logger.warning(f"Invalid monthly_rent value for unit {getattr(unit, 'id', 'unknown')}: {unit.monthly_rent}")
+                    continue
+        
+        occupancy_rate = (occupied_units / total_units * 100) if total_units > 0 else 0.0
+        
+        return PropertyStats(
+            total_units=total_units,
+            vacant_units=vacant_units,
+            occupied_units=occupied_units,
+            monthly_revenue=monthly_revenue,
+            occupancy_rate=occupancy_rate
+        )
+    
     @staticmethod
     def _derive_property_status(property_obj: Property) -> PropertyStatus:
         """Derives property status based on unit occupancy."""
@@ -81,7 +111,9 @@ class PropertyService:
 
         serialized_units_models = []
         if property_orm.units:
-            for unit in property_orm.units:
+            # Sort units by ID to maintain consistent ordering
+            sorted_units = sorted(property_orm.units, key=lambda x: x.id)
+            for unit in sorted_units:
                 try:
                     unit_model = UnitResponse.model_validate(unit)
                     if unit.tenant:
@@ -105,6 +137,9 @@ class PropertyService:
                 detail="Critical error: Property ID missing after retrieval.",
             )
 
+        # Calculate stats for the property
+        stats = PropertyService.calculate_property_stats(property_orm.units)
+        
         response = PropertyDetailResponse_Standalone(
             id=property_orm.id,
             name=property_orm.name,
@@ -125,6 +160,7 @@ class PropertyService:
                 else None
             ),
             units=serialized_units_models,
+            stats=stats,
         )
         return response
 
@@ -221,7 +257,9 @@ class PropertyService:
         # Serialize units with tenant info
         serialized_units = []
         if loaded_property.units:
-            for unit in loaded_property.units:
+            # Sort units by ID to maintain consistent ordering
+            sorted_units = sorted(loaded_property.units, key=lambda x: x.id)
+            for unit in sorted_units:
                 try:
                     unit_model = UnitResponse.model_validate(unit)
                     if unit.tenant:
@@ -247,6 +285,9 @@ class PropertyService:
         # Type assertion for the linter
         property_id_not_none: int = loaded_property.id
         
+        # Calculate stats for the property
+        stats = PropertyService.calculate_property_stats(loaded_property.units)
+        
         # Construct response with derived status
         response = PropertyDetailResponse_Standalone(
             id=property_id_not_none,
@@ -268,6 +309,7 @@ class PropertyService:
                 else None
             ),
             units=serialized_units,
+            stats=stats,
         )
         return response
 
@@ -332,7 +374,9 @@ class PropertyService:
         response_status = PropertyService._derive_property_status(updated_property_orm)
         serialized_units = []
         if updated_property_orm.units:
-            for unit in updated_property_orm.units:
+            # Sort units by ID to maintain consistent ordering
+            sorted_units = sorted(updated_property_orm.units, key=lambda x: x.id)
+            for unit in sorted_units:
                 unit_model = UnitResponse.model_validate(unit)
                 if unit.tenant:
                     try:
@@ -354,6 +398,9 @@ class PropertyService:
                 detail="Critical error: Property ID missing after update.",
             )
 
+        # Calculate stats for the property
+        stats = PropertyService.calculate_property_stats(updated_property_orm.units)
+
         response = PropertyDetailResponse_Standalone(
             id=updated_property_orm.id,
             name=updated_property_orm.name,
@@ -374,6 +421,7 @@ class PropertyService:
                 else None
             ),
             units=serialized_units,
+            stats=stats,
         )
         return response
 

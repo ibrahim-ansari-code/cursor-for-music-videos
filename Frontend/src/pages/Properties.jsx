@@ -9,6 +9,8 @@ import {
 } from "../utils/api";
 import NewPropertyModal from "../components/NewPropertyModal";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 // Utility functions
 // Capitalize first letter of string
@@ -258,7 +260,6 @@ const Properties = () => {
     total: 0,
   });
   const [isDeleting, setIsDeleting] = useState(false);
-  const [notification, setNotification] = useState(null);
   const [currentProperty, setCurrentProperty] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [sortOption, setSortOption] = useState(null);
@@ -475,10 +476,7 @@ const Properties = () => {
         );
         setProperties(updatedProperties);
 
-        setNotification({
-          type: "success",
-          message: "Property updated successfully",
-        });
+        toast.success("Property updated successfully");
       } else {
         console.log(
           "[handleCreateProperty - Create] Creating property with data:",
@@ -590,10 +588,7 @@ const Properties = () => {
         );
         setStatusCounts(newCounts);
 
-        setNotification({
-          type: "success",
-          message: "Property created successfully",
-        });
+        toast.success("Property created successfully");
       }
 
       // Reset state and close modal
@@ -601,10 +596,6 @@ const Properties = () => {
       setCurrentProperty(null);
       setIsEditing(false);
 
-      // Clear notification after 3 seconds
-      setTimeout(() => {
-        setNotification(null);
-      }, 3000);
 
       return result;
     } catch (error) {
@@ -624,14 +615,7 @@ const Properties = () => {
       setIsModalOpen(true);
     } catch (error) {
       console.error("Error fetching property details:", error);
-      setNotification({
-        type: "error",
-        message: "Failed to load property details",
-      });
-
-      setTimeout(() => {
-        setNotification(null);
-      }, 3000);
+      toast.error("Failed to load property details");
     } finally {
       setLoading(false);
     }
@@ -694,28 +678,14 @@ const Properties = () => {
       setProperties(newPropertiesList);
 
       // Show success notification
-      setNotification({
-        type: "success",
-        message: "Property was successfully deleted",
-      });
+      toast.success("Property was successfully deleted");
 
-      // Clear notification after 3 seconds
-      setTimeout(() => {
-        setNotification(null);
-      }, 3000);
     } catch (error) {
       console.error("Error deleting property:", error);
 
       // Show error notification
-      setNotification({
-        type: "error",
-        message: error.message || "Failed to delete property. Please try again.",
-      });
+      toast.error(error.message || "Failed to delete property. Please try again.");
 
-      // Clear notification after 3 seconds
-      setTimeout(() => {
-        setNotification(null);
-      }, 3000);
     } finally {
       setIsDeleting(false);
     }
@@ -841,49 +811,6 @@ const Properties = () => {
         />
       </div>
 
-      {/* Notification */}
-      {notification && (
-        <div
-          className={`mb-6 p-4 rounded-lg ${
-            notification.type === "success"
-              ? "bg-green-50 border border-green-200 text-green-700"
-              : "bg-red-50 border border-red-200 text-red-700"
-          }`}
-        >
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              {notification.type === "success" ? (
-                <svg
-                  className="h-5 w-5 text-green-400"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="h-5 w-5 text-red-400"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              )}
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium">{notification.message}</p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Properties Table */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -1222,6 +1149,20 @@ const Properties = () => {
         isLoading={isSubmitting}
         propertyData={currentProperty}
         isEditing={isEditing}
+      />
+
+      {/* Toast Notifications */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
       />
     </div>
   );

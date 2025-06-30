@@ -84,3 +84,32 @@ cd Backend/tests && python run_all_api_tests_pytest.py
 - Platform: Porter for both frontend and backend
 - Alembic migrations run automatically in production
 - Commit all migration files to version control
+
+## Communication & Review Process
+**CRITICAL: Always explain before implementing**
+
+Before making ANY code changes or taking actions:
+1. **Explain the Plan**: Clearly describe what you intend to implement and why
+2. **Break Down the Steps**: List each specific change you will make, file by file
+3. **Identify Impact**: Explain how these changes affect the existing codebase
+4. **Wait for Approval**: Do not proceed until I explicitly approve the plan
+5. **No Assumptions**: Never implement code without explicit user confirmation
+
+**Forbidden Actions:**
+- Making code changes without prior explanation and approval
+- Implementing "quick fixes" or "small tweaks" without discussion
+- Assuming user intent without clarification
+- Writing code based on incomplete understanding
+
+**Required Format:**
+When proposing changes, use this structure:
+```
+## Proposed Implementation
+**What:** [Brief description]
+**Why:** [Reasoning/justification]
+**Files to modify:** [List of files]
+**Specific changes:** [Detailed breakdown]
+**Potential risks:** [Any concerns or dependencies]
+```
+
+Always ask: "Does this plan look correct? Should I proceed with the implementation?"

@@ -1,6 +1,7 @@
 import React from "react";
+import UnitStatusBadge from "./UnitStatusBadge";
 
-const UnitTable = ({ units, loading, error, onEdit, onDelete, onAssign }) => {
+const UnitTable = ({ units, loading, error, onEdit, onDelete, onAssign, onViewLease }) => {
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -17,6 +18,37 @@ const UnitTable = ({ units, loading, error, onEdit, onDelete, onAssign }) => {
       .filter(Boolean)
       .join(" ");
     return name || "Not assigned";
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const getLeaseEndDate = (unit) => {
+    // If unit has lease info attached, use it
+    if (unit?.lease?.end_date) {
+      return formatDate(unit.lease.end_date);
+    }
+    // If unit is rented but no lease data yet, show loading or placeholder
+    if (unit.is_rented) {
+      return unit.lease === undefined ? "Loading..." : "No end date";
+    }
+    // Not rented
+    return "N/A";
+  };
+
+  const getLeaseDuration = (unit) => {
+    // Show both start and end dates if available
+    if (unit?.lease?.start_date && unit?.lease?.end_date) {
+      return `${formatDate(unit.lease.start_date)} - ${formatDate(unit.lease.end_date)}`;
+    }
+    return getLeaseEndDate(unit);
   };
 
   if (loading)
@@ -53,7 +85,7 @@ const UnitTable = ({ units, loading, error, onEdit, onDelete, onAssign }) => {
             </th>
             <th
               scope="col"
-              className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+              className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
               Rent
             </th>
@@ -62,6 +94,12 @@ const UnitTable = ({ units, loading, error, onEdit, onDelete, onAssign }) => {
               className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
               Tenant
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Lease Ends
             </th>
             <th
               scope="col"
@@ -87,7 +125,7 @@ const UnitTable = ({ units, loading, error, onEdit, onDelete, onAssign }) => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                   {unit.floor ?? "N/A"}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                   {formatCurrency(unit.monthly_rent)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
@@ -95,16 +133,14 @@ const UnitTable = ({ units, loading, error, onEdit, onDelete, onAssign }) => {
                     {getTenantName(unit)}
                   </div>
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                  {getLeaseEndDate(unit)}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      unit.is_rented
-                        ? "bg-green-100 text-green-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
-                    {unit.is_rented ? "Rented" : "Vacant"}
-                  </span>
+                  <UnitStatusBadge 
+                    isRented={unit.is_rented} 
+                    size="small"
+                  />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                   <div className="flex justify-center space-x-3">
@@ -114,6 +150,14 @@ const UnitTable = ({ units, loading, error, onEdit, onDelete, onAssign }) => {
                         className="text-green-600 hover:text-green-900 disabled:opacity-50"
                       >
                         Assign
+                      </button>
+                    )}
+                    {unit.is_rented && onViewLease && (
+                      <button
+                        onClick={() => onViewLease(unit.id)}
+                        className="text-purple-600 hover:text-purple-900 disabled:opacity-50"
+                      >
+                        View Lease
                       </button>
                     )}
                     <button

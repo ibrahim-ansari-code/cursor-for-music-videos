@@ -1,0 +1,132 @@
+name: Test Suite
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+# Need to set these test environment variables for the api tests to run
+env:
+  DATABASE_URL: "postgresql://test:test@localhost:5432/test_db"
+  SECRET_KEY: "test-secret-key-for-ci"
+  APIDECK_API_KEY: "test-key"
+  APIDECK_APP_ID: "test-app-id"
+  SUPABASE_WEBHOOK_SECRET: "test-webhook-secret"
+
+jobs:
+  test-suite:
+    name: "Test Suite (Unit → API → Coverage)"
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for diff coverage
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Cache Poetry dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pypoetry
+          key: poetry-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            poetry-
+      
+      - name: Install dependencies
+        run: |
+          poetry install --extras dev
+      
+      # STEP 1: Run Unit Tests (must pass to continue)
+      - name: "Step 1: Run Unit Tests (100% Required)"
+        run: |
+          cd Backend/tests
+          poetry run pytest unit_tests/ \
+            -v \
+            --tb=short \
+            -n auto \
+            --junit-xml=unit-test-results.xml
+      
+      - name: Upload unit test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: Backend/tests/unit-test-results.xml
+      
+      # STEP 2: Run API Tests (only if unit tests passed)
+      - name: "Step 2: Start Test Server for API Tests"
+        run: |
+          # Start server in background and save PID
+          poetry run uvicorn Backend.api.app:app --host 127.0.0.1 --port 8000 &
+          echo $! > server.pid
+          sleep 10
+          
+          # Health check to ensure server is ready
+          curl -f http://localhost:8000/api/health || exit 1
+      
+      - name: "Step 2: Run API Tests (100% Required)"
+        run: |
+          cd Backend/tests
+          poetry run pytest api_tests/ \
+            -v \
+            --tb=short \
+            -n auto \
+            --junit-xml=api-test-results.xml
+      
+      - name: "Step 2: Stop Test Server"
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) || true
+            rm server.pid
+          fi
+      
+      - name: Upload API test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-test-results
+          path: Backend/tests/api-test-results.xml
+      
+      # STEP 3: Run Coverage Check (only if API tests passed)
+      - name: "Step 3: Run Tests with Coverage Collection"
+        run: |
+          cd Backend/tests
+          poetry run pytest unit_tests/ api_tests/ \
+            --cov=Backend \
+            --cov-report=xml \
+            --cov-report=html \
+            -q
+      
+      - name: "Step 3: Check Diff Coverage (80%+ on New Code)"
+        run: |
+          cd Backend
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            poetry run diff-cover tests/coverage.xml \
+              --compare-branch=origin/${{ github.base_ref }} \
+              --fail-under=80 \
+              --diff-range-notation='..'
+          else
+            echo "Skipping diff coverage check for push events"
+          fi
+      
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: |
+            Backend/tests/coverage.xml
+            Backend/tests/htmlcov/ 

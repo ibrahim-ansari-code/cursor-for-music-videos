@@ -20,6 +20,9 @@ export * from './accounting';
 // Property management
 export * from './properties';
 
+// Unit management
+export * from './units';
+
 // Tenant management
 export * from './tenants';
 

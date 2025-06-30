@@ -514,6 +514,19 @@ files = [
 pycparser = "*"
 
 [[package]]
+name = "chardet"
+version = "5.2.0"
+description = "Universal encoding detector for Python 3"
+optional = true
+python-versions = ">=3.7"
+groups = ["main"]
+markers = "extra == \"dev\""
+files = [
+    {file = "chardet-5.2.0-py3-none-any.whl", hash = "sha256:e1cf59446890a00105fe7b7912492ea04b6e6f06d4b742b2c788469e34c82970"},
+    {file = "chardet-5.2.0.tar.gz", hash = "sha256:1b3b6ff479a8c414bc3fa2c0852995695c4a026dcd6d0633b2dd092ca39c1cf7"},
+]
+
+[[package]]
 name = "charset-normalizer"
 version = "3.4.2"
 description = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
@@ -798,6 +811,28 @@ files = [
 
 [package.dependencies]
 packaging = "*"
+
+[[package]]
+name = "diff-cover"
+version = "9.4.1"
+description = "Run coverage and linting reports on diffs"
+optional = true
+python-versions = ">=3.9"
+groups = ["main"]
+markers = "extra == \"dev\""
+files = [
+    {file = "diff_cover-9.4.1-py3-none-any.whl", hash = "sha256:84d5bd402f566d04212126988a2c352b8ec801fa7e43b8856bd8dc146baec5a9"},
+    {file = "diff_cover-9.4.1.tar.gz", hash = "sha256:7ded89e5fb3a61161be9b98d025f2ad4f5aa95de593c3fbeb65419ddb6667610"},
+]
+
+[package.dependencies]
+chardet = ">=3.0.0"
+Jinja2 = ">=2.7.1"
+pluggy = ">=0.13.1,<2"
+Pygments = ">=2.19.1,<3.0.0"
+
+[package.extras]
+toml = ["tomli (>=1.2.1)"]
 
 [[package]]
 name = "distro"
@@ -3643,9 +3678,9 @@ multidict = ">=4.0"
 propcache = ">=0.2.1"
 
 [extras]
-dev = ["httpx", "mypy", "pytest", "pytest-asyncio", "pytest-cov", "pytest-json-report", "pytest-xdist"]
+dev = ["diff-cover", "httpx", "mypy", "pytest", "pytest-asyncio", "pytest-cov", "pytest-json-report", "pytest-xdist"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "2ecb6063272229f9d35610b2fb7a58cbf161646e68a3427bc73e16bd748876e5"
+content-hash = "209b604726c8b55ae1a3c03099bd54dbc25e9286af4e5e8a1f7e80f91f79d642"

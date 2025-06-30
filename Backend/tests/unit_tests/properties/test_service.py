@@ -87,10 +87,22 @@ async def test_property_service_error_handling_in_unit_serialization(mocker):
     )
     
     # Mock unit that will fail validation
+    # We'll patch UnitResponse.model_validate to raise an exception for this specific unit
     bad_unit = MagicMock(spec=PropertyUnit)
     bad_unit.id = 1
     bad_unit.name = "Bad Unit"
-    bad_unit.monthly_rent = "invalid_decimal"  # Will cause validation error
+    bad_unit.monthly_rent = "invalid_decimal"  # This will be caught by calculate_property_stats
+    bad_unit.is_rented = False
+    bad_unit.description = None
+    bad_unit.size = None
+    bad_unit.bedrooms = None
+    bad_unit.bathrooms = None
+    bad_unit.floor = None
+    bad_unit.tenant_id = None
+    bad_unit.tenant = None
+    bad_unit.property_id = property_id
+    bad_unit.created_at = now
+    bad_unit.updated_at = now
     
     property_orm = MagicMock(spec=Property)
     property_orm.id = property_id
@@ -116,6 +128,20 @@ async def test_property_service_error_handling_in_unit_serialization(mocker):
     
     # Mock logger to verify error is logged
     mock_logger = mocker.patch("Backend.api.properties.service.logger")
+    
+    # Patch UnitResponse.model_validate to fail for our bad unit
+    original_validate = mocker.patch("Backend.api.properties.schemas.UnitResponse.model_validate")
+    def mock_validate(obj):
+        if hasattr(obj, 'id') and obj.id == 1:  # Our bad unit
+            raise ValueError("Unit validation failed")
+        # For any other unit, return a mock response
+        mock_response = MagicMock()
+        for attr in ['id', 'property_id', 'name', 'description', 'size', 
+                     'monthly_rent', 'is_rented', 'bedrooms', 'bathrooms', 
+                     'floor', 'tenant', 'created_at', 'updated_at']:
+            setattr(mock_response, attr, getattr(obj, attr, None))
+        return mock_response
+    original_validate.side_effect = mock_validate
 
     # Act
     response = await PropertyService.get_property(property_id, current_user, mock_session)
@@ -124,6 +150,8 @@ async def test_property_service_error_handling_in_unit_serialization(mocker):
     assert isinstance(response, PropertyDetailResponse_Standalone)
     assert len(response.units) == 0  # Bad unit was skipped
     mock_logger.error.assert_called()  # Error was logged
+    # The warning about invalid monthly_rent won't be logged because
+    # the unit fails validation before reaching the stats calculation
 
 
 @pytest.mark.asyncio

@@ -4,7 +4,7 @@ from uuid import UUID as PythonUUID
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from Backend.api.units import TenantInfo
+from Backend.api.units.schemas import TenantInfo
 from Backend.models.enums import PropertyStatus
 from Backend.models.property import PropertyType
 
@@ -97,6 +97,17 @@ class UnitResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PropertyStats(BaseModel):
+    """Calculated statistics for a property"""
+    total_units: int = 0
+    vacant_units: int = 0
+    occupied_units: int = 0
+    monthly_revenue: Decimal = Decimal("0.00")
+    occupancy_rate: float = 0.0
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
 class PropertyDetailResponse_Standalone(BaseModel):
     # Fields from PropertyResponse
     id: int
@@ -115,6 +126,7 @@ class PropertyDetailResponse_Standalone(BaseModel):
     # Additional fields for detail view
     owner: OwnerResponse | None = None
     units: list[UnitResponse] = []  # Changed from List[UnitResponse]
+    stats: PropertyStats | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -123,4 +135,5 @@ class PropertyDetailResponse(PropertyResponse):
     # Add additional fields for property details
     # Changed from str to PropertyStatus
     status: PropertyStatus = PropertyStatus.ACTIVE
-    units: list[UnitResponse] = []  # Changed from List[UnitResponse] 
+    units: list[UnitResponse] = []  # Changed from List[UnitResponse]
+    stats: PropertyStats | None = None 
