@@ -51,6 +51,11 @@ import { AuthContext } from "./contexts/AuthContext";
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const currentUserIdRef = React.useRef(null);
+
+  React.useEffect(() => {
+    currentUserIdRef.current = user?.id || null;
+  }, [user]);
 
   // Login function to be provided by context
   const login = async (email, password) => {
@@ -87,8 +92,8 @@ function App() {
       const errToThrow = error.message
         ? error
         : new Error(
-            error.detail || "Login failed. Please check your credentials."
-          );
+          error.detail || "Login failed. Please check your credentials."
+        );
       if (error.status) errToThrow.status = error.status; // Preserve status if available
       throw errToThrow;
     }
@@ -182,7 +187,10 @@ function App() {
 
     const { data: authSubscriptionData } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log("Auth state change:", event, session?.user?.id);
+        // Only log auth events in development
+        if (import.meta.env.MODE === 'development') {
+          console.log("Auth state change:", event, session?.user?.id);
+        }
         const currentToken = session?.access_token || null;
 
         // Store/remove Supabase token for api.js to pick up
@@ -192,8 +200,23 @@ function App() {
           localStorage.removeItem("token");
         }
 
-        if (event === "SIGNED_IN") {
+        if (event === "INITIAL_SESSION" || event === "SIGNED_IN") {
+          // Check if this is the same user already loaded (tab switch scenario)
+          // Use ref instead of state to avoid closure issues
+          const currentUserId = currentUserIdRef.current;
+          const newUserId = session?.user?.id;
+
+          if (currentUserId && newUserId && currentUserId === newUserId) {
+            // Only log in development mode for security
+            if (import.meta.env.MODE === 'development') {
+              console.log(`Same user already loaded (${event}), skipping refresh on tab switch`);
+            }
+            return;
+          }
+
+          // Set loading state for both events since both can trigger user fetching
           setLoading(true);
+
           if (session && session.user) {
             try {
               const userInfo = await getCurrentUser(); // Fetches from /api/auth/me
@@ -211,7 +234,7 @@ function App() {
                 setUser(null);
               }
             } catch (e) {
-              console.error("Error fetching user profile after SIGNED_IN:", e);
+              console.error("Error fetching user profile:", e);
               // If the error is authentication-related, sign out
               if (e.status === 401 || e.status === 403) {
                 await supabase.auth.signOut();
@@ -219,9 +242,14 @@ function App() {
               localStorage.removeItem("user_type");
               localStorage.removeItem("user");
               setUser(null);
+            } finally {
+              // Always clear loading state, even if errors occur
+              setLoading(false);
             }
+          } else {
+            // No session, clear loading immediately
+            setLoading(false);
           }
-          setLoading(false);
         } else if (event === "SIGNED_OUT") {
           localStorage.removeItem("user_type");
           localStorage.removeItem("user");
@@ -231,7 +259,9 @@ function App() {
           // Supabase client handles token refresh automatically.
           // If you store the token manually elsewhere, update it here.
           // localStorage 'token' is updated above.
-          console.log("Token refreshed");
+          if (import.meta.env.MODE === 'development') {
+            console.log("Token refreshed");
+          }
         }
       }
     );
