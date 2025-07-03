@@ -308,7 +308,27 @@ const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
     setIsLoading(true);
 
     try {
-      const response = await updateTenant(tenant.id, formData);
+      // Build update object with only relevant fields based on tenant type
+      const updateData = {
+        tenant_type: formData.tenant_type,
+        email: formData.email.trim(),
+        status: formData.status,
+        phone: formData.phone?.trim() || null,
+      };
+
+      if (formData.tenant_type === "Individual") {
+        // For individual tenants, only include first_name and last_name
+        updateData.first_name = formData.first_name.trim();
+        updateData.last_name = formData.last_name.trim();
+        // Explicitly exclude company fields
+      } else {
+        // For company tenants, only include company_name and optionally contact_person
+        updateData.company_name = formData.company_name.trim();
+        updateData.contact_person = formData.contact_person?.trim() || null;
+        // Explicitly exclude individual name fields
+      }
+
+      const response = await updateTenant(tenant.id, updateData);
 
       if (onSave) {
         onSave(response);

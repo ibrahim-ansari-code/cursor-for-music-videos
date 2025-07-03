@@ -219,10 +219,25 @@ const TenantModal = ({
     
     setIsLoading(true);
     try {
+      // Build tenant object with only relevant fields based on tenant type
       const tenantToCreate = {
-        ...formData,
+        tenant_type: formData.tenant_type,
+        email: formData.email.trim(),
         status: STATUS_MAPPING[formData.status.toLowerCase()] || formData.status,
+        phone: formData.phone?.trim() || null,
       };
+
+      if (formData.tenant_type === "Individual") {
+        // For individual tenants, only include first_name and last_name
+        tenantToCreate.first_name = formData.first_name.trim();
+        tenantToCreate.last_name = formData.last_name.trim();
+        // Explicitly exclude company fields
+      } else {
+        // For company tenants, only include company_name and optionally contact_person
+        tenantToCreate.company_name = formData.company_name.trim();
+        tenantToCreate.contact_person = formData.contact_person?.trim() || null;
+        // Explicitly exclude individual name fields
+      }
       
       const response = await createTenant(tenantToCreate);
       if (onSave) {
