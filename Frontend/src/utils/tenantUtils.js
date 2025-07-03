@@ -80,7 +80,22 @@ export const getExpiringLeases = (tenantList) => {
 export const getInitials = (tenant) => {
     if (!tenant) return "--";
 
-    // Check if we have first_name and last_name fields
+    // Handle company tenants
+    if (tenant.tenant_type === "Company") {
+      if (tenant.company_name) {
+        // Use first two letters of company name
+        return tenant.company_name.substring(0, 2).toUpperCase();
+      }
+      if (tenant.contact_person) {
+        const nameParts = tenant.contact_person.split(" ");
+        const first = nameParts[0] ? nameParts[0][0] : "";
+        const last = nameParts[1] ? nameParts[1][0] : "";
+        return (first + last).toUpperCase();
+      }
+      return "CO"; // Default for company
+    }
+
+    // Handle individual tenants
     if (tenant.first_name || tenant.last_name) {
       const first = tenant.first_name ? tenant.first_name[0] : "";
       const last = tenant.last_name ? tenant.last_name[0] : "";

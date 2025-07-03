@@ -13,6 +13,7 @@ from Backend.models.user import User
 from Backend.models.enums import UserType
 from Backend.api.tenants.schemas import TenantResponse
 from Backend.models.tenant import TenantStatus
+from Backend.models.enums import TenantType
 from Backend.api.auth import get_current_user
 from Backend.database import get_session
 
@@ -100,6 +101,7 @@ def test_create_tenant_success():
         with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
             mock_validate.return_value = TenantResponse(
                 id=1,
+                tenant_type=TenantType.INDIVIDUAL,
                 first_name="Alice",
                 last_name="Smith",
                 phone="1234567890",
@@ -251,6 +253,7 @@ def test_create_tenant_with_property_assignment():
         with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
             mock_validate.return_value = TenantResponse(
                 id=2,
+                tenant_type=TenantType.INDIVIDUAL,
                 first_name="Charlie",
                 last_name="Brown",
                 phone="555-111-2222",
@@ -356,3 +359,144 @@ def test_create_tenant_server_error():
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "unexpected error" in response.json()["detail"]
         mock_session.rollback.assert_awaited_once()
+
+
+def test_create_company_tenant_success():
+    # Arrange
+    mock_user = create_test_user(email="landlord@example.com")
+    tenant_data = {
+        "tenant_type": "Company",
+        "company_name": "Innovate Inc.",
+        "contact_person": "Jane Doe",
+        "email": "contact@innovate.com",
+        "phone": "9876543210",
+        "status": "Active",
+    }
+    
+    mock_tenant = MagicMock()
+    mock_tenant.id = 3
+    mock_tenant.tenant_type = TenantType.COMPANY
+    mock_tenant.company_name = "Innovate Inc."
+    mock_tenant.contact_person = "Jane Doe"
+    mock_tenant.email = "contact@innovate.com"
+    mock_tenant.phone = "9876543210"
+    mock_tenant.status = TenantStatus.ACTIVE
+    mock_tenant.created_at = datetime.now(timezone.utc)
+    mock_tenant.updated_at = datetime.now(timezone.utc)
+    mock_tenant.current_property_id = None
+
+    with patch("Backend.api.tenants.router._validate_user_permissions", new_callable=AsyncMock), \
+         patch("Backend.api.tenants.router._determine_landlord", new_callable=AsyncMock) as mock_determine_landlord, \
+         patch("Backend.api.tenants.router._validate_property_assignment", new_callable=AsyncMock), \
+         patch("Backend.api.tenants.router._validate_linked_user_account", new_callable=AsyncMock), \
+         patch("Backend.api.tenants.router.create_and_save_tenant", new_callable=AsyncMock) as mock_create_save:
+        
+        mock_determine_landlord.return_value = mock_user.id
+        mock_create_save.return_value = mock_tenant
+        
+        mock_session = AsyncMock()
+        mock_session.commit = AsyncMock()
+        
+        with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
+            mock_validate.return_value = TenantResponse(
+                id=3,
+                tenant_type=TenantType.COMPANY,
+                company_name="Innovate Inc.",
+                contact_person="Jane Doe",
+                email="contact@innovate.com",
+                phone="9876543210",
+                status=TenantStatus.ACTIVE,
+                created_at=mock_tenant.created_at,
+                updated_at=mock_tenant.updated_at,
+                current_property_id=None,
+                unit=None,
+                property=None,
+            )
+            
+            app.dependency_overrides[get_current_user] = lambda: mock_user
+            app.dependency_overrides[get_session] = lambda: mock_session
+
+            with TestClientWithHost(app) as client:
+                response = client.post("/api/tenants/", json=tenant_data)
+
+            assert response.status_code == status.HTTP_201_CREATED
+            data = response.json()
+            assert data["tenant_type"] == "Company"
+            assert data["company_name"] == "Innovate Inc."
+            assert data["contact_person"] == "Jane Doe"
+
+
+def test_create_company_tenant_missing_company_name():
+    # Arrange
+    mock_user = create_test_user(email="landlord@example.com")
+    tenant_data = {
+        "tenant_type": "Company",
+        "contact_person": "John Smith",
+        "email": "john.s@example.com",
+    }
+
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[get_session] = lambda: AsyncMock()
+
+    with TestClientWithHost(app) as client:
+        response = client.post("/api/tenants/", json=tenant_data)
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    data = response.json()
+    assert "Company name is required for company tenants" in str(data["detail"])
+
+
+def test_create_tenant_optional_phone():
+    # Arrange
+    mock_user = create_test_user(email="landlord@example.com")
+    tenant_data = {
+        "first_name": "NoPhone",
+        "last_name": "User",
+        "email": "nophone@example.com",
+        "status": "Active",
+    }
+    
+    mock_tenant = MagicMock()
+    mock_tenant.id = 4
+    mock_tenant.first_name = "NoPhone"
+    mock_tenant.last_name = "User"
+    mock_tenant.email = "nophone@example.com"
+    mock_tenant.phone = None
+    mock_tenant.status = TenantStatus.ACTIVE
+    mock_tenant.created_at = datetime.now(timezone.utc)
+    mock_tenant.updated_at = datetime.now(timezone.utc)
+
+    with patch("Backend.api.tenants.router._validate_user_permissions", new_callable=AsyncMock), \
+         patch("Backend.api.tenants.router._determine_landlord", new_callable=AsyncMock) as mock_determine_landlord, \
+         patch("Backend.api.tenants.router._validate_property_assignment", new_callable=AsyncMock), \
+         patch("Backend.api.tenants.router._validate_linked_user_account", new_callable=AsyncMock), \
+         patch("Backend.api.tenants.router.create_and_save_tenant", new_callable=AsyncMock) as mock_create_save:
+        
+        mock_determine_landlord.return_value = mock_user.id
+        mock_create_save.return_value = mock_tenant
+        
+        mock_session = AsyncMock()
+        mock_session.commit = AsyncMock()
+        
+        with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
+            mock_validate.return_value = TenantResponse(
+                id=4,
+                tenant_type=TenantType.INDIVIDUAL,
+                first_name="NoPhone",
+                last_name="User",
+                email="nophone@example.com",
+                status=TenantStatus.ACTIVE,
+                created_at=mock_tenant.created_at,
+                updated_at=mock_tenant.updated_at,
+            )
+            
+            app.dependency_overrides[get_current_user] = lambda: mock_user
+            app.dependency_overrides[get_session] = lambda: mock_session
+
+            with TestClientWithHost(app) as client:
+                response = client.post("/api/tenants/", json=tenant_data)
+
+            assert response.status_code == status.HTTP_201_CREATED
+            data = response.json()
+            assert data["first_name"] == "NoPhone"
+            assert data["phone"] is None

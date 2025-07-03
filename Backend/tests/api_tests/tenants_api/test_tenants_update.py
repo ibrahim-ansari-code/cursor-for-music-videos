@@ -13,6 +13,7 @@ from Backend.models.user import User
 from Backend.models.enums import UserType
 from Backend.api.tenants.schemas import TenantResponse
 from Backend.models.tenant import TenantStatus, Tenant
+from Backend.models.enums import TenantType
 from Backend.api.auth import get_current_user
 from Backend.database import get_session
 
@@ -106,6 +107,7 @@ def test_update_tenant_success():
         with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
             mock_response = TenantResponse(
                 id=tenant_id,
+                tenant_type=TenantType.INDIVIDUAL,
                 first_name="NewFirst",
                 last_name="NewLast",
                 phone="555-123-4567",
@@ -182,6 +184,7 @@ def test_partial_update_tenant():
         with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
             mock_response = TenantResponse(
                 id=tenant_id,
+                tenant_type=TenantType.INDIVIDUAL,
                 first_name="OldFirst",
                 last_name="NewLast",
                 phone="555-000-0000",
@@ -295,6 +298,7 @@ def test_landlord_updates_tenant_info_without_property_change():
         with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
             mock_response = TenantResponse(
                 id=tenant_id,
+                tenant_type=TenantType.INDIVIDUAL,
                 first_name="NewFirst",
                 last_name="NewLast",
                 phone="555-123-4567",
@@ -455,3 +459,116 @@ def test_update_tenant_server_error():
         assert "Failed to update tenant" in response.json()["detail"]
         mock_session.rollback.assert_awaited_once()
 
+
+def test_update_tenant_to_company_type():
+    # Arrange
+    tenant_id = 50
+    landlord_id = uuid4()
+    mock_user = create_test_user(user_id=landlord_id, email="landlord@example.com")
+
+    mock_tenant = Tenant(
+        id=tenant_id,
+        first_name="IndividualFirst",
+        last_name="IndividualLast",
+        email="individual@example.com",
+        phone="555-000-0000",
+        status=TenantStatus.ACTIVE,
+        tenant_type=TenantType.INDIVIDUAL,
+        landlord_id=landlord_id,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
+    )
+
+    tenant_update = {
+        "tenant_type": "Company",
+        "company_name": "New Company LLC",
+        "contact_person": "New Contact",
+        "first_name": None,
+        "last_name": None
+    }
+    
+    with patch("Backend.api.tenants.router.check_tenant_permission", new_callable=AsyncMock) as mock_check_permission:
+        mock_check_permission.return_value = mock_tenant
+        
+        mock_session = AsyncMock()
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+        
+        with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
+            mock_validate.return_value = TenantResponse(
+                id=tenant_id,
+                tenant_type=TenantType.COMPANY,
+                company_name="New Company LLC",
+                contact_person="New Contact",
+                email="individual@example.com",
+                status=TenantStatus.ACTIVE,
+                created_at=mock_tenant.created_at,
+                updated_at=datetime.now(timezone.utc),
+            )
+            
+            app.dependency_overrides[get_current_user] = lambda: mock_user
+            app.dependency_overrides[get_session] = lambda: mock_session
+
+            with TestClientWithHost(app) as client:
+                response = client.patch(f"/api/tenants/{tenant_id}", json=tenant_update)
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["tenant_type"] == "Company"
+            assert data["company_name"] == "New Company LLC"
+            assert data.get("first_name") is None
+            assert data.get("last_name") is None
+
+
+def test_update_company_tenant_contact_person():
+    # Arrange
+    tenant_id = 51
+    landlord_id = uuid4()
+    mock_user = create_test_user(user_id=landlord_id, email="landlord@example.com")
+    
+    mock_tenant = Tenant(
+        id=tenant_id,
+        tenant_type=TenantType.COMPANY,
+        company_name="Tech Corp",
+        contact_person="Old Contact",
+        email="contact@techcorp.com",
+        landlord_id=landlord_id,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
+    )
+
+    tenant_update = {
+        "contact_person": "Updated Contact Name"
+    }
+
+    with patch("Backend.api.tenants.router.check_tenant_permission", new_callable=AsyncMock) as mock_check_permission:
+        mock_check_permission.return_value = mock_tenant
+        
+        mock_session = AsyncMock()
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
+            mock_validate.return_value = TenantResponse(
+                id=tenant_id,
+                tenant_type=TenantType.COMPANY,
+                company_name="Tech Corp",
+                contact_person="Updated Contact Name",
+                email="contact@techcorp.com",
+                status=TenantStatus.ACTIVE,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
+            
+            app.dependency_overrides[get_current_user] = lambda: mock_user
+            app.dependency_overrides[get_session] = lambda: mock_session
+
+            with TestClientWithHost(app) as client:
+                response = client.patch(f"/api/tenants/{tenant_id}", json=tenant_update)
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["contact_person"] == "Updated Contact Name"
+            assert data["company_name"] == "Tech Corp"

@@ -13,6 +13,7 @@ from Backend.models.user import User
 from Backend.models.enums import UserType
 from Backend.api.tenants.schemas import TenantResponse
 from Backend.models.tenant import TenantStatus, Tenant
+from Backend.models.enums import TenantType
 from Backend.api.auth import get_current_user
 from Backend.database import get_session
 
@@ -77,6 +78,7 @@ def test_get_tenant_success():
     
     mock_tenant_response = TenantResponse(
         id=tenant_id,
+        tenant_type=TenantType.INDIVIDUAL,
         first_name="John",
         last_name="Doe",
         phone=None,
@@ -111,6 +113,8 @@ def test_get_tenant_success():
         assert data["first_name"] == "John"
         assert data["last_name"] == "Doe"
         assert data["email"] == "john.doe@example.com"
+        assert "leases" in data
+        assert isinstance(data["leases"], list)
 
 
 def test_get_tenant_by_id_success():
@@ -134,6 +138,7 @@ def test_get_tenant_by_id_success():
     )
     mock_tenant_response = TenantResponse(
         id=tenant_id,
+        tenant_type=TenantType.INDIVIDUAL,
         first_name="Sam",
         last_name="Smith",
         phone="555-2222",
@@ -168,6 +173,8 @@ def test_get_tenant_by_id_success():
         assert data["last_name"] == "Smith"
         assert data["email"] == "sam.smith@example.com"
         assert data["current_property_id"] == 10
+        assert "leases" in data
+        assert isinstance(data["leases"], list)
 
 
 def test_get_tenants_landlord_scope():
@@ -226,6 +233,7 @@ def test_get_tenants_landlord_scope():
         # Patch enrich_tenants_with_details to return TenantResponse objects
         tenant_response1 = TenantResponse(
             id=1,
+            tenant_type=TenantType.INDIVIDUAL,
             first_name="John",
             last_name="Doe",
             phone="1234567890",
@@ -239,6 +247,7 @@ def test_get_tenants_landlord_scope():
         )
         tenant_response2 = TenantResponse(
             id=2,
+            tenant_type=TenantType.INDIVIDUAL,
             first_name="Jane",
             last_name="Smith",
             phone="0987654321",
@@ -269,6 +278,7 @@ def test_get_tenants_landlord_scope():
         assert {t["id"] for t in data} == {1, 2}
         assert all(t["status"] == TenantStatus.ACTIVE.value for t in data)
         assert all(t["current_property_id"] in [10, 20] for t in data)
+        assert all("leases" in t and isinstance(t["leases"], list) for t in data)
 
 
 def test_get_tenant_not_found():
@@ -416,3 +426,36 @@ def test_get_unassigned_tenants():
         
         # Verify unassigned query builder was called
         mock_build_unassigned.assert_called_once_with(mock_user, None)
+
+
+def test_search_tenants_by_company_name():
+    # Arrange
+    mock_user = create_test_user(email="landlord@example.com")
+    search_term = "Innovate"
+    
+    mock_query = MagicMock()
+    mock_query.order_by.return_value = mock_query
+    mock_query.offset.return_value = mock_query
+    mock_query.limit.return_value = mock_query
+
+    # Patch build_filtered_tenants_query to check the search term
+    with patch("Backend.api.tenants.router.build_filtered_tenants_query") as mock_build_query:
+        mock_build_query.return_value = mock_query
+        
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_session] = lambda: mock_session
+
+        with TestClientWithHost(app) as client:
+            client.get(f"/api/tenants/?search={search_term}")
+
+        # Assert that the query builder was called with the correct search term
+        mock_build_query.assert_called_once()
+        call_args, _ = mock_build_query.call_args
+        assert call_args[2] == search_term

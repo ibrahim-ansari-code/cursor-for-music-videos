@@ -4,8 +4,7 @@ import {
   fetchTenants,
   createLease,
 } from "../../utils/api";
-import TenantModal from "../TenantModal";
-import LoadingSpinner from "../LoadingSpinner";
+import TenantModal from "../tenants/TenantModal";
 
 const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => {
   // State Management

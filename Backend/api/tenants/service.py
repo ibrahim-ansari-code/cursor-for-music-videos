@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import col
 
 from Backend.api.tenants.schemas import (
+    LeaseResponseSimple,
     PropertyResponseSimple,
     TenantCreate,
     TenantResponse,
@@ -71,7 +72,7 @@ def _build_tenant_filters(
     """
     Constructs SQLAlchemy filter conditions for tenants based on status and search term.
     
-    If a status filter is provided, filters tenants by their status. If a search term is provided, filters tenants whose first name, last name, or email contains the search term (case-insensitive).
+    If a status filter is provided, filters tenants by their status. If a search term is provided, filters tenants whose first name, last name, email, company name, or contact person contains the search term (case-insensitive).
     
     Returns:
         A list of SQLAlchemy filter conditions to be used in tenant queries.
@@ -86,6 +87,8 @@ def _build_tenant_filters(
                 col(Tenant.first_name).ilike(search_term),
                 col(Tenant.last_name).ilike(search_term),
                 col(Tenant.email).ilike(search_term),
+                col(Tenant.company_name).ilike(search_term),
+                col(Tenant.contact_person).ilike(search_term),
             )
         )
     return filters
@@ -289,7 +292,7 @@ def build_unassigned_tenants_query(
     
     Args:
         current_user: The landlord user for whom to find unassigned tenants.
-        search: Optional search term to filter tenants by first name, last name, or email.
+        search: Optional search term to filter tenants by first name, last name, email, company name, or contact person.
     
     Returns:
         A SQLAlchemy Select object representing the filtered tenant query.
@@ -317,6 +320,8 @@ def build_unassigned_tenants_query(
                 col(Tenant.first_name).ilike(search_term),
                 col(Tenant.last_name).ilike(search_term),
                 col(Tenant.email).ilike(search_term),
+                col(Tenant.company_name).ilike(search_term),
+                col(Tenant.contact_person).ilike(search_term),
             )
         )
     return query
@@ -362,13 +367,27 @@ async def enrich_tenants_with_details(
     tenants: list[Tenant], session: AsyncSession
 ) -> list["TenantResponse"]:
     """
-    Transforms a list of Tenant ORM objects into TenantResponse models enriched with related property and unit details.
+    Transforms a list of Tenant ORM objects into TenantResponse models enriched with related property, unit, and lease details.
     
-    For each tenant, attaches the latest assigned property unit and its property information if available. Returns only tenants with valid IDs.
+    For each tenant, loads:
+    1. Latest assigned property unit and its property information (from current_property_id)
+    2. All leases with their associated property and unit details
+    
+    Returns only tenants with valid IDs.
     """
     response_data = []
     for tenant in tenants:
-        tenant_response = TenantResponse.model_validate(tenant)
+        # Convert tenant to dict using model_dump, excluding problematic relationships
+        tenant_dict = tenant.model_dump(exclude={'leases', 'user', 'current_property', 'assigned_units', 'units', 'maintenance_requests', 'payments', 'invoices'})
+        # Add fields expected by TenantResponse
+        tenant_dict.update({
+            'unit': None,
+            'property': None,
+            'leases': []  # Initialize empty, will be populated below
+        })
+        tenant_response = TenantResponse.model_validate(tenant_dict)
+        
+        # Load current property/unit assignment
         if tenant.current_property_id:
             unit_query = (
                 select(PropertyUnit)
@@ -391,6 +410,61 @@ async def enrich_tenants_with_details(
                 unit_info.property = property_info
                 tenant_response.unit = unit_info
                 tenant_response.property = property_info
+
+        # Load all leases for this tenant with property/unit details
+        lease_query = (
+            select(Lease)
+            .options(
+                selectinload(getattr(Lease, "property")),
+                selectinload(getattr(Lease, "unit"))
+            )
+            .where(col(Lease.tenant_id) == tenant.id)
+            .order_by(col(Lease.start_date).desc())
+        )
+        lease_result = await session.execute(lease_query)
+        leases = lease_result.scalars().all()
+
+        lease_responses = []
+        for lease in leases:
+            lease_response = LeaseResponseSimple.model_validate(lease)
+            
+            # Add property info to lease
+            if lease.property:
+                lease_response.property = PropertyResponseSimple.model_validate(lease.property)
+            
+            # Add unit info to lease (if lease has a unit)
+            if lease.unit:
+                unit_response = UnitResponseSimple.model_validate(lease.unit)
+                # Add property info to unit if available
+                if lease.property:
+                    unit_response.property = PropertyResponseSimple.model_validate(lease.property)
+                lease_response.unit = unit_response
+            
+            lease_responses.append(lease_response)
+
+        tenant_response.leases = lease_responses
+
+        # If tenant has no current property/unit assignment but has active leases,
+        # use the most recent active lease for property/unit info
+        if not tenant_response.property and lease_responses:
+            # Find the most recent active lease
+            active_lease = None
+            for lease_resp in lease_responses:
+                if lease_resp.status == LeaseStatus.ACTIVE:
+                    active_lease = lease_resp
+                    break
+            
+            # If no active lease, use the most recent lease
+            if not active_lease and lease_responses:
+                active_lease = lease_responses[0]
+                logger.warning(
+                    "Tenant %s has no active lease, using most recent lease for property info. This may indicate data inconsistency.",
+                    tenant.id
+                )
+            
+            if active_lease:
+                tenant_response.property = active_lease.property
+                tenant_response.unit = active_lease.unit
 
         response_data.append(tenant_response)
 

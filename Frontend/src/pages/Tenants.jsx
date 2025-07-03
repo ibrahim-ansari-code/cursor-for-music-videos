@@ -6,9 +6,9 @@ import {
   fetchOutstandingPayments,
   fetchLeases,
 } from "../utils/api";
-import TenantModal from "../components/TenantModal";
-import UpdateTenantModal from "../components/UpdateTenantModal";
-import LoadingSpinner from "../components/LoadingSpinner";
+import TenantModal from "../components/tenants/TenantModal";
+import UpdateTenantModal from "../components/tenants/UpdateTenantModal";
+import TenantTable from "../components/tenants/TenantTable";
 import useDebounce from "../hooks/useDebounce";
 import {
     countActiveLeases,
@@ -504,9 +504,6 @@ const Tenants = () => {
           </div>
         </div>
 
-        {/* Loading State */}
-        {isLoading && <LoadingSpinner message="Loading tenants..." />}
-
         {/* Error State */}
         {!isLoading && error && (
           <div className="bg-white shadow overflow-hidden sm:rounded-lg">
@@ -532,180 +529,14 @@ const Tenants = () => {
           </div>
         )}
 
-        {/* Empty State - Only show when not loading, no error, and no tenants */}
-        {!isLoading && !error && tenants.length === 0 && (
-          <div className="bg-white shadow-lg rounded-lg p-8 text-center border border-gray-100">
-            <div className="mx-auto w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mb-4">
-              <svg
-                className="h-12 w-12 text-blue-500"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No tenants yet
-            </h3>
-            <p className="text-gray-500 mb-6">
-              Start by adding your first tenant.
-            </p>
-            <button
-              type="button"
-              onClick={handleAddTenant}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <svg
-                className="-ml-1 mr-2 h-5 w-5"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Add Tenant
-            </button>
-          </div>
-        )}
-
-        {/* Tenant Table - Only show when not loading, no error, and tenants exist */}
-        {!isLoading && !error && tenants.length > 0 && (
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Name
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Property
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Unit
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Email
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Phone
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Status
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {tenants.map((tenant) => (
-                    <tr
-                      key={tenant.id}
-                      className="hover:bg-gray-50 transition-colors duration-150"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-left">
-                        <div className="flex items-center justify-left">
-                          <div className="flex-shrink-0 h-10 w-10">
-                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                              <span className="text-gray-700 font-medium">
-                                {getInitials(tenant)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="ml-4 text-left">
-                            <div className="text-sm font-medium text-gray-900">
-                              {tenant.first_name} {tenant.last_name}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 text-center">
-                          {tenant.property?.name ??
-                            tenant.unit?.property?.name ??
-                            "--"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 text-center">
-                          {tenant.unit ? tenant.unit.name : "--"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 text-center">
-                          {tenant.email || "--"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 text-center">
-                          {tenant.phone || "--"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(
-                            tenant.status
-                          )}`}
-                        >
-                          {tenant.status || "Unknown"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                        <div className="flex justify-center space-x-3">
-                          <button
-                            onClick={() => handleEditTenant(tenant)}
-                            className="text-blue-600 hover:text-blue-900 focus:outline-none"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTenant(tenant.id)}
-                            className="text-red-600 hover:text-red-900 focus:outline-none"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        {/* Tenant Table Component */}
+        <TenantTable
+          tenants={tenants}
+          onEditTenant={handleEditTenant}
+          onDeleteTenant={handleDeleteTenant}
+          onAddTenant={handleAddTenant}
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Lease Expiry Warning */}

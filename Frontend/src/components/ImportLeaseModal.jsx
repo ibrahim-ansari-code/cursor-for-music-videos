@@ -9,7 +9,7 @@ import {
   fetchLeases,
   createLease,
 } from "../utils/api";
-import TenantModal from "./TenantModal";
+import TenantModal from "./tenants/TenantModal";
 import {
   Label,
   Input,

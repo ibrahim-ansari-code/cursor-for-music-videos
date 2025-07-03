@@ -24,7 +24,7 @@ from Backend.api.tenants.service import (
     _validate_user_permissions,
 )
 from Backend.database import get_session
-from Backend.models.enums import UserType
+from Backend.models.enums import UserType, TenantType
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.property import Property
 from Backend.models.tenant import Tenant, TenantStatus
@@ -113,8 +113,12 @@ async def get_tenants(
             current_user, status_filter, search, property_id
         )
 
-    # Apply pagination and ordering
-    query = query.order_by(Tenant.last_name, Tenant.first_name).offset(skip).limit(limit)
+    # Apply pagination and ordering, falling back to company_name for sorting
+    query = query.order_by(
+        col(Tenant.last_name).asc().nullslast(),
+        col(Tenant.company_name).asc().nullslast(),
+        col(Tenant.first_name).asc().nullslast()
+    ).offset(skip).limit(limit)
 
     result = await session.execute(query)
     tenants_orm = result.scalars().all()
@@ -140,11 +144,6 @@ async def create_tenant(
     Raises:
         HTTPException: If the user lacks permission, validation fails, or an unexpected error occurs.
     """
-    logger.info(
-        "User %s creating tenant: %s",
-        current_user.email,
-        tenant_data.first_name + " " + tenant_data.last_name,
-    )
 
     await _validate_user_permissions(current_user)
 

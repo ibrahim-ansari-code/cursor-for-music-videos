@@ -1,10 +1,11 @@
 import re
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID as PythonUUID
 
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator, model_validator
 
 from Backend.models.tenant import TenantStatus
+from Backend.models.enums import TenantType
 
 
 # === Models ===
@@ -23,14 +24,43 @@ class UnitResponseSimple(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class LeaseResponseSimple(BaseModel):
+    id: int
+    start_date: date
+    end_date: date
+    status: str
+    property_id: int
+    unit_id: int | None = None
+    property: PropertyResponseSimple | None = None
+    unit: UnitResponseSimple | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class TenantBase(BaseModel):
-    first_name: str
-    last_name: str
-    phone: str
+    tenant_type: TenantType = TenantType.INDIVIDUAL
+    first_name: str | None = None
+    last_name: str | None = None
+    company_name: str | None = None
+    contact_person: str | None = None
+    phone: str | None = None  # Made optional per user feedback
     email: str
     status: TenantStatus = TenantStatus.ACTIVE
     user_id: PythonUUID | None = None
     current_property_id: int | None = None
+
+    @model_validator(mode="after")
+    def validate_tenant_fields(self):
+        """Validate required fields based on tenant type."""
+        if self.tenant_type == TenantType.INDIVIDUAL:
+            if not self.first_name or not self.first_name.strip():
+                raise ValueError("First name is required for individual tenants")
+            if not self.last_name or not self.last_name.strip():
+                raise ValueError("Last name is required for individual tenants")
+        elif self.tenant_type == TenantType.COMPANY:
+            if not self.company_name or not self.company_name.strip():
+                raise ValueError("Company name is required for company tenants")
+        return self
 
     @field_validator("email")
     @classmethod
@@ -48,26 +78,30 @@ class TenantBase(BaseModel):
             raise ValueError("Invalid email format")
         return email
 
-    @field_validator("first_name", "last_name")
+    @field_validator("first_name", "last_name", "company_name", "contact_person")
     @classmethod
-    def validate_name(cls, v: str) -> str:
+    def validate_name_fields(cls, v: str | None) -> str | None:
         """
-        Validates that a name string is not empty or only whitespace.
+        Validates that name fields are not empty or only whitespace if provided.
         
         Returns the trimmed name if valid; raises ValueError if the input is empty or contains only whitespace.
         """
-        if not v or not v.strip():
-            raise ValueError("Name cannot be empty")
+        if v is None:
+            return v
+        if v.strip() == "":
+            raise ValueError("Name fields cannot be empty if provided")
         return v.strip()
 
     @field_validator("phone")
     @classmethod
-    def validate_phone(cls, v: str) -> str:
+    def validate_phone(cls, v: str | None) -> str | None:
         """
         Validates that a phone number contains 10 to 15 digits and only allowed formatting characters.
         
         The phone number may include digits, spaces, hyphens, parentheses, and a plus sign. Raises a ValueError if the digit count is outside the allowed range or if disallowed characters are present.
         """
+        if v is None:
+            return v
         # Single regex validation for both allowed characters and digit count
         # Pattern ensures 10-20 characters total with at least 10-15 digits
         if not re.fullmatch(r"^[\d\s\-\(\)\+]{10,20}$", v):
@@ -100,8 +134,11 @@ class TenantCreate(TenantBase):
             full_name = data.get("full_name")
             first_name = data.get("first_name")
             last_name = data.get("last_name")
+            tenant_type = data.get("tenant_type", "Individual")
 
-            if full_name and not first_name and not last_name:
+            # Only split full_name if tenant is individual type and names are missing
+            if (full_name and not first_name and not last_name and 
+                (tenant_type == TenantType.INDIVIDUAL or tenant_type == TenantType.INDIVIDUAL.value)):
                 names = full_name.split(" ", 1)
                 data["first_name"] = names[0]
                 if len(names) > 1:
@@ -114,8 +151,11 @@ class TenantCreate(TenantBase):
 
 
 class TenantBaseOptional(BaseModel):
+    tenant_type: TenantType | None = None
     first_name: str | None = None
     last_name: str | None = None
+    company_name: str | None = None
+    contact_person: str | None = None
     phone: str | None = None
     email: str | None = None
     status: TenantStatus | None = None
@@ -141,18 +181,18 @@ class TenantBaseOptional(BaseModel):
             raise ValueError("Invalid email format")
         return email
 
-    @field_validator("first_name", "last_name")
+    @field_validator("first_name", "last_name", "company_name", "contact_person")
     @classmethod
-    def validate_name(cls, v: str | None) -> str | None:
+    def validate_name_fields(cls, v: str | None) -> str | None:
         """
-        Validates that a name is not empty or whitespace.
+        Validates that name fields are not empty or whitespace if provided.
         
         Returns the trimmed name if valid, or None if the input is None. Raises a ValueError if the name is empty or contains only whitespace.
         """
         if v is None:
             return v
-        if not v.strip():
-            raise ValueError("Name cannot be empty")
+        if v.strip() == "":
+            raise ValueError("Name fields cannot be empty if provided")
         return v.strip()
 
     @field_validator("phone")
@@ -202,8 +242,11 @@ class TenantUpdate(TenantBaseOptional):
             return data
 
         full_name = data.pop("full_name")
+        tenant_type = data.get("tenant_type", "Individual")
 
-        if data.get("first_name") is not None or data.get("last_name") is not None:
+        # Only split for individual tenants
+        if (data.get("first_name") is not None or data.get("last_name") is not None or
+            (tenant_type != TenantType.INDIVIDUAL and tenant_type != TenantType.INDIVIDUAL.value)):
             return data
 
         names = full_name.split(" ", 1)
@@ -215,8 +258,11 @@ class TenantUpdate(TenantBaseOptional):
 
 class TenantResponse(BaseModel):
     id: int
-    first_name: str
-    last_name: str
+    tenant_type: TenantType
+    first_name: str | None = None
+    last_name: str | None = None
+    company_name: str | None = None
+    contact_person: str | None = None
     phone: str | None = None
     email: str | None = None
     status: TenantStatus
@@ -226,14 +272,51 @@ class TenantResponse(BaseModel):
     # Add fields for unit and property
     unit: UnitResponseSimple | None = None
     property: PropertyResponseSimple | None = None
+    # Add lease information
+    leases: list[LeaseResponseSimple] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+    def _get_individual_name(self) -> str:
+        """
+        Helper method to format individual tenant name.
+        
+        Returns the formatted name for individual tenants or a default fallback.
+        """
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}".strip()
+        elif self.first_name:
+            return self.first_name
+        elif self.last_name:
+            return self.last_name
+        return "Individual Tenant"
 
     @computed_field
     def full_name(self) -> str:
         """
-        Returns the tenant's full name as a single string.
+        Returns the tenant's full name or company name as appropriate.
         
-        Concatenates the first and last names with a space and trims any leading or trailing whitespace.
+        For individual tenants, concatenates first and last names.
+        For company tenants, returns the company name or contact person info.
         """
-        return f"{self.first_name} {self.last_name}".strip()
+        if self.tenant_type == TenantType.COMPANY:
+            if self.company_name:
+                if self.contact_person:
+                    return f"{self.company_name} (Contact: {self.contact_person})"
+                return self.company_name
+            return self.contact_person or "Company Tenant"
+        else:
+            return self._get_individual_name()
+
+    @computed_field  
+    def display_name(self) -> str:
+        """
+        Returns the primary display name for the tenant.
+        
+        For company tenants, returns company name.
+        For individual tenants, returns full name without contact info.
+        """
+        if self.tenant_type == TenantType.COMPANY:
+            return self.company_name or "Company Tenant"
+        else:
+            return self._get_individual_name()

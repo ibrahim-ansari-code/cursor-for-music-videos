@@ -21,6 +21,25 @@ class UserType(str, Enum):
         return super()._missing_(value)
 
 
+class TenantType(str, Enum):
+    """
+    Defines the type of tenant - individual person or company/organization.
+    """
+    INDIVIDUAL = "Individual"
+    COMPANY = "Company"
+
+    @classmethod
+    def _missing_(cls, value: Any) -> Self | None:
+        if isinstance(value, str):
+            # Handle case-insensitive matching
+            # Normalize input value before loop to improve performance
+            value_lower = value.lower()
+            for member in cls:
+                if member.value.lower() == value_lower:
+                    return member
+        return super()._missing_(value)
+
+
 class PropertyStatus(str, Enum):
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"

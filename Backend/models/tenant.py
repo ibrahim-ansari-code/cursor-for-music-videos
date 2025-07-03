@@ -28,6 +28,11 @@ class TenantStatus(str, Enum):
     EVICTED = "Evicted"
     MOVED_OUT = "Moved Out"
 
+
+# Import TenantType from enums
+from Backend.models.enums import TenantType
+
+
 # Link table for tenant-unit many-to-many relationship
 
 
@@ -57,8 +62,14 @@ class Tenant(SQLModel, table=True):
             index=True,
         ),
     )
-    first_name: str = Field(max_length=100)
-    last_name: str = Field(max_length=100)
+    
+    # Tenant type and naming fields
+    tenant_type: TenantType = Field(default=TenantType.INDIVIDUAL)
+    first_name: str | None = Field(default=None, max_length=100)
+    last_name: str | None = Field(default=None, max_length=100)
+    company_name: str | None = Field(default=None, max_length=200)
+    contact_person: str | None = Field(default=None, max_length=200)
+    
     phone: str | None = None
     email: str | None = None
     status: TenantStatus = Field(default=TenantStatus.ACTIVE)
@@ -130,4 +141,5 @@ class Tenant(SQLModel, table=True):
               postgresql_where=text("email IS NOT NULL")),
         Index("ix_tenants_current_property_id", "current_property_id"),
         Index("idx_tenants_landlord_id", "landlord_id"),
+        Index("ix_tenants_tenant_type", "tenant_type"),
     )
