@@ -180,6 +180,7 @@ def test_invalid_phone_format_validation():
 def test_phone_none_value_passes_validation():
     """Test that None phone value passes validation - Line 90 (phone validator)."""
     mock_user = create_test_user()
+    from Backend.api.tenants.schemas import TenantResponse
     
     # Create a proper response object with actual values
     tenant_response_data = {
@@ -195,7 +196,6 @@ def test_phone_none_value_passes_validation():
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
         "current_property_id": None,
-        "landlord_id": mock_user.id,
         "unit": None,
         "property": None,
         "leases": []
@@ -206,13 +206,16 @@ def test_phone_none_value_passes_validation():
         patch("Backend.api.tenants.router._validate_property_assignment", new_callable=AsyncMock), \
         patch("Backend.api.tenants.router._validate_linked_user_account", new_callable=AsyncMock), \
         patch("Backend.api.tenants.router.create_and_save_tenant", new_callable=AsyncMock) as mock_create_save, \
-        patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
+        patch("Backend.api.tenants.router.enrich_tenants_with_details", new_callable=AsyncMock) as mock_enrich:
             
         mock_determine_landlord.return_value = mock_user.id
-        # Create a simple object with the response data
-        mock_tenant_obj = type('TenantResponse', (), tenant_response_data)()
-        mock_create_save.return_value = mock_tenant_obj
-        mock_validate.return_value = mock_tenant_obj
+        # Create a mock tenant for create_and_save_tenant
+        mock_tenant = MagicMock()
+        mock_tenant.id = 1
+        mock_create_save.return_value = mock_tenant
+        
+        # Create the enriched response
+        mock_enrich.return_value = [TenantResponse(**tenant_response_data)]
             
         tenant_data = {
             "tenant_type": "Individual",
@@ -253,6 +256,7 @@ def test_empty_company_name_for_company_tenant():
 def test_full_name_split_for_individual_tenant():
     """Test full_name splitting logic for individual tenants - Lines 245, 248."""
     mock_user = create_test_user()
+    from Backend.api.tenants.schemas import TenantResponse
     
     # Create a proper response object with actual values
     tenant_response_data = {
@@ -268,7 +272,6 @@ def test_full_name_split_for_individual_tenant():
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
         "current_property_id": None,
-        "landlord_id": mock_user.id,
         "unit": None,
         "property": None,
         "leases": []
@@ -279,13 +282,16 @@ def test_full_name_split_for_individual_tenant():
         patch("Backend.api.tenants.router._validate_property_assignment", new_callable=AsyncMock), \
         patch("Backend.api.tenants.router._validate_linked_user_account", new_callable=AsyncMock), \
         patch("Backend.api.tenants.router.create_and_save_tenant", new_callable=AsyncMock) as mock_create_save, \
-        patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
+        patch("Backend.api.tenants.router.enrich_tenants_with_details", new_callable=AsyncMock) as mock_enrich:
             
         mock_determine_landlord.return_value = mock_user.id
-        # Create a simple object with the response data
-        mock_tenant_obj = type('TenantResponse', (), tenant_response_data)()
-        mock_create_save.return_value = mock_tenant_obj
-        mock_validate.return_value = mock_tenant_obj
+        # Create a mock tenant for create_and_save_tenant
+        mock_tenant = MagicMock()
+        mock_tenant.id = 1
+        mock_create_save.return_value = mock_tenant
+        
+        # Create the enriched response
+        mock_enrich.return_value = [TenantResponse(**tenant_response_data)]
             
         tenant_data = {
             "tenant_type": "Individual",
@@ -305,6 +311,7 @@ def test_full_name_split_for_individual_tenant():
 def test_full_name_not_split_for_company_tenant():
     """Test that full_name is not split for company tenants - Lines 248-249."""
     mock_user = create_test_user()
+    from Backend.api.tenants.schemas import TenantResponse
     
     # Create a proper response object for company tenant with proper ID
     tenant_response_data = {
@@ -320,7 +327,6 @@ def test_full_name_not_split_for_company_tenant():
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
         "current_property_id": None,
-        "landlord_id": mock_user.id,
         "unit": None,
         "property": None,
         "leases": []
@@ -331,13 +337,16 @@ def test_full_name_not_split_for_company_tenant():
         patch("Backend.api.tenants.router._validate_property_assignment", new_callable=AsyncMock), \
         patch("Backend.api.tenants.router._validate_linked_user_account", new_callable=AsyncMock), \
         patch("Backend.api.tenants.router.create_and_save_tenant", new_callable=AsyncMock) as mock_create_save, \
-        patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
+        patch("Backend.api.tenants.router.enrich_tenants_with_details", new_callable=AsyncMock) as mock_enrich:
             
         mock_determine_landlord.return_value = mock_user.id
-        # Create a simple object with the response data
-        mock_tenant_obj = type('TenantResponse', (), tenant_response_data)()
-        mock_create_save.return_value = mock_tenant_obj
-        mock_validate.return_value = mock_tenant_obj
+        # Create a mock tenant for create_and_save_tenant
+        mock_tenant = MagicMock()
+        mock_tenant.id = 2
+        mock_create_save.return_value = mock_tenant
+        
+        # Create the enriched response
+        mock_enrich.return_value = [TenantResponse(**tenant_response_data)]
             
         tenant_data = {
             "tenant_type": "Company",

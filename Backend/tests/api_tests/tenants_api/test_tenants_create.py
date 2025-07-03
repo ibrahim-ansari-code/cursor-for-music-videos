@@ -97,9 +97,9 @@ def test_create_tenant_success():
         mock_session.commit = AsyncMock()
         mock_session.rollback = AsyncMock()
         
-        # Mock TenantResponse.model_validate
-        with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
-            mock_validate.return_value = TenantResponse(
+        # Mock enrich_tenants_with_details to return a properly formatted response
+        with patch("Backend.api.tenants.router.enrich_tenants_with_details", new_callable=AsyncMock) as mock_enrich:
+            mock_enrich.return_value = [TenantResponse(
                 id=1,
                 tenant_type=TenantType.INDIVIDUAL,
                 first_name="Alice",
@@ -112,7 +112,8 @@ def test_create_tenant_success():
                 current_property_id=None,
                 unit=None,
                 property=None,
-            )
+                leases=[]
+            )]
             
             # Override dependencies
             app.dependency_overrides[get_current_user] = lambda: mock_user
@@ -249,9 +250,9 @@ def test_create_tenant_with_property_assignment():
         mock_session = AsyncMock()
         mock_session.commit = AsyncMock()
         
-        # Mock TenantResponse.model_validate
-        with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
-            mock_validate.return_value = TenantResponse(
+        # Mock enrich_tenants_with_details to return a properly formatted response
+        with patch("Backend.api.tenants.router.enrich_tenants_with_details", new_callable=AsyncMock) as mock_enrich:
+            mock_enrich.return_value = [TenantResponse(
                 id=2,
                 tenant_type=TenantType.INDIVIDUAL,
                 first_name="Charlie",
@@ -264,7 +265,8 @@ def test_create_tenant_with_property_assignment():
                 current_property_id=property_id,
                 unit=None,
                 property=None,
-            )
+                leases=[]
+            )]
             
             # Override dependencies
             app.dependency_overrides[get_current_user] = lambda: mock_user
@@ -397,8 +399,8 @@ def test_create_company_tenant_success():
         mock_session = AsyncMock()
         mock_session.commit = AsyncMock()
         
-        with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
-            mock_validate.return_value = TenantResponse(
+        with patch("Backend.api.tenants.router.enrich_tenants_with_details", new_callable=AsyncMock) as mock_enrich:
+            mock_enrich.return_value = [TenantResponse(
                 id=3,
                 tenant_type=TenantType.COMPANY,
                 company_name="Innovate Inc.",
@@ -411,7 +413,8 @@ def test_create_company_tenant_success():
                 current_property_id=None,
                 unit=None,
                 property=None,
-            )
+                leases=[]
+            )]
             
             app.dependency_overrides[get_current_user] = lambda: mock_user
             app.dependency_overrides[get_session] = lambda: mock_session
@@ -478,8 +481,8 @@ def test_create_tenant_optional_phone():
         mock_session = AsyncMock()
         mock_session.commit = AsyncMock()
         
-        with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
-            mock_validate.return_value = TenantResponse(
+        with patch("Backend.api.tenants.router.enrich_tenants_with_details", new_callable=AsyncMock) as mock_enrich:
+            mock_enrich.return_value = [TenantResponse(
                 id=4,
                 tenant_type=TenantType.INDIVIDUAL,
                 first_name="NoPhone",
@@ -488,7 +491,12 @@ def test_create_tenant_optional_phone():
                 status=TenantStatus.ACTIVE,
                 created_at=mock_tenant.created_at,
                 updated_at=mock_tenant.updated_at,
-            )
+                phone=None,
+                current_property_id=None,
+                unit=None,
+                property=None,
+                leases=[]
+            )]
             
             app.dependency_overrides[get_current_user] = lambda: mock_user
             app.dependency_overrides[get_session] = lambda: mock_session

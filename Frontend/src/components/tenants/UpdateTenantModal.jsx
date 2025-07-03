@@ -315,7 +315,11 @@ const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
         status: formData.status,
         phone: formData.phone?.trim() || null,
       };
-
+      
+      // Include current_property_id if it exists
+      if (formData.current_property_id !== undefined) {
+        updateData.current_property_id = formData.current_property_id;
+      }
       if (formData.tenant_type === "Individual") {
         // For individual tenants, only include first_name and last_name
         updateData.first_name = formData.first_name.trim();

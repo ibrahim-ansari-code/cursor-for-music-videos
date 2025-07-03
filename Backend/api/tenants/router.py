@@ -39,6 +39,34 @@ router = APIRouter(
 )
 
 
+async def return_enriched_tenant(
+    tenant: Tenant, session: AsyncSession, action: str = "retrieve"
+) -> TenantResponse:
+    """
+    Helper function to enrich a tenant with related details and return it.
+    
+    Args:
+        tenant: The tenant ORM object to enrich
+        session: The database session
+        action: The action being performed (for error messages)
+        
+    Returns:
+        The enriched TenantResponse object
+        
+    Raises:
+        HTTPException: If enrichment fails
+    """
+    enriched_tenants = await enrich_tenants_with_details([tenant], session)
+    if enriched_tenants:
+        return enriched_tenants[0]
+    else:
+        # Fallback if enrichment fails
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to {action} tenant details for tenant ID {tenant.id}"
+        )
+
+
 @router.get("/{tenant_id}", response_model=TenantResponse)
 async def get_tenant(
     tenant_id: int,
@@ -165,7 +193,9 @@ async def create_tenant(
         logger.info(
             "Tenant %s created successfully by user %s", tenant.id, current_user.id
         )
-        return TenantResponse.model_validate(tenant)
+        
+        # Enrich the tenant with details before returning
+        return await return_enriched_tenant(tenant, session, action="retrieve created")
 
     except Exception as e:
         await session.rollback()
@@ -247,7 +277,9 @@ async def update_tenant(
         logger.info(
             "Tenant %s updated successfully by user %s", tenant_id, current_user.id
         )
-        return TenantResponse.model_validate(tenant)
+        
+        # Enrich the tenant with details before returning
+        return await return_enriched_tenant(tenant, session, action="retrieve updated")
     except HTTPException:
         raise
     except Exception as e:

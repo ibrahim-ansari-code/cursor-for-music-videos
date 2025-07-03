@@ -104,7 +104,7 @@ def test_update_tenant_success():
         mock_audit_datetime.return_value = mock_update_time
         
         # Mock TenantResponse.model_validate
-        with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
+        with patch("Backend.api.tenants.router.enrich_tenants_with_details", new_callable=AsyncMock) as mock_validate:
             mock_response = TenantResponse(
                 id=tenant_id,
                 tenant_type=TenantType.INDIVIDUAL,
@@ -119,7 +119,7 @@ def test_update_tenant_success():
                 unit=None,
                 property=None,
             )
-            mock_validate.return_value = mock_response
+            mock_validate.return_value = [mock_response]
             
             # Override dependencies
             app.dependency_overrides[get_current_user] = lambda: mock_user
@@ -181,7 +181,7 @@ def test_partial_update_tenant():
         mock_audit_datetime.return_value = mock_update_time
         
         # Mock TenantResponse.model_validate
-        with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
+        with patch("Backend.api.tenants.router.enrich_tenants_with_details", new_callable=AsyncMock) as mock_validate:
             mock_response = TenantResponse(
                 id=tenant_id,
                 tenant_type=TenantType.INDIVIDUAL,
@@ -196,7 +196,7 @@ def test_partial_update_tenant():
                 unit=None,
                 property=None,
             )
-            mock_validate.return_value = mock_response
+            mock_validate.return_value = [mock_response]
             
             # Override dependencies
             app.dependency_overrides[get_current_user] = lambda: mock_user
@@ -295,7 +295,7 @@ def test_landlord_updates_tenant_info_without_property_change():
         mock_audit_datetime.return_value = mock_update_time
         
         # Mock TenantResponse.model_validate
-        with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
+        with patch("Backend.api.tenants.router.enrich_tenants_with_details", new_callable=AsyncMock) as mock_validate:
             mock_response = TenantResponse(
                 id=tenant_id,
                 tenant_type=TenantType.INDIVIDUAL,
@@ -310,7 +310,7 @@ def test_landlord_updates_tenant_info_without_property_change():
                 unit=None,
                 property=None,
             )
-            mock_validate.return_value = mock_response
+            mock_validate.return_value = [mock_response]
             
             # Override dependencies
             app.dependency_overrides[get_current_user] = lambda: mock_user
@@ -495,8 +495,8 @@ def test_update_tenant_to_company_type():
         mock_session.commit = AsyncMock()
         mock_session.refresh = AsyncMock()
         
-        with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
-            mock_validate.return_value = TenantResponse(
+        with patch("Backend.api.tenants.router.enrich_tenants_with_details", new_callable=AsyncMock) as mock_validate:
+            mock_validate.return_value = [TenantResponse(
                 id=tenant_id,
                 tenant_type=TenantType.COMPANY,
                 company_name="New Company LLC",
@@ -505,7 +505,14 @@ def test_update_tenant_to_company_type():
                 status=TenantStatus.ACTIVE,
                 created_at=mock_tenant.created_at,
                 updated_at=datetime.now(timezone.utc),
-            )
+                phone=None,
+                first_name=None,
+                last_name=None,
+                current_property_id=None,
+                unit=None,
+                property=None,
+                leases=[]
+            )]
             
             app.dependency_overrides[get_current_user] = lambda: mock_user
             app.dependency_overrides[get_session] = lambda: mock_session
@@ -550,8 +557,8 @@ def test_update_company_tenant_contact_person():
         mock_session.commit = AsyncMock()
         mock_session.refresh = AsyncMock()
 
-        with patch("Backend.api.tenants.schemas.TenantResponse.model_validate") as mock_validate:
-            mock_validate.return_value = TenantResponse(
+        with patch("Backend.api.tenants.router.enrich_tenants_with_details", new_callable=AsyncMock) as mock_validate:
+            mock_validate.return_value = [TenantResponse(
                 id=tenant_id,
                 tenant_type=TenantType.COMPANY,
                 company_name="Tech Corp",
@@ -560,7 +567,14 @@ def test_update_company_tenant_contact_person():
                 status=TenantStatus.ACTIVE,
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
-            )
+                phone=None,
+                first_name=None,
+                last_name=None,
+                current_property_id=None,
+                unit=None,
+                property=None,
+                leases=[]
+            )]
             
             app.dependency_overrides[get_current_user] = lambda: mock_user
             app.dependency_overrides[get_session] = lambda: mock_session
