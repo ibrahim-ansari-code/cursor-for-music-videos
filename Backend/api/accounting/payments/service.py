@@ -71,7 +71,7 @@ async def create_payment(
     
     lease = await check_lease_ownership(payment.lease_id, session, current_user)
     actual_tenant_id_for_payment = lease.tenant.id if lease.tenant else None
-    
+
     final_payment_date: datetime
     if payment.payment_date:
         final_payment_date = validate_business_datetime(payment.payment_date)
@@ -87,7 +87,9 @@ async def create_payment(
         description=payment.description,
         payment_method=get_payment_method_enum(payment.payment_method),
         transaction_reference=payment.transaction_reference,
-        receipt_url=payment.receipt_url
+        receipt_url=payment.receipt_url,
+        reduction_amount=payment.reduction_amount,
+        reduction_reason=payment.reduction_reason
     )
     
     try:

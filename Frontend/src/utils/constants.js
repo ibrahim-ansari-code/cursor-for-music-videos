@@ -2,9 +2,16 @@
 
 export const PAYMENT_METHODS = [
   "Credit Card",
+  "Debit Card",
   "Bank Transfer",
+  "Wire Transfer",
+  "Direct Deposit",
+  "Interac e-Transfer",
   "Cash",
   "Check",
+  "Bank Draft",
+  "PayPal",
+  "Internal Transfer",
   "Other",
 ];
 

@@ -2,6 +2,8 @@
 import logging
 from typing import BinaryIO, Union
 from fastapi import UploadFile
+import asyncio
+import inspect
 
 from Backend.config import settings
 
@@ -121,18 +123,42 @@ async def validate_file_from_upload(file: Union[UploadFile, BinaryIO], declared_
     Raises:
         ValueError: If file validation fails
     """
-    # Read file content - handle both UploadFile and BinaryIO
-    if isinstance(file, UploadFile):
-        file_content = await file.read()
-        # Reset file pointer for potential re-reading
-        await file.seek(0)
-    else:
-        file_content = file.read()
-        # Reset file pointer for potential re-reading
-        if hasattr(file, 'seek'):
-            file.seek(0)
+    # Read file content
+    try:
+        # Try async read first (for UploadFile and similar async file objects)
+        if hasattr(file, 'read'):
+            # Check if it's a coroutine function
+            read_method = getattr(file, 'read')
+            if inspect.iscoroutinefunction(read_method) or inspect.iscoroutinefunction(file.read):
+                file_content = await read_method()
+            else:
+                # Call the method and check if result is awaitable
+                result = read_method()
+                if inspect.isawaitable(result):
+                    file_content = await result
+                else:
+                    file_content = result
+            
+            # Reset file pointer if possible
+            if hasattr(file, 'seek'):
+                try:
+                    if inspect.iscoroutinefunction(file.seek):
+                        await file.seek(0)
+                    else:
+                        file.seek(0)
+                except Exception:
+                    pass  # Some file objects don't support seeking
+        else:
+            raise ValueError("File object must have a 'read' method")
+    except Exception as e:
+        logger.exception("Error reading file content")
+        raise ValueError(f"Failed to read file content: {e}")
+
+    # Ensure we have bytes
+    if not isinstance(file_content, bytes):
+        raise ValueError(f"Expected bytes from file read, got {type(file_content).__name__}")
     
     # Validate the file
     validated_mime_type = validate_receipt_file(file_content, declared_mime_type)
     
-    return file_content, validated_mime_type 
+    return file_content, validated_mime_type

@@ -1,8 +1,7 @@
-
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, field_validator, ConfigDict
+from pydantic import BaseModel, field_validator, ConfigDict, model_validator
 
 from Backend.models.accounting.common import PaymentStatus
 from Backend.models.accounting.payment import PaymentMethod
@@ -44,6 +43,8 @@ class PaymentCreate(BaseModel):
     description: str | None = None
     tenant_name: str | None = None # Used for response, not directly for DB Payment object
     receipt_url: str | None = None
+    reduction_amount: Decimal | None = None
+    reduction_reason: str | None = None
     
     @field_validator('amount')
     @staticmethod
@@ -52,6 +53,24 @@ class PaymentCreate(BaseModel):
         if v <= 0:
             raise ValueError("Amount must be positive")
         return v
+    
+    @field_validator('reduction_amount')
+    @staticmethod
+    def reduction_must_be_positive_if_present(v: Decimal | None) -> Decimal | None:
+        """Validate that reduction amount is positive if provided."""
+        if v is not None and v < 0:
+            raise ValueError("Reduction amount must be zero or positive")
+        return v
+    
+    @model_validator(mode='after')
+    def validate_reduction_amount(self):
+        """Validate that reduction amount doesn't exceed payment amount."""
+        if self.reduction_amount is not None and self.amount is not None:
+            if self.reduction_amount > self.amount:
+                raise ValueError("Reduction amount cannot be greater than payment amount")
+        if self.reduction_amount is not None and self.reduction_amount > 0 and not self.reduction_reason:
+            raise ValueError("Reduction reason is required when reduction amount is provided")
+        return self
 
 class PaymentUpdate(BaseModel):
     amount: Decimal | None = None
@@ -61,6 +80,8 @@ class PaymentUpdate(BaseModel):
     transaction_reference: str | None = None
     description: str | None = None
     receipt_url: str | None = None
+    reduction_amount: Decimal | None = None
+    reduction_reason: str | None = None
     
     @field_validator('amount')
     @staticmethod
@@ -69,6 +90,24 @@ class PaymentUpdate(BaseModel):
         if v is not None and v <= 0:
             raise ValueError("Amount must be positive")
         return v
+    
+    @field_validator('reduction_amount')
+    @staticmethod
+    def reduction_must_be_positive_if_present(v: Decimal | None) -> Decimal | None:
+        """Validate that reduction amount is positive if provided."""
+        if v is not None and v < 0:
+            raise ValueError("Reduction amount must be zero or positive")
+        return v
+    
+    @model_validator(mode='after')
+    def validate_reduction_amount(self):
+        """Validate that reduction amount doesn't exceed payment amount."""
+        if self.reduction_amount is not None and self.amount is not None:
+            if self.reduction_amount > self.amount:
+                raise ValueError("Reduction amount cannot be greater than payment amount")
+        if self.reduction_amount is not None and self.reduction_amount > 0 and not self.reduction_reason:
+            raise ValueError("Reduction reason is required when reduction amount is provided")
+        return self
 
 class PaymentResponse(BaseModel):
     id: int
@@ -81,6 +120,8 @@ class PaymentResponse(BaseModel):
     transaction_reference: str | None = None
     description: str | None = None
     receipt_url: str | None = None
+    reduction_amount: Decimal | None = None
+    reduction_reason: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
     tenant_name: str | None = None

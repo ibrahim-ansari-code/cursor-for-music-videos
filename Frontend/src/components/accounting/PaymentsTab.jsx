@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
-  fetchPayments, 
-  deletePayment 
+  fetchPayments,
+  deletePayment,
 } from "../../utils/api/accounting";
 import { toast } from "react-toastify";
-import NewPaymentModal from "../NewPaymentModal";
-import EditPaymentModal from "../EditPaymentModal";
+import NewPaymentModal from "../accounting/modals/NewPaymentModal";
+import EditPaymentModal from "../accounting/modals/EditPaymentModal";
 import LoadingSpinner from "../LoadingSpinner";
 import { useAccounting } from "./AccountingContext";
 
 const paymentTableColumns = [
   { key: "tenant", label: "Tenant", align: "left" },
-  { key: "amount", label: "Amount", align: "left" },
-  { key: "date", label: "Date", align: "left" },
-  { key: "method", label: "Method", align: "left" },
+  { key: "amount", label: "Amount", align: "center" },
+  { key: "date", label: "Date", align: "center" },
+  { key: "method", label: "Method", align: "center" },
   { key: "status", label: "Status", align: "center" },
   { key: "source", label: "Source", align: "center" },
   { key: "actions", label: "Actions", align: "center" },
@@ -219,7 +219,7 @@ const PaymentsTab = () => {
       )}
 
       {/* Action Buttons */}
-      <div className="flex justify-end space-x-3">
+      <div className="flex justify-end space-x-3 mb-4">
         <button
           onClick={handleShowModal}
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -368,12 +368,12 @@ const PaymentsTab = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="text-sm text-gray-900">
                         ${Number.parseFloat(payment.amount).toFixed(2)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="text-sm text-gray-900">
                         {new Date(
                           payment.payment_date
@@ -385,7 +385,7 @@ const PaymentsTab = () => {
                         ).toLocaleTimeString()}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
                       {payment.payment_method}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -400,7 +400,7 @@ const PaymentsTab = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
                       {payment.quickbooks_id !== null
                         ? "QuickBooks"
                         : "Brikli"}

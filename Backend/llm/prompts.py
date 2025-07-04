@@ -10,7 +10,7 @@ The `payment_date` must be in ISO format (YYYY-MM-DD). If the year is missing, a
 The `subtotal_amount` (amount before taxes) must be a string representing a decimal number (e.g., "100.00"). If not found or not applicable, use "0.0" or try to calculate if total and taxes are obvious.
 The `total_amount` (final amount paid, including all taxes) must be a string representing a decimal number (e.g., "112.00"). If not found, use "0.0".
 The `currency` should be the currency code (e.g., USD, CAD, EUR) if identifiable, otherwise an empty string.
-The `payment_method` could be 'Cash', 'Credit Card', 'Debit Card', 'Bank Transfer', 'Check', or other common methods. If not clear, use 'Other' or an empty string.
+The `payment_method` could be 'Credit Card', 'Debit Card', 'Bank Transfer', 'Wire Transfer', 'Direct Deposit', 'Interac e-Transfer', 'Cash', 'Check', 'Bank Draft', 'PayPal', 'Internal Transfer', or 'Other'. If not clear, use 'Other' or an empty string.
 The `description_notes` should capture any line items, notes, or memo relevant to the payment.
 
 The output must match this structure exactly:
@@ -41,7 +41,7 @@ The `subtotal_amount` (amount before taxes) must be a string representing a deci
 The `total_amount` (final amount including all taxes and fees) must be a string representing a decimal number (e.g., "112.00"). If not found, use "0.0".
 The `total_tax_amount` (sum of all tax amounts) must be a string representing a decimal number (e.g., "12.00"). Calculate this by subtracting subtotal from total, or sum all individual tax amounts.
 The `currency` should be the currency code (e.g., USD, CAD, EUR) if identifiable, otherwise an empty string.
-The `payment_method` could be 'Cash', 'Credit Card', 'Debit Card', 'Bank Transfer', 'Check', or other common methods. If not clear, use 'Other' or an empty string.
+The `payment_method` could be 'Credit Card', 'Debit Card', 'Bank Transfer', 'Wire Transfer', 'Direct Deposit', 'Interac e-Transfer', 'Cash', 'Check', 'Bank Draft', 'PayPal', 'Internal Transfer', or 'Other'. If not clear, use 'Other' or an empty string.
 The `description_notes` should capture the vendor name, expense category, line items, or any relevant notes about the expense.
 The `tax_details` should extract individual tax line items from the receipt. Look for tax names like GST, HST, PST, QST, VAT, Sales Tax, etc. Each tax item should include the name, rate percentage, and amount.
 

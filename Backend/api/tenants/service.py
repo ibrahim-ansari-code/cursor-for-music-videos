@@ -116,7 +116,7 @@ def _apply_landlord_permissions(current_user: User, property_id: int | None) -> 
     return filters
 
 
-async def _validate_user_permissions(current_user: User):
+async def _validate_user_permissions(current_user: User) -> None:
     """
     Validates that the current user is allowed to create a tenant.
     
@@ -158,7 +158,7 @@ async def _determine_landlord(
 
 async def _validate_property_assignment(
     current_user: User, tenant_data: "TenantCreate", session: AsyncSession
-):
+) -> None:
     """
     Validates whether the current user is authorized to assign a tenant to the specified property.
     
@@ -193,7 +193,7 @@ async def _validate_property_assignment(
 
 async def _validate_linked_user_account(
     tenant_data: "TenantCreate", session: AsyncSession
-):
+) -> None:
     """
     Validates that a provided user ID in tenant data refers to an existing tenant user without an existing tenant profile.
     
@@ -227,7 +227,7 @@ async def _validate_linked_user_account(
         )
 
 
-async def _safe_link_qb_customer(user: User, tenant_data: dict[str, Any]):
+async def _safe_link_qb_customer(user: User, tenant_data: dict[str, Any]) -> None:
     """
     Attempts to link or create a QuickBooks customer for the tenant, logging any exceptions without interrupting the main workflow.
     """

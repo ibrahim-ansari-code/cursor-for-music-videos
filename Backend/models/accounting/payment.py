@@ -14,8 +14,10 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     Index,
+    CheckConstraint,
 )
 from sqlmodel import Field, Relationship, SQLModel
+from pydantic import field_validator, ValidationInfo, model_validator
 
 from Backend.utils.datetime_utils import create_audit_datetime, utc_now
 from .common import PaymentStatus # Import PaymentStatus from common
@@ -26,9 +28,16 @@ if TYPE_CHECKING:
 
 class PaymentMethod(str, Enum):
     CREDIT_CARD = "Credit Card"
+    DEBIT_CARD = "Debit Card"
     BANK_TRANSFER = "Bank Transfer"
+    WIRE_TRANSFER = "Wire Transfer"
+    DIRECT_DEPOSIT = "Direct Deposit"
+    INTERAC_E_TRANSFER = "Interac e-Transfer"
     CASH = "Cash"
     CHECK = "Check"
+    BANK_DRAFT = "Bank Draft"
+    PAYPAL = "PayPal"
+    INTERNAL_TRANSFER = "Internal Transfer"
     OTHER = "Other"
 
 class Payment(SQLModel, table=True):
@@ -38,6 +47,7 @@ class Payment(SQLModel, table=True):
     __table_args__ = (
         Index("ix_payments_tenant_id", "tenant_id"),
         Index("ix_payments_lease_id", "lease_id"),
+        CheckConstraint('reduction_amount <= amount', name='check_reduction_amount_not_greater_than_amount'),
     )
 
     id: int | None = Field(default=None, primary_key=True)
@@ -69,6 +79,16 @@ class Payment(SQLModel, table=True):
         sa_column=Column(String, nullable=True)
     )
     receipt_url: str | None = Field(
+        default=None,
+        sa_column=Column(String, nullable=True)
+    )
+    
+    # Reduction fields for rent discounts
+    reduction_amount: Decimal | None = Field(
+        default=None,
+        sa_column=Column(Numeric(12, 2), nullable=True)
+    )
+    reduction_reason: str | None = Field(
         default=None,
         sa_column=Column(String, nullable=True)
     )
@@ -107,3 +127,13 @@ class Payment(SQLModel, table=True):
         back_populates="payments",
         sa_relationship_kwargs={"lazy": "selectin"}
     )
+    
+    @model_validator(mode='after')
+    def validate_reduction_amount(self):
+        """Ensure reduction_amount cannot exceed the payment amount"""
+        if self.reduction_amount is not None and self.amount is not None:
+            if self.reduction_amount > self.amount:
+                raise ValueError("Reduction amount cannot exceed the payment amount")
+        if self.reduction_amount is not None and self.reduction_amount > 0 and not self.reduction_reason:
+            raise ValueError("Reduction reason is required when reduction amount is provided")
+        return self

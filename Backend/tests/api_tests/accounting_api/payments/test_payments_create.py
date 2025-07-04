@@ -732,3 +732,256 @@ async def test_create_payment_duplicate_transaction_reference():
     # Assert
             assert response.status_code == 409
             assert "already exists" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_create_payment_with_reduction():
+    """Test payment creation with reduction amount and reason."""
+    # Arrange
+    fake_user = create_test_user()
+    
+    test_payment_data = {
+        "lease_id": 123,
+        "amount": "1400.00",  # $1500 rent - $100 reduction
+        "payment_date": "2024-06-01T12:00:00Z",
+        "payment_method": "Bank Transfer",
+        "status": "Paid",
+        "reduction_amount": "100.00",
+        "reduction_reason": "Tenant referred a friend"
+    }
+    
+    # Create the response with reduction fields
+    fake_response = PaymentResponse(
+        id=100,
+        lease_id=123,
+        tenant_id=456,
+        amount=Decimal("1400.00"),
+        payment_date=FIXED_DATETIME,
+        payment_method=PaymentMethod.BANK_TRANSFER,
+        status=PaymentStatus.PAID,
+        reduction_amount=Decimal("100.00"),
+        reduction_reason="Tenant referred a friend",
+        created_at=FIXED_DATETIME,
+        updated_at=FIXED_DATETIME,
+        tenant_name="John Doe",
+        property_name="Test Property"
+    )
+    
+    # Mock the service layer
+    with patch("Backend.api.accounting.payments.router.service.create_payment", new=AsyncMock(return_value=fake_response)):
+        # Override dependencies
+        app.dependency_overrides[get_current_user] = lambda: fake_user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+        
+        with TestClientWithHost(app) as client:
+            # Act
+            response = client.post("/api/accounting/payments", json=test_payment_data)
+    
+    # Assert
+            assert response.status_code == 201
+            data = response.json()
+            assert data["id"] == 100
+            assert data["amount"] == "1400.00"
+            assert data["reduction_amount"] == "100.00"
+            assert data["reduction_reason"] == "Tenant referred a friend"
+
+@pytest.mark.asyncio
+async def test_create_payment_with_zero_reduction():
+    """Test payment creation with zero reduction amount."""
+    # Arrange
+    fake_user = create_test_user()
+    
+    test_payment_data = {
+        "lease_id": 123,
+        "amount": "1500.00",
+        "reduction_amount": "0.00",
+        "reduction_reason": ""  # Should be allowed when reduction is 0
+    }
+    
+    # Create the response
+    fake_response = PaymentResponse(
+        id=101,
+        lease_id=123,
+        tenant_id=456,
+        amount=Decimal("1500.00"),
+        payment_date=FIXED_DATETIME,
+        payment_method=PaymentMethod.OTHER,
+        status=PaymentStatus.PENDING,
+        reduction_amount=Decimal("0.00"),
+        reduction_reason="",
+        created_at=FIXED_DATETIME,
+        updated_at=FIXED_DATETIME,
+        tenant_name="John Doe",
+        property_name="Test Property"
+    )
+    
+    # Mock the service layer
+    with patch("Backend.api.accounting.payments.router.service.create_payment", new=AsyncMock(return_value=fake_response)):
+        # Override dependencies
+        app.dependency_overrides[get_current_user] = lambda: fake_user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+        
+        with TestClientWithHost(app) as client:
+            # Act
+            response = client.post("/api/accounting/payments", json=test_payment_data)
+    
+    # Assert
+            assert response.status_code == 201
+            data = response.json()
+            assert data["reduction_amount"] == "0.00"
+
+@pytest.mark.asyncio
+async def test_create_payment_negative_reduction_validation():
+    """Test that negative reduction amount is rejected."""
+    # Arrange
+    fake_user = create_test_user()
+    
+    test_payment_data = {
+        "lease_id": 123,
+        "amount": "1500.00",
+        "reduction_amount": "-100.00",  # Negative reduction
+        "reduction_reason": "Invalid negative reduction"
+    }
+    
+    # Override dependencies
+    app.dependency_overrides[get_current_user] = lambda: fake_user
+    app.dependency_overrides[get_session] = lambda: AsyncMock()
+    
+    with TestClientWithHost(app) as client:
+        # Act
+        response = client.post("/api/accounting/payments", json=test_payment_data)
+        
+        # Assert
+        assert response.status_code == 422
+        error_detail = response.json()["detail"]
+        assert any("Reduction amount must be zero or positive" in str(error["msg"]) for error in error_detail)
+
+@pytest.mark.asyncio
+async def test_create_payment_with_new_payment_methods():
+    """Test payment creation with newly added payment methods."""
+    # Arrange
+    fake_user = create_test_user()
+    
+    # Test all new payment methods
+    new_payment_methods = [
+        ("Debit Card", PaymentMethod.DEBIT_CARD),
+        ("Wire Transfer", PaymentMethod.WIRE_TRANSFER),
+        ("Direct Deposit", PaymentMethod.DIRECT_DEPOSIT),
+        ("Interac e-Transfer", PaymentMethod.INTERAC_E_TRANSFER),
+        ("Bank Draft", PaymentMethod.BANK_DRAFT),
+        ("PayPal", PaymentMethod.PAYPAL),
+        ("Internal Transfer", PaymentMethod.INTERNAL_TRANSFER)
+    ]
+    
+    for idx, (method_value, method_enum) in enumerate(new_payment_methods, start=200):
+        test_payment_data = {
+            "lease_id": 123,
+            "amount": "1500.00",
+            "payment_method": method_value
+        }
+        
+        # Create response for each new method
+        fake_response = PaymentResponse(
+            id=idx,
+            lease_id=123,
+            tenant_id=456,
+            amount=Decimal("1500.00"),
+            payment_date=FIXED_DATETIME,
+            payment_method=method_enum,
+            status=PaymentStatus.PAID,
+            created_at=FIXED_DATETIME,
+            updated_at=FIXED_DATETIME,
+            tenant_name="Test Tenant",
+            property_name="Test Property"
+        )
+        
+        # Mock the service layer
+        with patch("Backend.api.accounting.payments.router.service.create_payment", new=AsyncMock(return_value=fake_response)):
+            # Override dependencies
+            app.dependency_overrides[get_current_user] = lambda: fake_user
+            app.dependency_overrides[get_session] = lambda: AsyncMock()
+            
+            with TestClientWithHost(app) as client:
+                # Act
+                response = client.post("/api/accounting/payments", json=test_payment_data)
+        
+        # Assert
+                assert response.status_code == 201
+                data = response.json()
+                assert data["payment_method"] == method_value
+
+@pytest.mark.asyncio
+async def test_create_payment_partial_with_reduction():
+    """Test creating a partial payment with reduction applied."""
+    # Arrange
+    fake_user = create_test_user()
+    
+    test_payment_data = {
+        "lease_id": 123,
+        "amount": "900.00",  # Partial payment after $100 reduction on $1500 rent
+        "status": "Partial",
+        "reduction_amount": "100.00",
+        "reduction_reason": "Holiday goodwill discount",
+        "description": "Partial payment for December with holiday discount"
+    }
+    
+    # Create the response
+    fake_response = PaymentResponse(
+        id=300,
+        lease_id=123,
+        tenant_id=456,
+        amount=Decimal("900.00"),
+        payment_date=FIXED_DATETIME,
+        payment_method=PaymentMethod.OTHER,
+        status=PaymentStatus.PARTIAL,
+        reduction_amount=Decimal("100.00"),
+        reduction_reason="Holiday goodwill discount",
+        description="Partial payment for December with holiday discount",
+        created_at=FIXED_DATETIME,
+        updated_at=FIXED_DATETIME,
+        tenant_name="John Doe",
+        property_name="Test Property"
+    )
+    
+    # Mock the service layer
+    with patch("Backend.api.accounting.payments.router.service.create_payment", new=AsyncMock(return_value=fake_response)):
+        # Override dependencies
+        app.dependency_overrides[get_current_user] = lambda: fake_user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+        
+        with TestClientWithHost(app) as client:
+            # Act
+            response = client.post("/api/accounting/payments", json=test_payment_data)
+    
+    # Assert
+            assert response.status_code == 201
+            data = response.json()
+            assert data["amount"] == "900.00"
+            assert data["status"] == "Partial"
+            assert data["reduction_amount"] == "100.00"
+            assert data["reduction_reason"] == "Holiday goodwill discount"
+
+@pytest.mark.asyncio
+async def test_create_payment_reduction_exceeds_amount_validation():
+    """Test that reduction amount cannot exceed the payment amount."""
+    # Arrange
+    fake_user = create_test_user()
+    
+    test_payment_data = {
+        "lease_id": 123,
+        "amount": "1000.00",
+        "reduction_amount": "1500.00",  # Reduction exceeds payment amount
+        "reduction_reason": "Invalid excessive reduction"
+    }
+    
+    # Override dependencies
+    app.dependency_overrides[get_current_user] = lambda: fake_user
+    app.dependency_overrides[get_session] = lambda: AsyncMock()
+    
+    with TestClientWithHost(app) as client:
+        # Act
+        response = client.post("/api/accounting/payments", json=test_payment_data)
+        
+        # Assert
+        assert response.status_code == 422
+        error_detail = response.json()["detail"]
+        assert any("Reduction amount cannot be greater than payment amount" in str(error["msg"]) for error in error_detail)
