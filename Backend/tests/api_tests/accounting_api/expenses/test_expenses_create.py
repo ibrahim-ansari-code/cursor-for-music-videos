@@ -13,6 +13,7 @@ from fastapi import HTTPException, status
 
 from Backend.api.app import app
 from Backend.models.accounting.expense import ExpenseResponse, ExpenseTaxDetailResponse
+from Backend.models.accounting.payment import PaymentMethod
 from Backend.models.user import User
 from Backend.models.enums import UserType
 from Backend.api.auth import get_current_user
@@ -81,6 +82,7 @@ def sample_expense_response():
         expense_date=FIXED_DATETIME,
         description="June electricity bill",
         receipt_url="https://example.com/receipt.pdf",
+        payment_method=PaymentMethod.OTHER,
         total_tax_amount=Decimal("0.00"),
         total_amount=Decimal("100.00"),
         taxes=[],
@@ -148,6 +150,7 @@ async def test_create_expense_with_taxes():
         expense_date=datetime(2024, 6, 2, 10, 0, 0, tzinfo=timezone.utc),
         description="Office supplies",
         receipt_url="https://example.com/receipt2.pdf",
+        payment_method=PaymentMethod.OTHER,
         total_tax_amount=Decimal("24.00"),
         total_amount=Decimal("224.00"),
         taxes=[
@@ -225,6 +228,7 @@ async def test_create_expense_with_precalculated_tax_amounts():
         expense_date=datetime(2024, 6, 3, 10, 0, 0, tzinfo=timezone.utc),
         description="Office supplies with pre-calculated taxes",
         receipt_url="https://example.com/receipt3.pdf",
+        payment_method=PaymentMethod.OTHER,
         total_tax_amount=Decimal("36.00"),
         total_amount=Decimal("336.00"),
         taxes=[
@@ -419,6 +423,7 @@ async def test_create_expense_decimal_precision_validation():
         expense_date=FIXED_DATETIME,
         description="Test expense with precision",
         receipt_url=None,
+        payment_method=PaymentMethod.OTHER,
         total_tax_amount=Decimal("0.00"),
         total_amount=Decimal("100.12"),
         taxes=[],
@@ -469,6 +474,7 @@ async def test_create_expense_admin_user():
         expense_date=FIXED_DATETIME,
         description="Admin created expense",
         receipt_url=None,
+        payment_method=PaymentMethod.OTHER,
         total_tax_amount=Decimal("0.00"),
         total_amount=Decimal("500.00"),
         taxes=[],
@@ -545,6 +551,7 @@ async def test_create_expense_with_all_fields():
         expense_date=datetime(2024, 6, 15, 14, 30, 0, tzinfo=timezone.utc),
         description="Complete HVAC system repair including parts and labor",
         receipt_url="https://storage.example.com/receipts/hvac-repair-2024-06.pdf",
+        payment_method=PaymentMethod.OTHER,
         total_tax_amount=Decimal("180.00"),
         total_amount=Decimal("1680.00"),
         taxes=[
@@ -617,6 +624,7 @@ async def test_create_expense_with_both_rate_and_amount():
         expense_date=datetime(2024, 6, 4, 10, 0, 0, tzinfo=timezone.utc),
         description="Equipment purchase with calculated taxes",
         receipt_url="https://example.com/receipt4.pdf",
+        payment_method=PaymentMethod.OTHER,
         total_tax_amount=Decimal("60.00"),
         total_amount=Decimal("560.00"),
         taxes=[

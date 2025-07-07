@@ -13,6 +13,7 @@ from fastapi import HTTPException, status
 
 from Backend.api.app import app
 from Backend.models.accounting.expense import ExpenseResponse, ExpenseTaxDetailResponse
+from Backend.models.accounting.payment import PaymentMethod
 from Backend.models.user import User
 from Backend.models.enums import UserType
 from Backend.api.auth import get_current_user
@@ -89,6 +90,7 @@ def sample_expenses():
             expense_date=datetime(2024, 1, 15, tzinfo=timezone.utc),
             description="Electricity bill",
             receipt_url="https://example.com/receipt1.pdf",
+            payment_method=PaymentMethod.OTHER,
             total_tax_amount=Decimal("10.00"),
             total_amount=Decimal("110.00"),
             taxes=[
@@ -111,6 +113,7 @@ def sample_expenses():
             expense_date=datetime(2024, 1, 25, tzinfo=timezone.utc),
             description="Water bill",
             receipt_url=None,
+            payment_method=PaymentMethod.OTHER,
             total_tax_amount=Decimal("5.00"),
             total_amount=Decimal("55.00"),
             taxes=[
@@ -309,6 +312,7 @@ async def test_get_expenses_admin_access():
             expense_date=datetime(2024, 3, 10, tzinfo=timezone.utc),
             description="Plumbing repair",
             receipt_url=None,
+            payment_method=PaymentMethod.OTHER,
             total_tax_amount=Decimal("15.00"),
             total_amount=Decimal("165.00"),
             taxes=[],
@@ -409,6 +413,7 @@ async def test_get_expenses_date_filtering():
             expense_date=datetime(2024, 2, 15, tzinfo=timezone.utc),
             description="HVAC maintenance",
             receipt_url=None,
+            payment_method=PaymentMethod.OTHER,
             total_tax_amount=Decimal("30.00"),
             total_amount=Decimal("330.00"),
             taxes=[],
@@ -457,6 +462,7 @@ async def test_get_expense_by_id_success():
         expense_date=datetime(2024, 6, 1, tzinfo=timezone.utc),
         description="Electricity bill",
         receipt_url="https://example.com/receipt.pdf",
+        payment_method=PaymentMethod.OTHER,
         total_tax_amount=Decimal("5.00"),
         total_amount=Decimal("105.00"),
         taxes=[
@@ -553,6 +559,7 @@ async def test_get_expense_by_id_with_multiple_taxes():
         expense_date=datetime(2024, 6, 15, tzinfo=timezone.utc),
         description="Office supplies with multiple taxes",
         receipt_url="https://example.com/receipt-multi-tax.pdf",
+        payment_method=PaymentMethod.OTHER,
         total_tax_amount=Decimal("26.00"),
         total_amount=Decimal("226.00"),
         taxes=[

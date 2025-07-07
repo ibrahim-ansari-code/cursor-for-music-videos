@@ -17,6 +17,8 @@ from Backend.models.user import User
 from Backend.models.enums import UserType
 from Backend.api.auth import get_current_user
 from Backend.database import get_session
+from Backend.api.accounting.expenses.schemas import ExpenseReceiptParseDetails
+from Backend.models.accounting.payment import PaymentMethod
 
 # Mark all tests in this module as unit tests
 pytestmark = pytest.mark.unit
@@ -407,3 +409,27 @@ async def test_parse_expense_receipt_empty_parsed_data():
         assert result["parsed_details"]["total_amount"] == "0.00"
         assert len(result["parsed_details"]["tax_details"]) == 0
         assert "no data could be extracted" in result["message"]
+
+
+def test_payment_method_validator_with_none():
+    """Test payment method validator with None value - Line 36."""
+    result = ExpenseReceiptParseDetails.validate_payment_method(None)
+    assert result is None
+
+
+def test_payment_method_validator_with_enum():
+    """Test payment method validator with PaymentMethod enum - Line 39."""
+    result = ExpenseReceiptParseDetails.validate_payment_method(PaymentMethod.CREDIT_CARD)
+    assert result == PaymentMethod.CREDIT_CARD
+
+
+def test_payment_method_validator_case_insensitive_match():
+    """Test payment method validator with case insensitive string - Line 51."""
+    result = ExpenseReceiptParseDetails.validate_payment_method("credit card")
+    assert result == PaymentMethod.CREDIT_CARD
+
+
+def test_payment_method_validator_fallback_to_other():
+    """Test payment method validator fallback to OTHER - Line 56."""
+    result = ExpenseReceiptParseDetails.validate_payment_method("invalid_method")
+    assert result == PaymentMethod.OTHER

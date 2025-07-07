@@ -13,6 +13,7 @@ from fastapi import HTTPException, status
 
 from Backend.api.app import app
 from Backend.models.accounting.expense import ExpenseResponse, ExpenseTaxDetailResponse
+from Backend.models.accounting.payment import PaymentMethod
 from Backend.models.user import User
 from Backend.models.enums import UserType
 from Backend.api.auth import get_current_user
@@ -67,7 +68,8 @@ async def test_update_expense_success():
         "subtotal_amount": "100.00",
         "description": "Updated expense",
         "receipt_url": "https://new-receipt.com/receipt.jpg",
-        "taxes": []
+        "taxes": [],
+        "payment_method": PaymentMethod.OTHER
     }
     
     expected_response = ExpenseResponse(
@@ -78,6 +80,7 @@ async def test_update_expense_success():
         expense_date=datetime(2024, 6, 1, tzinfo=timezone.utc),
         description="Updated expense",
         receipt_url="https://new-receipt.com/receipt.jpg",
+        payment_method=PaymentMethod.OTHER,
         taxes=[],
         total_tax_amount=Decimal("0.00"),
         total_amount=Decimal("100.00"),
@@ -130,7 +133,8 @@ async def test_update_expense_tax_and_total_recalculation():
         "taxes": [
             {"tax_name": "GST", "tax_rate": "5.00"},
             {"tax_name": "PST", "tax_rate": "7.00"}
-        ]
+        ],
+        "payment_method": PaymentMethod.OTHER
     }
     
     expected_response = ExpenseResponse(
@@ -141,6 +145,7 @@ async def test_update_expense_tax_and_total_recalculation():
         expense_date=datetime(2024, 6, 2, tzinfo=timezone.utc),
         description="Office supplies",
         receipt_url="https://new-receipt.com/supplies.jpg",
+        payment_method=PaymentMethod.OTHER,
         taxes=[
             ExpenseTaxDetailResponse(
                 id=1,
@@ -202,7 +207,8 @@ async def test_update_expense_not_found():
         "subtotal_amount": "300.00",
         "description": "Business trip",
         "receipt_url": "https://new-receipt.com/travel.jpg",
-        "taxes": []
+        "taxes": [],
+        "payment_method": PaymentMethod.OTHER
     }
     
     with patch(
@@ -235,7 +241,8 @@ async def test_update_expense_unauthorized_user():
         "subtotal_amount": "400.00",
         "description": "Annual insurance",
         "receipt_url": "https://new-receipt.com/insurance.jpg",
-        "taxes": []
+        "taxes": [],
+        "payment_method": PaymentMethod.OTHER
     }
     
     with patch(
@@ -269,7 +276,8 @@ async def test_update_expense_invalid_input():
         "subtotal_amount": "-50.00",
         "description": "Negative subtotal",
         "receipt_url": "https://new-receipt.com/misc.jpg",
-        "taxes": []
+        "taxes": [],
+        "payment_method": PaymentMethod.OTHER
     }
     
     app.dependency_overrides[get_current_user] = lambda: fake_user
@@ -299,7 +307,8 @@ async def test_update_expense_receipt_blob_deletion_scheduled():
         "subtotal_amount": "250.00",
         "description": "Roof repair",
         "receipt_url": "https://new-receipt.com/roof.jpg",
-        "taxes": []
+        "taxes": [],
+        "payment_method": PaymentMethod.OTHER
     }
     
     expected_response = ExpenseResponse(
@@ -310,6 +319,7 @@ async def test_update_expense_receipt_blob_deletion_scheduled():
         expense_date=datetime(2024, 6, 3, tzinfo=timezone.utc),
         description="Roof repair",
         receipt_url="https://new-receipt.com/roof.jpg",
+        payment_method=PaymentMethod.OTHER,
         taxes=[],
         total_tax_amount=Decimal("0.00"),
         total_amount=Decimal("250.00"),
@@ -347,7 +357,8 @@ async def test_update_expense_partial_update():
     # Partial update - only category and description
     update_data = {
         "category": "Office Supplies",
-        "description": "Updated description only"
+        "description": "Updated description only",
+        "payment_method": PaymentMethod.OTHER
     }
     
     expected_response = ExpenseResponse(
@@ -358,6 +369,7 @@ async def test_update_expense_partial_update():
         expense_date=datetime(2024, 5, 15, tzinfo=timezone.utc),  # Unchanged
         description="Updated description only",  # Updated
         receipt_url="https://example.com/original-receipt.pdf",  # Unchanged
+        payment_method=PaymentMethod.OTHER,
         taxes=[],
         total_tax_amount=Decimal("0.00"),
         total_amount=Decimal("150.00"),
@@ -395,7 +407,8 @@ async def test_update_expense_admin_user():
         "property_id": 999,  # Different property
         "category": "Admin Update",
         "subtotal_amount": "1000.00",
-        "description": "Admin updated expense"
+        "description": "Admin updated expense",
+        "payment_method": PaymentMethod.OTHER
     }
     
     expected_response = ExpenseResponse(
@@ -406,6 +419,7 @@ async def test_update_expense_admin_user():
         expense_date=datetime(2024, 6, 10, tzinfo=timezone.utc),
         description="Admin updated expense",
         receipt_url=None,
+        payment_method=PaymentMethod.OTHER,
         taxes=[],
         total_tax_amount=Decimal("0.00"),
         total_amount=Decimal("1000.00"),

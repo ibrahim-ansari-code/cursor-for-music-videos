@@ -1,5 +1,7 @@
 // Receipt parsing utility functions for cleaner, more maintainable code
 
+import { PAYMENT_METHODS, EXPENSE_CATEGORIES } from './constants.js';
+
 /**
  * Extracts and validates amount from parsed receipt details
  * @param {Object} parsedDetails - Parsed receipt data
@@ -197,6 +199,64 @@ export const generateTaxSuccessMessage = (extractedTaxes, parsedDetails) => {
 };
 
 /**
+ * Extracts vendor name from parsed receipt details
+ * @param {Object} parsedDetails - Parsed receipt data
+ * @param {string} currentVendor - Current form vendor as fallback
+ * @returns {string} Extracted or fallback vendor name
+ */
+export const extractReceiptVendor = (parsedDetails, currentVendor = "") => {
+  return parsedDetails.vendor_name || currentVendor;
+};
+
+/**
+ * Extracts and validates expense category from parsed receipt details
+ * @param {Object} parsedDetails - Parsed receipt data
+ * @param {string} currentCategory - Current form category as fallback
+ * @returns {string} Extracted or fallback category
+ */
+export const extractReceiptCategory = (parsedDetails, currentCategory = "") => {
+  const suggestedCategory = parsedDetails.expense_category;
+  
+  // Validate that the suggested category is in our allowed list
+  if (suggestedCategory && EXPENSE_CATEGORIES.includes(suggestedCategory.toLowerCase())) {
+    return suggestedCategory.toLowerCase();
+  }
+  
+  return currentCategory;
+};
+
+/**
+ * Extracts payment method from parsed receipt details
+ * @param {Object} parsedDetails - Parsed receipt data
+ * @param {string} currentPaymentMethod - Current form payment method as fallback
+ * @returns {string} Extracted or fallback payment method
+ */
+export const extractReceiptPaymentMethod = (parsedDetails, currentPaymentMethod = "Other") => {
+  const extractedMethod = parsedDetails.payment_method;
+  
+  if (!extractedMethod) {
+    return currentPaymentMethod;
+  }
+  
+  // First try exact match (case-sensitive)
+  if (PAYMENT_METHODS.includes(extractedMethod)) {
+    return extractedMethod;
+  }
+  
+  // Then try case-insensitive match
+  const normalizedExtracted = extractedMethod.toLowerCase().trim();
+  const matchedMethod = PAYMENT_METHODS.find(
+    method => method.toLowerCase() === normalizedExtracted
+  );
+  
+  if (matchedMethod) {
+    return matchedMethod;
+  }
+  
+  return currentPaymentMethod;
+};
+
+/**
  * Complete receipt data extraction for expenses
  * @param {Object} parsedDetails - Parsed receipt data
  * @param {Object} currentFormData - Current form state
@@ -216,14 +276,73 @@ export const extractExpenseReceiptData = (parsedDetails, currentFormData) => {
     parsedDetails,
     currentFormData.description
   );
+  const extractedCategory = extractReceiptCategory(
+    parsedDetails,
+    currentFormData.category
+  );
+  const extractedPaymentMethod = extractReceiptPaymentMethod(
+    parsedDetails,
+    currentFormData.payment_method
+  );
+  const extractedVendor = extractReceiptVendor(
+    parsedDetails,
+    currentFormData.vendor_name || ""
+  );
+
+  // Enhanced description that includes vendor if extracted
+  let enhancedDescription = extractedDescription;
+  if (extractedVendor && extractedVendor.trim() && !enhancedDescription.toLowerCase().includes(extractedVendor.toLowerCase())) {
+    enhancedDescription = extractedVendor + (enhancedDescription ? ` - ${enhancedDescription}` : "");
+  }
 
   return {
     amount: extractedAmount || currentFormData.amount,
     taxes: extractedTaxes,
     expense_date: extractedDate || currentFormData.expense_date,
-    description: extractedDescription || currentFormData.description,
-    successMessage: generateTaxSuccessMessage(extractedTaxes, parsedDetails),
+    description: enhancedDescription || currentFormData.description,
+    category: extractedCategory || currentFormData.category,
+    payment_method: extractedPaymentMethod || currentFormData.payment_method,
+    successMessage: generateEnhancedTaxSuccessMessage(extractedTaxes, parsedDetails, extractedCategory, extractedVendor),
   };
+};
+
+/**
+ * Generates enhanced success message based on extracted information
+ * @param {Array} extractedTaxes - Processed tax array
+ * @param {Object} parsedDetails - Original parsed details for context
+ * @param {string} extractedCategory - Extracted expense category
+ * @param {string} extractedVendor - Extracted vendor name
+ * @returns {string} User-friendly success message
+ */
+export const generateEnhancedTaxSuccessMessage = (extractedTaxes, parsedDetails, extractedCategory, extractedVendor) => {
+  const baseMessage = "Receipt parsed successfully!";
+  const details = [];
+
+  // Add vendor information
+  if (extractedVendor && extractedVendor.trim()) {
+    details.push(`Vendor: ${extractedVendor}`);
+  }
+
+  // Add category information
+  if (extractedCategory) {
+    details.push(`Category: ${extractedCategory}`);
+  }
+
+  // Add tax information
+  const validTaxes = extractedTaxes.filter(
+    (tax) => tax.tax_name && parseFloat(tax.tax_rate) > 0
+  );
+
+  if (validTaxes.length > 0) {
+    const taxNames = validTaxes.map((tax) => tax.tax_name).join(", ");
+    details.push(`Taxes: ${taxNames}`);
+  }
+
+  if (details.length > 0) {
+    return `${baseMessage} Found: ${details.join(", ")}. Review the extracted data below.`;
+  }
+
+  return `${baseMessage} Review the extracted data below.`;
 };
 
 // Payment receipt extraction utilities

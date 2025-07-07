@@ -12,6 +12,7 @@
     "@sentry/react": "^9.27.0",
     "@supabase/supabase-js": "^2.49.4",
     "clsx": "^2.1.1",
+    "decimal.js": "^10.6.0",
     "framer-motion": "^12.7.4",
     "lodash": "^4.17.21",
     "lodash.debounce": "^4.0.8",

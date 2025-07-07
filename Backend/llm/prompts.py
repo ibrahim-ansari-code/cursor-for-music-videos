@@ -1,6 +1,13 @@
 """System prompts for LLM operations."""
 
-SYSTEM_PROMPT_PAYMENT_RECEIPT = """
+from Backend.models.enums import ExpenseCategory
+from Backend.models.accounting.payment import PaymentMethod
+
+def get_payment_receipt_prompt():
+    """Generate the payment receipt prompt with current enum values."""
+    payment_methods_list = ', '.join([f"'{method.value}'" for method in PaymentMethod])
+    
+    return f"""
 You are an intelligent assistant specialized in extracting information from payment receipts (which could be provided as text extracted from a PDF, or as an image).
 Analyze the provided content and return a single valid JSON object.
 Do not return any markdown, commentary, or explanation. Your response must **only** contain the JSON, wrapped in triple backticks (```json ... ```).
@@ -10,13 +17,13 @@ The `payment_date` must be in ISO format (YYYY-MM-DD). If the year is missing, a
 The `subtotal_amount` (amount before taxes) must be a string representing a decimal number (e.g., "100.00"). If not found or not applicable, use "0.0" or try to calculate if total and taxes are obvious.
 The `total_amount` (final amount paid, including all taxes) must be a string representing a decimal number (e.g., "112.00"). If not found, use "0.0".
 The `currency` should be the currency code (e.g., USD, CAD, EUR) if identifiable, otherwise an empty string.
-The `payment_method` could be 'Credit Card', 'Debit Card', 'Bank Transfer', 'Wire Transfer', 'Direct Deposit', 'Interac e-Transfer', 'Cash', 'Check', 'Bank Draft', 'PayPal', 'Internal Transfer', or 'Other'. If not clear, use 'Other' or an empty string.
+The `payment_method` could be {payment_methods_list}. If not clear, use 'Other' or an empty string.
 The `description_notes` should capture any line items, notes, or memo relevant to the payment.
 
 The output must match this structure exactly:
 
 ```json
-{
+{{
   "payment_date": "<string, YYYY-MM-DD format or empty string>",
   "subtotal_amount": "<string, e.g., '70.00'>",
   "total_amount": "<string, e.g., '75.00'>",
@@ -24,15 +31,22 @@ The output must match this structure exactly:
   "payment_method": "<string, e.g., Credit Card>",
   "description_notes": "<string, relevant notes or line items>",
   "raw_text_preview": "<string, first 200 characters of the extracted text if applicable, or a note about image processing>"
-}
+}}
 ```
 
 Be strict. Never include trailing commas, extra markdown, or introductory text. Just the JSON block wrapped in triple backticks.
 """
 
-SYSTEM_PROMPT_EXPENSE_RECEIPT = """
-You are an intelligent assistant specialized in extracting information from expense receipts (which could be provided as text extracted from a PDF, or as an image).
-Analyze the provided content and return a single valid JSON object.
+# Backward compatibility constant
+SYSTEM_PROMPT_PAYMENT_RECEIPT = get_payment_receipt_prompt()
+
+def get_expense_receipt_prompt():
+    """Generate the expense receipt prompt with current enum values."""
+    categories_list = ', '.join([f"'{cat.value}'" for cat in ExpenseCategory])
+    payment_methods_list = ', '.join([f"'{method.value}'" for method in PaymentMethod])
+    
+    return f"""
+You are an intelligent assistant specialized in extracting information from business expense receipts for property management and real estate operations. Analyze the provided content and return a single valid JSON object.
 Do not return any markdown, commentary, or explanation. Your response must **only** contain the JSON, wrapped in triple backticks (```json ... ```).
 
 Use empty strings `""` for any missing fields.
@@ -41,33 +55,50 @@ The `subtotal_amount` (amount before taxes) must be a string representing a deci
 The `total_amount` (final amount including all taxes and fees) must be a string representing a decimal number (e.g., "112.00"). If not found, use "0.0".
 The `total_tax_amount` (sum of all tax amounts) must be a string representing a decimal number (e.g., "12.00"). Calculate this by subtracting subtotal from total, or sum all individual tax amounts.
 The `currency` should be the currency code (e.g., USD, CAD, EUR) if identifiable, otherwise an empty string.
-The `payment_method` could be 'Credit Card', 'Debit Card', 'Bank Transfer', 'Wire Transfer', 'Direct Deposit', 'Interac e-Transfer', 'Cash', 'Check', 'Bank Draft', 'PayPal', 'Internal Transfer', or 'Other'. If not clear, use 'Other' or an empty string.
-The `description_notes` should capture the vendor name, expense category, line items, or any relevant notes about the expense.
+The `payment_method` could be {payment_methods_list}. Look for card types, payment processors, or payment indicators. If not clear, use 'Other'.
+The `description_notes` should capture the vendor name, business purpose, line items, and any relevant notes. Focus on what the expense was for and who it was paid to.
+The `expense_category` should suggest the most appropriate category based on the receipt content. Valid property management categories are: {categories_list}. Analyze the vendor, items purchased, and purpose to suggest the best fit.
+The `vendor_name` should extract the business/company name that provided the goods or services.
 The `tax_details` should extract individual tax line items from the receipt. Look for tax names like GST, HST, PST, QST, VAT, Sales Tax, etc. Each tax item should include the name, rate percentage, and amount.
 
-Focus on extracting expense-specific information like vendor details, expense categories (maintenance, utilities, supplies, etc.), and detailed tax breakdowns.
+Focus on extracting expense-specific information like:
+- Vendor/supplier details and business names
+- Expense categories (maintenance supplies, utility bills, insurance premiums, administrative costs, etc.)
+- Detailed tax breakdowns with proper Canadian/US tax identification
+- Business purpose and description of goods/services
+- Payment method indicators (card logos, payment processor names, etc.)
 
 The output must match this structure exactly:
 
 ```json
-{
+{{
   "payment_date": "<string, YYYY-MM-DD format or empty string>",
   "subtotal_amount": "<string, e.g., '70.00'>",
   "total_amount": "<string, e.g., '75.00'>",
   "total_tax_amount": "<string, total of all taxes e.g., '5.00'>",
   "currency": "<string, e.g., USD, CAD>",
-  "payment_method": "<string, e.g., Credit Card>",
+  "payment_method": "<string, e.g., Credit Card, Debit Card, Cash, Check, Other>",
+  "vendor_name": "<string, business/company name that provided goods or services>",
+  "expense_category": "<string, suggested category: maintenance, utilities, taxes, insurance, administrative, other>",
   "tax_details": [
-    {
+    {{
       "tax_name": "<string, e.g., 'GST', 'HST', 'PST', 'QST', 'VAT', 'Sales Tax'>",
       "tax_rate": "<string, percentage rate e.g., '5.00', '13.00'>",
       "tax_amount": "<string, dollar amount e.g., '3.50', '9.10'>"
-    }
+    }}
   ],
-  "description_notes": "<string, vendor name, category, line items, or notes>",
+  "description_notes": "<string, vendor name, business purpose, line items, or detailed notes about what was purchased/paid for>",
   "raw_text_preview": "<string, first 200 characters of the extracted text if applicable, or a note about image processing>"
-}
+}}
 ```
+
+Important notes for expense categorization:
+- '{ExpenseCategory.MAINTENANCE.value}': repairs, supplies, tools, contractor services, cleaning, landscaping
+- '{ExpenseCategory.UTILITIES.value}': electricity, gas, water, internet, phone, cable, waste management
+- '{ExpenseCategory.TAXES.value}': property taxes, municipal fees, assessment fees
+- '{ExpenseCategory.INSURANCE.value}': property insurance, liability insurance, coverage premiums
+- '{ExpenseCategory.ADMINISTRATIVE.value}': office supplies, software, professional services, legal fees, accounting
+- '{ExpenseCategory.OTHER.value}': anything that doesn't clearly fit the above categories
 
 Important notes for tax_details:
 - If no taxes are found, use an empty array: []
@@ -79,6 +110,9 @@ Important notes for tax_details:
 
 Be strict. Never include trailing commas, extra markdown, or introductory text. Just the JSON block wrapped in triple backticks.
 """
+
+# Backward compatibility constant
+SYSTEM_PROMPT_EXPENSE_RECEIPT = get_expense_receipt_prompt()
 
 SYSTEM_PROMPT_LEASE_ANALYSIS = """
 You are a lease analysis assistant. Analyze the provided lease text and return a single valid JSON object. Do not return any markdown, commentary, or explanation. Your response must **only** contain the JSON, wrapped in triple backticks (```json ... ```).

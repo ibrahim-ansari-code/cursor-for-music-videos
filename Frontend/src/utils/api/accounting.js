@@ -114,6 +114,7 @@ export const fetchExpenses = async (params = {}) => {
   if (params.category) queryParams.append("category", params.category);
   if (params.start_date) queryParams.append("start_date", params.start_date);
   if (params.end_date) queryParams.append("end_date", params.end_date);
+  if (params.search) queryParams.append("search", params.search);
   if (params.limit) queryParams.append("limit", params.limit);
   if (params.offset) queryParams.append("offset", params.offset);
 

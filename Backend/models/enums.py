@@ -40,6 +40,33 @@ class TenantType(str, Enum):
         return super()._missing_(value)
 
 
+class ExpenseCategory(str, Enum):
+    """
+    Defines valid expense categories for property management.
+    """
+    MAINTENANCE = "maintenance"
+    UTILITIES = "utilities"
+    TAXES = "taxes"
+    INSURANCE = "insurance"
+    ADMINISTRATIVE = "administrative"
+    OTHER = "other"
+
+    @classmethod
+    def _missing_(cls, value: Any) -> Optional["ExpenseCategory"]:
+        if isinstance(value, str):
+            # Case-insensitive matching for value
+            lower_value = value.lower()
+            for member in cls:
+                if member.value.lower() == lower_value:
+                    return member
+            # Case-insensitive matching for member name
+            try:
+                return cls[value.upper()]
+            except KeyError:
+                pass
+        return super()._missing_(value)
+
+
 class PropertyStatus(str, Enum):
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"

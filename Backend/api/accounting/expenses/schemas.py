@@ -6,9 +6,10 @@ and are separate from the core expense models defined in Backend/models/accounti
 """
 
 from decimal import Decimal
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from Backend.models.accounting.expense import TaxDetailItem, ExpenseResponse
+from Backend.models.accounting.payment import PaymentMethod
 
 
 class ExpenseReceiptParseDetails(BaseModel):
@@ -20,9 +21,39 @@ class ExpenseReceiptParseDetails(BaseModel):
     currency: str | None = None
     tax_details: list[TaxDetailItem] = []  # Individual tax line items
     # Payment method is actually useful for expense tracking
-    payment_method: str | None = None
+    payment_method: PaymentMethod | None = None
+    # Enhanced fields for better expense categorization
+    vendor_name: str | None = None
+    expense_category: str | None = None
     description_notes: str | None = None
     raw_text_preview: str | None = None
+
+    @field_validator('payment_method', mode='before')
+    @classmethod
+    def validate_payment_method(cls, v) -> PaymentMethod | None:
+        """Validate and convert payment method strings to enum values"""
+        if v is None:
+            return None
+        
+        if isinstance(v, PaymentMethod):
+            return v
+            
+        if isinstance(v, str):
+            # Try exact match first
+            for method in PaymentMethod:
+                if method.value == v:
+                    return method
+            
+            # Try case-insensitive match
+            v_lower = v.lower().strip()
+            for method in PaymentMethod:
+                if method.value.lower() == v_lower:
+                    return method
+            
+            # If no match found, default to OTHER
+            return PaymentMethod.OTHER
+            
+        return PaymentMethod.OTHER
 
 
 class ExpenseReceiptParseResponse(BaseModel):

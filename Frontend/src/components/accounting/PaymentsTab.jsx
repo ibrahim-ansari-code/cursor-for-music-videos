@@ -401,7 +401,7 @@ const PaymentsTab = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
-                      {payment.quickbooks_id !== null
+                      {payment.quickbooks_id != null
                         ? "QuickBooks"
                         : "Brikli"}
                     </td>

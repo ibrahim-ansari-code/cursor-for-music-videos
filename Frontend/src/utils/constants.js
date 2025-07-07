@@ -15,6 +15,15 @@ export const PAYMENT_METHODS = [
   "Other",
 ];
 
+export const EXPENSE_CATEGORIES = [
+  "maintenance",
+  "utilities", 
+  "taxes",
+  "insurance",
+  "administrative",
+  "other"
+];
+
 export const PAYMENT_STATUSES = [
   "Pending",
   "Paid",

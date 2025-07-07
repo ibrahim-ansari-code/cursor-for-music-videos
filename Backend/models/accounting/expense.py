@@ -3,13 +3,14 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Column, DateTime, Index, Numeric, String
+from sqlalchemy import Column, DateTime, Index, Numeric, String, Enum as PgEnum
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.expression import cast
 from sqlmodel import Field, Relationship, SQLModel
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from Backend.models.property import Property
+from Backend.models.accounting.payment import PaymentMethod
 from Backend.utils.datetime_utils import create_audit_datetime
 
 # === API Models for Expenses ===
@@ -69,6 +70,7 @@ class ExpenseCreate(BaseModel):
     expense_date: datetime
     description: str | None = None
     receipt_url: str | None = None
+    payment_method: PaymentMethod | None = PaymentMethod.OTHER
     taxes: list[ExpenseTaxDetailCreate] | None = None
     
     @field_validator('subtotal_amount')
@@ -86,6 +88,7 @@ class ExpenseUpdate(BaseModel):
     expense_date: datetime | None = None
     description: str | None = None
     receipt_url: str | None = None
+    payment_method: PaymentMethod | None = None
     taxes: list[ExpenseTaxDetailCreate] | None = None
     
     @field_validator('subtotal_amount')
@@ -100,6 +103,7 @@ class ExpenseResponse(ExpenseBase):
     id: int
     total_tax_amount: Decimal
     total_amount: Decimal
+    payment_method: PaymentMethod
     taxes: list[ExpenseTaxDetailResponse] = []
     created_at: datetime
     updated_at: datetime
@@ -191,6 +195,19 @@ class Expense(SQLModel, table=True):
         sa_column=Column(Numeric(12, 2), nullable=False),
         ge=0,
         description="Total tax must be non-negative",
+    )
+    
+    payment_method: PaymentMethod = Field(
+        default=PaymentMethod.OTHER,
+        sa_column=Column(
+            PgEnum(
+                PaymentMethod,
+                name="paymentmethod",
+                create_constraint=True,
+                values_callable=lambda x: [e.value for e in x],
+            ),
+            nullable=False,
+        ),
     )
 
     property_id: int = Field(foreign_key="properties.id", index=True)

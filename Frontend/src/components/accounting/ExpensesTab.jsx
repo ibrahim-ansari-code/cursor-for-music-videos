@@ -5,18 +5,20 @@ import {
   deleteExpense 
 } from "../../utils/api";
 import { toast } from "react-toastify";
-import NewExpenseModal from "../NewExpenseModal";
-import EditExpenseModal from "../EditExpenseModal";
+import NewExpenseModal from "./modals/NewExpenseModal";
+import EditExpenseModal from "./modals/EditExpenseModal";
 import LoadingSpinner from "../LoadingSpinner";
 import { useAccounting } from "./AccountingContext";
 import { getDateRangeParams } from "../../utils/dateHelpers";
 
 const expenseTableColumns = [
   { key: "property", label: "Property", align: "left" },
-  { key: "category", label: "Category", align: "left" },
-  { key: "amount", label: "Amount", align: "left" },
-  { key: "date", label: "Date", align: "left" },
-  { key: "source", label: "Source", align: "left" },
+  { key: "category", label: "Category", align: "center" },
+  { key: "amount", label: "Amount", align: "center" },
+  { key: "date", label: "Date", align: "center" },
+  { key: "payment_method", label: "Payment Method", align: "center" },
+  { key: "receipt", label: "Receipt", align: "center" },
+  { key: "source", label: "Source", align: "center" },
   { key: "actions", label: "Actions", align: "center" },
 ];
 
@@ -66,12 +68,12 @@ const ExpensesTab = () => {
     setExpensesPagination((prev) => ({ ...prev, currentPage: 0 }));
   }, [expenseFilters]);
 
-  // Effect for handling data loading when pagination changes
+  // Effect for handling data loading when pagination or filters change
   useEffect(() => {
     loadExpensesData();
     // The dependency array correctly triggers this effect when either the
-    // page or the active tab changes, ensuring data is loaded when needed.
-  }, [expensesPagination.currentPage]);
+    // page or filters change, ensuring data is loaded when needed.
+  }, [expensesPagination.currentPage, expenseFilters]);
 
   const loadExpensesData = async () => {
     try {
@@ -79,6 +81,7 @@ const ExpensesTab = () => {
 
       const params = {};
 
+      // Add category filter - only if not "all"
       if (expenseFilters.category !== "all") {
         params.category = expenseFilters.category;
       }
@@ -92,9 +95,11 @@ const ExpensesTab = () => {
         params.search = searchQuery.trim();
       }
 
-      // Convert date range to actual date params using utility function
-      const dateRangeParams = getDateRangeParams(expenseFilters.dateRange);
-      Object.assign(params, dateRangeParams);
+      // Convert date range to actual date params using utility function - only if not "all"
+      if (expenseFilters.dateRange !== "all") {
+        const dateRangeParams = getDateRangeParams(expenseFilters.dateRange);
+        Object.assign(params, dateRangeParams);
+      }
 
       const data = await fetchExpenses(params);
 
@@ -188,9 +193,9 @@ const ExpensesTab = () => {
   // Handle search with debouncing to avoid too many API calls
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      // Reset to first page when search changes
+      // Reset to first page when search changes and trigger data reload
       setExpensesPagination((prev) => ({ ...prev, currentPage: 0 }));
-      // Note: The pagination effect will trigger loadExpensesData with the new search term
+      loadExpensesData();
     }, 500);
 
     return () => clearTimeout(timeoutId);
@@ -211,7 +216,7 @@ const ExpensesTab = () => {
       )}
 
       {/* Action Buttons */}
-      <div className="flex justify-end space-x-3">
+      <div className="flex justify-end space-x-3 mb-4">
         <button
           onClick={handleShowModal}
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -258,6 +263,7 @@ const ExpensesTab = () => {
               <option value="taxes">Taxes</option>
               <option value="insurance">Insurance</option>
               <option value="administrative">Administrative</option>
+              <option value="other">Other</option>
             </select>
           </div>
 
@@ -283,6 +289,7 @@ const ExpensesTab = () => {
               <option value="month">Last 30 days</option>
               <option value="quarter">Last 90 days</option>
               <option value="year">Last year</option>
+              <option value="all">All Time</option>
             </select>
           </div>
         </div>
@@ -342,32 +349,30 @@ const ExpensesTab = () => {
                           "Unknown Property"}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-left">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="text-sm text-gray-500">
                         {expense.category.charAt(0).toUpperCase() +
                           expense.category.slice(1)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-left">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="text-sm text-gray-900">
                         ${parseFloat(expense.total_amount).toFixed(2)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-left">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="text-sm text-gray-500">
                         {new Date(expense.expense_date).toLocaleDateString()}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-left">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="text-sm text-gray-500">
-                        {expense.quickbooks_id != null
-                          ? "QuickBooks"
-                          : "Brikli"}
+                        {expense.payment_method || "Other"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex justify-center space-x-2">
-                        {expense.receipt_url && (
+                      <div className="text-sm text-gray-500">
+                        {expense.receipt_url ? (
                           <button
                             type="button"
                             onClick={() =>
@@ -386,7 +391,20 @@ const ExpensesTab = () => {
                           >
                             <i className="fas fa-eye" />
                           </button>
+                        ) : (
+                          <span className="text-gray-400 text-xs">None Uploaded</span>
                         )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="text-sm text-gray-500">
+                        {expense.quickbooks_id != null
+                          ? "QuickBooks"
+                          : "Brikli"}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="flex justify-center space-x-2">
                         <button
                           type="button"
                           onClick={() => handleEditExpense(expense)}

@@ -5,7 +5,7 @@ These tests cover enum functionality and edge cases.
 """
 
 import pytest
-from Backend.models.enums import TenantType
+from Backend.models.enums import TenantType, ExpenseCategory
 
 
 # Mark all tests in this module as unit tests
@@ -50,3 +50,33 @@ class TestTenantType:
         
         result = TenantType._missing_("company")
         assert result == TenantType.COMPANY
+
+
+class TestExpenseCategory:
+    """Test ExpenseCategory enum functionality."""
+    
+    def test_expense_category_values(self):
+        """Test ExpenseCategory enum values."""
+        assert ExpenseCategory.MAINTENANCE == "maintenance"
+        assert ExpenseCategory.UTILITIES == "utilities"
+        assert ExpenseCategory.TAXES == "taxes"
+        assert ExpenseCategory.INSURANCE == "insurance"
+        assert ExpenseCategory.ADMINISTRATIVE == "administrative"
+        assert ExpenseCategory.OTHER == "other"
+    
+    def test_expense_category_missing_case_insensitive_value(self):
+        """Test ExpenseCategory._missing_ method with case insensitive value matching - Lines 56, 58-61."""
+        # Test case insensitive matching by value
+        assert ExpenseCategory._missing_("MAINTENANCE") == ExpenseCategory.MAINTENANCE
+        assert ExpenseCategory._missing_("utilities") == ExpenseCategory.UTILITIES
+        assert ExpenseCategory._missing_("TaXeS") == ExpenseCategory.TAXES
+    
+    def test_expense_category_missing_member_name_matching(self):
+        """Test ExpenseCategory._missing_ method with member name matching - Lines 63-67."""
+        # Test case insensitive matching by member name (e.g., "MAINTENANCE" maps to ExpenseCategory.MAINTENANCE)
+        assert ExpenseCategory._missing_("MAINTENANCE") == ExpenseCategory.MAINTENANCE
+        assert ExpenseCategory._missing_("utilities") == ExpenseCategory.UTILITIES
+        
+        # Test with invalid values that should return None
+        assert ExpenseCategory._missing_("invalid_category") is None
+        assert ExpenseCategory._missing_(123) is None
