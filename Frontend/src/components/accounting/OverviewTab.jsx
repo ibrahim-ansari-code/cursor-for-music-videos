@@ -341,16 +341,16 @@ const OverviewTab = () => {
             data={
               overviewData?.revenue_trends
                 ? {
-                    months: overviewData.revenue_trends.map(
-                      (month) => month.period
-                    ),
-                    revenue: overviewData.revenue_trends.map(
-                      (month) => Number(month.revenue) || 0
-                    ),
-                    expenses: overviewData.revenue_trends.map(
-                      (month) => Number(month.expenses) || 0
-                    ),
-                  }
+                  months: overviewData.revenue_trends.map(
+                    (month) => month.period
+                  ),
+                  revenue: overviewData.revenue_trends.map(
+                    (month) => Number(month.revenue) || 0
+                  ),
+                  expenses: overviewData.revenue_trends.map(
+                    (month) => Number(month.expenses) || 0
+                  ),
+                }
                 : null
             }
           />
@@ -396,7 +396,7 @@ const OverviewTab = () => {
         </div>
 
         {/* Outstanding Payments Card */}
-        <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 h-full">
+        <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 h-full flex flex-col">
           <div className="flex items-center mb-4">
             <h2 className="text-lg font-medium text-gray-800">
               Outstanding Payments
@@ -417,27 +417,27 @@ const OverviewTab = () => {
           </div>
 
           {outstandingPayments.length > 0 ? (
-            <div>
+            <div className="flex-1 flex flex-col">
               <div className="border-b border-gray-200 mb-2">
-                <div className="grid grid-cols-3 text-sm">
-                  <div className="py-3 text-gray-500 font-medium uppercase tracking-wider">
+                <div className="grid grid-cols-12 text-sm">
+                  <div className="col-span-5 py-3 text-gray-500 font-medium uppercase tracking-wider">
                     Tenant
                   </div>
-                  <div className="py-3 text-gray-500 font-medium uppercase tracking-wider text-center">
+                  <div className="col-span-3 py-3 text-gray-500 font-medium uppercase tracking-wider text-center">
                     Status
                   </div>
-                  <div className="py-3 text-gray-500 font-medium uppercase tracking-wider text-right">
+                  <div className="col-span-4 py-3 text-gray-500 font-medium uppercase tracking-wider text-right">
                     Amount Due
                   </div>
                 </div>
               </div>
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {outstandingPayments.slice(0, 8).map((payment) => (
+              <div className="overflow-y-auto pr-1 custom-scrollbar" style={{ minHeight: "200px", maxHeight: "350px" }}>
+                {outstandingPayments.map((payment) => (
                   <div
                     key={payment.id}
-                    className="grid grid-cols-3 py-2.5 border-b border-gray-100 hover:bg-gray-50"
+                    className="grid grid-cols-12 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
                   >
-                    <div className="text-sm">
+                    <div className="col-span-5 text-sm">
                       <div className="font-medium text-gray-900">
                         {payment.tenant_name}
                       </div>
@@ -445,45 +445,55 @@ const OverviewTab = () => {
                         {payment.property_name}
                       </div>
                     </div>
-                    <div className="text-center">
+                    <div className="col-span-3 flex items-center justify-center">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          payment.status === "Overdue"
-                            ? "bg-red-100 text-red-800"
-                            : payment.status === "Partial"
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${payment.status === "Overdue"
+                          ? "bg-red-100 text-red-800"
+                          : payment.status === "Partial"
                             ? "bg-yellow-100 text-yellow-800"
                             : "bg-orange-100 text-orange-800"
-                        }`}
+                          }`}
                       >
                         {payment.status}
                       </span>
                     </div>
-                    <div className="text-sm font-medium text-gray-900 text-right">
-                      ${Number.parseFloat(payment.amount).toFixed(2)}
+                    <div className="col-span-4 text-sm font-medium text-gray-900 text-right pr-2">
+                      ${Number.parseFloat(payment.amount).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
                     </div>
                   </div>
                 ))}
-                {outstandingPayments.length > 8 && (
-                  <div className="py-2 text-center text-sm text-gray-500">
-                    ... and {outstandingPayments.length - 8} more
-                  </div>
-                )}
               </div>
               <div className="mt-4 pt-3 border-t border-gray-200">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-700">
-                    Total Outstanding:
-                  </span>
-                  <span className="text-lg font-semibold text-red-600">
-                    ${totalOutstandingAmount}
-                  </span>
+                <div className="grid grid-cols-12 items-center">
+                  <div className="col-span-5">
+                    <span className="text-sm font-medium text-gray-700">
+                      Total Outstanding:
+                    </span>
+                  </div>
+                  <div className="col-span-3"></div>
+                  <div className="col-span-4 text-right pr-2">
+                    <span className="text-lg font-semibold text-red-600">
+                      ${parseFloat(totalOutstandingAmount).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-center h-48">
+            <div className="flex items-center justify-center" style={{ minHeight: "300px" }}>
               <div className="text-center text-gray-500">
-                <div className="text-3xl font-bold text-green-600">0</div>
+                <div className="mb-4">
+                  <svg className="w-16 h-16 mx-auto text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="text-xl font-bold text-green-600">All Paid</div>
                 <p className="text-sm mt-2">All payments are up to date</p>
               </div>
             </div>

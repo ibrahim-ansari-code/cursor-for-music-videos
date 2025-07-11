@@ -95,7 +95,7 @@ class Payment(SQLModel, table=True):
 
     lease_id: int | None = Field(
         default=None,
-        sa_column=Column(Integer, ForeignKey("leases.id", ondelete="SET NULL")),
+        sa_column=Column(Integer, ForeignKey("leases.id", ondelete="RESTRICT")),
     )
     tenant_id: int | None = Field(
         default=None,

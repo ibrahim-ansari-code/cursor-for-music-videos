@@ -11,12 +11,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const IncomeByPropertyChart = ({ properties = [] }) => {
+const IncomeByPropertyChart = ({ properties = [], maxPropertyNameLength = 20 }) => {
   // Generate unique IDs for this chart instance
   const chartId = useId();
   const gradientId = `incomeGradient-${chartId}`;
   const shadowId = `barShadow-${chartId}`;
-  
+
   // Show a placeholder while data is loading or empty
   if (!Array.isArray(properties) || properties.length === 0) {
     return (
@@ -60,8 +60,14 @@ const IncomeByPropertyChart = ({ properties = [] }) => {
         return null;
       }
 
+      // Truncate long property names to prevent label overlap
+      let displayName = property.name || 'Unknown Property';
+      if (displayName.length > maxPropertyNameLength) {
+        displayName = displayName.substring(0, maxPropertyNameLength - 2) + '...';
+      }
+
       return {
-        name: property.name || 'Unknown Property',
+        name: displayName,
         income: income,
         occupancyRate: occupancyRate,
         // Add formatted values for tooltips
@@ -71,6 +77,8 @@ const IncomeByPropertyChart = ({ properties = [] }) => {
           minimumFractionDigits: 0,
           maximumFractionDigits: 0,
         }),
+        // Store original name for tooltip
+        fullName: property.name || 'Unknown Property',
       };
     })
     .filter(Boolean) // Remove invalid entries
@@ -82,7 +90,7 @@ const IncomeByPropertyChart = ({ properties = [] }) => {
       const data = payload[0].payload;
       return (
         <div className="bg-gray-900 bg-opacity-90 text-white px-3 py-2 rounded-lg shadow-lg">
-          <p className="font-medium text-sm mb-1">{label}</p>
+          <p className="font-medium text-sm mb-1">{data.fullName || label}</p>
           <div className="space-y-1">
             <p className="text-xs">
               <span className="text-gray-300">Income:</span>{' '}
@@ -102,30 +110,30 @@ const IncomeByPropertyChart = ({ properties = [] }) => {
   // Custom label for bar values with collision detection
   const renderCustomBarLabel = (props) => {
     const { x, y, width, height, value } = props;
-    
+
     // Don't render label if bar is too short (less than 25px)
     if (height < 25) {
       return null;
     }
-    
-    const formattedValue = value >= 1000 
-      ? `$${(value / 1000).toFixed(1)}k` 
+
+    const formattedValue = value >= 1000
+      ? `$${(value / 1000).toFixed(1)}k`
       : `$${value}`;
-    
+
     // Calculate text width approximation (11px font × character count)
     const textWidth = formattedValue.length * 7;
-    
+
     // Don't render if text is wider than bar
     if (textWidth > width - 4) {
       return null;
     }
-    
+
     return (
-      <text 
-        x={x + width / 2} 
-        y={y - 5} 
-        fill="#374151" 
-        textAnchor="middle" 
+      <text
+        x={x + width / 2}
+        y={y - 5}
+        fill="#374151"
+        textAnchor="middle"
         fontSize="11"
         fontWeight="500"
       >
@@ -137,20 +145,20 @@ const IncomeByPropertyChart = ({ properties = [] }) => {
   // Custom label for occupancy rate with enhanced collision detection
   const renderOccupancyLabel = (props) => {
     const { x, y, value, index, width } = props;
-    
+
     // Don't render label if value is 0 to avoid overlap with axis
     if (value === 0) return null;
-    
+
     // Dynamic label spacing based on chart width and data points
     const calculateSkipInterval = () => {
       // Estimate available width per data point
       const chartWidth = width || 800; // Default fallback width
       const availableWidth = chartWidth - 80; // Account for margins
       const widthPerPoint = availableWidth / chartData.length;
-      
+
       // Estimate label width (approximately 30px for "XX%" format)
       const estimatedLabelWidth = 30;
-      
+
       // Calculate how many labels can fit without overlap
       if (widthPerPoint >= estimatedLabelWidth + 10) {
         return 1; // Show all labels if there's enough space
@@ -162,31 +170,31 @@ const IncomeByPropertyChart = ({ properties = [] }) => {
         return 4; // Show every fourth label for very dense charts
       }
     };
-    
+
     const skipInterval = calculateSkipInterval();
-    
+
     // Always show first, last, and highest/lowest values
-    const isImportant = index === 0 || 
-                       index === chartData.length - 1 ||
-                       value === Math.max(...chartData.map(d => d.occupancyRate)) ||
-                       value === Math.min(...chartData.map(d => d.occupancyRate));
-    
+    const isImportant = index === 0 ||
+      index === chartData.length - 1 ||
+      value === Math.max(...chartData.map(d => d.occupancyRate)) ||
+      value === Math.min(...chartData.map(d => d.occupancyRate));
+
     // Skip labels based on calculated interval, but always show important ones
     if (!isImportant && index % skipInterval !== 0) {
       return null;
     }
-    
+
     // Position label above or below based on neighboring values to minimize overlap
     const neighbors = chartData.slice(Math.max(0, index - 1), index + 2);
     const hasHighNeighbors = neighbors.some(n => n.occupancyRate > value + 10);
     const yOffset = hasHighNeighbors ? 15 : -10;
-    
+
     return (
-      <text 
-        x={x} 
-        y={y + yOffset} 
-        fill="#10B981" 
-        textAnchor="middle" 
+      <text
+        x={x}
+        y={y + yOffset}
+        fill="#10B981"
+        textAnchor="middle"
         fontSize="12"
         fontWeight="600"
       >
@@ -200,26 +208,26 @@ const IncomeByPropertyChart = ({ properties = [] }) => {
     const baseHeight = 200; // Base height for chart elements (legend, axes, padding)
     const barHeight = 40; // Height per bar
     const minHeight = 300; // Minimum chart height
-    const maxHeight = 600; // Maximum chart height
-    
+    const maxHeight = 500; // Maximum chart height - reduced to match card height better
+
     // For 1-3 properties: use minimum height for better proportions
     if (chartData.length <= 3) {
       return minHeight;
     }
-    
+
     // For 4+ properties: scale dynamically
     const calculatedHeight = baseHeight + (chartData.length * barHeight);
-    
+
     // Clamp between min and max
     return Math.max(minHeight, Math.min(maxHeight, calculatedHeight));
   };
-  
+
   const chartHeight = calculateChartHeight();
 
   return (
-    <div className="flex-1 flex flex-col justify-center animate-fadeIn">
-      <div 
-        style={{ 
+    <div className="flex-1 flex flex-col justify-center animate-fadeIn min-h-[300px]">
+      <div
+        style={{
           height: `${chartHeight}px`
         }}
         role="img"
@@ -233,7 +241,7 @@ const IncomeByPropertyChart = ({ properties = [] }) => {
               top: 10,
               right: 10,
               left: 10,
-              bottom: 25,
+              bottom: 70,
             }}
           >
             <defs>
@@ -242,7 +250,7 @@ const IncomeByPropertyChart = ({ properties = [] }) => {
                 <stop offset="100%" stopColor="#3B82F6" stopOpacity={0.8} />
               </linearGradient>
               <filter id={shadowId} x="-50%" y="-50%" width="200%" height="200%">
-                <feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.1"/>
+                <feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.1" />
               </filter>
             </defs>
             <CartesianGrid
@@ -253,17 +261,14 @@ const IncomeByPropertyChart = ({ properties = [] }) => {
             />
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 12, fill: '#374151' }}
-              angle={0}
-              textAnchor="middle"
-              height={10}
+              tick={{ fontSize: 11, fill: '#6B7280' }}
+              angle={-30}
+              textAnchor="end"
+              height={70}
               axisLine={{ stroke: '#E5E7EB' }}
               tickLine={false}
               interval={0}
-              tickFormatter={(value) => {
-                // Truncate long property names
-                return value.length > 12 ? value.substring(0, 12) + '...' : value;
-              }}
+              tickMargin={5}
             />
             <YAxis
               yAxisId="left"
@@ -286,6 +291,11 @@ const IncomeByPropertyChart = ({ properties = [] }) => {
             <Tooltip
               content={<CustomTooltip />}
               cursor={{ fill: "rgba(59, 130, 246, 0.05)" }}
+              wrapperStyle={{ zIndex: 100, pointerEvents: 'none' }}
+              contentStyle={{
+                backgroundColor: "hsl(var(--background))",
+                borderColor: "hsl(var(--border))",
+              }}
             />
             <Legend
               align="right"
@@ -302,7 +312,7 @@ const IncomeByPropertyChart = ({ properties = [] }) => {
               name="Monthly Income"
               radius={[8, 8, 0, 0]}
               maxBarSize={80}
-              style={{ filter: `url(#${shadowId})` }}
+              style={{ filter: `url(#${shadowId})`, cursor: 'pointer' }}
               label={renderCustomBarLabel}
               animationDuration={800}
               animationBegin={0}

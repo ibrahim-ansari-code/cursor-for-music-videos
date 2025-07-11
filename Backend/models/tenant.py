@@ -46,8 +46,14 @@ class TenantUnitLink(SQLModel, table=True):
     unit_id: int | None = Field(
         default=None, foreign_key="property_units.id", primary_key=True
     )
-    start_date: datetime | None = Field(default_factory=create_audit_datetime)
-    end_date: datetime | None = None
+    start_date: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    end_date: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
 
 
 class Tenant(SQLModel, table=True):

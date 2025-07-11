@@ -46,15 +46,17 @@ max_client_conn = 100
 # secret_key = "env(SECRET_VALUE)"
 
 [db.migrations]
+# ⚠️  WARNING: LOCAL DEVELOPMENT ONLY - NEVER DEPLOY TO PRODUCTION ⚠️
 # If disabled, migrations will be skipped during a db push or reset.
-enabled = false
+enabled = true
 # Specifies an ordered list of schema files that describe your database.
 # Supports glob patterns relative to supabase directory: "./schemas/*.sql"
 schema_paths = []
 
 [db.seed]
+# ⚠️  WARNING: LOCAL DEVELOPMENT ONLY - NEVER DEPLOY TO PRODUCTION ⚠️
 # If enabled, seeds the database after migrations during a db reset.
-enabled = false
+enabled = true
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
 sql_paths = ["./seed.sql"]
@@ -139,7 +141,7 @@ anonymous_users = 30
 # Number of sessions that can be refreshed in a 5 minute interval per IP address.
 token_refresh = 150
 # Number of sign up and sign-in requests that can be made in a 5 minute interval per IP address (excludes anonymous users).
-sign_in_sign_ups = 30
+sign_in_sign_ups = 200
 # Number of OTP / Magic link verifications that can be made in a 5 minute interval per IP address.
 token_verifications = 30
 # Number of Web3 logins that can be made in a 5 minute interval per IP address.
