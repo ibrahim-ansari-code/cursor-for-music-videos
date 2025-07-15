@@ -237,18 +237,18 @@ const Maintenance = () => {
         />
       </div>
 
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex justify-between items-center border-b mb-4">
-          <div>
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex items-center">
             {TABS.map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => handleStatusFilterChange(tab)}
-                className={`px-4 py-2 ${
+                className={`px-4 py-2 mr-1 rounded-md text-sm font-medium transition-colors duration-150 ${
                   statusFilter === tab
-                    ? "border-b-2 border-blue-600 text-blue-600"
-                    : "text-gray-500"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                 }`}
               >
                 {tab} (
@@ -265,18 +265,24 @@ const Maintenance = () => {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={openModalForNew}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <i className="fas fa-plus mr-2" />
-            New Maintenance Request
-          </button>
+          <div className="flex items-center">
+            <button
+              type="button"
+              onClick={openModalForNew}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150"
+            >
+              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              New Maintenance Request
+            </button>
+          </div>
         </div>
 
         {loading && currentPage === 1 ? (
-          <LoadingSpinner message="Loading requests..." />
+          <div className="p-6">
+            <LoadingSpinner message="Loading requests..." />
+          </div>
         ) : (
           <>
             <MaintenanceTable
@@ -289,7 +295,7 @@ const Maintenance = () => {
             />
 
             {/* Pagination Controls */}
-            <div className="mt-6 flex items-center justify-between">
+            <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200">
               <div className="text-sm text-gray-700">
                 Showing page {currentPage} ({requests.length} items)
                 {typeof totalCount === "number" && totalCount > 0 && (

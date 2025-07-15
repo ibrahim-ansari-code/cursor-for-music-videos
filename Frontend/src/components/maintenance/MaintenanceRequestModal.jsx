@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
+import { AnimatePresence, motion } from "framer-motion";
 import { v4 as uuidv4 } from "uuid";
 import {
   fetchProperties,
@@ -7,15 +8,7 @@ import {
   fetchTenantsByProperty,
   uploadMaintenancePhoto,
 } from "../../utils/api";
-import {
-  ModalShell,
-  Label,
-  Input,
-  Select,
-  Button,
-} from "../ui/SharedModalComponents";
 import LoadingSpinner from "../LoadingSpinner";
-import { AnimatePresence, motion } from "framer-motion";
 
 const initialFormState = {
   issue_title: "",
@@ -38,7 +31,7 @@ const MaintenanceRequestModal = ({
   isViewing,
   isSubmitting,
 }) => {
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState(initialFormState);
   const [properties, setProperties] = useState([]);
   const [units, setUnits] = useState([]);
   const [tenants, setTenants] = useState([]);
@@ -46,14 +39,15 @@ const MaintenanceRequestModal = ({
   const [isLoadingUnits, setIsLoadingUnits] = useState(false);
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedFiles, setSelectedFiles] = useState([]); // [{id, file, url}]
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
-  const [photoUploadProgress, setPhotoUploadProgress] = useState([]); // [{id, status}]
+  const [photoUploadProgress, setPhotoUploadProgress] = useState([]);
   const [photoUploadError, setPhotoUploadError] = useState(null);
   const [showPhotoPreviewIdx, setShowPhotoPreviewIdx] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
 
+  // Initialize form data
   useEffect(() => {
     if (isOpen) {
       if (request) {
@@ -71,89 +65,183 @@ const MaintenanceRequestModal = ({
       } else {
         setFormData(initialFormState);
       }
+      setFieldErrors({});
+      setError(null);
+      setTouched({});
+      setSelectedFiles([]);
+      setPhotoUploadProgress([]);
+      setPhotoUploadError(null);
+      setShowPhotoPreviewIdx(null);
     }
   }, [request, isOpen]);
 
+  // Load properties
   useEffect(() => {
     const loadProperties = async () => {
+      if (!isOpen) return;
+      
       setIsLoadingProperties(true);
       try {
         const props = await fetchProperties();
         setProperties(props);
       } catch (error) {
         console.error("Failed to load properties", error);
+        setError("Failed to load properties. Please try again.");
+      } finally {
+        setIsLoadingProperties(false);
       }
-      setIsLoadingProperties(false);
     };
-    if (isOpen) {
-      loadProperties();
-    }
+    
+    loadProperties();
   }, [isOpen]);
 
+  // Load units and tenants when property changes
   useEffect(() => {
     const loadUnitsAndTenants = async () => {
-      if (formData.property_id) {
-        setIsLoadingUnits(true);
-        setIsLoadingTenants(true);
-        try {
-          const [unitData, tenantData] = await Promise.all([
-            fetchPropertyUnits(formData.property_id),
-            fetchTenantsByProperty(formData.property_id),
-          ]);
-          setUnits(unitData);
-          setTenants(tenantData);
-
-          const prevPropId = String(request?.property?.id ?? "");
-          if (prevPropId !== String(formData.property_id)) {
-            setFormData((f) => ({ ...f, unit_id: "", tenant_id: "" }));
-          }
-        } catch (error) {
-          console.error("Failed to load units or tenants", error);
-          setUnits([]);
-          setTenants([]);
-        }
-        setIsLoadingUnits(false);
-        setIsLoadingTenants(false);
-      } else {
+      if (!formData.property_id) {
         setUnits([]);
         setTenants([]);
-        setFormData((f) => ({ ...f, unit_id: "", tenant_id: "" }));
+        setFormData((prev) => ({ ...prev, unit_id: "", tenant_id: "" }));
+        return;
+      }
+
+      setIsLoadingUnits(true);
+      setIsLoadingTenants(true);
+      
+      try {
+        const [unitData, tenantData] = await Promise.all([
+          fetchPropertyUnits(formData.property_id),
+          fetchTenantsByProperty(formData.property_id),
+        ]);
+        
+        setUnits(unitData);
+        setTenants(tenantData);
+
+        // Reset unit and tenant if property changed
+        const prevPropId = String(request?.property?.id ?? "");
+        if (prevPropId !== String(formData.property_id)) {
+          setFormData((prev) => ({ ...prev, unit_id: "", tenant_id: "" }));
+        }
+      } catch (error) {
+        console.error("Failed to load units or tenants", error);
+        setUnits([]);
+        setTenants([]);
+      } finally {
+        setIsLoadingUnits(false);
+        setIsLoadingTenants(false);
       }
     };
+
     if (isOpen && formData.property_id) {
       loadUnitsAndTenants();
     }
   }, [isOpen, formData.property_id, request]);
 
+  const validateField = (name, value) => {
+    switch (name) {
+      case "issue_title":
+        if (!value || value.trim() === "") {
+          return "Issue title is required";
+        }
+        break;
+      case "property_id":
+        if (!value) {
+          return "Property is required";
+        }
+        break;
+      case "estimated_cost":
+        if (value) {
+          const numValue = Number(value);
+          if (isNaN(numValue) || numValue <= 0) {
+            return "Estimated cost must be a positive number";
+          }
+        }
+        break;
+      case "scheduled_date":
+        if (value) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const scheduledDate = new Date(`${value}T00:00:00`);
+          
+          if (isNaN(scheduledDate.getTime())) {
+            return "Invalid date format";
+          }
+          if (scheduledDate < today) {
+            return "Scheduled date cannot be in the past";
+          }
+        }
+        break;
+      default:
+        break;
+    }
+    return null;
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    
+    const error = validateField(name, value);
+    if (error) {
+      setFieldErrors((prev) => ({ ...prev, [name]: error }));
+    } else {
+      setFieldErrors((prev) => {
+        const updated = { ...prev };
+        delete updated[name];
+        return updated;
+      });
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    // Clear error when user starts typing if field was touched
+    if (touched[name]) {
+      const error = validateField(name, value);
+      if (error) {
+        setFieldErrors((prev) => ({ ...prev, [name]: error }));
+      } else {
+        setFieldErrors((prev) => {
+          const updated = { ...prev };
+          delete updated[name];
+          return updated;
+        });
+      }
+    }
   };
 
   const handleFileChange = async (e) => {
-  const files = Array.from(e.target.files);
-  
-  // Validate files before processing
-  const maxFileSize = 10 * 1024 * 1024; // 10MB
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+    const files = Array.from(e.target.files);
     
-  const invalidFiles = files.filter(file => 
-    file.size > maxFileSize || !allowedTypes.includes(file.type)
-  );
+    if (files.length === 0) return;
     
-  if (invalidFiles.length > 0) {
-    setPhotoUploadError('Some files are too large or have invalid formats');
-    return;
-  }
+    // Validate files
+    const maxFileSize = 10 * 1024 * 1024; // 10MB
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.pdf'];
+    
+    const invalidFiles = files.filter(file => {
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+      return file.size > maxFileSize || 
+             !allowedTypes.includes(file.type) ||
+             !allowedExtensions.includes(fileExtension);
+    });
+    
+    if (invalidFiles.length > 0) {
+      setPhotoUploadError('Some files are too large (max 10MB) or have invalid formats (JPG, PNG, GIF, PDF only)');
+      return;
+    }
 
-  // Assign a unique id to each file
-  const filesWithIds = files.map((file) => ({
+    // Assign unique IDs to files
+    const filesWithIds = files.map((file) => ({
       id: uuidv4(),
       file,
       name: file.name,
       size: file.size,
-      lastModified: file.lastModified,
     }));
+    
     setSelectedFiles((prev) => [...prev, ...filesWithIds]);
     setPhotoUploadError(null);
     setPhotoUploadProgress((prev) => [
@@ -161,15 +249,18 @@ const MaintenanceRequestModal = ({
       ...filesWithIds.map((f) => ({ id: f.id, status: "pending" })),
     ]);
     setUploadingPhotos(true);
+
     try {
-      // Create upload promises for all files simultaneously
+      // Upload files in parallel
       const uploadPromises = filesWithIds.map((fileObj) =>
-        uploadMaintenancePhoto(fileObj.file).then((url) => ({ id: fileObj.id, url, status: "done" }))
-          .catch((err) => ({ id: fileObj.id, error: err.message || "Failed to upload photo", status: "error" }))
+        uploadMaintenancePhoto(fileObj.file)
+          .then((url) => ({ id: fileObj.id, url, status: "done" }))
+          .catch((err) => ({ id: fileObj.id, error: err.message || "Failed to upload", status: "error" }))
       );
-      // Wait for all uploads to complete (both successful and failed)
+      
       const results = await Promise.all(uploadPromises);
-      // Update progress and collect URLs/errors
+      
+      // Process results
       const newPhotos = [];
       const errors = [];
       
@@ -177,102 +268,125 @@ const MaintenanceRequestModal = ({
         const updatedProgress = [...prevProgress];
         results.forEach((result) => {
           if (result.status === "done") {
-            updatedProgress.push({ id: result.id, status: "done" });
             newPhotos.push({ id: result.id, url: result.url });
           } else {
-            updatedProgress.push({ id: result.id, status: "error" });
-            errors.push(`File: ${result.error}`);
+            errors.push(`${result.error}`);
           }
         });
         return updatedProgress;
       });
       
-      // Merge new uploads with any existing photos (track by id)
-      setFormData((prev) => ({
-        ...prev,
-        photos: [...(prev.photos ?? []), ...newPhotos.map((p) => p.url)],
-      }));
-      // Show errors if any occurred
+      // Add successful uploads to form data
+      if (newPhotos.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          photos: [...(prev.photos ?? []), ...newPhotos.map((p) => p.url)],
+        }));
+      }
+      
+      // Show errors if any
       if (errors.length > 0) {
         setPhotoUploadError(`Upload errors: ${errors.join(", ")}`);
       }
     } catch (error) {
-      // Handle unexpected errors
       setPhotoUploadError(error.message || "Unexpected error during upload");
     } finally {
       setUploadingPhotos(false);
     }
   };
 
-  // Remove file by unique id or photo URL
-  const handleRemoveFile = (identifier) => {
+  const handleRemovePhoto = (identifier) => {
     setSelectedFiles((prev) => prev.filter((f) => f.id !== identifier && f.url !== identifier));
     setPhotoUploadProgress((prev) => prev.filter((p) => p.id !== identifier));
-     setFormData((prev) => ({
-       ...prev,
+    setFormData((prev) => ({
+      ...prev,
       photos: (prev.photos ?? []).filter((url) => url !== identifier),
-     }));
-   };
+    }));
+  };
 
   const validateForm = () => {
-    const errors = {};
+    let isValid = true;
+    const newErrors = {};
+
     // Required fields
-    if (!formData.property_id) errors.property_id = "Property is required";
-    if (!formData.unit_id) errors.unit_id = "Unit is required";
-    if (!formData.issue_title || formData.issue_title.trim() === "")
-      errors.issue_title = "Issue title is required";
-
-    // Check if estimated_cost is positive
-    if (formData.estimated_cost && Number(formData.estimated_cost) <= 0) {
-      errors.estimated_cost = "Estimated cost must be a positive number";
-    }
-
-    // Check if scheduled_date is not in the past (only if provided)
-    if (formData.scheduled_date) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      // Always parse as local midnight to avoid Safari "Invalid Date"
-      const scheduledDate = new Date(`${formData.scheduled_date}T00:00:00`);
-
-      if (isNaN(scheduledDate.getTime())) {
-        errors.scheduled_date = "Invalid date format";
-      } else if (scheduledDate < today) {
-        errors.scheduled_date = "Scheduled date cannot be in the past";
+    const requiredFields = ["issue_title", "property_id"];
+    
+    requiredFields.forEach((fieldName) => {
+      const error = validateField(fieldName, formData[fieldName]);
+      if (error) {
+        newErrors[fieldName] = error;
+        isValid = false;
       }
+    });
+    
+    // Validate optional fields that have values
+    ["estimated_cost", "scheduled_date"].forEach((fieldName) => {
+      if (formData[fieldName]) {
+        const error = validateField(fieldName, formData[fieldName]);
+        if (error) {
+          newErrors[fieldName] = error;
+          isValid = false;
+        }
+      }
+    });
+    
+    setFieldErrors(newErrors);
+    if (!isValid) {
+      setError("Please correct the highlighted fields.");
+    } else {
+      setError(null);
     }
-
-    return errors;
+    return isValid;
   };
 
-  const handleBlur = (e) => {
-    const { name } = e.target;
-    setTouched((prev) => ({ ...prev, [name]: true }));
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    const errors = validateForm();
-    setFieldErrors(errors);
-    setTouched((prev) => ({
-      ...prev,
-      ...Object.keys(errors).reduce((acc, k) => {
-        acc[k] = true;
-        return acc;
-      }, {}),
-    }));
-    if (Object.keys(errors).length > 0) {
-      setError("Please correct the highlighted fields.");
+    
+    if (!validateForm()) {
       return;
     }
+    
     if (uploadingPhotos) {
       setError("Please wait for all photos to finish uploading.");
       return;
     }
+    
     if (!isViewing) {
-      onSubmit(formData).catch((err) => {
+      try {
+        // Prepare payload
+        const payload = {
+          issue_title: formData.issue_title.trim(),
+          description: formData.description && formData.description.trim() !== "" 
+            ? formData.description.trim() 
+            : null,
+          priority: formData.priority,
+          status: formData.status,
+          property_id: formData.property_id ? Number(formData.property_id) : null,
+          unit_id: formData.unit_id && formData.unit_id !== "" && formData.unit_id !== "common_area"
+            ? Number(formData.unit_id) 
+            : null,
+          tenant_id: formData.tenant_id && formData.tenant_id !== "" 
+            ? Number(formData.tenant_id) 
+            : null,
+          assigned_to: formData.assigned_to && formData.assigned_to.trim() !== "" 
+            ? formData.assigned_to.trim() 
+            : null,
+          scheduled_date: formData.scheduled_date && formData.scheduled_date.trim() !== "" 
+            ? formData.scheduled_date 
+            : null,
+          estimated_cost: formData.estimated_cost && formData.estimated_cost !== "" 
+            ? Number(formData.estimated_cost) 
+            : null,
+          photos: formData.photos && formData.photos.length > 0 
+            ? formData.photos 
+            : null,
+        };
+        
+        await onSubmit(payload);
+      } catch (err) {
         setError(err?.message || "Failed to save the request.");
-      });
+      }
     } else {
       onClose();
     }
@@ -282,464 +396,11 @@ const MaintenanceRequestModal = ({
 
   const renderField = (label, value) => (
     <div className="flex flex-col gap-1">
-      <Label>{label}</Label>
-      <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-gray-700 min-h-[40px]">
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-gray-700 min-h-[40px] flex items-center">
         {value || <span className="text-gray-400">—</span>}
       </div>
     </div>
-  );
-
-  const formContent = isViewing ? (
-    <div className="space-y-5 w-full">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {renderField(
-          "Property",
-          properties.find((p) => String(p.id) === String(formData.property_id))?.name
-        )}
-        {renderField(
-          "Unit",
-          units.find((u) => u.id === formData.unit_id)?.unit_number ||
-            units.find((u) => u.id === formData.unit_id)?.name
-        )}
-        {renderField("Issue Title", formData.issue_title)}
-        {renderField("Description", formData.description)}
-        {renderField("Priority", formData.priority)}
-        {renderField("Status", formData.status)}
-        {renderField("Assign To", formData.assigned_to)}
-        {renderField(
-          "Scheduled Date",
-          formData.scheduled_date
-            ? new Date(formData.scheduled_date).toLocaleDateString()
-            : ""
-        )}
-        {renderField(
-          "Estimated Cost",
-          formData.estimated_cost ? `$${formData.estimated_cost}` : ""
-        )}
-        {renderField(
-          "Tenant",
-          tenants.find((t) => t.id === formData.tenant_id)?.name ||
-            (
-              (tenants.find((t) => t.id === formData.tenant_id)?.first_name ||
-                "") +
-              " " +
-              (tenants.find((t) => t.id === formData.tenant_id)?.last_name ||
-                "")
-            ).trim()
-        )}
-        {formData.photos && formData.photos.length > 0
-          ? renderField(
-              "Photos",
-              <ul className="space-y-1">
-                {formData.photos.map((url, idx) => (
-                  <li key={idx} className="flex items-center gap-2">
-                    <a
-                      href={typeof url === "string" ? url : "#"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 underline"
-                    >
-                      Photo {idx + 1}
-                    </a>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="text-xs py-1 px-2"
-                      onClick={() =>
-                        setShowPhotoPreviewIdx(
-                          idx === showPhotoPreviewIdx ? null : idx
-                        )
-                      }
-                    >
-                      {showPhotoPreviewIdx === idx ? (
-                        <>
-                          <i className="fas fa-eye-slash mr-1" /> Hide Preview
-                        </>
-                      ) : (
-                        <>
-                          <i className="fas fa-eye mr-1" /> Preview
-                        </>
-                      )}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )
-          : renderField("Photos", null)}
-      </div>
-      <AnimatePresence>
-        {showPhotoPreviewIdx !== null &&
-          formData.photos &&
-          formData.photos[showPhotoPreviewIdx] && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "24rem" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="mt-3 border rounded-lg overflow-hidden shadow bg-gray-50"
-            >
-              {(() => {
-                const url = formData.photos[showPhotoPreviewIdx];
-                const lowerUrl = url.toLowerCase();
-                if (
-                  lowerUrl.endsWith(".png") ||
-                  lowerUrl.endsWith(".jpg") ||
-                  lowerUrl.endsWith(".jpeg") ||
-                  lowerUrl.endsWith(".gif")
-                ) {
-                  return (
-                    <img
-                      src={url}
-                      alt={`Photo Preview ${showPhotoPreviewIdx + 1}`}
-                      className="w-full h-full object-contain p-1"
-                    />
-                  );
-                } else if (lowerUrl.endsWith(".pdf")) {
-                  const pdfDisplayUrl = `${url}#view=FitH`;
-                  return (
-                    <iframe
-                      src={pdfDisplayUrl}
-                      title={`Photo Preview ${showPhotoPreviewIdx + 1}`}
-                      className="w-full h-full border-0"
-                    />
-                  );
-                } else {
-                  return (
-                    <iframe
-                      src={url}
-                      title={`Photo Preview ${showPhotoPreviewIdx + 1}`}
-                      className="w-full h-full border-0"
-                    />
-                  );
-                }
-              })()}
-            </motion.div>
-          )}
-      </AnimatePresence>
-    </div>
-  ) : (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-5 w-full"
-      id="maintenance-request-form"
-    >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Property Dropdown */}
-        <div>
-          <Label htmlFor="property_id" required>
-            Property
-          </Label>
-          <Select
-            name="property_id"
-            id="property_id"
-            value={formData.property_id || ""}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            required
-            disabled={isViewing || isLoadingProperties}
-            className={
-              fieldErrors.property_id && touched.property_id
-                ? "border-red-500"
-                : ""
-            }
-          >
-            <option value="">
-              {isLoadingProperties ? "Loading..." : "Select Property"}
-            </option>
-            {properties.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </Select>
-          {fieldErrors.property_id && touched.property_id && (
-            <p className="mt-1 text-sm text-red-600">
-              {fieldErrors.property_id}
-            </p>
-          )}
-        </div>
-        {/* Unit Dropdown */}
-        <div>
-          <Label htmlFor="unit_id" required>
-            Unit
-          </Label>
-          <Select
-            name="unit_id"
-            id="unit_id"
-            value={formData.unit_id || ""}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            required
-            disabled={isViewing || !formData.property_id || isLoadingUnits}
-            className={
-              fieldErrors.unit_id && touched.unit_id ? "border-red-500" : ""
-            }
-          >
-            <option value="">
-              {isLoadingUnits ? "Loading..." : "Select Unit"}
-            </option>
-            {units.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.unit_number || u.name}
-              </option>
-            ))}
-          </Select>
-          {fieldErrors.unit_id && touched.unit_id && (
-            <p className="mt-1 text-sm text-red-600">{fieldErrors.unit_id}</p>
-          )}
-        </div>
-        {/* Issue Title */}
-        <div className="md:col-span-2">
-          <Label htmlFor="issue_title" required>
-            Issue Title
-          </Label>
-          <Input
-            type="text"
-            name="issue_title"
-            id="issue_title"
-            value={formData.issue_title || ""}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            required
-            disabled={isViewing || isLoadingProperties}
-            className={
-              fieldErrors.issue_title && touched.issue_title
-                ? "border-red-500"
-                : ""
-            }
-          />
-          {fieldErrors.issue_title && touched.issue_title && (
-            <p className="mt-1 text-sm text-red-600">
-              {fieldErrors.issue_title}
-            </p>
-          )}
-        </div>
-        {/* Description */}
-        <div className="md:col-span-2">
-          <Label htmlFor="description">Description</Label>
-          <Input
-            as="textarea"
-            name="description"
-            id="description"
-            value={formData.description || ""}
-            onChange={handleChange}
-            rows={3}
-            disabled={isViewing || isLoadingProperties}
-          />
-        </div>
-        {/* Priority */}
-        <div>
-          <Label htmlFor="priority">Priority</Label>
-          <Select
-            name="priority"
-            id="priority"
-            value={formData.priority || ""}
-            onChange={handleChange}
-            disabled={isViewing || isLoadingProperties}
-          >
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
-          </Select>
-        </div>
-        {/* Status */}
-        <div>
-          <Label htmlFor="status">Status</Label>
-          <Select
-            name="status"
-            id="status"
-            value={formData.status || ""}
-            onChange={handleChange}
-            disabled={isViewing || isLoadingProperties}
-          >
-            <option value="Pending">Pending</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Scheduled">Scheduled</option>
-            <option value="Completed">Completed</option>
-            <option value="Cancelled">Cancelled</option>
-          </Select>
-        </div>
-        {/* Assigned To */}
-        <div>
-          <Label htmlFor="assigned_to">Assign To</Label>
-          <Input
-            type="text"
-            name="assigned_to"
-            id="assigned_to"
-            value={formData.assigned_to || ""}
-            onChange={handleChange}
-            placeholder="Name of person or company"
-            disabled={isViewing || isLoadingProperties}
-          />
-        </div>
-        {/* Scheduled Date */}
-        <div>
-          <Label htmlFor="scheduled_date">Scheduled Date</Label>
-          <Input
-            type="date"
-            name="scheduled_date"
-            id="scheduled_date"
-            value={formData.scheduled_date || ""}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            disabled={isViewing || isLoadingProperties}
-            className={
-              fieldErrors.scheduled_date && touched.scheduled_date
-                ? "border-red-500"
-                : ""
-            }
-          />
-          {fieldErrors.scheduled_date && touched.scheduled_date && (
-            <p className="mt-1 text-sm text-red-600">
-              {fieldErrors.scheduled_date}
-            </p>
-          )}
-        </div>
-        {/* Estimated Cost */}
-        <div>
-          <Label htmlFor="estimated_cost">Estimated Cost</Label>
-          <Input
-            type="number"
-            name="estimated_cost"
-            id="estimated_cost"
-            value={formData.estimated_cost || ""}
-            onChange={handleChange}
-            placeholder="$"
-            disabled={isViewing || isLoadingProperties}
-          />
-        </div>
-        {/* Tenant */}
-        <div>
-          <Label htmlFor="tenant_id">Tenant</Label>
-          <Select
-            name="tenant_id"
-            id="tenant_id"
-            value={formData.tenant_id || ""}
-            onChange={handleChange}
-            disabled={isViewing || !formData.property_id || isLoadingTenants}
-          >
-            <option value="">
-              {isLoadingTenants ? "Loading..." : "Select Tenant"}
-            </option>
-            {tenants.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name ||
-                  ((t.first_name || "") + " " + (t.last_name || "")).trim()}
-              </option>
-            ))}
-          </Select>
-        </div>
-        {/* Photos - improved file input */}
-        <div className="md:col-span-2">
-          <Label htmlFor="photos">Photos</Label>
-          <Input
-            type="file"
-            name="photos"
-            id="photos"
-            multiple
-            className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            disabled={isViewing || isLoadingProperties || uploadingPhotos}
-            onChange={handleFileChange}
-          />
-          {uploadingPhotos && (
-            <div className="mt-2 text-blue-600 text-sm">
-              Uploading photos...
-            </div>
-          )}
-          {photoUploadError && (
-            <div className="mt-2 text-red-600 text-sm">{photoUploadError}</div>
-          )}
-          {formData.photos && formData.photos.length > 0 && (
-            <ul className="mt-2 space-y-1">
-              {formData.photos.map((url, idx) => (
-                <li
-                  key={idx}
-                  className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded"
-                >
-                  <a
-                    href={typeof url === "string" ? url : "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="truncate max-w-xs text-blue-600 underline"
-                  >
-                    Photo {idx + 1}
-                  </a>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="text-xs py-1 px-2"
-                    onClick={() =>
-                      setShowPhotoPreviewIdx(
-                        idx === showPhotoPreviewIdx ? null : idx
-                      )
-                    }
-                  >
-                    {showPhotoPreviewIdx === idx ? (
-                      <>
-                        <i className="fas fa-eye-slash mr-1" /> Hide Preview
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-eye mr-1" /> Preview
-                      </>
-                    )}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <AnimatePresence>
-            {showPhotoPreviewIdx !== null &&
-              formData.photos &&
-              formData.photos[showPhotoPreviewIdx] && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "24rem" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="mt-3 border rounded-lg overflow-hidden shadow bg-gray-50"
-                >
-                  {(() => {
-                    const url = formData.photos[showPhotoPreviewIdx];
-                    const lowerUrl = url.toLowerCase();
-                    if (
-                      lowerUrl.endsWith(".png") ||
-                      lowerUrl.endsWith(".jpg") ||
-                      lowerUrl.endsWith(".jpeg") ||
-                      lowerUrl.endsWith(".gif")
-                    ) {
-                      return (
-                        <img
-                          src={url}
-                          alt={`Photo Preview ${showPhotoPreviewIdx + 1}`}
-                          className="w-full h-full object-contain p-1"
-                        />
-                      );
-                    } else if (lowerUrl.endsWith(".pdf")) {
-                      const pdfDisplayUrl = `${url}#view=FitH`;
-                      return (
-                        <iframe
-                          src={pdfDisplayUrl}
-                          title={`Photo Preview ${showPhotoPreviewIdx + 1}`}
-                          className="w-full h-full border-0"
-                        />
-                      );
-                    } else {
-                      return (
-                        <iframe
-                          src={url}
-                          title={`Photo Preview ${showPhotoPreviewIdx + 1}`}
-                          className="w-full h-full border-0"
-                        />
-                      );
-                    }
-                  })()}
-                </motion.div>
-              )}
-          </AnimatePresence>
-        </div>
-      </div>
-    </form>
   );
 
   const modalTitle = isViewing
@@ -748,51 +409,573 @@ const MaintenanceRequestModal = ({
     ? "Edit Maintenance Request"
     : "New Maintenance Request";
 
-  const footerContent = isViewing ? (
-    <Button
-      type="button"
-      variant="secondary"
-      onClick={onClose}
-      aria-label="Close modal"
-    >
-      Close
-    </Button>
-  ) : (
-    <>
-      <Button
-        type="button"
-        variant="secondary"
-        onClick={onClose}
-        disabled={isSubmitting || isLoadingProperties}
-        aria-label="Cancel and close modal"
-      >
-        Cancel
-      </Button>
-      <Button
-        type="submit"
-        form="maintenance-request-form"
-        variant="primary"
-        isLoading={isSubmitting}
-        loadingText={request ? "Updating..." : "Saving..."}
-        disabled={isSubmitting || isLoadingProperties}
-        aria-label={request ? "Update request" : "Create request"}
-      >
-        {request ? "Update Request" : "Create Request"}
-      </Button>
-    </>
-  );
-
   return (
-    <ModalShell
-      isOpen={isOpen}
-      onClose={onClose}
-      title={modalTitle}
-      aria-label={modalTitle}
-      error={error}
-      footerContent={footerContent}
-    >
-      {formContent}
-    </ModalShell>
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          transition={{ type: "spring", damping: 25, stiffness: 400 }}
+          className="relative w-full max-w-4xl bg-white rounded-xl shadow-xl max-h-[90vh] overflow-hidden flex flex-col z-[10000]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="relative px-6 py-4 bg-gradient-to-br from-brand-green to-brand-teal text-white">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-white">{modalTitle}</h2>
+                <p className="text-white/80 mt-0.5 text-sm">
+                  {isViewing 
+                    ? "View maintenance request details" 
+                    : request 
+                    ? "Update maintenance request information"
+                    : "Create a new maintenance request for your property"
+                  }
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-white/70 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition-all"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto bg-gray-50">
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mx-6 mt-4 p-3 bg-red-50 border border-red-100 text-red-700 rounded-lg"
+              >
+                <div className="flex">
+                  <svg className="h-5 w-5 text-red-400 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm">{error}</span>
+                </div>
+              </motion.div>
+            )}
+
+            {isViewing ? (
+              <div className="p-6 space-y-4">
+                {/* Property and Unit Information */}
+                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center mb-3">
+                    <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center mr-3">
+                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                    </div>
+                    <h3 className="text-base font-medium text-gray-900">Location Information</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {renderField(
+                      "Property",
+                      properties.find((p) => String(p.id) === String(formData.property_id))?.name
+                    )}
+                    {renderField(
+                      "Unit",
+                      formData.unit_id && formData.unit_id !== "common_area"
+                        ? units.find((u) => u.id === formData.unit_id)?.unit_number ||
+                          units.find((u) => u.id === formData.unit_id)?.name
+                        : "Common Area / Building-wide"
+                    )}
+                  </div>
+                </div>
+
+                {/* Request Details */}
+                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center mb-3">
+                    <div className="w-9 h-9 bg-orange-50 rounded-lg flex items-center justify-center mr-3">
+                      <svg className="w-4 h-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-base font-medium text-gray-900">Request Details</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {renderField("Issue Title", formData.issue_title)}
+                    {renderField("Priority", formData.priority)}
+                    {renderField("Status", formData.status)}
+                    {renderField("Assign To", formData.assigned_to)}
+                  </div>
+                  
+                  <div className="mt-4">
+                    {renderField("Description", formData.description)}
+                  </div>
+                </div>
+
+                {/* Additional Information */}
+                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center mb-3">
+                    <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center mr-3">
+                      <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-base font-medium text-gray-900">Additional Information</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {renderField(
+                      "Scheduled Date",
+                      formData.scheduled_date
+                        ? new Date(formData.scheduled_date).toLocaleDateString()
+                        : ""
+                    )}
+                    {renderField(
+                      "Estimated Cost",
+                      formData.estimated_cost ? `$${formData.estimated_cost}` : ""
+                    )}
+                    {renderField(
+                      "Tenant",
+                      tenants.find((t) => t.id === formData.tenant_id)?.name ||
+                        (
+                          (tenants.find((t) => t.id === formData.tenant_id)?.first_name || "") +
+                          " " +
+                          (tenants.find((t) => t.id === formData.tenant_id)?.last_name || "")
+                        ).trim()
+                    )}
+                  </div>
+                </div>
+
+                {/* Photos */}
+                {formData.photos && formData.photos.length > 0 && (
+                  <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                    <div className="flex items-center mb-3">
+                      <div className="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center mr-3">
+                        <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-base font-medium text-gray-900">Photos</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {formData.photos.map((url, idx) => (
+                        <div key={idx} className="relative group">
+                          <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                            {url.toLowerCase().includes('.pdf') ? (
+                              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <img 
+                                src={url} 
+                                alt={`Photo ${idx + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                          </div>
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="opacity-0 group-hover:opacity-100 text-white bg-black bg-opacity-50 px-3 py-1 rounded text-sm transition-opacity"
+                            >
+                              View Full
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="p-6 space-y-4" id="maintenance-request-form">
+                {/* Property and Unit Section */}
+                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center mb-3">
+                    <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center mr-3">
+                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                    </div>
+                    <h3 className="text-base font-medium text-gray-900">Location Information</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Property <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="property_id"
+                        value={formData.property_id || ""}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        required
+                        disabled={isLoadingProperties}
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
+                          fieldErrors.property_id && touched.property_id ? 'border-red-300' : 'border-gray-200'
+                        }`}
+                      >
+                        <option value="">
+                          {isLoadingProperties ? "Loading..." : "Select Property"}
+                        </option>
+                        {properties.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                      {fieldErrors.property_id && touched.property_id && (
+                        <p className="mt-2 text-sm text-red-600">{fieldErrors.property_id}</p>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Unit
+                      </label>
+                      <select
+                        name="unit_id"
+                        value={formData.unit_id || ""}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        disabled={!formData.property_id || isLoadingUnits}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                      >
+                        <option value="">
+                          {isLoadingUnits ? "Loading..." : "Select Unit or leave blank for common area"}
+                        </option>
+                        <option value="common_area">
+                          Common Area / Building-wide
+                        </option>
+                        {units.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.unit_number || u.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Select "Common Area" for property-wide maintenance like parking lots, building exterior, etc.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Request Details Section */}
+                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center mb-3">
+                    <div className="w-9 h-9 bg-orange-50 rounded-lg flex items-center justify-center mr-3">
+                      <svg className="w-4 h-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-base font-medium text-gray-900">Request Details</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Issue Title <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="issue_title"
+                        value={formData.issue_title || ""}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        required
+                        placeholder="Brief description of the issue"
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
+                          fieldErrors.issue_title && touched.issue_title ? 'border-red-300' : 'border-gray-200'
+                        }`}
+                      />
+                      {fieldErrors.issue_title && touched.issue_title && (
+                        <p className="mt-2 text-sm text-red-600">{fieldErrors.issue_title}</p>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Description
+                      </label>
+                      <textarea
+                        name="description"
+                        value={formData.description || ""}
+                        onChange={handleChange}
+                        rows={3}
+                        placeholder="Detailed description of the maintenance issue..."
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white resize-none"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Priority
+                        </label>
+                        <select
+                          name="priority"
+                          value={formData.priority || ""}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                        >
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Status
+                        </label>
+                        <select
+                          name="status"
+                          value={formData.status || ""}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Scheduled">Scheduled</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Information Section */}
+                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center mb-3">
+                    <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center mr-3">
+                      <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-base font-medium text-gray-900">Additional Information</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Assign To
+                      </label>
+                      <input
+                        type="text"
+                        name="assigned_to"
+                        value={formData.assigned_to || ""}
+                        onChange={handleChange}
+                        placeholder="Name of person or company"
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Scheduled Date
+                      </label>
+                      <input
+                        type="date"
+                        name="scheduled_date"
+                        value={formData.scheduled_date || ""}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
+                          fieldErrors.scheduled_date && touched.scheduled_date ? 'border-red-300' : 'border-gray-200'
+                        }`}
+                      />
+                      {fieldErrors.scheduled_date && touched.scheduled_date && (
+                        <p className="mt-2 text-sm text-red-600">{fieldErrors.scheduled_date}</p>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Estimated Cost
+                      </label>
+                      <input
+                        type="number"
+                        name="estimated_cost"
+                        value={formData.estimated_cost || ""}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
+                          fieldErrors.estimated_cost && touched.estimated_cost ? 'border-red-300' : 'border-gray-200'
+                        }`}
+                      />
+                      {fieldErrors.estimated_cost && touched.estimated_cost && (
+                        <p className="mt-2 text-sm text-red-600">{fieldErrors.estimated_cost}</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tenant
+                    </label>
+                    <select
+                      name="tenant_id"
+                      value={formData.tenant_id || ""}
+                      onChange={handleChange}
+                      disabled={!formData.property_id || isLoadingTenants}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                    >
+                      <option value="">
+                        {isLoadingTenants ? "Loading..." : "Select Tenant (optional)"}
+                      </option>
+                      {tenants.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name || ((t.first_name || "") + " " + (t.last_name || "")).trim()}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Photos Section */}
+                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center mb-3">
+                    <div className="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center mr-3">
+                      <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-base font-medium text-gray-900">Photos</h3>
+                  </div>
+                  
+                  <div>
+                    <input
+                      type="file"
+                      name="photos"
+                      multiple
+                      accept="image/*,.pdf"
+                      className="block w-full text-sm file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer cursor-pointer border border-gray-200 rounded-lg"
+                      disabled={uploadingPhotos}
+                      onChange={handleFileChange}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Upload images or PDFs (max 10MB each). Supported formats: JPG, PNG, GIF, PDF
+                    </p>
+                    
+                    {uploadingPhotos && (
+                      <div className="mt-2 text-blue-600 text-sm flex items-center">
+                        <LoadingSpinner className="mr-2 h-4 w-4" />
+                        Uploading photos...
+                      </div>
+                    )}
+                    
+                    {photoUploadError && (
+                      <div className="mt-2 text-red-600 text-sm">{photoUploadError}</div>
+                    )}
+                    
+                    {formData.photos && formData.photos.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Uploaded Photos</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          {formData.photos.map((url, idx) => (
+                            <div key={idx} className="relative group">
+                              <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                                {url.toLowerCase().includes('.pdf') ? (
+                                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                                    <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                  </div>
+                                ) : (
+                                  <img 
+                                    src={url} 
+                                    alt={`Photo ${idx + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemovePhoto(url)}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-5 bg-gray-50 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="text-sm text-gray-500 flex items-start flex-1 sm:max-w-md">
+                <svg className="w-4 h-4 mr-2 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>
+                  {isViewing ? (
+                    "Viewing maintenance request details"
+                  ) : (
+                    <>
+                      <span className="text-red-600 font-bold">*</span> Required fields. 
+                      Unit selection is optional for common area maintenance.
+                    </>
+                  )}
+                </span>
+              </div>
+              <div className="flex gap-3 flex-shrink-0 sm:items-center">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all text-sm font-medium"
+                  disabled={isSubmitting}
+                >
+                  {isViewing ? "Close" : "Cancel"}
+                </button>
+                {!isViewing && (
+                  <button
+                    onClick={handleSubmit}
+                    className="px-5 py-2.5 bg-gradient-to-br from-brand-green to-brand-teal text-white rounded-md hover:from-brand-green/90 hover:to-brand-teal/90 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium flex items-center gap-2 min-w-[140px] justify-center shadow-sm"
+                    disabled={isSubmitting || uploadingPhotos}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        {request ? "Updating..." : "Creating..."}
+                      </>
+                    ) : (
+                      request ? "Update Request" : "Create Request"
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 
@@ -803,27 +986,6 @@ MaintenanceRequestModal.propTypes = {
   request: PropTypes.object,
   isViewing: PropTypes.bool,
   isSubmitting: PropTypes.bool,
-  // Internal state documentation for maintainers:
-  // selectedFiles: array of { id: string, file: object, name: string, size: number, lastModified: number, url?: string }
-  // photoUploadProgress: array of { id: string, status: string }
 };
-
-/**
- * Internal state shapes for documentation:
- *
- * selectedFiles: PropTypes.arrayOf(PropTypes.shape({
- *   id: PropTypes.string.isRequired,
- *   file: PropTypes.object.isRequired,
- *   name: PropTypes.string.isRequired,
- *   size: PropTypes.number.isRequired,
- *   lastModified: PropTypes.number.isRequired,
- *   url: PropTypes.string, // optional, after upload
- * }))
- *
- * photoUploadProgress: PropTypes.arrayOf(PropTypes.shape({
- *   id: PropTypes.string.isRequired,
- *   status: PropTypes.string.isRequired,
- * }))
- */
 
 export default MaintenanceRequestModal;
