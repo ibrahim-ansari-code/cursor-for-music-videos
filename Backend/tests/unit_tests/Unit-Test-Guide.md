@@ -217,4 +217,18 @@ assert mock_session.rollback.called
 - Keep test data minimal but realistic
 - Use fixtures for common test data
 - Mock at the boundary (database, external APIs)
-- Don't test implementation details, test behavior 
+- Don't test implementation details, test behavior
+
+## Pydantic v2 Validation Error Format
+
+With Pydantic v2, validation error messages now include a "Value error, " prefix. When testing validation errors, update your assertions accordingly:
+
+```python
+# Pydantic v1 format
+assert "Monthly rent cannot be negative" in str(error["msg"])
+
+# Pydantic v2 format
+assert "Value error, Monthly rent cannot be negative" in str(error["msg"])
+```
+
+This change affects all custom validators that raise `ValueError`. The prefix helps distinguish between different types of validation errors (value errors, type errors, etc.). 

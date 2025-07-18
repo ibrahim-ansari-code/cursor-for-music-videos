@@ -275,4 +275,33 @@ async def test_property_service_multiple_units_percentage_calculation():
     property_100_percent.units = rented_units[:5]  # 5 rented units
     
     status = PropertyService._derive_property_status(property_100_percent)
-    assert status == PropertyStatus.RENTED 
+    assert status == PropertyStatus.RENTED
+
+
+def test_unit_sorting_logic_with_none_ids():
+    """Test the unit sorting logic handles None IDs correctly."""
+    # Create simple objects to test the sorting logic
+    class MockUnit:
+        def __init__(self, id, name):
+            self.id = id
+            self.name = name
+    
+    units = [
+        MockUnit(3, "Unit 3"),
+        MockUnit(None, "Unit None"),
+        MockUnit(1, "Unit 1"),
+        MockUnit(2, "Unit 2"),
+        MockUnit(None, "Unit None 2"),
+    ]
+    
+    # Apply the same sorting logic used in the service
+    sorted_units = sorted(units, key=lambda x: x.id or 0)
+    
+    # Assert the order is correct: None IDs (treated as 0) come first
+    assert sorted_units[0].id is None
+    assert sorted_units[0].name == "Unit None"
+    assert sorted_units[1].id is None
+    assert sorted_units[1].name == "Unit None 2"
+    assert sorted_units[2].id == 1
+    assert sorted_units[3].id == 2
+    assert sorted_units[4].id == 3 

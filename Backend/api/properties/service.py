@@ -112,7 +112,7 @@ class PropertyService:
         serialized_units_models = []
         if property_orm.units:
             # Sort units by ID to maintain consistent ordering
-            sorted_units = sorted(property_orm.units, key=lambda x: x.id)
+            sorted_units = sorted(property_orm.units, key=lambda x: x.id or 0)
             for unit in sorted_units:
                 try:
                     unit_model = UnitResponse.model_validate(unit)
@@ -122,12 +122,22 @@ class PropertyService:
                             unit_model.tenant = tenant_info_model
                         except Exception as tenant_e:
                             logger.error(
-                                f"Error serializing tenant for unit {unit.id}: {tenant_e}"
+                                f"Error serializing tenant for unit {unit.id} (tenant_id: {getattr(unit.tenant, 'id', 'unknown')}): {tenant_e}. "
+                                f"Tenant data: first_name={getattr(unit.tenant, 'first_name', None)}, "
+                                f"last_name={getattr(unit.tenant, 'last_name', None)}, "
+                                f"company_name={getattr(unit.tenant, 'company_name', None)}, "
+                                f"tenant_type={getattr(unit.tenant, 'tenant_type', None)}"
                             )
                             unit_model.tenant = None
                     serialized_units_models.append(unit_model)
                 except Exception as e:
-                    logger.error(f"Error serializing unit {unit.id}: {e}")
+                    logger.error(
+                        f"Error serializing unit {unit.id}: {e}. "
+                        f"Unit data: name={getattr(unit, 'name', None)}, "
+                        f"is_rented={getattr(unit, 'is_rented', None)}, "
+                        f"monthly_rent={getattr(unit, 'monthly_rent', None)}, "
+                        f"tenant_id={getattr(unit, 'tenant_id', None)}"
+                    )
                     continue
 
         if property_orm.id is None:
@@ -258,7 +268,7 @@ class PropertyService:
         serialized_units = []
         if loaded_property.units:
             # Sort units by ID to maintain consistent ordering
-            sorted_units = sorted(loaded_property.units, key=lambda x: x.id)
+            sorted_units = sorted(loaded_property.units, key=lambda x: x.id or 0)
             for unit in sorted_units:
                 try:
                     unit_model = UnitResponse.model_validate(unit)
@@ -375,7 +385,7 @@ class PropertyService:
         serialized_units = []
         if updated_property_orm.units:
             # Sort units by ID to maintain consistent ordering
-            sorted_units = sorted(updated_property_orm.units, key=lambda x: x.id)
+            sorted_units = sorted(updated_property_orm.units, key=lambda x: x.id or 0)
             for unit in sorted_units:
                 unit_model = UnitResponse.model_validate(unit)
                 if unit.tenant:

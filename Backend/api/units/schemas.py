@@ -1,7 +1,20 @@
+import logging
 from datetime import datetime
 from decimal import Decimal
+from uuid import UUID as PythonUUID
 
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    field_validator,
+    model_validator,
+)
+
+from Backend.models.enums import TenantType
+
+logger = logging.getLogger(__name__)
 
 
 class UnitValidatorMixin:
@@ -69,11 +82,27 @@ class UnitUpdate(UnitValidatorMixin, BaseModel):
 
 class TenantInfo(BaseModel):
     id: int
-    first_name: str
-    last_name: str
+    first_name: str | None = None  # Made optional for company tenants
+    last_name: str | None = None   # Made optional for company tenants
     email: str | None = None
+    company_name: str | None = None  # Added for company tenants
+    tenant_type: TenantType | None = None   # Changed to Enum
 
     model_config = ConfigDict(from_attributes=True)
+    
+    @model_validator(mode='after')
+    @classmethod
+    def validate_tenant_name_consistency(cls, values):
+        """Ensure tenant has either individual names or company name based on type."""
+        if values.tenant_type == TenantType.COMPANY:
+            if not values.company_name:
+                # Log warning but don't fail - allow graceful degradation
+                logger.warning(f"Company tenant {values.id} missing company_name")
+        elif values.tenant_type == TenantType.INDIVIDUAL:
+            if not values.first_name and not values.last_name:
+                # Log warning but don't fail - allow graceful degradation
+                logger.warning(f"Individual tenant {values.id} missing first_name and last_name")
+        return values
 
 
 class UnitCreateResponse(UnitBase):

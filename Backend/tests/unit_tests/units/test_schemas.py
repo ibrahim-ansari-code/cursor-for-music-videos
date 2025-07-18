@@ -17,6 +17,8 @@ from Backend.api.units.schemas import (
     UnitSearchFilters
 )
 
+from Backend.models.enums import TenantType
+
 # Mark all tests in this module as unit tests
 pytestmark = pytest.mark.unit
 
@@ -190,8 +192,7 @@ def test_unit_update_negative_rent_fails():
         UnitUpdate(monthly_rent=Decimal("-100.00"))
     
     errors = exc_info.value.errors()
-    assert any("Monthly rent cannot be negative" in str(error["msg"]) for error in errors)
-
+    assert any("Value error, Monthly rent cannot be negative" in str(error["msg"]) for error in errors)
 
 def test_unit_update_zero_size_fails():
     """Test that zero size fails validation in update."""
@@ -199,7 +200,7 @@ def test_unit_update_zero_size_fails():
         UnitUpdate(size=0.0)
     
     errors = exc_info.value.errors()
-    assert any("Size must be greater than 0" in str(error["msg"]) for error in errors)
+    assert any("Value error, Size must be greater than 0" in str(error["msg"]) for error in errors)
 
 
 def test_unit_update_tenant_assignment():
@@ -480,7 +481,7 @@ def test_decimal_precision_handling():
     """Test that decimal values maintain precision."""
     unit_data = {
         "name": "Unit A",
-        "monthly_rent": "1234.56",
+        "monthly_rent": Decimal("1234.56"),
         "is_rented": False
     }
     
@@ -516,3 +517,104 @@ def test_tenant_info_minimal():
     
     assert tenant.id == 1
     assert tenant.email is None
+
+
+def test_tenant_info_company_missing_company_name_logs_warning():
+    """Test that company tenant without company_name logs warning (covers lines 85,87-89)."""
+    import logging
+    from unittest.mock import patch
+    
+    tenant_data = {
+        "id": 1,
+        "tenant_type": "COMPANY",
+        "company_name": None,  # Missing company name
+        "first_name": None,
+        "last_name": None,
+        "email": "company@test.com",
+        "phone": "555-0123"
+    }
+    
+    with patch.object(logging.getLogger('Backend.api.units.schemas'), 'warning') as mock_warning:
+        # This should create the tenant but log a warning
+        tenant = TenantInfo(**tenant_data)
+        
+        assert tenant.tenant_type == TenantType.COMPANY
+        assert tenant.company_name is None
+        # Verify warning was logged
+        mock_warning.assert_called_once()
+        assert "Company tenant 1 missing company_name" in str(mock_warning.call_args)
+
+
+def test_tenant_info_individual_missing_names_logs_warning():
+    """Test that individual tenant without names logs warning (covers lines 91,93-95)."""
+    import logging
+    from unittest.mock import patch
+    
+    tenant_data = {
+        "id": 2,
+        "tenant_type": "INDIVIDUAL",
+        "company_name": None,
+        "first_name": None,  # Missing first name
+        "last_name": None,   # Missing last name
+        "email": "individual@test.com",
+        "phone": "555-0124"
+    }
+    
+    with patch.object(logging.getLogger('Backend.api.units.schemas'), 'warning') as mock_warning:
+        # This should create the tenant but log a warning
+        tenant = TenantInfo(**tenant_data)
+        
+        assert tenant.tenant_type == TenantType.INDIVIDUAL
+        assert tenant.first_name is None
+        assert tenant.last_name is None
+        # Verify warning was logged
+        mock_warning.assert_called_once()
+        assert "Individual tenant 2 missing first_name and last_name" in str(mock_warning.call_args)
+
+
+def test_tenant_info_individual_with_partial_names_no_warning():
+    """Test that individual tenant with at least one name doesn't log warning."""
+    import logging
+    from unittest.mock import patch
+    
+    tenant_data = {
+        "id": 3,
+        "tenant_type": "INDIVIDUAL",
+        "company_name": None,
+        "first_name": "John",  # Has first name
+        "last_name": None,     # Missing last name but that's okay
+        "email": "john@test.com",
+        "phone": "555-0125"
+    }
+    
+    with patch.object(logging.getLogger('Backend.api.units.schemas'), 'warning') as mock_warning:
+        tenant = TenantInfo(**tenant_data)
+        
+        assert tenant.tenant_type == TenantType.INDIVIDUAL
+        assert tenant.first_name == "John"
+        # No warning should be logged since at least one name is present
+        mock_warning.assert_not_called()
+
+
+def test_tenant_info_company_with_company_name_no_warning():
+    """Test that company tenant with company_name doesn't log warning."""
+    import logging
+    from unittest.mock import patch
+    
+    tenant_data = {
+        "id": 4,
+        "tenant_type": "COMPANY",
+        "company_name": "Test Corp",  # Has company name
+        "first_name": None,
+        "last_name": None,
+        "email": "contact@testcorp.com",
+        "phone": "555-0126"
+    }
+    
+    with patch.object(logging.getLogger('Backend.api.units.schemas'), 'warning') as mock_warning:
+        tenant = TenantInfo(**tenant_data)
+        
+        assert tenant.tenant_type == TenantType.COMPANY
+        assert tenant.company_name == "Test Corp"
+        # No warning should be logged since company_name is present
+        mock_warning.assert_not_called()

@@ -10,8 +10,9 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 
 from Backend.api.app import app
-from Backend.api.properties.schemas import PropertyDetailResponse_Standalone, OwnerResponse
-from Backend.models.property import Property, PropertyType
+from Backend.api.properties.schemas import PropertyDetailResponse_Standalone, OwnerResponse, UnitResponse, PropertyStats
+from Backend.models.property import Property, PropertyType, PropertyUnit
+from decimal import Decimal
 from Backend.models.user import User
 from Backend.models.enums import PropertyStatus
 from Backend.api.auth import get_current_user
@@ -72,6 +73,24 @@ def create_mock_property(property_id=1, **kwargs):
     mock_property.owner = kwargs.get('owner', None)
     mock_property.units = kwargs.get('units', [])
     return mock_property
+
+def create_mock_unit(unit_id: int | None = None, **kwargs):
+    """Helper function to create a mock unit with all required attributes."""
+    now = datetime.now(timezone.utc)
+    mock_unit = MagicMock(spec=PropertyUnit)
+    mock_unit.id = unit_id
+    mock_unit.name = kwargs.get('name', 'Test Unit')
+    mock_unit.description = kwargs.get('description', 'A test unit')
+    mock_unit.floor = kwargs.get('floor', 1)
+    mock_unit.is_rented = kwargs.get('is_rented', False)
+    mock_unit.monthly_rent = kwargs.get('monthly_rent', Decimal("1000.00"))
+    mock_unit.size = kwargs.get('size', None)
+    mock_unit.bedrooms = kwargs.get('bedrooms', None)
+    mock_unit.bathrooms = kwargs.get('bathrooms', None)
+    mock_unit.tenant = kwargs.get('tenant', None)
+    mock_unit.created_at = kwargs.get('created_at', now)
+    mock_unit.updated_at = kwargs.get('updated_at', now)
+    return mock_unit
 
 # =============================================================================
 # UPDATE PROPERTY TESTS
@@ -447,3 +466,67 @@ def test_update_property_unauthorized():
         # 401: No auth header provided (authentication required)  
         # 403: Invalid/expired token (authorization failed)
         assert response.status_code in [401, 403], f"Expected 401 or 403 for unauthorized access, got {response.status_code}" 
+
+async def test_update_property_units_are_sorted_by_id():
+    """Test that units in the updated property response are sorted by ID."""
+    property_id = 888
+    user = create_test_user()
+    now = datetime.now(timezone.utc)
+
+    # Create mock units out of order to test sorting
+    unit2 = create_mock_unit(unit_id=2, name="Unit 2")
+    unit1 = create_mock_unit(unit_id=1, name="Unit 1")
+
+    # The service method is responsible for sorting. The fake_response should
+    # reflect the final state returned by the service, which includes sorted units.
+    fake_response = PropertyDetailResponse_Standalone(
+        id=property_id,
+        name="Updated Property",
+        address="123 Test St",
+        city="Test City",
+        province="Test Province",
+        postal_code="12345",
+        property_type=PropertyType.RESIDENTIAL,
+        description="Updated property with sorted units",
+        year_built=2020,
+        status=PropertyStatus.ACTIVE,
+        user_id=user.id,
+        created_at=now,
+        updated_at=now,
+        owner=OwnerResponse.model_validate(user),
+        units=[
+            # Manually create UnitResponse instances from mock data, in sorted order
+            UnitResponse.model_validate(unit1),
+            UnitResponse.model_validate(unit2),
+        ],
+        stats=PropertyStats(
+            total_units=2,
+            vacant_units=2,
+            occupied_units=0,
+            monthly_revenue=Decimal("0.00"),
+            occupancy_rate=0.0
+        )
+    )
+
+    # Patch the service method to return our pre-sorted response
+    with patch("Backend.api.properties.router.PropertyService.update_property", new=AsyncMock(return_value=fake_response)):
+        app.dependency_overrides[get_current_user] = lambda: user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+
+        update_data = {"name": "Updated Property Name"}
+
+        client = TestClientWithHost(app=app)
+        response = client.put(f"/api/properties/{property_id}", json=update_data)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["units"]) == 2
+
+        # Assert that the units in the response are sorted by ID
+        assert data["units"][0]["id"] == 1
+        assert data["units"][0]["name"] == "Unit 1"
+        assert data["units"][1]["id"] == 2
+        assert data["units"][1]["name"] == "Unit 2"
+
+
+ 

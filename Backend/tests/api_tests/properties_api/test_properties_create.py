@@ -11,7 +11,11 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 
 from Backend.api.app import app
-from Backend.api.properties.schemas import PropertyDetailResponse_Standalone, OwnerResponse
+from Backend.api.properties.schemas import (
+    OwnerResponse,
+    PropertyDetailResponse_Standalone,
+    UnitResponse,
+)
 from Backend.models.property import Property, PropertyUnit, PropertyType
 from Backend.models.user import User
 from Backend.models.enums import PropertyStatus
@@ -552,3 +556,67 @@ def test_create_property_unauthorized():
         # 401: No auth header provided (authentication required)
         # 403: Invalid/expired token (authorization failed)
         assert response.status_code in [401, 403], f"Expected 401 or 403 for unauthorized access, got {response.status_code}"
+
+
+async def test_create_property_with_unit_sorting():
+    """Test that created units are sorted by ID in the response."""
+    # Arrange
+    fake_user = create_test_user()
+    property_data = {
+        "name": "Sorted Units Property",
+        "address": "123 Sort St",
+        "city": "Sort City",
+        "province": "Sort Province",
+        "postal_code": "S0R7ED",
+        "property_type": "Residential",
+        "units": ["Unit C", "Unit A", "Unit B"]
+    }
+
+    # Create mock units in the order they should be returned (sorted by ID)
+    mock_units = [
+        create_mock_unit(unit_id=1, name="Unit A"),
+        create_mock_unit(unit_id=2, name="Unit B"),
+        create_mock_unit(unit_id=3, name="Unit C"),
+    ]
+
+    # Convert mock units to UnitResponse objects
+    unit_responses = [UnitResponse.model_validate(u) for u in mock_units]
+
+    # Create property response with sorted units
+    fake_response = PropertyDetailResponse_Standalone(
+        id=5,
+        name="Sorted Units Property",
+        address="123 Sort St",
+        city="Sort City",
+        province="Sort Province",
+        postal_code="S0R7ED",
+        property_type=PropertyType.RESIDENTIAL,
+        status=PropertyStatus.VACANT,  # Derived status
+        user_id=fake_user.id,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+        owner=OwnerResponse.model_validate(fake_user),
+        units=unit_responses
+    )
+
+    # Mock the service layer
+    with patch("Backend.api.properties.router.PropertyService.create_property", new=AsyncMock(return_value=fake_response)):
+        # Override dependencies
+        app.dependency_overrides[get_current_user] = lambda: fake_user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+
+        with TestClientWithHost(app) as client:
+            # Act
+            response = client.post("/api/properties/", json=property_data)
+
+            # Assert
+            assert response.status_code == 201
+            data = response.json()
+            assert len(data["units"]) == 3
+            # Verify that the units are sorted by ID, not by the input name order
+            assert data["units"][0]["id"] == 1
+            assert data["units"][0]["name"] == "Unit A"
+            assert data["units"][1]["id"] == 2
+            assert data["units"][1]["name"] == "Unit B"
+            assert data["units"][2]["id"] == 3
+            assert data["units"][2]["name"] == "Unit C"

@@ -554,7 +554,7 @@ def test_update_unit_with_invalid_rent():
     
     # Assert
     assert response.status_code == 422  # Validation error
-    assert "Monthly rent cannot be negative" in str(response.json())
+    assert "Value error, Monthly rent cannot be negative" in str(response.json())
 
 def test_update_unit_with_invalid_size():
     """Test updating unit with invalid size fails validation."""
@@ -581,7 +581,7 @@ def test_update_unit_with_invalid_size():
     
     # Assert
     assert response.status_code == 422  # Validation error
-    assert "Size must be greater than 0" in str(response.json())
+    assert "Value error, Size must be greater than 0" in str(response.json())
 
 def test_update_unit_with_invalid_bedrooms():
     """Test updating unit with negative bedrooms fails validation."""
@@ -608,4 +608,4 @@ def test_update_unit_with_invalid_bedrooms():
     
     # Assert
     assert response.status_code == 422  # Validation error
-    assert "Bedrooms cannot be negative" in str(response.json())
+    assert "Value error, Bedrooms cannot be negative" in str(response.json())

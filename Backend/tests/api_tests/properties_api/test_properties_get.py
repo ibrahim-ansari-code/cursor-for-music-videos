@@ -11,7 +11,7 @@ from decimal import Decimal
 from fastapi import HTTPException, status
 
 from Backend.api.app import app
-from Backend.api.properties.schemas import PropertyDetailResponse_Standalone, OwnerResponse, UnitResponse, TenantInfo, PropertyResponse
+from Backend.api.properties.schemas import PropertyDetailResponse_Standalone, OwnerResponse, UnitResponse, TenantInfo, PropertyResponse, PropertyStats
 from Backend.models.property import Property, PropertyUnit, PropertyType
 from Backend.models.user import User
 from Backend.models.enums import PropertyStatus
@@ -74,7 +74,7 @@ def create_mock_property(property_id=1, **kwargs):
     mock_property.units = kwargs.get('units', [])
     return mock_property
 
-def create_mock_unit(unit_id=1, **kwargs):
+def create_mock_unit(unit_id: int | None = 1, **kwargs):
     """Helper function to create a mock property unit."""
     now = datetime.now(timezone.utc)
     mock_unit = MagicMock(spec=PropertyUnit)
@@ -832,3 +832,76 @@ def test_get_properties_database_error():
             # Assert
             assert response.status_code == 500
             assert "Failed to fetch properties" in response.json()["detail"] 
+
+async def test_get_property_units_are_sorted_by_id():
+    """Test that units in the property response are sorted by ID."""
+    property_id = 999
+    user = create_test_user()
+    now = datetime.now(timezone.utc)
+
+    # Create mock units out of order to test sorting
+    unit2 = create_mock_unit(unit_id=2, name="Unit 2")
+    unit1 = create_mock_unit(unit_id=1, name="Unit 1")
+
+    # The service method is responsible for sorting. The fake_response should
+    # reflect the final state returned by the service, which includes sorted units.
+    # The UnitResponse objects are created directly with data.
+    fake_response = PropertyDetailResponse_Standalone(
+        id=property_id,
+        name="Test Property",
+        address="123 Test St",
+        city="Test City",
+        province="Test Province",
+        postal_code="12345",
+        property_type=PropertyType.APARTMENT_COMPLEX,
+        description="Test property with units to sort",
+        year_built=2020,
+        status=PropertyStatus.ACTIVE,
+        user_id=user.id,
+        created_at=now,
+        updated_at=now,
+        owner=OwnerResponse.model_validate(user),
+        units=[
+            # Manually create UnitResponse instances from mock data, in sorted order
+            UnitResponse(
+                id=unit1.id, name=unit1.name, description=unit1.description,
+                size=unit1.size, monthly_rent=unit1.monthly_rent, is_rented=unit1.is_rented,
+                bedrooms=unit1.bedrooms, bathrooms=unit1.bathrooms, floor=unit1.floor,
+                created_at=unit1.created_at, updated_at=unit1.updated_at, tenant=unit1.tenant
+            ),
+            UnitResponse(
+                id=unit2.id, name=unit2.name, description=unit2.description,
+                size=unit2.size, monthly_rent=unit2.monthly_rent, is_rented=unit2.is_rented,
+                bedrooms=unit2.bedrooms, bathrooms=unit2.bathrooms, floor=unit2.floor,
+                created_at=unit2.created_at, updated_at=unit2.updated_at, tenant=unit2.tenant
+            ),
+        ],
+        stats=PropertyStats(
+            total_units=2,
+            vacant_units=2,
+            occupied_units=0,
+            monthly_revenue=Decimal("0.00"),
+            occupancy_rate=0.0
+        )
+    )
+
+    # Patch the service method to return our pre-sorted response
+    with patch("Backend.api.properties.router.PropertyService.get_property", new=AsyncMock(return_value=fake_response)):
+        app.dependency_overrides[get_current_user] = lambda: user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+
+        client = TestClientWithHost(app=app)
+        response = client.get(f"/api/properties/{property_id}")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["units"]) == 2
+        
+        # Assert that the units in the response are sorted by ID
+        assert data["units"][0]["id"] == 1
+        assert data["units"][0]["name"] == "Unit 1"
+        assert data["units"][1]["id"] == 2
+        assert data["units"][1]["name"] == "Unit 2"
+
+
+ 

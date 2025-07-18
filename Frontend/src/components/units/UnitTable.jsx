@@ -14,9 +14,21 @@ const UnitTable = ({ units, loading, error, onEdit, onDelete, onAssign, onViewLe
     const tenant = unit?.tenant;
     if (!tenant || typeof tenant !== "object") return "Not assigned";
 
-    const name = [tenant.first_name, tenant.last_name]
+    // Handle company tenants first
+    if (tenant?.tenant_type === "COMPANY" && tenant?.company_name) {
+      return tenant.company_name;
+    }
+
+    // Handle individual tenants
+    const name = [tenant?.first_name, tenant?.last_name]
       .filter(Boolean)
       .join(" ");
+    
+    // Fallback to company name if individual names are not available
+    if (!name && tenant?.company_name) {
+      return tenant.company_name;
+    }
+    
     return name || "Not assigned";
   };
 
