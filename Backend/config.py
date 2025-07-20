@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     # === Supabase Webhook Security ===
     # This secret is used to secure webhook endpoints. It is required for production.
     SUPABASE_WEBHOOK_SECRET: str = os.getenv("SUPABASE_WEBHOOK_SECRET", "")
+    
+    # === Azure AI Agent Configuration ===
+    # Azure AI Foundry project endpoint for the Brikli Agent
+    AZURE_AGENT_ENDPOINT: str = os.getenv("AZURE_AGENT_ENDPOINT", "")
+    # Assistant ID from Azure AI Studio
+    AZURE_ASSISTANT_ID: str = os.getenv("AZURE_ASSISTANT_ID", "")
 
     @field_validator('APIDECK_ENVIRONMENT')
     @classmethod
@@ -89,6 +95,16 @@ class Settings(BaseSettings):
                 "Webhook endpoints are not secure. This is not recommended for production.",
                 RuntimeWarning,
                 stacklevel=2,
+            )
+        
+        # Validate Azure AI Agent configuration (warning - optional until fully implemented)
+        if not self.AZURE_AGENT_ENDPOINT or not self.AZURE_ASSISTANT_ID:
+            warnings.warn(
+                "Azure AI Agent is not fully configured. "
+                "AZURE_AGENT_ENDPOINT and AZURE_ASSISTANT_ID must both be set. "
+                "The AI Assistant feature will not work until these are configured.",
+                RuntimeWarning,
+                stacklevel=2
             )
 
     # === Additional Settings ===

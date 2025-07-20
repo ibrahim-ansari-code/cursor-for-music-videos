@@ -12,6 +12,7 @@ from . import tenant
 from . import lease
 from . import maintenance
 from . import reports
+from . import agent
 
 # Initialize models to resolve circular dependencies if needed
 def initialize_models():
@@ -51,6 +52,9 @@ from .enums import UserType, PropertyStatus # PropertyStatus is in enums.py
 # If these are purely for API responses, they might not belong here, but keeping if they model complex data types used internally.
 from .reports import ReportResponse, MonthlyChartData, ReportSummary, FinancialTableRow, IncomeByProperty
 
+# Agent models
+from .agent import UserAgentThread
+
 __all__ = [
     # Accounting models & enums
     "Expense",
@@ -80,5 +84,6 @@ __all__ = [
     "Tenant",
     "TenantStatus",
     "User",
+    "UserAgentThread",
     "UserType",
 ]

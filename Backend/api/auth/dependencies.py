@@ -9,8 +9,9 @@ import logging
 import traceback
 from uuid import UUID as PythonUUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlmodel import col
@@ -25,6 +26,65 @@ logger = logging.getLogger(__name__)
 
 # Set up security scheme
 security = HTTPBearer()
+
+
+def parse_user_name(user_metadata: dict) -> tuple[Optional[str], Optional[str]]:
+    """
+    Extract first_name and last_name from Supabase user metadata
+    
+    Args:
+        user_metadata: Supabase user metadata dictionary
+        
+    Returns:
+        Tuple of (first_name, last_name), both strings or None
+    """
+    full_name = user_metadata.get("full_name", "")
+    first_name = user_metadata.get("first_name")
+    last_name = user_metadata.get("last_name")
+
+    if not first_name and full_name:
+        parts = full_name.split(" ", 1)
+        first_name = parts[0]
+        last_name = parts[1] if len(parts) > 1 else ""
+
+    return first_name, last_name
+
+
+def get_token_from_request(
+    request: Request,
+    token: Optional[str] = Query(None, description="JWT token for SSE authentication")
+) -> str:
+    """
+    Extract JWT token from either Authorization header or query parameter.
+    
+    This function supports both standard header-based authentication and 
+    query parameter authentication for SSE compatibility (EventSource can't send headers).
+    
+    Args:
+        request: The FastAPI request object
+        token: Optional JWT token from query parameter
+        
+    Returns:
+        The JWT token string
+        
+    Raises:
+        HTTPException: If no valid token is found
+    """
+    # Try Authorization header first (standard)
+    auth_header = request.headers.get("authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header[7:]  # Remove "Bearer " prefix
+    
+    # Fall back to query parameter (for SSE)
+    if token:
+        return token
+    
+    # No valid token found
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="No valid authentication token provided. Use Authorization header or 'token' query parameter.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 async def get_current_user(
@@ -110,14 +170,7 @@ async def get_current_user(
 
                 # JIT User Creation - if still not found, proceed with creation
                 user_metadata = actual_user_from_supabase.user_metadata or {}
-                full_name = user_metadata.get("full_name", "")
-                first_name = user_metadata.get("first_name")
-                last_name = user_metadata.get("last_name")
-
-                if not first_name and full_name:
-                    parts = full_name.split(" ", 1)
-                    first_name = parts[0]
-                    last_name = parts[1] if len(parts) > 1 else ""
+                first_name, last_name = parse_user_name(user_metadata)
 
                 new_user_data = {
                     "id": uuid_obj,
@@ -228,3 +281,129 @@ async def get_current_verified_user(
             detail="Email verification required"
         )
     return current_user
+
+async def get_current_user_sse(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    token: Optional[str] = Query(None, description="JWT token for SSE authentication")
+) -> User:
+    """
+    SSE-compatible version of get_current_user that supports query parameter authentication.
+    
+    This function is designed for Server-Sent Events endpoints where standard EventSource
+    cannot send custom headers. It supports both Authorization headers and query parameters.
+    
+    Args:
+        request: The FastAPI request object
+        session: The database session for user queries
+        token: Optional JWT token from query parameter
+        
+    Returns:
+        The authenticated User instance from the local database
+        
+    Raises:
+        HTTPException: If authentication fails or user is not found
+    """
+    try:
+        # Extract token from either header or query parameter
+        jwt_token = get_token_from_request(request, token)
+        
+        # Use Supabase to validate the JWT (reuse existing logic)
+        supabase = get_supabase_client()
+        user_response_from_supabase = supabase.auth.get_user(jwt_token)
+        
+        if not user_response_from_supabase:
+            logger.error("Supabase auth.get_user returned None or falsy response")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials (no user response from Supabase)",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Extract the user from the response
+        if not hasattr(user_response_from_supabase, 'user') or user_response_from_supabase.user is None:
+            logger.error("Supabase response missing user data")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials (user data not returned by Supabase)",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        actual_user_from_supabase = user_response_from_supabase.user
+
+        if not hasattr(actual_user_from_supabase, 'id') or actual_user_from_supabase.id is None:
+            logger.error("Supabase user object is missing ID")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Supabase user object is missing ID",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Convert to UUID
+        try:
+            uuid_obj = PythonUUID(str(actual_user_from_supabase.id))
+        except ValueError as e:
+            logger.warning("Supabase ID is not a valid UUID: %s", actual_user_from_supabase.id)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from e
+
+        # Check for existing user in database
+        db_user = await session.get(User, uuid_obj)
+        
+        if db_user:
+            return db_user
+
+        # JIT user creation (same logic as regular auth)
+        logger.warning("User with Supabase ID %s not found in local database. Attempting JIT creation.", uuid_obj)
+        
+        async with session.begin_nested():
+            # Re-check if user was created by concurrent request
+            check_user_again = await session.get(User, uuid_obj)
+            if check_user_again:
+                logger.info("User %s was created by a concurrent request. Using existing user.", uuid_obj)
+                return check_user_again
+
+            # Create new user
+            metadata = actual_user_from_supabase.user_metadata if hasattr(actual_user_from_supabase, 'user_metadata') else {}
+            first_name, last_name = parse_user_name(metadata)
+            
+            # Ensure email is not None
+            user_email = actual_user_from_supabase.email
+            if not user_email:
+                logger.error("Supabase user has no email address")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="User account is missing email address",
+                )
+            
+            new_user = User(
+                id=uuid_obj,
+                email=user_email,
+                first_name=first_name,
+                last_name=last_name,
+                phone=actual_user_from_supabase.phone if hasattr(actual_user_from_supabase, 'phone') else None,
+                user_type=UserType.LANDLORD.value,  # Use .value for enum
+            )
+            
+            session.add(new_user)
+            await session.flush()  # Use flush instead of commit inside the nested transaction
+            
+        # After the nested transaction commits to a savepoint, refresh the object
+        await session.refresh(new_user)
+        
+        logger.info("Successfully created new user via SSE auth: %s", new_user.id)
+        return new_user
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        logger.exception("Unexpected error during SSE authentication: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not validate credentials due to an unexpected server error: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )

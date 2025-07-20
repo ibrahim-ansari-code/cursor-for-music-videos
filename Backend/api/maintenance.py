@@ -113,6 +113,7 @@ class MaintenanceRequestUpdate(BaseModel):
     priority: MaintenancePriority | None = None
     status: MaintenanceStatus | None = None
     scheduled_date: date | None = None
+    completed_date: datetime | None = None
     estimated_cost: Decimal | None = None
     actual_cost: Decimal | None = None
     photos: list[str] | None = None
@@ -146,6 +147,7 @@ class MaintenanceRequestResponse(BaseModel):
     priority: MaintenancePriority
     status: MaintenanceStatus
     scheduled_date: date | None
+    completed_date: datetime | None
     estimated_cost: Decimal | None
     actual_cost: Decimal | None
     photos: list[str] | None

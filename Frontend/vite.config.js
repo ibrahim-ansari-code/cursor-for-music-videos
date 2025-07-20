@@ -22,6 +22,9 @@ export default defineConfig({
     sourcemap: true,
     target: 'es2020',
     minify: 'esbuild',
+    esbuildOptions: {
+      drop: ['console', 'debugger'],
+    },
     rollupOptions: {
       output: {
         chunkFileNames: 'assets/[name]-[hash].js',

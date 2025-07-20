@@ -26,6 +26,8 @@ from logging.config import fileConfig
 import sys
 from pathlib import Path
 
+import sqlalchemy as sa
+
 # ───────────────────────────────────────────────
 # Ensure project root is in sys.path so that Backend modules can be imported
 try:
@@ -109,6 +111,10 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Set the search path to include the vector schema
+        # This makes the 'vector' type available during migrations
+        connection.execute(sa.text("SET search_path TO public, vector"))
+
         # The transactional flag should be primarily controlled by the script file itself
         # if `context.begin_transaction()` is not unconditionally called.
         # For simplicity and to ensure `transactional = False` in scripts has a chance,
@@ -134,7 +140,10 @@ def run_migrations_online() -> None:
         logger.info("Configuring Alembic context to run migrations.")
         context.configure(
             connection=connection,
-            target_metadata=target_metadata
+            target_metadata=target_metadata,
+            # Include the vector schema in the search path for Postgres
+            # This ensures pgvector types are found during migration
+            dialect_opts={"postgresql_search_path": "public,vector"}
         )
 
         with context.begin_transaction():

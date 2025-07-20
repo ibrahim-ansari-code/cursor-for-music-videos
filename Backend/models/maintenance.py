@@ -47,6 +47,8 @@ class MaintenanceRequest(SQLModel, table=True):
         sa_column=Column(PgEnum(MaintenanceStatus, name="maintenance_status", create_constraint=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False))
     scheduled_date: date | None = Field(
         default=None, sa_column=Column(Date, nullable=True))
+    completed_date: datetime | None = Field(
+        default=None, sa_column=Column(TIMESTAMP(timezone=True), nullable=True))
     estimated_cost: Decimal | None = Field(
         default=None, sa_column=Column(Numeric(10, 2), nullable=True))
     actual_cost: Decimal | None = Field(
