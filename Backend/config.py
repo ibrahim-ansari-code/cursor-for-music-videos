@@ -52,6 +52,17 @@ class Settings(BaseSettings):
     AZURE_AGENT_ENDPOINT: str = os.getenv("AZURE_AGENT_ENDPOINT", "")
     # Assistant ID from Azure AI Studio
     AZURE_ASSISTANT_ID: str = os.getenv("AZURE_ASSISTANT_ID", "")
+    
+    # === Azure Authentication Options ===
+    # Option 1: Service Principal (Recommended for production)
+    AZURE_CLIENT_ID: str = os.getenv("AZURE_CLIENT_ID", "")
+    AZURE_CLIENT_SECRET: str = os.getenv("AZURE_CLIENT_SECRET", "")
+    AZURE_TENANT_ID: str = os.getenv("AZURE_TENANT_ID", "")
+    
+    # Option 2: API Key (Simple fallback if Service Principal/Managed Identity not available)
+    # DEPRECATED: API Key authentication is no longer supported for Azure AI Agents
+    # Please use Service Principal, Managed Identity, or Azure CLI authentication instead
+    AZURE_AGENT_API_KEY: str = os.getenv("AZURE_AGENT_API_KEY", "")
 
     @field_validator('APIDECK_ENVIRONMENT')
     @classmethod

@@ -8,11 +8,12 @@ import asyncio
 import json
 import logging
 import os
-from typing import Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Optional, Union
 from datetime import datetime, UTC
 
 from azure.ai.projects import AIProjectClient
-from azure.identity import DefaultAzureCredential, ManagedIdentityCredential, AzureCliCredential
+from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
+from azure.core.credentials import TokenCredential
 
 from Backend.config import settings
 
@@ -59,33 +60,55 @@ class BrikliAgentService:
         self._validate_configuration()
         
         # Initialize Azure AI Projects client with appropriate credential
-        # DefaultAzureCredential will try multiple authentication methods in order:
-        # 1. Environment variables (for service principal)
-        # 2. Managed Identity (for production Azure deployment)
-        # 3. Azure CLI (for local development)
-        # 4. Azure PowerShell
-        # 5. Interactive browser (if enabled)
+        # Authentication priority:
+        # 1. Service Principal (most secure for production)
+        # 2. Managed Identity (for Azure-hosted apps with IMDS enabled)
+        # 3. Azure CLI / DefaultAzureCredential (for local development)
         
-        # For production, we can use ManagedIdentityCredential directly
-        # For development, DefaultAzureCredential will use Azure CLI
-        if os.getenv("AZURE_CLIENT_ID"):
-            # If we have a managed identity client ID, use it directly
-            logger.info("Using ManagedIdentityCredential with client ID")
-            credential = ManagedIdentityCredential(client_id=os.getenv("AZURE_CLIENT_ID"))
-        elif os.getenv("WEBSITE_SITE_NAME"):
-            # System-assigned managed identity in Azure
-            logger.info("Running in Azure, using ManagedIdentityCredential")
-            credential = ManagedIdentityCredential()
-        else:
-            # Local development - uses Azure CLI
-            logger.info("Using DefaultAzureCredential (will try Azure CLI for local dev)")
+        credential: TokenCredential
+        
+        # Check for Service Principal authentication
+        if all([os.getenv("AZURE_CLIENT_ID"), 
+                os.getenv("AZURE_CLIENT_SECRET"), 
+                os.getenv("AZURE_TENANT_ID")]):
+            logger.info("Using Service Principal authentication")
+            # Use DefaultAzureCredential which will prioritize environment variables
+            # This works regardless of whether IMDS is available
             credential = DefaultAzureCredential()
         
-        self.client = AIProjectClient(
-            endpoint=self.endpoint,
-            credential=credential
-        )
-        logger.info("Azure AI Agent client initialized")
+        # Check for User-Assigned Managed Identity (only if IMDS available)
+        elif os.getenv("AZURE_CLIENT_ID") and os.getenv("WEBSITE_SITE_NAME"):
+            logger.info("Using User-Assigned Managed Identity")
+            credential = ManagedIdentityCredential(client_id=os.getenv("AZURE_CLIENT_ID"))
+        
+        # Check for System-Assigned Managed Identity (only if IMDS available)
+        elif os.getenv("WEBSITE_SITE_NAME"):
+            logger.info("Using System-Assigned Managed Identity")
+            credential = ManagedIdentityCredential()
+        
+        # Local development - DefaultAzureCredential (includes Azure CLI)
+        else:
+            logger.info("Using DefaultAzureCredential for local development")
+            logger.info("Make sure you are logged in with 'az login'")
+            credential = DefaultAzureCredential()
+        
+        try:
+            # Initialize the client with TokenCredential
+            self.client = AIProjectClient(
+                endpoint=self.endpoint,
+                credential=credential
+            )
+            # Access the agents client
+            self.agents_client = self.client.agents
+            logger.info("Azure AI Agent client initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize Azure AI client: {str(e)}")
+            logger.error("Authentication configuration required:")
+            logger.error("1. For production: Set AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID")
+            logger.error("2. For Azure hosting: Enable Managed Identity")
+            logger.error("3. For local dev: Run 'az login'")
+            raise
     
     def _validate_configuration(self):
         """Validate that all required configuration is present"""
@@ -105,7 +128,7 @@ class BrikliAgentService:
         try:
             logger.info("Creating new thread")
             # Use the correct API: client.agents.threads.create()
-            thread = self.client.agents.threads.create()
+            thread = self.agents_client.threads.create()
             logger.info(f"Created thread with ID: {thread.id}")
             return thread.id
         except Exception as e:
@@ -125,7 +148,7 @@ class BrikliAgentService:
         try:
             logger.info(f"Deleting thread {thread_id}")
             # Delete the thread using Azure AI API
-            self.client.agents.threads.delete(thread_id)
+            self.agents_client.threads.delete(thread_id)
             logger.info(f"Successfully deleted thread {thread_id}")
             return True
         except Exception as e:
@@ -152,14 +175,14 @@ class BrikliAgentService:
             logger.info(f"Adding message to thread {thread_id} and creating run")
             
             # Add user message to thread using correct API
-            self.client.agents.messages.create(
+            self.agents_client.messages.create(
                 thread_id=thread_id,
                 role="user",
                 content=message_content
             )
             
             # Create and return run using correct API
-            run = self.client.agents.runs.create(
+            run = self.agents_client.runs.create(
                 thread_id=thread_id,
                 agent_id=self.assistant_id
             )
@@ -196,7 +219,7 @@ class BrikliAgentService:
             logger.info(f"Getting status for run {run_id} in thread {thread_id}")
             
             # Get run status using correct API
-            run = self.client.agents.runs.get(
+            run = self.agents_client.runs.get(
                 thread_id=thread_id,
                 run_id=run_id
             )
@@ -273,9 +296,9 @@ class BrikliAgentService:
             logger.info("Registering tools with Azure Assistant")
             tools = get_tool_definitions()
             
-            # Update the existing assistant with tools using Azure AI Projects SDK
-            # Following Microsoft documentation pattern
-            updated_agent = self.client.agents.update_agent(
+            # Update the existing assistant with tools using Azure AI Agents SDK
+            # The update_agent method is used to update the assistant
+            updated_agent = self.agents_client.update_agent(
                 agent_id=self.assistant_id,
                 tools=tools
             )
@@ -308,7 +331,7 @@ class BrikliAgentService:
             logger.info(f"Getting messages from thread {thread_id}")
             
             # Get messages from thread using correct API
-            messages_paged = self.client.agents.messages.list(
+            messages_paged = self.agents_client.messages.list(
                 thread_id=thread_id,
                 order="asc",
                 limit=limit
@@ -415,7 +438,7 @@ class BrikliAgentService:
         """
         try:
             # List active runs for this thread
-            runs = self.client.agents.runs.list(
+            runs = self.agents_client.runs.list(
                 thread_id=thread_id,
                 limit=10,  # Check more runs
                 order="desc"
@@ -427,7 +450,7 @@ class BrikliAgentService:
                 if run.status not in ["completed", "failed", "cancelled", "expired"]:
                     logger.warning(f"Found non-completed run {run.id} with status {run.status}, canceling...")
                     try:
-                        self.client.agents.runs.cancel(
+                        self.agents_client.runs.cancel(
                             thread_id=thread_id,
                             run_id=run.id
                         )
@@ -458,7 +481,7 @@ class BrikliAgentService:
             await self._ensure_thread_ready(thread_id)
             
             # Add the message
-            self.client.agents.messages.create(
+            self.agents_client.messages.create(
                 thread_id=thread_id,
                 role="user",
                 content=message_content
@@ -485,7 +508,7 @@ class BrikliAgentService:
             logger.info(f"Starting streaming run for thread {thread_id}")
             
             # Use the correct Azure AI Projects streaming pattern (synchronous)
-            with self.client.agents.runs.stream(
+            with self.agents_client.runs.stream(
                 thread_id=thread_id,
                 agent_id=self.assistant_id,
             ) as stream:
@@ -567,7 +590,7 @@ class BrikliAgentService:
                     await asyncio.sleep(1.0)
                     
                     try:
-                        run = self.client.agents.runs.get(
+                        run = self.agents_client.runs.get(
                             thread_id=thread_id,
                             run_id=current_run_id
                         )
@@ -576,7 +599,7 @@ class BrikliAgentService:
                         
                         if run.status == "completed":
                             # Get the assistant's response message
-                            messages = list(self.client.agents.messages.list(
+                            messages = list(self.agents_client.messages.list(
                                 thread_id=thread_id,
                                 order="desc",
                                 limit=5
@@ -871,7 +894,7 @@ class BrikliAgentService:
                     })
                     
                 # Submit tool outputs back to Azure AI
-                self.client.agents.runs.submit_tool_outputs(
+                self.agents_client.runs.submit_tool_outputs(
                     thread_id=thread_id,
                     run_id=run_id,
                     tool_outputs=tool_outputs
