@@ -32,11 +32,26 @@ RUN npm run build
 # Stage 2: Production
 FROM nginx:stable-alpine AS production
 
+# Create non-root user for security
+RUN addgroup -g 1001 -S nginxuser && \
+    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -G nginxuser -g nginxuser nginxuser && \
+    chown -R nginxuser:nginxuser /var/cache/nginx && \
+    chown -R nginxuser:nginxuser /var/log/nginx && \
+    chown -R nginxuser:nginxuser /etc/nginx/conf.d && \
+    touch /var/run/nginx.pid && \
+    chown -R nginxuser:nginxuser /var/run/nginx.pid
+
 # Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built app from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Set ownership of html directory
+RUN chown -R nginxuser:nginxuser /usr/share/nginx/html
+
+# Switch to non-root user
+USER nginxuser
 
 # Use port 5174 to match development and avoid conflicts
 EXPOSE 5174

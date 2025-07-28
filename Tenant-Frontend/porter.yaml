@@ -1,0 +1,39 @@
+version: v2
+name: brikli-tenant-frontend
+
+# ---------- Build settings ----------
+# This section tells Porter how to build your tenant frontend.
+build:
+  method: docker
+  context: ./Tenant-Frontend
+  dockerfile: ./Tenant-Frontend/Dockerfile
+
+  # This is the critical part: It passes variables from your Porter
+  # Environment Group into the Docker build process. Vite needs these
+  # to bake them into the final static files.
+  args:
+    VITE_API_URL: ${VITE_API_URL}
+    VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+    VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+    VITE_SITE_URL: ${VITE_SITE_URL}
+
+# ---------- Runtime service ----------
+# This section describes how your tenant frontend service runs after being built.
+services:
+  - name: brikli-tenant-frontend
+    type: web
+    run: "" # Nginx starts automatically, so no run command is needed.
+    port: 5174
+    cpuCores: 0.16
+    ramMegabytes: 500
+    instances: 1
+    domains:
+      - name: tenant.brikli.com
+
+# ---------- Environment ----------
+# This links the tenant frontend environment group.
+envGroups:
+  - brikli-tenant-frontend-prod
+
+autoRollback:
+  enabled: false

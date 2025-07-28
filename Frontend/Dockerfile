@@ -34,14 +34,33 @@ RUN npm run build
 # Production stage - Uses Nginx to serve the static files
 FROM nginx:stable-alpine AS production
 
+# Create non-root user for security
+RUN addgroup -g 1001 -S nginxuser && \
+    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -G nginxuser -g nginxuser nginxuser && \
+    chown -R nginxuser:nginxuser /var/cache/nginx && \
+    chown -R nginxuser:nginxuser /var/log/nginx && \
+    chown -R nginxuser:nginxuser /etc/nginx/conf.d && \
+    touch /var/run/nginx.pid && \
+    chown -R nginxuser:nginxuser /var/run/nginx.pid
+
 # Copy custom nginx config for React Router support and optimizations
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy the built application from the builder stage to nginx html directory
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Set ownership of html directory
+RUN chown -R nginxuser:nginxuser /usr/share/nginx/html
+
+# Switch to non-root user
+USER nginxuser
+
 # Expose port 4173 to align with Porter container port
 EXPOSE 4173
+
+# Health check for container monitoring
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:4173 || exit 1
 
 # Nginx runs in the foreground by default
 CMD ["nginx", "-g", "daemon off;"]
