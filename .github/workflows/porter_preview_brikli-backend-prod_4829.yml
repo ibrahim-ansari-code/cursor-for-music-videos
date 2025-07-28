@@ -15,12 +15,6 @@ jobs:
       - name: Set Github tag
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-      - name: Copy Poetry files to Backend for Docker build
-        run: |
-          echo "Copying poetry files to Backend directory..."
-          cp pyproject.toml Backend/
-          cp poetry.lock Backend/
-          echo "Poetry files copied successfully."
       - name: Setup porter
         uses: porter-dev/setup-porter@v0.1.0
       - name: List files in workspace # Debug

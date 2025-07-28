@@ -15,12 +15,12 @@ export default defineConfig({
     include: ['react', 'react-dom', 'react-router-dom', 'pdfjs-dist', 'recharts'],
     exclude: [],
     esbuildOptions: {
-      target: 'es2020'
+      target: 'es2022'
     }
   },
   build: {
     sourcemap: true,
-    target: 'es2020',
+    target: 'es2022',
     minify: 'esbuild',
     esbuildOptions: {
       drop: ['console', 'debugger'],

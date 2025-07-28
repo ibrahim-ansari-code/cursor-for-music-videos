@@ -40,19 +40,20 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pypoetry
-          key: poetry-${{ hashFiles('poetry.lock') }}
+          key: poetry-${{ hashFiles('Backend/poetry.lock') }}
           restore-keys: |
             poetry-
       
       - name: Install dependencies
         run: |
-          poetry install --extras dev
+          cd Backend
+          poetry install --extras dev --no-root
       
       # STEP 1: Run Unit Tests (must pass to continue)
       - name: "Step 1: Run Unit Tests (100% Required)"
         run: |
           cd Backend/tests
-          poetry run pytest unit_tests/ \
+          PYTHONPATH=../.. poetry run pytest unit_tests/ \
             -v \
             --tb=short \
             -n auto \
@@ -68,8 +69,9 @@ jobs:
       # STEP 2: Run API Tests (only if unit tests passed)
       - name: "Step 2: Start Test Server for API Tests"
         run: |
+          cd Backend
           # Start server in background and save PID
-          poetry run uvicorn Backend.api.app:app --host 127.0.0.1 --port 8000 &
+          PYTHONPATH=.. poetry run uvicorn api.app:app --host 127.0.0.1 --port 8000 &
           echo $! > server.pid
           sleep 10
           
@@ -79,7 +81,7 @@ jobs:
       - name: "Step 2: Run API Tests (100% Required)"
         run: |
           cd Backend/tests
-          poetry run pytest api_tests/ \
+          PYTHONPATH=../.. poetry run pytest api_tests/ \
             -v \
             --tb=short \
             -n auto \
@@ -88,9 +90,9 @@ jobs:
       - name: "Step 2: Stop Test Server"
         if: always()
         run: |
-          if [ -f server.pid ]; then
-            kill $(cat server.pid) || true
-            rm server.pid
+          if [ -f Backend/server.pid ]; then
+            kill $(cat Backend/server.pid) || true
+            rm Backend/server.pid
           fi
       
       - name: Upload API test results
@@ -104,7 +106,7 @@ jobs:
       - name: "Step 3: Run Tests with Coverage Collection"
         run: |
           cd Backend/tests
-          poetry run pytest unit_tests/ api_tests/ \
+          PYTHONPATH=../.. poetry run pytest unit_tests/ api_tests/ \
             --cov=Backend \
             --cov-report=xml \
             --cov-report=html \
@@ -114,7 +116,7 @@ jobs:
         run: |
           cd Backend
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            poetry run diff-cover tests/coverage.xml \
+            PYTHONPATH=.. poetry run diff-cover tests/coverage.xml \
               --compare-branch=origin/${{ github.base_ref }} \
               --fail-under=80 \
               --diff-range-notation='..'

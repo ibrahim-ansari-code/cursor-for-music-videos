@@ -50,13 +50,24 @@ Create a `.env` file in your root directory and one in your Frontend/ folder. Re
 ### 3. Installing Backend Dependencies and Running Local Backend
 
 ```bash
-
 pip install poetry #If you don't already have Poetry installed
+
+# Navigate to Backend directory
+cd Backend
+
 poetry install # Installs dependencies from poetry.lock
 
 # Run the backend server
-poetry run uvicorn Backend.api.app:app --reload
+# For Unix/Linux/macOS (bash):
+PYTHONPATH=.. poetry run uvicorn Backend.api.app:app --reload
+
+# For Windows PowerShell:
+$env:PYTHONPATH=".." ; poetry run uvicorn Backend.api.app:app --reload
 ```
+
+**Important:** 
+- Make sure you have a `.env` file in the `Backend/` directory with your `DATABASE_URL` and other required environment variables
+- The server will start at `http://localhost:8000` with API docs at `http://localhost:8000/docs`
 
 Backend runs at `http://localhost:8000`.
 FastAPI docs available at `http://localhost:8000/docs`.
@@ -80,26 +91,29 @@ Database schema changes are made individually using Supabase MCP on a new DB Bra
 - **Ensure `Backend/.env` `DATABASE_URL` is correct before running Alembic commands.**
 - Alembic's `env.py` is configured to use `DATABASE_URL`.
 
-To create a new migration (run from project root):
+To create a new migration:
 
 ```bash
-# From the project root directory (Brikli-V2/)
-poetry run alembic revision -m "your_migration_message"
+# From the Backend directory
+cd Backend
+poetry run alembic revision --autogenerate -m "your_migration_message"
 ```
 
-Edit the generated script in `Backend/migrations/versions/`.
+Edit the generated script in `migrations/versions/`.
 
 To apply migrations:
 
 ```bash
-# From the project root directory (Brikli-V2/)
+# From the Backend directory  
+cd Backend
 poetry run alembic upgrade head
 ```
 
 To downgrade:
 
 ```bash
-# From the project root directory (Brikli-V2/)
+# From the Backend directory
+cd Backend  
 poetry run alembic downgrade -1 # Downgrade one revision
 ```
 

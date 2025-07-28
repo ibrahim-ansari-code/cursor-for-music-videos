@@ -1,35 +1,41 @@
 import React from "react";
 
 // Icon components for better maintainability
-const ComputerIcon = () => (
-  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="AI automation icon">
+const HomeIcon = () => (
+  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Rental home management icon">
     <path 
       strokeLinecap="round" 
       strokeLinejoin="round" 
       strokeWidth={2} 
-      d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" 
+      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" 
     />
   </svg>
 );
 
-const CalculatorIcon = () => (
-  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Automated accounting icon">
+const CreditCardIcon = () => (
+  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Easy rent payments icon">
     <path 
       strokeLinecap="round" 
       strokeLinejoin="round" 
       strokeWidth={2} 
-      d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" 
+      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" 
     />
   </svg>
 );
 
-const LightningIcon = () => (
-  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Time-saving efficiency icon">
+const WrenchIcon = () => (
+  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Maintenance requests icon">
     <path 
       strokeLinecap="round" 
       strokeLinejoin="round" 
       strokeWidth={2} 
-      d="M13 10V3L4 14h7v7l9-11h-7z" 
+      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" 
+    />
+    <path 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      strokeWidth={2} 
+      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" 
     />
   </svg>
 );
@@ -37,19 +43,19 @@ const LightningIcon = () => (
 const BrandingPanel = () => {
   const features = [
     {
-      icon: <ComputerIcon />,
-      title: "Let AI handle your paperwork",
-      description: "Instantly extract data from receipts, invoices, and leases—turning hours of work into seconds."
+      icon: <HomeIcon />,
+      title: "Your Rental Home",
+      description: "Access lease details, payment history, and important documents all in one secure place."
     },
     {
-      icon: <CalculatorIcon />,
-      title: "Automated accounting, zero headaches",
-      description: "From rent collection to tax-ready reports, Brikli keeps your books balanced and stress-free."
+      icon: <CreditCardIcon />,
+      title: "Easy Rent Payments",
+      description: "Pay rent online, set up autopay, and track your payment history with complete transparency."
     },
     {
-      icon: <LightningIcon />,
-      title: "Your time is your most valuable asset",
-      description: "Manage properties in minutes, not hours. Focus on growing your portfolio while Brikli handles the rest."
+      icon: <WrenchIcon />,
+      title: "Maintenance Requests",
+      description: "Submit and track maintenance requests with photos and updates directly from your portal."
     }
   ];
 
@@ -75,7 +81,7 @@ const BrandingPanel = () => {
                }}>
             <img
               src="/BrikliTransparentWhite.png"
-              alt="Brikli - Landlord Portal"
+              alt="Brikli - Tenant Portal"
               width={192}
               height={96}
               className="h-auto w-48 max-w-full drop-shadow-2xl mx-auto animate-fade-in"
@@ -83,11 +89,13 @@ const BrandingPanel = () => {
             />
             <div>
               <h1 className="text-5xl font-bold mb-1 tracking-tight leading-tight">
-                Welcome to Your<br />
-                Landlord Portal
+                Welcome to Your
+              </h1>
+              <h1 className="text-5xl font-bold mb-1 tracking-tight leading-tight">
+                Tenant Portal
               </h1>
               <p className="text-xl text-white/80 font-light tracking-wide">
-                Property Management Made Simple with AI
+                Manage your rental experience with ease
               </p>
             </div>
           </div>

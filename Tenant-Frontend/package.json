@@ -1,0 +1,38 @@
+{
+  "name": "tenant-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "postinstall": "node -e \"try{require.resolve('@rollup/rollup-win32-x64-msvc')}catch{process.platform==='win32'&&require('child_process').execSync('npm install @rollup/rollup-win32-x64-msvc --no-save',{stdio:'inherit'})}\""
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.52.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.525.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.7.0",
+    "tailwind-merge": "^3.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.31.0",
+    "@tailwindcss/postcss": "^4.1.11",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.4.21",
+    "crypto-browserify": "^3.12.1",
+    "eslint": "^9.31.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "postcss": "^8.5.6",
+    "stream-browserify": "^3.0.0",
+    "tailwindcss": "^4.1.11",
+    "util": "^0.12.5",
+    "vite": "^7.0.5"
+  }
+}

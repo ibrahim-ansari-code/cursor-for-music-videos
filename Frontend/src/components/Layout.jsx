@@ -44,8 +44,8 @@ const Layout = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="bg-white border-b border-gray-200 z-10 h-16">
-          <div className="px-4 h-full flex justify-between items-center">
-            <h1 className="text-xl font-semibold text-gray-900">
+          <div className="px-6 h-full flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-gray-900">
               {getPageTitle(location.pathname)}
             </h1>
 
@@ -56,7 +56,7 @@ const Layout = () => {
                 to="/settings"
                 className="flex items-center space-x-3 cursor-pointer group"
               >
-                <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 overflow-hidden group-hover:ring-2 group-hover:ring-blue-500 group-hover:ring-offset-2 transition-all">
+                <div className="h-8 w-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 overflow-hidden group-hover:ring-2 group-hover:ring-teal-500 group-hover:ring-offset-2 transition-all">
                   {user?.profile_image_url ? (
                     <img
                       key={user.profile_image_url}
@@ -79,7 +79,7 @@ const Layout = () => {
                   )}
                 </div>
                 <div className="hidden md:block">
-                  <p className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                  <p className="text-sm font-medium text-gray-900 group-hover:text-teal-600 transition-colors">
                     {user?.first_name} {user?.last_name}
                   </p>
                   <p className="text-xs text-gray-500 capitalize">
@@ -89,10 +89,10 @@ const Layout = () => {
               </Link>
               {/* Logout Button */}
               <button
-                className="text-sm text-gray-700 hover:text-red-600 px-3 py-1 rounded hover:bg-gray-100 transition-colors"
+                className="text-sm text-gray-700 hover:text-red-600 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center"
                 onClick={logout}
               >
-                <i className="fas fa-sign-out-alt mr-1"></i> Logout
+                <i className="fas fa-sign-out-alt mr-2"></i> Logout
               </button>
             </div>
           </div>

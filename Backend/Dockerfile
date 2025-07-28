@@ -1,61 +1,74 @@
-# Dockerfile for Brikli FastAPI Backend (Production-Ready for Supabase/Porter)
+# Dockerfile for Brikli FastAPI Backend (Production-Ready Multi-Stage Build)
 
-# 1. Base Image
-FROM python:3.11-slim
+# Stage 1: Builder
+FROM python:3.11-slim AS builder
 
-# 2. Environment Variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    # Poetry settings
-    POETRY_VERSION=2.1.2 \
+# Environment Variables for Builder
+ENV POETRY_VERSION=2.1.2 \
     POETRY_HOME="/opt/poetry" \
     POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_CREATE=false \
-    # Path
-    PATH="$POETRY_HOME/bin:$PATH" \
-    # App settings
-    APP_MODULE="Backend.api.app:app" \
-    PORT=8000 \
-    HOST="0.0.0.0"
+    POETRY_VIRTUALENVS_IN_PROJECT=true \
+    POETRY_VIRTUALENVS_CREATE=true \
+    PATH="$POETRY_HOME/bin:$PATH"
 
-# 3. System Dependencies
-# build-essential & libpq-dev are for compiling some Python packages (like psycopg2 if not using binary)
-# curl is for downloading poetry installer
+# Install build dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
     build-essential \
     libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_VERSION}
+
+# Set working directory
+WORKDIR /app
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock ./
+
+# Install dependencies - use full path to poetry
+RUN /opt/poetry/bin/poetry install --only main --no-root --no-interaction
+
+# Stage 2: Production
+FROM python:3.11-slim
+
+# Environment Variables for Runtime
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/app/.venv/bin:$PATH" \
+    APP_MODULE="Backend.api.app:app" \
+    PORT=8000 \
+    HOST="0.0.0.0"
+
+# Install runtime dependencies only
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 4. Install Poetry
-RUN curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_VERSION}
-
-# 5. Set Working Directory
+# Set working directory
 WORKDIR /app
 
-# 6. Install Application Dependencies
-COPY pyproject.toml poetry.lock ./
+# Copy virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
 
-# Install all defined dependencies from pyproject.toml using the lock file
-RUN if [ -f "pyproject.toml" ]; then \
-    echo 'Poetry files found, installing dependencies...'; \
-    /opt/poetry/bin/poetry install --no-root --no-interaction; \
-    else \
-    echo 'No poetry files found, falling back to pip.'; \
-    pip install --upgrade pip && pip install -r requirements.txt; \
-    fi
-
-# 7. Copy Application Code
+# Copy application code
 COPY . /app/Backend
 
-# 8. Expose Port
+# Create non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Expose port
 EXPOSE 8000
 
-# 9. Healthcheck
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
-# 10. Run the Application
-# CMD ["/usr/local/bin/python3.11", "-m", "gunicorn", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "--timeout", "300", "--bind", "0.0.0.0:8000", "Backend.api.app:app"]
+# Run the application
+# CMD ["gunicorn", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "--timeout", "300", "--bind", "0.0.0.0:8000", "Backend.api.app:app"]

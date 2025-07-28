@@ -1,5 +1,12 @@
 import logging
 import sys
+from pathlib import Path
+
+# Add project root to Python path for proper module imports
+# This ensures Backend.* imports work when running from Backend/ directory
+project_root = Path(__file__).resolve().parents[2]  # Go up from api/app.py to project root
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))  # pragma: no cover
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -51,8 +58,12 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "https://localhost:5173",
+        "http://localhost:5174",
+        "https://localhost:5174",
         "http://127.0.0.1:5173",
         "https://127.0.0.1:5173",
+        "http://tenant.brikli.com",
+        "https://tenant.brikli.com",
         "http://app.brikli.com",
         "https://app.brikli.com",
         "http://api.brikli.com",

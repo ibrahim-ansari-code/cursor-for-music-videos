@@ -37,16 +37,16 @@ const Sidebar = () => {
         to={item.path}
         className={({ isActive }) =>
           `${isActive
-            ? "bg-gray-100 text-gray-900"
+            ? "bg-teal-50 text-teal-700 border-r-2 border-teal-600"
             : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
           } 
-          group flex items-center py-2.5 px-3 text-sm font-medium rounded-md transition-colors`
+          group flex items-center py-3 px-3 text-sm font-medium rounded-lg transition-all duration-200`
         }
       >
         <div className="flex items-center w-full">
           <div className={`${collapsed ? "mx-auto" : "w-6 text-center"}`}>
             <i
-              className={`fas ${item.icon} text-gray-400 group-hover:text-gray-500`}
+              className={`fas ${item.icon} text-gray-400 group-hover:text-gray-600 transition-colors`}
             ></i>
           </div>
           {!collapsed && <span className="ml-3">{item.name}</span>}
@@ -58,7 +58,7 @@ const Sidebar = () => {
   // Function to render section headers
   const renderSectionHeader = (title) => {
     if (collapsed) {
-      return <div className="border-t border-gray-200 my-2"></div>;
+      return <div className="my-2"></div>;
     }
     return (
       <h3 className="px-3 text-xs font-medium text-gray-400 uppercase tracking-wider mb-3 mt-3">
@@ -70,12 +70,12 @@ const Sidebar = () => {
   return (
     <>
       <aside
-        className={`bg-white border-r border-gray-200 transition-all duration-300 ease-in-out h-full ${collapsed ? "w-16" : "w-64"
+        className={`bg-white transition-all duration-300 ease-in-out h-full ${collapsed ? "w-16" : "w-64"
           }`}
       >
         <div className="h-full flex flex-col">
           {/* Logo */}
-          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+          <div className="flex items-center justify-between h-16 px-4">
             <div
               className={`flex items-center ${collapsed
                 ? "w-full justify-center"
@@ -134,13 +134,12 @@ const Sidebar = () => {
           </div>
 
           {/* Footer with Ask AI button */}
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-4">
             {!collapsed ? (
               <button
                 type="button"
                 onClick={() => setShowAskModal(true)}
-                className="animation-parent box-shadow-animation w-full flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
-                style={{ boxShadow: "0 0 10px #38a169" }}
+                className="animation-parent box-shadow-animation w-full flex items-center justify-center px-3 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-xl transition-all duration-200"
               >
                 <Bot className="color-fade mr-2 w-4 h-4" />
                 <p className="color-scroll l-to-r" data-hover="Assistant">
@@ -151,10 +150,10 @@ const Sidebar = () => {
               <button
                 type="button"
                 onClick={() => setShowAskModal(true)}
-                className="w-full flex items-center justify-center p-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
+                className="w-8 h-8 mx-auto flex items-center justify-center border border-transparent rounded-lg text-white bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-xl transition-all duration-200"
                 aria-label="Assistant"
               >
-                <Bot className="w-4 h-4" />
+                <Bot className="w-4 h-4 flex-shrink-0" />
               </button>
             )}
           </div>
