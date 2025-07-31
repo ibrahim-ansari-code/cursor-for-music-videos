@@ -7,6 +7,7 @@ This directory contains **hybrid API tests** that use FastAPI's TestClient to te
 ## Purpose
 
 Hybrid API tests are designed to:
+
 - Test the complete HTTP request/response cycle
 - Verify FastAPI routing, middleware, and dependency injection
 - Test request/response validation and serialization
@@ -24,7 +25,7 @@ Hybrid API tests are designed to:
 
 ## Test Structure
 
-```
+```text
 api_tests/
 ├── leases/
 │   ├── __init__.py
@@ -342,6 +343,7 @@ def test_database_error_handling(mocker):
 #### Data Type Conversions
 
 When sending JSON data to endpoints, remember:
+
 - Dates should be strings: `"2024-01-01"`
 - Decimals should be strings: `"100.00"`
 - Enums should be strings: `"ACTIVE"`
@@ -413,4 +415,4 @@ When creating tests for a new endpoint:
 - [ ] Test database errors (500)
 - [ ] Use `TestClientWithHost` for all requests
 - [ ] Mock at the service layer, not deeper
-- [ ] Include debug output for failed assertions 
+- [ ] Include debug output for failed assertions

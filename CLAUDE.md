@@ -95,15 +95,15 @@ npm run build
 
 ### Migration Strategy
 
-**IMPORTANT: Dual migration system - Supabase + Alembic working together**
+#### IMPORTANT: Dual migration system - Supabase + Alembic working together
 
-**Current Setup:**
+#### Current Setup
 
 - **Production Database**: Managed via Alembic migrations (`Backend/migrations/versions/`)
 - **Local Development**: Synced via Supabase migrations (`supabase/migrations/`)
 - **Baseline**: `supabase/migrations/20250622235642_baseline_sync_from_remote.sql` contains full production schema
 
-**Migration Types & When to Use:**
+#### Migration Types & When to Use
 
 1. **Alembic Migrations (Primary for Production)**
 
@@ -111,8 +111,9 @@ npm run build
    - **Generate**: `poetry run alembic revision --autogenerate -m "description"`
    - **Apply locally**: `poetry run alembic upgrade head`
    - **Deploy**: Automatic via production deployment
-   
-   **Specific Use Cases:**
+
+   ##### Alembic Use Cases
+
    - Adding/removing model classes (e.g., `class Vendor(SQLModel, table=True)`)
    - Adding/removing fields to models (e.g., `email: str | None = None`)
    - Changing field types or constraints (e.g., `Field(max_length=255)`)
@@ -124,8 +125,9 @@ npm run build
    - **Generate**: `supabase db diff --use-migra -f migration_name`
    - **Apply locally**: `supabase db push`
    - **Deploy**: Manual coordination with Alembic
-   
-   **Specific Use Cases:**
+
+   ##### Supabase Use Cases
+
    - Row Level Security (RLS) policies
    - Database functions and triggers
    - Custom SQL types or enums beyond SQLModel support
@@ -133,9 +135,9 @@ npm run build
    - Specialized indexes (GIN for text search, GiST for spatial data)
    - Data migration scripts or bulk updates
 
-**Recommended Workflows:**
+#### Recommended Workflows
 
-**Scenario A: SQLModel Changes (Most Common)**
+#### Scenario A: SQLModel Changes (Most Common)
 
 ```bash
 # 1. Modify SQLModel classes in Backend/models/
@@ -151,7 +153,7 @@ git add Backend/migrations/versions/
 git commit -m "feat: add new feature table"
 ```
 
-**Scenario B: Database-Specific Changes**
+#### Scenario B: Database-Specific Changes
 
 ```bash
 # 1. Make changes via Supabase Studio or direct SQL
@@ -165,13 +167,13 @@ supabase db push
 # 5. Create matching Alembic migration if needed for model sync
 ```
 
-**Team Onboarding:**
+#### Team Onboarding
 
 - New developers run `supabase start` → Automatically gets exact production schema
 - Local database matches remote via baseline migration
 - No manual schema setup required
 
-**Migration Files:**
+#### Migration Files
 
 - `Backend/migrations/versions/` - Alembic migrations (production)
 - `supabase/migrations/` - Supabase migrations (local dev + supplemental)
@@ -203,7 +205,7 @@ supabase db push
 - `Frontend/src/components/ui/SharedModalComponents.jsx` - Shared receipt upload pattern
 - `Frontend/src/components/charts/CHARTS.md` - Chart components documentation
 - `Frontend/ARCHITECTURE.md` - Frontend architectural documentation
-- `Backend/tests/backend_test_suite_guide.md` - Testing documentation
+- `Backend/tests/Backend-Test-Suite-Guide.md` - Comprehensive testing documentation
 
 ## Deployment
 

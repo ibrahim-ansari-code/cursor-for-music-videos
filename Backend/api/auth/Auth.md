@@ -7,6 +7,7 @@ The Brikli Authentication API provides secure user authentication and authorizat
 ## Current Implementation Status
 
 ### What's Implemented ✅
+
 - Email/password authentication via Supabase
 - Google OAuth integration
 - JWT token validation and management
@@ -18,6 +19,7 @@ The Brikli Authentication API provides secure user authentication and authorizat
 - Protected route enforcement
 
 ### What's Missing or Incomplete ⚠️
+
 - Email verification endpoint (`/api/auth/resend-verification`)
 - Password verification endpoint (for secure password changes)
 - Session management endpoints (logout, session listing)
@@ -27,6 +29,7 @@ The Brikli Authentication API provides secure user authentication and authorizat
 ## Architecture
 
 ### Technology Stack
+
 - **Authentication Provider**: Supabase Auth
 - **Token Type**: JWT (JSON Web Tokens)
 - **Token Storage**: localStorage (frontend)
@@ -37,6 +40,7 @@ The Brikli Authentication API provides secure user authentication and authorizat
 - **HTTP Client**: Axios for API calls
 
 ### Design Principles
+
 - **Stateless Authentication**: JWT tokens contain all necessary claims
 - **Single Source of Truth**: Supabase manages authentication state
 - **Just-In-Time Provisioning**: Users are created in local DB on first access
@@ -44,7 +48,8 @@ The Brikli Authentication API provides secure user authentication and authorizat
 - **Security First**: All endpoints require authentication unless specified
 
 ### Component Overview
-```
+
+```text
 Frontend Components:
 ├── App.jsx                    # Main auth state management
 ├── contexts/AuthContext.js    # Auth context definition
@@ -84,12 +89,14 @@ sequenceDiagram
 ```
 
 **Current Implementation:**
+
 - `RegisterForm.jsx` collects: email, password, first name, last name, phone
 - Password requirements enforced client-side
 - Metadata passed to Supabase for webhook processing
 - Shows success message but no automatic login until email verified
 
 ### 2. User Login
+
 ```mermaid
 sequenceDiagram
     participant Client
@@ -114,6 +121,7 @@ sequenceDiagram
 ```
 
 **Current Implementation:**
+
 - `LoginForm.jsx` uses `login()` function from AuthContext
 - JWT stored in localStorage as "token"
 - User profile fetched and cached in localStorage
@@ -121,6 +129,7 @@ sequenceDiagram
 - Google OAuth follows same flow after redirect
 
 ### 3. Password Reset
+
 ```mermaid
 sequenceDiagram
     participant Client
@@ -143,6 +152,7 @@ sequenceDiagram
 ```
 
 **Current Implementation:**
+
 - `LoginForm.jsx` has forgot password modal
 - `ResetPassword.jsx` handles token parsing from URL hash
 - Automatic session establishment with recovery tokens
@@ -153,12 +163,14 @@ sequenceDiagram
 ### Currently Implemented Endpoints ✅
 
 #### Get Current User
+
 ```http
 GET /api/auth/me
 Authorization: Bearer <token>
 ```
 
 **Response:**
+
 ```json
 {
   "id": "123e4567-e89b-12d3-a456-426614174000",
@@ -181,11 +193,13 @@ Authorization: Bearer <token>
 ```
 
 **Implementation Notes:**
+
 - Used by App.jsx on login and session restore
 - Performs JIT user creation if user not in local DB
 - Validates JWT with Supabase before proceeding
 
 #### Resend Email Verification ✅
+
 ```http
 POST /api/auth/resend-verification
 Content-Type: application/json
@@ -196,6 +210,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -204,6 +219,7 @@ Content-Type: application/json
 ```
 
 **Implementation Details:**
+
 - No authentication required (unverified users can't log in)
 - Uses Supabase's resend API
 - Returns generic message for security (prevents email enumeration)
@@ -213,6 +229,7 @@ Content-Type: application/json
 ### Password Management
 
 #### Verify Password
+
 ```http
 POST /api/auth/verify-password
 Authorization: Bearer <token>
@@ -224,6 +241,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -234,10 +252,12 @@ Content-Type: application/json
 **Purpose:** Verify current password without creating new session (used by SecurityForm.jsx)
 
 **Error Responses:**
+
 - `401`: Invalid password
 - `422`: Validation error (missing password)
 
 #### Change Password
+
 ```http
 POST /api/auth/change-password
 Authorization: Bearer <token>
@@ -250,6 +270,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -258,6 +279,7 @@ Content-Type: application/json
 ```
 
 **Password Requirements:**
+
 - Minimum 8 characters
 - At least one uppercase letter
 - At least one lowercase letter
@@ -266,6 +288,7 @@ Content-Type: application/json
 - Must be different from current password
 
 **Error Responses:**
+
 - `401`: Current password is incorrect
 - `422`: Validation error (weak password, same as current, etc.)
 - `400`: Password change failed (Supabase error)
@@ -273,6 +296,7 @@ Content-Type: application/json
 ### Profile Management
 
 #### Update User Profile
+
 ```http
 PUT /api/auth/users/{user_id}/profile
 Authorization: Bearer <token>
@@ -292,6 +316,7 @@ Content-Type: application/json
 **Response:** Updated user object
 
 #### Upload Avatar
+
 ```http
 POST /api/auth/users/{user_id}/avatar
 Authorization: Bearer <token>
@@ -301,6 +326,7 @@ file: <image_file>
 ```
 
 **Response:**
+
 ```json
 {
   "profile_image_url": "https://storage.blob.core.windows.net/avatars/123-avatar.jpg"
@@ -310,12 +336,14 @@ file: <image_file>
 ### Email Verification
 
 #### Request Email Verification
+
 ```http
 POST /api/auth/request-email-verification
 Authorization: Bearer <token>
 ```
 
 **Response:**
+
 ```json
 {
   "message": "Verification email sent"
@@ -323,11 +351,13 @@ Authorization: Bearer <token>
 ```
 
 #### Verify Email
+
 ```http
 POST /api/auth/verify-email/{token}
 ```
 
 **Response:**
+
 ```json
 {
   "message": "Email verified successfully"
@@ -337,12 +367,14 @@ POST /api/auth/verify-email/{token}
 ### Session Management
 
 #### Logout
+
 ```http
 POST /api/auth/logout
 Authorization: Bearer <token>
 ```
 
 **Response:**
+
 ```json
 {
   "message": "Logged out successfully"
@@ -350,12 +382,14 @@ Authorization: Bearer <token>
 ```
 
 #### List Active Sessions
+
 ```http
 GET /api/auth/sessions
 Authorization: Bearer <token>
 ```
 
 **Response:**
+
 ```json
 {
   "sessions": [
@@ -371,12 +405,14 @@ Authorization: Bearer <token>
 ```
 
 #### Revoke Session
+
 ```http
 DELETE /api/auth/sessions/{session_id}
 Authorization: Bearer <token>
 ```
 
 **Response:**
+
 ```json
 {
   "message": "Session revoked"
@@ -386,6 +422,7 @@ Authorization: Bearer <token>
 ### Webhook Endpoints
 
 #### Supabase User Sync Webhook
+
 ```http
 POST /api/auth/webhook/user-sync
 X-Webhook-Secret: <webhook_secret>
@@ -408,6 +445,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "message": "User created successfully"
@@ -415,6 +453,7 @@ Content-Type: application/json
 ```
 
 #### Manual User Sync
+
 ```http
 POST /api/auth/sync-user
 X-Webhook-Secret: <webhook_secret>
@@ -435,6 +474,7 @@ Content-Type: application/json
 ## Data Models
 
 ### User Model
+
 ```python
 class User(SQLModel, table=True):
     __tablename__ = "users"
@@ -458,6 +498,7 @@ class User(SQLModel, table=True):
 ```
 
 ### User Types
+
 ```python
 class UserType(str, Enum):
     LANDLORD = "LANDLORD"
@@ -468,25 +509,29 @@ class UserType(str, Enum):
 ## Security
 
 ### Authentication Requirements
+
 - All endpoints require valid JWT token unless specified
 - Tokens are validated against Supabase
 - Tokens expire after 1 hour (configurable)
 - Refresh tokens are handled by frontend
 
 ### Authorization Rules
+
 1. **Users can only access their own data** (except admins)
 2. **Admins have full access** to all user data
 3. **Webhook endpoints** require webhook secret
 4. **Password operations** require current password verification
 
 ### Rate Limiting
+
 - Login attempts: 5 per minute per IP
 - Password reset: 3 per hour per email
 - Registration: 10 per hour per IP
 - API calls: 100 per minute per user
 
 ### Security Headers
-```python
+
+```text
 X-Content-Type-Options: nosniff
 X-Frame-Options: DENY
 X-XSS-Protection: 1; mode=block
@@ -496,6 +541,7 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 ## Error Handling
 
 ### Error Response Format
+
 ```json
 {
   "detail": "Error message",
@@ -505,6 +551,7 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 ```
 
 ### Common Error Codes
+
 | Code | HTTP Status | Description |
 |------|-------------|-------------|
 | `INVALID_CREDENTIALS` | 401 | Invalid email or password |
@@ -519,19 +566,22 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 ## Best Practices
 
 ### Frontend Integration
+
 1. **Store tokens securely** (httpOnly cookies or secure storage)
 2. **Refresh tokens proactively** before expiration
 3. **Handle 401 errors** by redirecting to login
 4. **Validate input** before sending to backend
 
 ### Password Requirements
+
 - Minimum 8 characters
 - At least one uppercase letter
 - At least one lowercase letter
 - At least one number
 - At least one special character
 
-### Session Management
+### Session Management Best Practices
+
 1. **Logout on all devices** when password changes
 2. **Monitor suspicious activity** (multiple locations)
 3. **Implement "Remember Me"** with longer refresh tokens
@@ -544,6 +594,7 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 The authentication module has comprehensive test coverage at multiple levels:
 
 #### Unit Tests
+
 Located in `Backend/tests/unit_tests/auth/test_service.py`
 
 - **Service Layer Tests**: Pure unit tests for AuthService methods
@@ -558,6 +609,7 @@ Located in `Backend/tests/unit_tests/auth/test_service.py`
   - `TestHandleWebhookUserSync`: Tests webhook processing
 
 #### API Tests
+
 Located in `Backend/tests/api_tests/auth/`
 
 - **test_auth_get.py**: Tests for GET endpoints (8 test cases)
@@ -568,6 +620,7 @@ Located in `Backend/tests/api_tests/auth/`
   - Profile update functionality
 
 ### Test User Credentials
+
 ```json
 {
   "email": "test@example.com",
@@ -576,6 +629,7 @@ Located in `Backend/tests/api_tests/auth/`
 ```
 
 ### Testing Authentication
+
 ```python
 # Get test token
 async def get_test_token():
@@ -609,7 +663,9 @@ python -m pytest unit_tests/auth/test_service.py::TestVerifyUserPassword -v
 ## Migration Guide
 
 ### From Old auth.py to New Module
+
 1. Update imports:
+
    ```python
    # Old
    from Backend.api.auth import get_current_user
@@ -631,21 +687,25 @@ python -m pytest unit_tests/auth/test_service.py::TestVerifyUserPassword -v
 ### Common Issues
 
 #### "Invalid authentication credentials"
+
 - Token expired: Refresh token via Supabase
 - Token malformed: Check Authorization header format
 - User not synced: Check webhook logs
 
 #### "User not found in local database"
+
 - JIT provisioning failed: Check database connection
 - Webhook didn't fire: Verify webhook configuration
 - Race condition: Retry request
 
 #### "Password change failed"
+
 - Current password incorrect: Verify with user
 - New password invalid: Check requirements
 - Supabase error: Check Supabase logs
 
 ### Debug Logging
+
 ```python
 import logging
 logging.getLogger("Backend.api.auth").setLevel(logging.DEBUG)
@@ -667,9 +727,10 @@ const authValue = {
 };
 ```
 
-### Key Functions:
+### Key Functions
 
 #### Login Function
+
 ```javascript
 const login = async (email, password) => {
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -686,6 +747,7 @@ const login = async (email, password) => {
 ```
 
 #### Logout Function
+
 ```javascript
 const logout = async () => {
   await supabase.auth.signOut();
@@ -696,12 +758,14 @@ const logout = async () => {
 ```
 
 ### Session Persistence
+
 - JWT token stored in localStorage as "token"
 - User profile cached in localStorage as "user"
 - Session restored on app load via `supabase.auth.getSession()`
 - 10-second timeout prevents infinite loading states
 
 ### Auth State Change Handling
+
 ```javascript
 supabase.auth.onAuthStateChange(async (event, session) => {
   switch(event) {
@@ -724,15 +788,18 @@ supabase.auth.onAuthStateChange(async (event, session) => {
 ### Currently Supported Providers
 
 #### Google OAuth ✅
+
 Google Sign-In is fully implemented through Supabase OAuth integration.
 
 **Frontend Implementation:**
+
 - Component: `GoogleSignInButton.jsx`
 - Used in: `LoginForm.jsx` and `RegisterForm.jsx`
 - Styling: Material Design with proper Google branding
 - Error handling: Shows user-friendly error messages
 
 **Flow:**
+
 1. User clicks "Continue with Google" button
 2. `supabase.auth.signInWithOAuth({ provider: "google" })` called
 3. Redirects to Google consent screen
@@ -742,6 +809,7 @@ Google Sign-In is fully implemented through Supabase OAuth integration.
 7. User redirected to dashboard
 
 **Configuration:**
+
 - Set up in Supabase Dashboard under Authentication → Providers
 - Redirect URLs configured in Supabase
 - No additional backend endpoints required
@@ -750,6 +818,7 @@ Google Sign-In is fully implemented through Supabase OAuth integration.
 ## Future Enhancements
 
 ### Planned Features
+
 1. **Two-Factor Authentication (2FA)**
    - TOTP support
    - SMS verification

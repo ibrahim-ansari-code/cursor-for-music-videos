@@ -7,6 +7,7 @@ This directory contains **pure unit tests** that test individual functions and m
 ## Purpose
 
 Unit tests are designed to:
+
 - Test individual functions and methods in isolation
 - Verify business logic correctness
 - Run extremely fast (milliseconds per test)
@@ -23,7 +24,7 @@ Unit tests are designed to:
 
 ## Test Structure
 
-```
+```text
 unit_tests/
 ├── auth/
 │   ├── __init__.py
@@ -142,6 +143,7 @@ pytest Backend/tests/unit_tests/leases/test_service.py::test_check_lease_permiss
 ## Mocking Guidelines
 
 ### Database Sessions
+
 ```python
 mock_session = AsyncMock()
 mock_session.scalar.return_value = mock_object
@@ -149,12 +151,14 @@ mock_session.execute.return_value.scalars.return_value.all.return_value = [obj1,
 ```
 
 ### External Services
+
 ```python
 mocker.patch("Backend.utils.azure_blob.upload_file", return_value="https://blob.url/file.pdf")
 mocker.patch("Backend.utils.llm_utils.parse_lease", return_value={"rent": 1500})
 ```
 
 ### External Service Exceptions
+
 When mocking exceptions from external services (like Supabase's GoTrueApiError), create proper mock exceptions:
 
 ```python
@@ -175,6 +179,7 @@ mock_auth.resend.side_effect = mock_error
 ```
 
 ### Background Tasks
+
 ```python
 mock_background_tasks = MagicMock()
 # Verify task was added
@@ -184,6 +189,7 @@ assert mock_background_tasks.add_task.called
 ## Common Patterns
 
 ### Testing Validation Errors
+
 ```python
 with pytest.raises(HTTPException) as exc_info:
     await function_under_test(invalid_data)
@@ -192,6 +198,7 @@ assert "validation error" in str(exc_info.value.detail)
 ```
 
 ### Testing Permission Checks
+
 ```python
 # Mock permission check to fail
 mocker.patch("check_permission", side_effect=HTTPException(status_code=403))
@@ -202,6 +209,7 @@ assert exc_info.value.status_code == 403
 ```
 
 ### Testing Database Transactions
+
 ```python
 # Verify rollback on error
 mock_session.rollback = AsyncMock()
@@ -231,4 +239,4 @@ assert "Monthly rent cannot be negative" in str(error["msg"])
 assert "Value error, Monthly rent cannot be negative" in str(error["msg"])
 ```
 
-This change affects all custom validators that raise `ValueError`. The prefix helps distinguish between different types of validation errors (value errors, type errors, etc.). 
+This change affects all custom validators that raise `ValueError`. The prefix helps distinguish between different types of validation errors (value errors, type errors, etc.).

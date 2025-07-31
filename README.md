@@ -6,7 +6,7 @@ Brikli is a property management platform rebuilt from the ground up for clarity,
 
 ## 🗂️ Project Structure
 
-```
+```text
 Brikli-V2/
 ├── Backend/      # FastAPI backend
 └── Frontend/     # React + Vite + Tailwind frontend
@@ -45,7 +45,7 @@ cd Brikli-V2
 
 ### 2. Environment Variables
 
-Create a `.env` file in your root directory and one in your Frontend/ folder. Refer to the #private-keys channel on Slack for the contents of both, and shoot Zubin (zubin.singh@brikli.com) a message for the protected keys.
+Create a `.env` file in your root directory and one in your Frontend/ folder. Refer to the #private-keys channel on Slack for the contents of both, and shoot Zubin (<zubin.singh@brikli.com>) a message for the protected keys.
 
 ### 3. Installing Backend Dependencies and Running Local Backend
 
@@ -65,7 +65,8 @@ PYTHONPATH=.. poetry run uvicorn Backend.api.app:app --reload
 $env:PYTHONPATH=".." ; poetry run uvicorn Backend.api.app:app --reload
 ```
 
-**Important:** 
+**Important:**
+
 - Make sure you have a `.env` file in the `Backend/` directory with your `DATABASE_URL` and other required environment variables
 - The server will start at `http://localhost:8000` with API docs at `http://localhost:8000/docs`
 
@@ -125,16 +126,16 @@ poetry run alembic downgrade -1 # Downgrade one revision
 
 The project follows a `feature -> dev -> main` branching strategy:
 
-1.  **Feature Branches**: All new features and bug fixes are developed in `feature/*` branches.
-2.  **Development Branch (`dev`)**: Completed features are merged into the `dev` branch for consolidation and integration testing.
-3.  **Main Branch (`main`)**: After the `dev` branch is stable, it is merged into `main`, which represents the production-ready state.
+1. **Feature Branches**: All new features and bug fixes are developed in `feature/*` branches.
+2. **Development Branch (`dev`)**: Completed features are merged into the `dev` branch for consolidation and integration testing.
+3. **Main Branch (`main`)**: After the `dev` branch is stable, it is merged into `main`, which represents the production-ready state.
 
 ### Porter Deployment (Backend & Frontend)
 
 Both the frontend and backend are deployed to the same cluster on **Porter**.
 
--   **Production Deployment**: A push to the `main` branch automatically triggers the respective production deployment workflows on Porter for both the frontend and backend.
--   **Preview Environments**: When a Pull Request is opened against the `main` branch, Porter automatically spins up **preview environments** for both the frontend (`brikli-frontend-prod`) and backend (`brikli-backend-prod`). This allows for comprehensive, on-cluster testing of changes before they are merged into production.
+- **Production Deployment**: A push to the `main` branch automatically triggers the respective production deployment workflows on Porter for both the frontend and backend.
+- **Preview Environments**: When a Pull Request is opened against the `main` branch, Porter automatically spins up **preview environments** for both the frontend (`brikli-frontend-prod`) and backend (`brikli-backend-prod`). This allows for comprehensive, on-cluster testing of changes before they are merged into production.
 
 The backend deployment workflow includes a step to copy the root `pyproject.toml` and `poetry.lock` files into the `Backend/` directory to ensure the Docker build has the correct dependencies.
 

@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { AuthContext } from '../contexts/AuthContext';
 import BrandingPanel from '../components/auth/BrandingPanel';
 import LoginForm from '../components/auth/LoginForm';
 
@@ -11,7 +11,7 @@ import LoginForm from '../components/auth/LoginForm';
  */
 const Login = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useContext(AuthContext);
 
   // Redirect if already authenticated
   useEffect(() => {

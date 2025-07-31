@@ -1,9 +1,11 @@
 """
-Shared pytest fixtures for API tests.
+Shared pytest fixtures for Integration tests.
+
+This conftest.py provides specialized fixtures for integration testing.
+Basic Python path setup and environment loading is handled by the parent conftest.py
 """
 
 import inspect
-from dotenv import load_dotenv
 import asyncio
 import os
 import sys
@@ -12,27 +14,10 @@ import pytest
 import httpx
 import json
 from collections.abc import Iterator, AsyncGenerator
-from typing import Any
+from typing import Any, Callable, Coroutine
 import time
-import aiofiles
 import uuid
 from datetime import datetime, timedelta, UTC
-
-# Standard Project Root Setup
-_THIS_SCRIPT_ABSPATH = os.path.abspath(__file__)
-_API_TESTS_DIR = os.path.dirname(_THIS_SCRIPT_ABSPATH)
-_TESTS_DIR = os.path.dirname(_API_TESTS_DIR)
-_BACKEND_DIR = os.path.dirname(_TESTS_DIR)
-PROJECT_ROOT = os.path.dirname(_BACKEND_DIR)
-
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
-
-
-# Load environment variables
-dotenv_path = os.path.join(PROJECT_ROOT, '.env')
-if os.path.exists(dotenv_path):
-    load_dotenv(dotenv_path=dotenv_path)
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +25,7 @@ logger = logging.getLogger(__name__)
 BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 # Import authentication helper
+get_test_jwt: Callable[[bool], Coroutine[Any, Any, str | None]] | None
 try:
     from Backend.tests.integration_tests.test_auth_helper import get_test_jwt
 except ImportError:
@@ -75,7 +61,7 @@ async def shared_auth_token(event_loop) -> str:
     
     Exits pytest if token retrieval fails.
     """
-    from Backend.tests.integration_tests.test_auth_helper import get_primary_user_jwt
+    from Backend.tests.shared_auth_utils import get_primary_user_jwt
     logger.info("SHARED_AUTH_TOKEN FIXTURE: Requesting single JWT for test session...")
     token = await get_primary_user_jwt(prompt_for_password=False) # CI should use env vars
     if not token:
@@ -230,65 +216,24 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.auth)
 
 
-# Helper functions for tests
-def assert_api_success(response: httpx.Response, expected_status: int | tuple[int, ...] = 200):
-    """
-    Asserts that the API response status code matches the expected value or values.
-    
-    Raises an assertion error with a snippet of the response text if the status code does not match.
-    """
-    if isinstance(expected_status, tuple):
-        assert response.status_code in expected_status, (
-            f"Expected status in {expected_status}, got {response.status_code}. "
-            f"Response: {response.text[:500]}"
-        )
-    else:
-        assert response.status_code == expected_status, (
-            f"Expected status {expected_status}, got {response.status_code}. "
-            f"Response: {response.text[:500]}"
-        )
+# Import helper functions from shared module
+from Backend.tests.shared_fixtures import (
+    assert_api_success,
+    assert_api_error,
+    assert_valid_json_response,
+)
 
-
-def assert_api_error(response: httpx.Response, expected_status: int, expected_message: str | None = None):
-    """
-    Asserts that an API response has the expected error status and, optionally, contains a specific error message.
-    
-    Raises an assertion error if the response status code does not match the expected status, or if the expected message is not found in the JSON error content under "detail" or "message". Fails the test if the response body is not valid JSON when an expected message is provided.
-    """
-    assert response.status_code == expected_status, (
-        f"Expected error status {expected_status}, got {response.status_code}. "
-        f"Response: {response.text[:500]}"
-    )
-    if expected_message:
-        try:
-            data = response.json()
-            # Handle cases where error is in {"detail": "message"} or {"message": "message"}
-            error_content = str(data.get("detail", "") or data.get("message", ""))
-            assert expected_message in error_content, \
-                f"Expected message '{expected_message}' not found in response: {error_content}"
-        except json.JSONDecodeError:
-            pytest.fail(f"Expected JSON error response but got non-JSON: {response.text[:500]}")
-
-
-def assert_valid_json_response(response: httpx.Response, expected_type=None, expected_status=200):
-    """
-    Asserts that an HTTP response has the expected status and contains valid JSON.
-    
-    If `expected_type` is provided, also asserts that the parsed JSON matches the specified type. Fails the test if the response is not valid JSON or does not match the expected type.
-    
-    Returns:
-        The parsed JSON data from the response.
-    """
-    assert_api_success(response, expected_status)
-    try:
-        data = response.json()
-        if expected_type:
-            assert isinstance(
-                data, expected_type), f"Expected {expected_type}, got {type(data)}"
-        return data
-    except json.JSONDecodeError as e:
-        pytest.fail(
-            f"Invalid JSON response: {e}. Response text: {response.text[:500]}")
+# Re-export for backward compatibility
+__all__ = [
+    'assert_api_success',
+    'assert_api_error',
+    'assert_valid_json_response',
+    'shared_auth_token',
+    'api_client',
+    'current_user_id',
+    'created_landlord_property',
+    'cleanup_test_data',
+]
 
 
 async def cleanup_test_data(api_client: httpx.AsyncClient):

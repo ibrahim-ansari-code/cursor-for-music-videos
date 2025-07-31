@@ -1,30 +1,28 @@
-import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import GoogleSignInButton from './GoogleSignInButton';
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import GoogleSignInButton from "./GoogleSignInButton";
+import { supabase } from "../../utils/supabaseClient";
 
-/**
- * LoginForm Component
- * Professional login form matching landlord portal design
- * Features: Google Sign-In, form validation, proper error handling
- */
-const LoginForm = ({ onSuccess }) => {
-  const { signIn, error: authError, clearError } = useAuth();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
-  const [error, setError] = useState('');
+const LoginForm = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [resetMessage, setResetMessage] = useState("");
   const [resetError, setResetError] = useState("");
+  const navigate = useNavigate();
+  const { signIn, isAuthenticated } = useAuth();
 
-  // Clear auth error when form data changes
-  React.useEffect(() => {
-    if (authError) clearError();
-  }, [formData, authError, clearError]);
+  // Only redirect if user becomes authenticated via AuthContext
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,13 +30,11 @@ const LoginForm = ({ onSuccess }) => {
     setLoading(true);
 
     try {
-      const { data, error } = await signIn(formData.email, formData.password);
-      
-      if (!error && data && onSuccess) {
-        onSuccess();
-      } else if (error) {
-        setError(error.message || "Login failed. Please check your credentials.");
+      const { data, error } = await signIn(email, password);
+      if (error) {
+        setError(error?.message || "Login failed. Please check your credentials.");
       }
+      // AuthContext will handle the redirect when authentication is successful
     } catch (err) {
       console.error("Login error in LoginForm:", err);
       
@@ -87,9 +83,16 @@ const LoginForm = ({ onSuccess }) => {
     }
 
     try {
-      // TODO: Implement password reset
-      setResetMessage("Password reset email sent! Please check your inbox.");
-      setResetEmail("");
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        setResetError(error.message);
+      } else {
+        setResetMessage("Password reset email sent! Please check your inbox.");
+        setResetEmail("");
+      }
     } catch (err) {
       console.error("Password reset error:", err);
       setResetError("Failed to send reset email. Please try again.");
@@ -147,8 +150,8 @@ const LoginForm = ({ onSuccess }) => {
                 required
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-brand-teal focus:outline-none focus:ring-brand-teal sm:text-sm"
                 placeholder="Email address"
-                value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
@@ -167,12 +170,12 @@ const LoginForm = ({ onSuccess }) => {
                 required
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-brand-teal focus:outline-none focus:ring-brand-teal sm:text-sm"
                 placeholder="Password"
-                value={formData.password}
-                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
 
-            {(error || authError) && (
+            {error && (
               <div className="rounded-md bg-red-50 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
@@ -191,7 +194,7 @@ const LoginForm = ({ onSuccess }) => {
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm text-red-700">{error || authError}</p>
+                    <p className="text-sm text-red-700">{error}</p>
                   </div>
                 </div>
               </div>
@@ -218,13 +221,13 @@ const LoginForm = ({ onSuccess }) => {
             </div>
 
             <div className="text-center text-sm text-gray-600">
-              Having trouble accessing your account?{" "}
-              <a
-                href="mailto:support@brikli.com"
+              Don't have an account?{" "}
+              <Link
+                to="/register"
                 className="font-medium text-brand-teal hover:text-brand-teal/80"
               >
-                Contact your property manager
-              </a>
+                Register
+              </Link>
             </div>
           </form>
         </div>
@@ -232,8 +235,8 @@ const LoginForm = ({ onSuccess }) => {
 
       {/* Forgot Password Modal */}
       {showForgotPassword && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-auto">
+        <div className="fixed inset-0 backdrop-blur-md bg-black/20 flex items-center justify-center p-4 z-50">
+          <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl border border-white/20 max-w-md w-full mx-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h3 className="text-xl font-semibold text-gray-900">

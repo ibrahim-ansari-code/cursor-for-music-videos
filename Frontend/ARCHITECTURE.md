@@ -24,11 +24,13 @@ Located in: `src/components/ui/SharedModalComponents.jsx`
 **Purpose**: Main UI component that provides file upload, parsing feedback, and preview toggle functionality.
 
 **Props**:
+
 - State props: `isParsingReceipt`, `receiptParseError`, `currentReceiptUrl`, `showReceiptPreview`
 - Handler props: `onReceiptFileChange`, `setShowReceiptPreview`
 - Configuration props: `disabled`, `title`, `subtitle`, `acceptedFileTypes`, `className`
 
 **Features**:
+
 - File upload input with validation
 - Loading states with AI parsing feedback
 - Error handling and display
@@ -42,6 +44,7 @@ Located in: `src/components/ui/SharedModalComponents.jsx`
 **Purpose**: Displays receipt previews with support for different file types (PDF, images).
 
 **Security Features**:
+
 - Sandboxed iframes with `allow-same-origin allow-scripts` attributes
 - Safe rendering of different file types
 - Animated show/hide transitions
@@ -53,6 +56,7 @@ Located in: `src/components/ui/SharedModalComponents.jsx`
 **Purpose**: Centralized state management for receipt upload workflows.
 
 **State Management**:
+
 ```javascript
 const receiptState = useReceiptUpload(initialReceiptUrl);
 // Returns:
@@ -62,6 +66,7 @@ const receiptState = useReceiptUpload(initialReceiptUrl);
 ```
 
 **Features**:
+
 - Automatic cleanup of abort controllers
 - Reset functionality for modal reuse
 - Consistent state structure across components
@@ -73,11 +78,13 @@ Located in: `src/components/ui/SharedModalComponents.jsx`
 **Purpose**: Factory function that creates file change handlers for different API endpoints.
 
 **Parameters**:
+
 - `parseReceiptAPI`: API function for parsing receipts
 - `receiptState`: State object from `useReceiptUpload` hook
 - `onDataExtracted`: Callback function for handling extracted data
 
 **Features**:
+
 - Generic API integration
 - Automatic error handling
 - Abort controller management
@@ -174,6 +181,7 @@ import { extractPaymentReceiptData } from '../utils/receiptUtils';
 #### 3. Error Handling
 
 The pattern automatically handles:
+
 - File upload errors
 - API parsing errors
 - Network timeouts

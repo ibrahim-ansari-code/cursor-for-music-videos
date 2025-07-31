@@ -4,7 +4,7 @@ import Sidebar from "./Sidebar";
 import { AuthContext } from "../contexts/AuthContext";
 
 const Layout = () => {
-  const { user, logout } = useContext(AuthContext);
+  const { user, signOut } = useContext(AuthContext);
   const location = useLocation();
 
   // Map routes to page titles
@@ -65,10 +65,12 @@ const Layout = () => {
                       className="h-full w-full object-cover"
                       onError={(e) => {
                         e.target.onerror = null;
-                        console.warn(
-                          "Header avatar failed to load:",
-                          user.profile_image_url
-                        );
+                        if (import.meta.env.MODE === 'development') {
+                          console.warn(
+                            "Header avatar failed to load:",
+                            user.profile_image_url
+                          );
+                        }
                         e.target.style.display = "none";
                       }}
                     />
@@ -90,7 +92,7 @@ const Layout = () => {
               {/* Logout Button */}
               <button
                 className="text-sm text-gray-700 hover:text-red-600 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center"
-                onClick={logout}
+                onClick={signOut}
               >
                 <i className="fas fa-sign-out-alt mr-2"></i> Logout
               </button>

@@ -111,7 +111,7 @@ enabled = true
 # in emails.
 site_url = "https://app.brikli.com"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["http://localhost:5173", "http://localhost:5173/dashboard", "https://app.brikli.com/dashboard", "https://app.brikli.com", "app.brikli.com", "https://brikli-frontend-9329-fea9cc94-fi5aqyws.onporter.run/"]
+additional_redirect_urls = ["http://localhost:5173", "http://localhost:5173/dashboard", "http://localhost:5174", "http://localhost:5174/dashboard", "https://app.brikli.com/dashboard", "https://app.brikli.com", "app.brikli.com", "https://brikli-frontend-9329-fea9cc94-fi5aqyws.onporter.run/"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # If disabled, the refresh token will never expire.
@@ -257,6 +257,13 @@ redirect_uri = ""
 url = ""
 # If enabled, the nonce check will be skipped. Required for local sign in with Google auth.
 skip_nonce_check = false
+
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
+redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"
+skip_nonce_check = true
 
 # Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS, EIP-4361) standard.
 # You can configure "web3" rate limit in the [auth.rate_limit] section and set up [auth.captcha] if self-hosting.

@@ -15,7 +15,7 @@ const LoginForm = () => {
   const [resetMessage, setResetMessage] = useState("");
   const [resetError, setResetError] = useState("");
   const navigate = useNavigate();
-  const { login, session } = useContext(AuthContext);
+  const { signIn, session } = useContext(AuthContext);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -23,9 +23,11 @@ const LoginForm = () => {
         data: { session: currentSession },
       } = await supabase.auth.getSession();
       if (currentSession) {
-        console.log(
-          "User already logged in, redirecting to dashboard from LoginForm"
-        );
+        if (import.meta.env.MODE === 'development') {
+          console.log(
+            "User already logged in, redirecting to dashboard from LoginForm"
+          );
+        }
         navigate("/dashboard", { replace: true });
       }
     };
@@ -42,7 +44,9 @@ const LoginForm = () => {
           navigate("/reset-password");
         }
       } catch (error) {
-        console.error("Auth state change error:", error);
+        if (import.meta.env.MODE === 'development') {
+          console.error("Auth state change error:", error);
+        }
       }
     });
 
@@ -58,14 +62,16 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
-      const success = await login(email, password);
+      const success = await signIn(email, password);
       if (success) {
         navigate("/dashboard", { replace: true });
       } else {
         setError("Login failed. Please check your credentials.");
       }
     } catch (err) {
-      console.error("Login error in LoginForm:", err);
+      if (import.meta.env.MODE === 'development') {
+        console.error("Login error in LoginForm:", err);
+      }
       
       // Handle Supabase-specific error messages
       let errorMessage = "Login failed. Please try again.";
@@ -123,7 +129,9 @@ const LoginForm = () => {
         setResetEmail("");
       }
     } catch (err) {
-      console.error("Password reset error:", err);
+      if (import.meta.env.MODE === 'development') {
+        console.error("Password reset error:", err);
+      }
       setResetError("Failed to send reset email. Please try again.");
     } finally {
       setResetLoading(false);
@@ -264,8 +272,8 @@ const LoginForm = () => {
 
       {/* Forgot Password Modal */}
       {showForgotPassword && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-auto">
+        <div className="fixed inset-0 backdrop-blur-md bg-black/20 flex items-center justify-center p-4 z-50">
+          <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl border border-white/20 max-w-md w-full mx-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h3 className="text-xl font-semibold text-gray-900">

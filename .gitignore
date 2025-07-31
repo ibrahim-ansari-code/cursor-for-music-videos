@@ -8,6 +8,7 @@ __pycache__/
 .vscode/
 .cursor/
 .qodo/
+.claude/
 
 # Distribution / packaging
 .Python
