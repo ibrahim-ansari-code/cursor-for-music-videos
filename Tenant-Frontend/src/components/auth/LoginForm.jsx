@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../hooks/useAuth";
 import GoogleSignInButton from "./GoogleSignInButton";
 import { supabase } from "../../utils/supabaseClient";
 
@@ -30,7 +30,7 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await signIn(email, password);
+      const { error } = await signIn(email, password);
       if (error) {
         setError(error?.message || "Login failed. Please check your credentials.");
       }

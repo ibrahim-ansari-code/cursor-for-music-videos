@@ -1,7 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthProvider';
 import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/Layout';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ResetPassword from './pages/ResetPassword';
@@ -15,61 +17,48 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <Routes>
+        <ErrorBoundary>
+          <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           
-          {/* Protected routes */}
-          <Route path="/dashboard" element={
+          {/* Protected routes with Layout */}
+          <Route path="/" element={
             <ProtectedRoute>
-              <Dashboard />
+              <Layout />
             </ProtectedRoute>
-          } />
-          
-          {/* Placeholder routes - to be implemented */}
-          <Route path="/payments" element={
-            <ProtectedRoute>
-              <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          }>
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="payments" element={
+              <div className="flex items-center justify-center h-64">
                 <h1 className="text-2xl font-bold text-gray-900">Payments - Coming Soon</h1>
               </div>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/documents" element={
-            <ProtectedRoute>
-              <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            } />
+            <Route path="documents" element={
+              <div className="flex items-center justify-center h-64">
                 <h1 className="text-2xl font-bold text-gray-900">Documents - Coming Soon</h1>
               </div>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/maintenance" element={
-            <ProtectedRoute>
-              <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            } />
+            <Route path="maintenance" element={
+              <div className="flex items-center justify-center h-64">
                 <h1 className="text-2xl font-bold text-gray-900">Maintenance - Coming Soon</h1>
               </div>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/notifications" element={
-            <ProtectedRoute>
-              <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            } />
+            <Route path="notifications" element={
+              <div className="flex items-center justify-center h-64">
                 <h1 className="text-2xl font-bold text-gray-900">Notifications - Coming Soon</h1>
               </div>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/settings" element={
-            <ProtectedRoute>
-              <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            } />
+            <Route path="settings" element={
+              <div className="flex items-center justify-center h-64">
                 <h1 className="text-2xl font-bold text-gray-900">Settings - Coming Soon</h1>
               </div>
-            </ProtectedRoute>
-          } />
+            } />
+            {/* Default redirect to dashboard */}
+            <Route index element={<Navigate to="/dashboard" replace />} />
+          </Route>
           
-          {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           
           {/* 404 catch-all */}
           <Route path="*" element={
@@ -83,7 +72,8 @@ function App() {
               </div>
             </div>
           } />
-        </Routes>
+          </Routes>
+        </ErrorBoundary>
       </AuthProvider>
     </Router>
   );

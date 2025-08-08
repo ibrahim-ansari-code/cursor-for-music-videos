@@ -19,8 +19,8 @@ env:
   TESTING: "true"
 
 jobs:
-  test-suite:
-    name: "Test Suite (Unit → API → Coverage)"
+  backend-tests:
+    name: "Backend Tests (Unit → API → Coverage)"
     runs-on: ubuntu-latest
     
     steps:
@@ -147,4 +147,48 @@ jobs:
           name: coverage-reports
           path: |
             Backend/tests/coverage.xml
-            Backend/tests/htmlcov/ 
+            Backend/tests/htmlcov/
+  
+  frontend-tests:
+    name: "Frontend Tests (Tenant Portal)"
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./Tenant-Frontend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: Tenant-Frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: false
+      
+      - name: Run Tests
+        run: npm run test:run
+      
+      - name: Generate Test Coverage
+        run: npm run test:coverage
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-test-results
+          path: |
+            Tenant-Frontend/coverage/
+            Tenant-Frontend/test-results.xml
+      
+      - name: Build Frontend
+        run: npm run build

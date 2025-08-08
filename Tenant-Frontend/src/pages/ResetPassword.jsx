@@ -91,7 +91,7 @@ const ResetPassword = () => {
     checkSession();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setIsValidSession(true);
       } else if (event === "SIGNED_OUT") {
@@ -138,7 +138,7 @@ const ResetPassword = () => {
         return;
       }
 
-      const { data, error } = await supabase.auth.updateUser({
+      const { error } = await supabase.auth.updateUser({
         password: formData.password
       });
 

@@ -1,6 +1,7 @@
 # Brikli-V2 Cursor Rules
 
 ## Tech Stack & Architecture
+
 - Backend: FastAPI + SQLModel + PostgreSQL + Alembic
 - Frontend: React 18 + Vite + Tailwind CSS + React Router v7
 - Database: Supabase PostgreSQL with dual migration system
@@ -11,6 +12,7 @@
 ## Code Patterns & Conventions
 
 ### Backend Patterns
+
 - Use async/await for ALL database operations
 - Follow domain-driven design: each domain has `router.py`, `schemas.py`, `service.py`, `helpers.py`
 - API routes organized by domain: `/api/accounting`, `/api/properties`, etc.
@@ -20,6 +22,7 @@
 - Implement circuit breakers for external service calls
 
 ### Frontend Patterns
+
 - Use shared receipt upload pattern from `Frontend/src/components/ui/SharedModalComponents.jsx`
 - Implement functional setState to avoid stale closures
 - Use domain-specific API modules in `src/utils/api/`
@@ -27,7 +30,9 @@
 - Follow modal pattern with shared components
 
 ### Database Migration Strategy
+
 **CRITICAL: Dual migration system**
+
 - **Alembic migrations** (primary for production): Use for SQLModel changes
   - Generate: `poetry run alembic revision --autogenerate -m "description"`
 - **Supabase migrations** (local dev): Use for RLS policies, functions, triggers
@@ -36,6 +41,7 @@
 - Commit both types of migration files
 
 ## File Structure Rules
+
 - Backend API routes: `Backend/api/[domain]/router.py`
 - Database models: `Backend/models/`
 - Frontend components: `Frontend/src/components/`
@@ -43,6 +49,7 @@
 - API utilities: `Frontend/src/utils/api/`
 
 ## Development Commands
+
 ```bash
 # Backend
 poetry install
@@ -63,32 +70,38 @@ cd Backend/tests && python run_all_api_tests_pytest.py
 ```
 
 ## Testing Requirements
+
 - Backend server must be running at `http://localhost:8000`
 - Valid `.test_credentials.json` file required in `Backend/tests/`
 - Run tests from `Backend/tests` directory
 - Use session-scoped authentication tokens
 
 ## Key Integrations
+
 - Supabase: Auth and user management
 - QuickBooks: Via Apideck for accounting
 - Azure Blob Storage: File storage for receipts
 - OpenAI: AI-powered receipt parsing
 
 ## Environment Setup
+
 - Use local Supabase instance for development
 - Environment files: `.env` (backend) and `Frontend/.env` (frontend)
 - Point to local Supabase: `http://127.0.0.1:54321`
 
 ## Deployment
+
 - Branching: `feature/*` → `dev` → `main`
 - Platform: Porter for both frontend and backend
 - Alembic migrations run automatically in production
 - Commit all migration files to version control
 
 ## Communication & Review Process
+
 **CRITICAL: Always explain before implementing**
 
 Before making ANY code changes or taking actions:
+
 1. **Explain the Plan**: Clearly describe what you intend to implement and why
 2. **Break Down the Steps**: List each specific change you will make, file by file
 3. **Identify Impact**: Explain how these changes affect the existing codebase
@@ -96,6 +109,7 @@ Before making ANY code changes or taking actions:
 5. **No Assumptions**: Never implement code without explicit user confirmation
 
 **Forbidden Actions:**
+
 - Making code changes without prior explanation and approval
 - Implementing "quick fixes" or "small tweaks" without discussion
 - Assuming user intent without clarification
@@ -103,6 +117,7 @@ Before making ANY code changes or taking actions:
 
 **Required Format:**
 When proposing changes, use this structure:
+
 ```
 ## Proposed Implementation
 **What:** [Brief description]

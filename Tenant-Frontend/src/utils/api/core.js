@@ -1,7 +1,10 @@
 // Core API utility functions for tenant portal backend integration
 
 // Sanitize the base URL: strip any trailing slash to avoid duplicate slashes when concatenating
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+// Use a test fallback URL when in test mode
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 
+  (import.meta.env.MODE === 'test' ? 'http://localhost:8000' : "")
+).replace(/\/+$/, "");
 
 if (!API_BASE_URL) {
   throw new Error("CRITICAL: VITE_API_URL environment variable is not defined! Cannot initialize API client.");
@@ -162,7 +165,7 @@ export const apiRequest = async (endpoint, options = {}) => {
 // Authentication API Functions
 // Note: Login is now handled directly by Supabase in AuthContext
 // This function is kept for backward compatibility but is not used
-export const login = async (email, password) => {
+export const login = async () => {
   throw new Error("Login should be handled through Supabase Auth, not the backend API");
 };
 

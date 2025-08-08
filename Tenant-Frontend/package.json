@@ -8,12 +8,19 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest --watch",
     "postinstall": "node -e \"try{require.resolve('@rollup/rollup-win32-x64-msvc')}catch{process.platform==='win32'&&require('child_process').execSync('npm install @rollup/rollup-win32-x64-msvc --no-save',{stdio:'inherit'})}\""
   },
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.0.0",
     "@supabase/supabase-js": "^2.52.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.525.0",
+    "prop-types": "^15.8.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.7.0",
@@ -22,17 +29,23 @@
   "devDependencies": {
     "@eslint/js": "^9.31.0",
     "@tailwindcss/postcss": "^4.1.11",
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "autoprefixer": "^10.4.21",
     "crypto-browserify": "^3.12.1",
     "eslint": "^9.31.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "jsdom": "^26.1.0",
     "postcss": "^8.5.6",
     "stream-browserify": "^3.0.0",
     "tailwindcss": "^4.1.11",
     "util": "^0.12.5",
-    "vite": "^7.0.5"
+    "vite": "^7.0.5",
+    "vitest": "^3.2.4"
   }
 }

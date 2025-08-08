@@ -4,8 +4,9 @@ This guide provides instructions for setting up and running the local PostgreSQL
 
 ## Prerequisites
 
-1.  **Docker Desktop**: Ensure Docker Desktop is installed and running on your machine. You can download it from the [official Docker website](https://www.docker.com/products/docker-desktop/).
-2.  **Supabase CLI**: The Supabase Command Line Interface is required to manage the local development environment. Install it globally via npm:
+1. **Docker Desktop**: Ensure Docker Desktop is installed and running on your machine. You can download it from the [official Docker website](https://www.docker.com/products/docker-desktop/).
+2. **Supabase CLI**: The Supabase Command Line Interface is required to manage the local development environment. Install it globally via npm:
+
     ```bash
     npm install -g supabase
     ```
@@ -16,14 +17,14 @@ This guide provides instructions for setting up and running the local PostgreSQL
 
 This is a one-time setup process for any developer cloning the project for the first time.
 
-1.  **Clone the Repository**:
+1. **Clone the Repository**:
 
     ```bash
     git clone https://github.com/Brikli-Property-Management/Brikli-V2
     cd Brikli-V2
     ```
 
-2.  **Start Supabase Services**:
+2. **Start Supabase Services**:
     This is the core command. It initializes and starts all necessary Docker containers (Postgres, GoTrue Auth, Realtime, Storage, etc.).
 
     ```bash
@@ -36,7 +37,7 @@ This is a one-time setup process for any developer cloning the project for the f
     - Starts the local Supabase stack.
     - **Applies all migrations** located in the `supabase/migrations/` directory. This is crucial as it sets up your local database schema to match the one defined in the repository, including the baseline sync from production.
 
-3.  **Load Test Data** (Recommended):
+3. **Load Test Data** (Recommended):
     After the initial setup, populate your database with comprehensive test data:
 
     ```bash
@@ -45,11 +46,13 @@ This is a one-time setup process for any developer cloning the project for the f
 
     This will apply the schema migrations and load the seed data from `supabase/seed.sql`, giving you a rich dataset for development and testing.
 
-4.  **Verify the Setup**:
+4. **Verify the Setup**:
     After the command finishes, you will see a list of local URLs and keys. You can also verify that all services are running correctly at any time:
+
     ```bash
     supabase status
     ```
+
     You should see all services running with `healthy` status.
 
 ---
@@ -59,6 +62,7 @@ This is a one-time setup process for any developer cloning the project for the f
 The local database comes with extensive seed data that covers all major use cases:
 
 ### **User Management (9 users)**
+
 - **Main test user**: `test.user@brikli.dev` (matches auth system)
 - **Landlords**: John Smith, Sarah Johnson, Mike Williams  
 - **Tenants**: Alice Brown, David Davis, Emma Wilson (with user accounts)
@@ -67,6 +71,7 @@ The local database comes with extensive seed data that covers all major use case
 - **Admin**: Admin User
 
 ### **Property Portfolio (8 properties, 18 units)**
+
 - **Maple Apartments** (Toronto): 24-unit building with 5 sample units
 - **Downtown Condos** (Toronto): Luxury condominiums  
 - **Student Housing Complex** (Toronto): University-area housing
@@ -77,6 +82,7 @@ The local database comes with extensive seed data that covers all major use case
 - **Suburban Duplex** (Brampton): Well-maintained duplex
 
 ### **Financial Data**
+
 - **10 Payments**: Recent, historical, late, and overdue payments with various methods
 - **7 Invoices**: Different statuses (Paid, Overdue, Partial, Pending)
 - **10 Expenses**: Property management costs with HST tax details
@@ -84,6 +90,7 @@ The local database comes with extensive seed data that covers all major use case
 - **2 Historical Leases**: Expired and terminated leases
 
 ### **Operational Data**
+
 - **7 Maintenance Requests**: Various priorities and statuses (Completed, In Progress, Scheduled, Pending)
 - **3 QuickBooks Integrations**: Different connection states (Connected, Disconnected, Error)
 - **3 AI Agent Threads**: Sample conversation history for AI features
@@ -102,10 +109,12 @@ Once the services are running, you can connect to your local PostgreSQL instance
 - **Password**: `postgres`
 - **Database**: `postgres`
 
-You can also access the Supabase Studio dashboard locally at **http://127.0.0.1:54323**.
+You can also access the Supabase Studio dashboard locally at **<http://127.0.0.1:54323>**.
 
 ### **API Access**
+
 The local Supabase API is available at:
+
 - **API URL**: `http://127.0.0.1:54321`
 - **Keys**: Available from `supabase status` command output
   
@@ -130,11 +139,13 @@ Here are the common commands you'll use in your day-to-day development.
   ```
 
 - **Reset with Fresh Data**: This will destroy all data in your local database, re-apply all migrations, and reload the comprehensive seed data:
+
   ```bash
   supabase db reset --local
   ```
 
 - **Reset Without Seed Data**: If you want a clean database without test data:
+
   ```bash
   # Temporarily disable seeding in supabase/config.toml
   # Set enabled = false under [db.seed]
@@ -142,6 +153,7 @@ Here are the common commands you'll use in your day-to-day development.
   ```
 
 - **Apply New Migrations Only**: If you want to apply new migrations without resetting all data:
+
   ```bash
   supabase migration up --local
   ```
@@ -151,7 +163,9 @@ Here are the common commands you'll use in your day-to-day development.
 ## Development Tips
 
 ### **Testing with Realistic Data**
+
 The seed data provides realistic scenarios for testing:
+
 - **Multi-tenant testing**: Different landlords with their own properties
 - **Payment scenarios**: Various payment methods, statuses, and timing
 - **Maintenance workflows**: Requests at different stages
@@ -159,7 +173,9 @@ The seed data provides realistic scenarios for testing:
 - **User permissions**: Different user types and access levels
 
 ### **API Testing**
+
 Use the seeded data for API testing:
+
 ```bash
 # Test user authentication with seeded users
 # Test property queries with realistic property data  
@@ -168,7 +184,9 @@ Use the seeded data for API testing:
 ```
 
 ### **Database Queries**
+
 Common queries for development:
+
 ```sql
 -- Check all users and their types
 SELECT email, first_name, last_name, user_type FROM users;
@@ -202,6 +220,7 @@ Use Alembic when you're making changes to **SQLModel classes** in the `Backend/m
 - **Modifying relationships** between models (e.g., adding a ForeignKey)
 
 **Examples of SQLModel changes:**
+
 ```python
 # Adding a new field to an existing model
 class Property(SQLModel, table=True):
@@ -216,6 +235,7 @@ class Vendor(SQLModel, table=True):  # ← Use Alembic
 ```
 
 **Alembic Workflow:**
+
 ```bash
 # 1. Make changes to SQLModel classes in Backend/models/
 # 2. Generate migration
@@ -239,6 +259,7 @@ Use Supabase migrations for **database-specific features** that aren't represent
 - **Direct SQL operations** for data migrations or cleanups
 
 **Examples of database-specific changes:**
+
 ```sql
 -- RLS policy (use Supabase migration)
 CREATE POLICY "Users can only view their own properties"
@@ -260,6 +281,7 @@ ON expenses USING gin (description gin_trgm_ops);
 ```
 
 **Supabase Migration Workflow:**
+
 ```bash
 # 1. Create new migration file
 supabase migration new add_property_search_index
@@ -303,6 +325,7 @@ The following settings are enabled for local development:
 ### **Production Deployment Risk**
 
 **DO NOT deploy this configuration to production as it will:**
+
 - ❌ Apply unintended schema migrations automatically
 - ❌ Overwrite production data with test data
 - ❌ Reset your production database
@@ -310,6 +333,7 @@ The following settings are enabled for local development:
 ### **Environment-Specific Configuration**
 
 For production deployments, ensure:
+
 - `[db.migrations] enabled = false`
 - `[db.seed] enabled = false`
 - Use environment-specific configuration management
@@ -317,12 +341,14 @@ For production deployments, ensure:
 ### **CRITICAL: Production Safety Rules**
 
 ⚠️ **PRIMARY RULE: Never link local development to production**
+
 ```bash
 # ❌ NEVER DO THIS with production project ID
 supabase link --project-ref YOUR_PROD_PROJECT_ID
 ```
 
 ⚠️ **If you must work with production (use CI/CD instead):**
+
 ```bash
 # 1. Always check what you're linked to
 supabase status
@@ -336,6 +362,7 @@ supabase db reset        # ❌ Will destroy production data
 ```
 
 **Production deployments should use:**
+
 - 🏗️ **CI/CD pipelines** (GitHub Actions, not local commands)
 - 🔒 **Separate environments** (dev, staging, prod projects)
 - 📋 **Code reviews** for all migration changes
