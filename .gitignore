@@ -7,6 +7,7 @@ __pycache__/
 *.so
 .vscode/
 .cursor/
+.claude/
 .qodo/
 .claude/
 

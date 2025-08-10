@@ -8,6 +8,8 @@ import {
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./styles/ui-feedback.css";
+import { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 // Auth
 import { AuthProvider } from "./contexts/AuthProvider";
@@ -15,7 +17,7 @@ import { AuthContext } from "./contexts/AuthContext";
 
 // Components
 import Layout from "./components/Layout";
-import Dashboard from "./components/Dashboard";
+import Dashboard from "./pages/Dashboard";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ResetPassword from "./pages/ResetPassword";
@@ -102,10 +104,12 @@ const AppRoutes = () => {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <ToastContainer position="top-right" autoClose={5000} />
-        <AppRoutes />
-      </AuthProvider>
+      <SkeletonTheme baseColor="#e5e7eb" highlightColor="#f3f4f6">
+        <AuthProvider>
+          <ToastContainer position="top-right" autoClose={5000} />
+          <AppRoutes />
+        </AuthProvider>
+      </SkeletonTheme>
     </Router>
   );
 }

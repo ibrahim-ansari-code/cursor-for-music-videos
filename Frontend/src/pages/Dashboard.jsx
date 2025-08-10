@@ -1,0 +1,209 @@
+import React, { useEffect, useState } from "react";
+import ControlsBar from "../components/dashboard/ControlsBar";
+import FinancialSummary from "../components/dashboard/FinancialSummary";
+import DuePanel from "../components/dashboard/DuePanel";
+import PortfolioOverview from "../components/dashboard/PortfolioOverview";
+import RevenueTrendsCard from "../components/dashboard/RevenueTrendsCard";
+import { fetchDashboardData } from "../utils/api/index.js";
+import usePreviousPeriodData from "../hooks/usePreviousPeriodData";
+import { getPresetRange, toIsoDate } from "../utils/dateRanges";
+import { getAvatarColor, getInitials, percentChange, computeDelta, humanizePeriodLabel } from "../utils/formatters";
+import useProperties from "../hooks/useProperties";
+import useDashboardData from "../hooks/useDashboardData";
+import useRentTracker from "../hooks/useRentTracker";
+import useTenantsCount from "../hooks/useTenantsCount";
+import useDueInvoices from "../hooks/useDueInvoices";
+
+const DashboardPage = () => {
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [prevPeriodData, setPrevPeriodData] = useState(null);
+  const [rentData, setRentData] = useState([]);
+  const [rentLoading, setRentLoading] = useState(true);
+  const [selectedProperty, setSelectedProperty] = useState("all");
+  const [timePeriod, setTimePeriod] = useState("this_month");
+  const [customRange, setCustomRange] = useState(null); // { start: 'YYYY-MM-DD', end: 'YYYY-MM-DD' }
+  const { options: propertyOptions } = useProperties();
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState("rent");
+  const [tenantCount, setTenantCount] = useState(0);
+  const [tenantsLoading, setTenantsLoading] = useState(true);
+
+  // Hook-powered data
+  // Compute final start/end based on timePeriod or custom
+  const computeActiveRange = () => {
+    if (timePeriod === "custom" && customRange?.start && customRange?.end) {
+      return { start: customRange.start, end: customRange.end };
+    }
+    const { start, end } = getPresetRange(timePeriod);
+    return { start: toIsoDate(start), end: toIsoDate(end) };
+  };
+
+  const activeRange = computeActiveRange();
+
+  const {
+    data: hookDashboardData,
+    loading: hookDashboardLoading,
+    error: hookDashboardError,
+  } = useDashboardData({
+    propertyId: selectedProperty !== "all" ? selectedProperty : undefined,
+    timePeriod,
+    startDate: activeRange.start,
+    endDate: activeRange.end,
+  });
+
+  const now = new Date();
+  const { data: hookRentData, loading: hookRentLoading } = useRentTracker({
+    month: now.getMonth() + 1,
+    year: now.getFullYear(),
+    propertyId: selectedProperty !== "all" ? selectedProperty : undefined,
+  });
+
+  const {
+    count: hookTenantCount,
+    loading: hookTenantsLoading,
+  } = useTenantsCount(
+    selectedProperty,
+    hookDashboardData?.occupancy?.occupied_units || 0
+  );
+
+  // previous period via hook (keeps current server behavior)
+  const { data: hookPrevData } = usePreviousPeriodData({
+    propertyId: selectedProperty !== "all" ? selectedProperty : undefined,
+    timePeriod,
+    currentRange: activeRange,
+  });
+
+  // Due invoices (pending/overdue) scoped to property and period
+  const { data: dueInvoices, loading: dueInvoicesLoading } = useDueInvoices({
+    propertyId: selectedProperty !== "all" ? selectedProperty : undefined,
+    startDate: activeRange.start,
+    endDate: activeRange.end,
+    limit: 5,
+  });
+
+  // Sync hook tenant count to local state
+  useEffect(() => {
+    setTenantsLoading(hookTenantsLoading);
+    setTenantCount(hookTenantCount);
+  }, [hookTenantCount, hookTenantsLoading]);
+
+  // Sync hook dashboard + rent data into legacy state, and fetch previous period
+  useEffect(() => {
+    setLoading(hookDashboardLoading);
+    if (hookDashboardData) setDashboardData(hookDashboardData);
+    if (hookDashboardError) setError(hookDashboardError.message || String(hookDashboardError));
+
+    setRentLoading(hookRentLoading);
+    if (hookRentData) setRentData(hookRentData);
+
+    // Update previous period data from hook
+    if (hookPrevData) setPrevPeriodData(hookPrevData);
+  }, [selectedProperty, timePeriod, hookDashboardLoading, hookDashboardData, hookDashboardError, hookRentLoading, hookRentData, hookPrevData]);
+
+  const getRevenueChange = () => {
+    if (!dashboardData?.summary || !prevPeriodData?.summary) return 0;
+    return percentChange(
+      dashboardData.summary.monthly_revenue,
+      prevPeriodData.summary.monthly_revenue
+    );
+  };
+
+  const getMaintenanceChange = () => {
+    if (!dashboardData?.summary || !prevPeriodData?.summary) return 0;
+    return percentChange(
+      dashboardData.summary.maintenance_expenses,
+      prevPeriodData.summary.maintenance_expenses
+    );
+  };
+
+  const getTenantInitials = getInitials;
+
+  // With component-level skeletons, never block on page-level loading
+
+  if (error) {
+    return (
+      <div className="p-4">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
+          <button onClick={() => window.location.reload()} className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm">
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const revenueChange = getRevenueChange();
+  const maintenanceChange = getMaintenanceChange();
+
+  // Compute rich deltas for modern chips
+  const revenueDelta = computeDelta({
+    current: dashboardData?.summary?.monthly_revenue,
+    previous: prevPeriodData?.summary?.monthly_revenue,
+  });
+  const expensesDelta = computeDelta({
+    current: dashboardData?.summary?.monthly_expenses,
+    previous: prevPeriodData?.summary?.monthly_expenses,
+  });
+  const maintenanceDelta = computeDelta({
+    current: dashboardData?.summary?.maintenance_expenses,
+    previous: prevPeriodData?.summary?.maintenance_expenses,
+  });
+  const periodLabel = humanizePeriodLabel(timePeriod, activeRange);
+
+  return (
+    <div className="space-y-6">
+      <ControlsBar
+        properties={propertyOptions}
+        selectedProperty={selectedProperty}
+        onChangeProperty={setSelectedProperty}
+        timePeriod={timePeriod}
+        onChangeTimePeriod={setTimePeriod}
+        onCustomize={() => {}}
+        isLoading={loading}
+        onSetCustomRange={setCustomRange}
+        currentRange={activeRange}
+      />
+
+      <FinancialSummary
+        summary={dashboardData?.summary}
+        timePeriod={timePeriod}
+        periodLabel={periodLabel}
+        revenueChange={revenueChange}
+        maintenanceChange={maintenanceChange}
+        revenueDelta={revenueDelta}
+        expensesDelta={expensesDelta}
+        maintenanceDelta={maintenanceDelta}
+        isLoading={loading}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DuePanel
+          activeTab={activeTab}
+          onChangeTab={setActiveTab}
+          rentLoading={rentLoading}
+          rentData={rentData}
+          getAvatarColor={getAvatarColor}
+          getTenantInitials={getTenantInitials}
+          isLoading={loading}
+          invoicesLoading={dueInvoicesLoading}
+          invoicesData={dueInvoices}
+        />
+
+        <PortfolioOverview
+          summary={dashboardData?.summary}
+          occupancy={dashboardData?.occupancy}
+          tenantCount={tenantCount}
+          tenantsLoading={tenantsLoading}
+          isLoading={loading}
+        />
+      </div>
+
+      <RevenueTrendsCard data={dashboardData?.revenue} isLoading={loading} />
+    </div>
+  );
+};
+
+export default DashboardPage;

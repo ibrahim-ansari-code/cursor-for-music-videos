@@ -15,7 +15,11 @@ body {
 
 /* Dashboard Card Styles */
 .dashboard-card {
-  @apply bg-white rounded-lg shadow-sm p-5 border border-gray-100;
+  @apply bg-white rounded-lg shadow-sm p-5 border border-gray-100 transition-shadow duration-200;
+}
+
+.dashboard-card:hover {
+  @apply shadow-md;
 }
 
 /* AI Agent Message Styles */
