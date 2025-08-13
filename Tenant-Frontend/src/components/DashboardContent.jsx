@@ -3,6 +3,14 @@ import PropTypes from 'prop-types';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { DashboardSkeleton } from './ui/LoadingSkeleton';
+import { 
+  FaHome, 
+  FaCreditCard, 
+  FaCalendar, 
+  FaWrench, 
+  FaChevronRight, 
+  FaFileSignature 
+} from 'react-icons/fa';
 
 /**
  * DashboardContent Component
@@ -42,12 +50,12 @@ const DashboardContent = React.memo(() => {
             status === 'paid' ? "bg-brand-teal/10" :
             "bg-gray-100"
           }`}>
-            <i className={`fas ${icon} text-lg ${
+            <icon.component className={`text-lg ${
               status === 'active' ? "text-green-600" : 
               status === 'warning' ? "text-yellow-600" : 
               status === 'paid' ? "text-brand-teal" :
               "text-gray-600"
-            }`}></i>
+            }`} />
           </div>
         )}
       </div>
@@ -57,7 +65,7 @@ const DashboardContent = React.memo(() => {
           className="mt-4 text-sm font-medium text-brand-teal hover:text-brand-green transition-colors flex items-center"
         >
           {action.label}
-          <i className="fas fa-chevron-right ml-1"></i>
+          <FaChevronRight className="ml-1" />
         </button>
       )}
     </div>
@@ -67,7 +75,9 @@ const DashboardContent = React.memo(() => {
     title: PropTypes.string.isRequired,
     value: PropTypes.string.isRequired,
     subtitle: PropTypes.string,
-    icon: PropTypes.string,
+    icon: PropTypes.shape({
+      component: PropTypes.elementType.isRequired
+    }),
     status: PropTypes.oneOf(['active', 'warning', 'paid']),
     action: PropTypes.shape({
       label: PropTypes.string.isRequired,
@@ -99,7 +109,7 @@ const DashboardContent = React.memo(() => {
           title="My Unit"
           value="Loading..."
           subtitle="Unit information will be loaded"
-          icon="fa-home"
+          icon={{ component: FaHome }}
           action={{
             label: "View Lease",
             onClick: () => navigate('/documents')
@@ -110,7 +120,7 @@ const DashboardContent = React.memo(() => {
           title="Monthly Rent"
           value="Loading..."
           subtitle="Rent information will be loaded"
-          icon="fa-credit-card"
+          icon={{ component: FaCreditCard }}
           action={{
             label: "Pay Now",
             onClick: () => navigate('/payments')
@@ -121,14 +131,14 @@ const DashboardContent = React.memo(() => {
           title="Next Payment"
           value="Loading..."
           subtitle="Payment information will be loaded"
-          icon="fa-calendar"
+          icon={{ component: FaCalendar }}
         />
         
         <InfoCard
           title="Maintenance Requests"
           value="Loading..."
           subtitle="Maintenance data will be loaded"
-          icon="fa-wrench"
+          icon={{ component: FaWrench }}
           action={{
             label: "New Request",
             onClick: () => navigate('/maintenance')
@@ -163,13 +173,13 @@ const DashboardContent = React.memo(() => {
         >
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <i className="fas fa-credit-card text-2xl text-brand-teal"></i>
+              <FaCreditCard className="text-2xl text-brand-teal" />
             </div>
             <div className="ml-4">
               <h3 className="text-lg font-medium text-gray-900">Make a Payment</h3>
               <p className="mt-1 text-sm text-gray-500">Pay rent or other charges</p>
             </div>
-            <i className="fas fa-chevron-right ml-auto text-gray-400 group-hover:text-gray-600"></i>
+            <FaChevronRight className="ml-auto text-gray-400 group-hover:text-gray-600" />
           </div>
         </button>
 
@@ -179,13 +189,13 @@ const DashboardContent = React.memo(() => {
         >
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <i className="fas fa-wrench text-2xl text-brand-teal"></i>
+              <FaWrench className="text-2xl text-brand-teal" />
             </div>
             <div className="ml-4">
               <h3 className="text-lg font-medium text-gray-900">Request Maintenance</h3>
               <p className="mt-1 text-sm text-gray-500">Submit a new maintenance request</p>
             </div>
-            <i className="fas fa-chevron-right ml-auto text-gray-400 group-hover:text-gray-600"></i>
+            <FaChevronRight className="ml-auto text-gray-400 group-hover:text-gray-600" />
           </div>
         </button>
 
@@ -195,13 +205,13 @@ const DashboardContent = React.memo(() => {
         >
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <i className="fas fa-file-signature text-2xl text-brand-teal"></i>
+              <FaFileSignature className="text-2xl text-brand-teal" />
             </div>
             <div className="ml-4">
               <h3 className="text-lg font-medium text-gray-900">View Documents</h3>
               <p className="mt-1 text-sm text-gray-500">Access lease and other documents</p>
             </div>
-            <i className="fas fa-chevron-right ml-auto text-gray-400 group-hover:text-gray-600"></i>
+            <FaChevronRight className="ml-auto text-gray-400 group-hover:text-gray-600" />
           </div>
         </button>
       </div>

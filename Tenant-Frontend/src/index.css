@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "@fortawesome/fontawesome-free/css/all.min.css";
 
 /* Define custom brand colors for Tailwind v4 - matching Landlord Portal */
 @theme {

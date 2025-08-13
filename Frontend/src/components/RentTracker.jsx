@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { fetchRentTracker } from "../utils/api";
-import LoadingSpinner from "./LoadingSpinner";
+import { RentTrackerSkeleton } from "./ui/skeletons";
 
 const RentTracker = ({ onDataLoaded }) => {
   const [loading, setLoading] = useState(true);
@@ -92,7 +92,7 @@ const RentTracker = ({ onDataLoaded }) => {
   });
 
   if (loading) {
-    return <LoadingSpinner message="Loading rent tracker..." />;
+    return <RentTrackerSkeleton rowCount={6} />;
   }
 
   return (

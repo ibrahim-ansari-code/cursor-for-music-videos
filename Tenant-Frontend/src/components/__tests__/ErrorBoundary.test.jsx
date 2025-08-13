@@ -51,7 +51,7 @@ describe('ErrorBoundary Component', () => {
       </ErrorBoundary>
     );
     
-    const errorIcon = document.querySelector('.fa-exclamation-triangle');
+    const errorIcon = document.querySelector('svg');
     expect(errorIcon).toBeInTheDocument();
     expect(errorIcon).toHaveClass('text-4xl', 'text-red-500');
   });

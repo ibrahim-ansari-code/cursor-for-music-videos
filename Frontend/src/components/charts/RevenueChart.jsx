@@ -11,6 +11,7 @@ import {
   Cell,
   ReferenceLine,
 } from "recharts";
+import { ChartSkeleton } from "../ui/skeletons";
 
 const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will appear here once available", isLoading = false }) => {
   // Generate unique IDs for this chart instance
@@ -67,32 +68,7 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
 
   // Show loading skeleton
   if (isLoading) {
-    return (
-      <div className="animate-pulse h-[300px]">
-        <div className="flex items-end justify-between h-full pb-8">
-          {/* Skeleton bars */}
-          {[...Array(6)].map((_, index) => (
-            <div key={index} className="flex flex-col items-center space-y-2 flex-1 mx-1">
-              <div 
-                className="w-full bg-gray-200 rounded-t"
-                style={{ height: `${Math.random() * 60 + 20}%` }}
-              />
-              <div className="h-4 w-12 bg-gray-200 rounded" />
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-center mt-4 space-x-6">
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-gray-200 rounded" />
-            <div className="h-3 w-16 bg-gray-200 rounded" />
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-gray-200 rounded" />
-            <div className="h-3 w-16 bg-gray-200 rounded" />
-          </div>
-        </div>
-      </div>
-    );
+    return <ChartSkeleton height="300px" />;
   }
 
   // Show improved empty state

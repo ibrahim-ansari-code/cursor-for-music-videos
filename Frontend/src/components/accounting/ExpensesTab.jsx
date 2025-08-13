@@ -7,7 +7,7 @@ import {
 import { toast } from "react-toastify";
 import NewExpenseModal from "./modals/NewExpenseModal";
 import EditExpenseModal from "./modals/EditExpenseModal";
-import LoadingSpinner from "../LoadingSpinner";
+import { ExpensesTableSkeleton } from "../ui/skeletons";
 import { useAccounting } from "./AccountingContext";
 import { getDateRangeParams } from "../../utils/dateHelpers";
 
@@ -22,17 +22,7 @@ const expenseTableColumns = [
   { key: "actions", label: "Actions", align: "center" },
 ];
 
-// Reusable loading spinner row for tables
-const LoadingRow = ({ colSpan, loadingText }) => (
-  <tr>
-    <td
-      colSpan={colSpan}
-      className="px-6 py-12 text-center text-sm text-gray-500"
-    >
-      <LoadingSpinner message={loadingText} size="medium" center={false} />
-    </td>
-  </tr>
-);
+
 
 const ExpensesTab = () => {
   const {
@@ -201,6 +191,10 @@ const ExpensesTab = () => {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
+  if (loading) {
+    return <ExpensesTableSkeleton rowCount={8} />;
+  }
+
   return (
     <div>
       {error && (
@@ -334,12 +328,7 @@ const ExpensesTab = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <LoadingRow
-                  colSpan={expenseTableColumns.length}
-                  loadingText="Loading expenses..."
-                />
-              ) : expenses.length > 0 ? (
+              {expenses.length > 0 ? (
                 expenses.map((expense) => (
                   <tr key={expense.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-left">

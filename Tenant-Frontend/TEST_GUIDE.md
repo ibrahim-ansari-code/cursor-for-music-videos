@@ -5,6 +5,7 @@ This document provides comprehensive information about the testing infrastructur
 ## Test Infrastructure
 
 ### Framework Stack
+
 - **Test Runner**: Vitest 3.x
 - **Testing Library**: React Testing Library 16.x
 - **Environment**: jsdom for DOM simulation
@@ -12,6 +13,7 @@ This document provides comprehensive information about the testing infrastructur
 - **Coverage**: c8 coverage provider
 
 ### Configuration
+
 - **Config File**: `vitest.config.js`
 - **Setup File**: `src/test/setup.jsx`
 - **Test Utils**: `src/test/utils.jsx`
@@ -19,6 +21,7 @@ This document provides comprehensive information about the testing infrastructur
 ## Running Tests
 
 ### Commands
+
 ```bash
 # Run all tests once
 npm run test:run
@@ -40,6 +43,7 @@ npm run test:run -- --reporter=verbose
 ```
 
 ### Test Scripts
+
 - `npm test` - Interactive test mode
 - `npm run test:run` - Single test run with results
 - `npm run test:watch` - Watch mode for development
@@ -49,7 +53,8 @@ npm run test:run -- --reporter=verbose
 ## Test Structure
 
 ### Directory Organization
-```
+
+```text
 src/
 ├── components/
 │   └── __tests__/          # Component tests
@@ -66,6 +71,7 @@ src/
 ```
 
 ### Naming Conventions
+
 - Test files: `ComponentName.test.jsx`
 - Test directories: `__tests__/`
 - Mock files: `__mocks__/`
@@ -74,9 +80,11 @@ src/
 ## Test Categories
 
 ### 1. Component Tests
+
 **Location**: `src/components/__tests__/`
 
 **Coverage**:
+
 - Rendering behavior
 - User interactions
 - Props handling
@@ -84,6 +92,7 @@ src/
 - Event handling
 
 **Example**:
+
 ```javascript
 import { renderWithProviders, mockAuthContext } from '../../test/utils';
 import ComponentName from '../ComponentName';
@@ -97,16 +106,20 @@ describe('ComponentName', () => {
 ```
 
 ### 2. Context Tests
+
 **Location**: `src/contexts/__tests__/`
 
 **Coverage**:
+
 - State management
 - Provider functionality
 - Hook behavior
 - Error handling
 
 ### 3. Integration Tests
+
 **Coverage**:
+
 - Component interactions
 - Route navigation
 - API integration
@@ -115,6 +128,7 @@ describe('ComponentName', () => {
 ## Testing Utilities
 
 ### Custom Render Function
+
 ```javascript
 import { renderWithProviders } from '../test/utils';
 
@@ -126,6 +140,7 @@ renderWithProviders(<Component />, {
 ```
 
 ### Mock Data
+
 ```javascript
 import { 
   mockUser, 
@@ -138,6 +153,7 @@ const customUser = createMockUser({ first_name: 'Alice' });
 ```
 
 ### API Mocking
+
 ```javascript
 import { mockFetch, mockApiResponse } from '../test/utils';
 
@@ -148,6 +164,7 @@ mockFetch({ data: 'response' }, 200);
 ## Mocking Strategy
 
 ### 1. Supabase Auth
+
 ```javascript
 vi.mock('../../utils/supabaseClient', () => ({
   supabase: {
@@ -161,6 +178,7 @@ vi.mock('../../utils/supabaseClient', () => ({
 ```
 
 ### 2. React Router
+
 ```javascript
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -173,6 +191,7 @@ vi.mock('react-router-dom', async () => {
 ```
 
 ### 3. API Calls
+
 ```javascript
 vi.mock('../../utils/api/auth', () => ({
   getCurrentUser: vi.fn()
@@ -182,12 +201,14 @@ vi.mock('../../utils/api/auth', () => ({
 ## Testing Best Practices
 
 ### 1. Test Organization
+
 - Group related tests in `describe` blocks
 - Use descriptive test names
 - Follow AAA pattern (Arrange, Act, Assert)
 - Clean up after each test
 
 ### 2. User-Centric Testing
+
 ```javascript
 // Good: Test user behavior
 fireEvent.click(screen.getByRole('button', { name: 'Login' }));
@@ -198,6 +219,7 @@ expect(component.state.isLoggedIn).toBe(true);
 ```
 
 ### 3. Async Testing
+
 ```javascript
 // Use waitFor for async operations
 await waitFor(() => {
@@ -211,6 +233,7 @@ await act(async () => {
 ```
 
 ### 4. Error Testing
+
 ```javascript
 // Test error boundaries
 render(
@@ -224,6 +247,7 @@ expect(screen.getByText('Something went wrong')).toBeInTheDocument();
 ## Coverage Targets
 
 ### Current Coverage
+
 - **Test Files**: 5/5 (100%)
 - **Test Cases**: 56/56 passing (100%)
 - **Components**: All major components covered
@@ -231,6 +255,7 @@ expect(screen.getByText('Something went wrong')).toBeInTheDocument();
 - **Error Handling**: Error boundaries tested
 
 ### Coverage Goals
+
 - **Line Coverage**: >80%
 - **Branch Coverage**: >75%
 - **Function Coverage**: >85%
@@ -239,6 +264,7 @@ expect(screen.getByText('Something went wrong')).toBeInTheDocument();
 ## Common Testing Patterns
 
 ### 1. Component Rendering
+
 ```javascript
 it('renders component with props', () => {
   renderWithProviders(
@@ -249,6 +275,7 @@ it('renders component with props', () => {
 ```
 
 ### 2. User Interactions
+
 ```javascript
 it('handles button click', () => {
   const mockFn = vi.fn();
@@ -260,6 +287,7 @@ it('handles button click', () => {
 ```
 
 ### 3. Form Testing
+
 ```javascript
 it('submits form with valid data', async () => {
   renderWithProviders(<Form onSubmit={mockSubmit} />);
@@ -279,6 +307,7 @@ it('submits form with valid data', async () => {
 ```
 
 ### 4. Navigation Testing
+
 ```javascript
 it('navigates to correct route', () => {
   const mockNavigate = vi.fn();
@@ -292,6 +321,7 @@ it('navigates to correct route', () => {
 ```
 
 ### 5. Loading States
+
 ```javascript
 it('shows loading spinner', () => {
   renderWithProviders(<Component />, {
@@ -305,6 +335,7 @@ it('shows loading spinner', () => {
 ## Debugging Tests
 
 ### 1. Debug Rendering
+
 ```javascript
 import { screen } from '@testing-library/react';
 
@@ -316,6 +347,7 @@ screen.debug(screen.getByTestId('my-element'));
 ```
 
 ### 2. Query Debugging
+
 ```javascript
 // See available queries
 screen.logTestingPlaygroundURL();
@@ -325,6 +357,7 @@ screen.getByRole(); // Will show available roles in error message
 ```
 
 ### 3. Test Isolation
+
 ```javascript
 beforeEach(() => {
   vi.clearAllMocks();
@@ -336,6 +369,7 @@ beforeEach(() => {
 ## Continuous Integration
 
 ### Test Pipeline
+
 1. **Install Dependencies**: `npm ci`
 2. **Run Linting**: `npm run lint`
 3. **Run Tests**: `npm run test:run`
@@ -343,6 +377,7 @@ beforeEach(() => {
 5. **Build Application**: `npm run build`
 
 ### Quality Gates
+
 - All tests must pass
 - No linting errors
 - Coverage thresholds met
@@ -353,6 +388,7 @@ beforeEach(() => {
 ### Common Issues
 
 1. **Mock Not Working**
+
    ```javascript
    // Ensure mock is hoisted
    vi.mock('./module', () => ({
@@ -361,6 +397,7 @@ beforeEach(() => {
    ```
 
 2. **Async Test Failures**
+
    ```javascript
    // Wrap in act for state updates
    await act(async () => {
@@ -369,18 +406,21 @@ beforeEach(() => {
    ```
 
 3. **Component Not Found**
+
    ```javascript
    // Check if component is wrapped in providers
    renderWithProviders(<Component />);
    ```
 
 4. **Environment Issues**
+
    ```javascript
    // Ensure jsdom environment
    // @vitest-environment jsdom
    ```
 
 ### Debug Commands
+
 ```bash
 # Run with verbose output
 npm run test:run -- --reporter=verbose
@@ -414,6 +454,7 @@ npm run test:watch
 ---
 
 For more information, see:
+
 - [Vitest Documentation](https://vitest.dev/)
 - [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
 - [Jest DOM Matchers](https://github.com/testing-library/jest-dom)

@@ -9,7 +9,7 @@ import {
 import { toast } from "react-toastify";
 import NewInvoiceModal from "../NewInvoiceModal";
 import EditInvoiceModal from "../EditInvoiceModal";
-import LoadingSpinner from "../LoadingSpinner";
+import { InvoicesTableSkeleton } from "../ui/skeletons";
 import { useAccounting } from "./AccountingContext";
 import { INVOICE_STATUSES } from "../../utils/constants";
 
@@ -24,17 +24,7 @@ const invoiceTableColumns = [
   { key: "actions", label: "Actions", align: "center" },
 ];
 
-// Reusable loading spinner row for tables
-const LoadingRow = ({ colSpan, loadingText }) => (
-  <tr>
-    <td
-      colSpan={colSpan}
-      className="px-6 py-12 text-center text-sm text-gray-500"
-    >
-      <LoadingSpinner message={loadingText} size="medium" center={false} />
-    </td>
-  </tr>
-);
+
 
 const InvoicesTab = () => {
   const {
@@ -291,6 +281,10 @@ const InvoicesTab = () => {
     });
   }, [tenants, invoiceFilters.property_id]);
 
+  if (loading) {
+    return <InvoicesTableSkeleton rowCount={8} />;
+  }
+
   return (
     <div>
       {error && (
@@ -484,9 +478,7 @@ const InvoicesTab = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <LoadingRow colSpan={invoiceTableColumns.length} loadingText="Loading invoices..." />
-              ) : invoices.length > 0 ? (
+              {invoices.length > 0 ? (
                 invoices.map((invoice) => (
                   <tr key={invoice.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">

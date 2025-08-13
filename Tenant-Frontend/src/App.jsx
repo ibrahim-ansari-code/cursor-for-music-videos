@@ -7,6 +7,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ResetPassword from './pages/ResetPassword';
+import Payments from './pages/Payments';
 
 /**
  * App Component
@@ -30,11 +31,7 @@ function App() {
             </ProtectedRoute>
           }>
             <Route path="dashboard" element={<Dashboard />} />
-            <Route path="payments" element={
-              <div className="flex items-center justify-center h-64">
-                <h1 className="text-2xl font-bold text-gray-900">Payments - Coming Soon</h1>
-              </div>
-            } />
+            <Route path="payments" element={<Payments />} />
             <Route path="documents" element={
               <div className="flex items-center justify-center h-64">
                 <h1 className="text-2xl font-bold text-gray-900">Documents - Coming Soon</h1>

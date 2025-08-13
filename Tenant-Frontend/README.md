@@ -36,12 +36,14 @@ The Tenant Portal is built with React 19, Vite, and Tailwind CSS, offering a mod
    - Supabase project configured
 
 2. **Install dependencies**:
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables**:
    Create a `.env` file with:
+
    ```env
    VITE_API_URL=http://localhost:8000
    VITE_SUPABASE_URL=your_supabase_url
@@ -49,9 +51,11 @@ The Tenant Portal is built with React 19, Vite, and Tailwind CSS, offering a mod
    ```
 
 4. **Start development server**:
+
    ```bash
    npm run dev
    ```
+
    Access at: `http://localhost:5173`
 
 ## Available Scripts
@@ -95,7 +99,7 @@ npm run test:coverage
 
 ### Test Structure
 
-```
+```text
 src/
 ├── components/__tests__/     # Component tests
 ├── contexts/__tests__/       # Context and state tests
@@ -108,7 +112,7 @@ src/
 
 ### Component Structure
 
-```
+```text
 src/
 ├── components/
 │   ├── Layout.jsx          # Main layout with sidebar and header
@@ -191,6 +195,7 @@ docker run -p 4173:80 brikli-tenant-frontend
 ## Environment Configuration
 
 ### Development
+
 ```env
 VITE_API_URL=http://localhost:8000
 VITE_SUPABASE_URL=http://127.0.0.1:54321
@@ -198,6 +203,7 @@ VITE_SUPABASE_ANON_KEY=your_local_anon_key
 ```
 
 ### Production
+
 ```env
 VITE_API_URL=https://api.brikli.com
 VITE_SUPABASE_URL=https://your-project.supabase.co
@@ -216,7 +222,7 @@ The frontend integrates with the Brikli Backend API:
 
 ### API Modules
 
-```
+```text
 src/utils/api/
 ├── auth.js         # Authentication endpoints
 ├── core.js         # Base API configuration

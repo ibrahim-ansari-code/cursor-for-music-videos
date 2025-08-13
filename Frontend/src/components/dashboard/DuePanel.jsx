@@ -1,5 +1,6 @@
 import React from "react";
 import { formatCurrency, getAvatarColor as utilAvatarColor, getInitials } from "../../utils/formatters";
+import { DuePanelSkeleton } from "../ui/skeletons";
 
 const DuePanel = ({
   activeTab,
@@ -13,17 +14,7 @@ const DuePanel = ({
   invoicesData = [],
 }) => {
   if (isLoading) {
-    return (
-      <div className="dashboard-card">
-        <div className="h-6 w-20 bg-gray-200 rounded mb-3 animate-pulse" />
-        <div className="h-9 w-40 bg-gray-200 rounded mb-2 animate-pulse" />
-        <div className="space-y-2">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />
-          ))}
-        </div>
-      </div>
-    );
+    return <DuePanelSkeleton />;
   }
 
   return (

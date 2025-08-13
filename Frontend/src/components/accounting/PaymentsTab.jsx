@@ -6,7 +6,7 @@ import {
 import { toast } from "react-toastify";
 import NewPaymentModal from "../accounting/modals/NewPaymentModal";
 import EditPaymentModal from "../accounting/modals/EditPaymentModal";
-import LoadingSpinner from "../LoadingSpinner";
+import { PaymentsTableSkeleton } from "../ui/skeletons";
 import { useAccounting } from "./AccountingContext";
 
 const paymentTableColumns = [
@@ -19,17 +19,7 @@ const paymentTableColumns = [
   { key: "actions", label: "Actions", align: "center" },
 ];
 
-// Reusable loading spinner row for tables
-const LoadingRow = ({ colSpan, loadingText }) => (
-  <tr>
-    <td
-      colSpan={colSpan}
-      className="px-6 py-12 text-center text-sm text-gray-500"
-    >
-      <LoadingSpinner message={loadingText} size="medium" center={false} />
-    </td>
-  </tr>
-);
+
 
 const PaymentsTab = () => {
   const {
@@ -204,6 +194,10 @@ const PaymentsTab = () => {
     setSelectedItem(null);
   };
 
+  if (loading) {
+    return <PaymentsTableSkeleton rowCount={8} />;
+  }
+
   return (
     <div>
       {error && (
@@ -338,9 +332,7 @@ const PaymentsTab = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <LoadingRow colSpan={paymentTableColumns.length} loadingText="Loading payments..." />
-              ) : payments.length > 0 ? (
+              {payments.length > 0 ? (
                 payments.map((payment) => (
                   <tr key={payment.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">

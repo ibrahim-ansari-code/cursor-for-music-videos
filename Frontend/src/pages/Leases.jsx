@@ -11,7 +11,7 @@ import ImportLeaseModal from "../components/ImportLeaseModal";
 import UpdateLeaseStatusModal from "../components/UpdateLeaseStatusModal";
 import FilePreviewModal from "../components/FilePreviewModal";
 import EditLeaseModal from "../components/EditLeaseModal";
-import LoadingSpinner from "../components/LoadingSpinner";
+import { LeasesTableSkeleton } from "../components/ui/skeletons";
 
 const Leases = () => {
   const [leases, setLeases] = useState([]);
@@ -358,11 +358,15 @@ const Leases = () => {
 
   if (loading && leases.length === 0) {
     return (
-      <LoadingSpinner
-        message={
-          documentsLoading ? "Loading lease documents..." : "Loading leases..."
-        }
-      />
+      <div className="p-6 flex flex-col">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end mb-6">
+          <div className="mt-3 sm:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+            <div className="animate-pulse h-9 w-48 bg-gray-200 rounded"></div>
+            <div className="animate-pulse h-9 w-32 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+        <LeasesTableSkeleton rowCount={8} />
+      </div>
     );
   }
 
@@ -409,11 +413,6 @@ const Leases = () => {
       )}
 
       <div className="bg-white shadow rounded-lg overflow-hidden relative">
-        {loading && (
-          <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-20">
-            <LoadingSpinner message="Loading leases..." />
-          </div>
-        )}
         <div
           ref={tableScrollContainerRef}
           className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-300px)] sm:max-h-[calc(100vh-250px)] lg:max-h-[calc(100vh-200px)]"

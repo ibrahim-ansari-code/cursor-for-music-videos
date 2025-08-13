@@ -121,18 +121,18 @@ describe('Sidebar Component', () => {
     expect(screen.getByRole('link', { name: /Settings/i })).toHaveAttribute('href', '/settings');
   });
 
-  it('uses FontAwesome icons correctly', () => {
+  it('uses React Icons correctly', () => {
     renderWithProviders(<Sidebar />);
     
-    // Check icons are present on navigation links (more robust than querySelector)
+    // Check icons are present on navigation links (React Icons render as SVG)
     const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
-    expect(dashboardLink.querySelector('i.fas.fa-gauge-high')).toBeInTheDocument();
+    expect(dashboardLink.querySelector('svg')).toBeInTheDocument();
     
     const paymentsLink = screen.getByRole('link', { name: /rent & payments/i });
-    expect(paymentsLink.querySelector('i.fas.fa-credit-card')).toBeInTheDocument();
+    expect(paymentsLink.querySelector('svg')).toBeInTheDocument();
     
     const documentsLink = screen.getByRole('link', { name: /lease documents/i });
-    expect(documentsLink.querySelector('i.fas.fa-file-signature')).toBeInTheDocument();
+    expect(documentsLink.querySelector('svg')).toBeInTheDocument();
   });
 
   it('maintains accessibility standards', () => {

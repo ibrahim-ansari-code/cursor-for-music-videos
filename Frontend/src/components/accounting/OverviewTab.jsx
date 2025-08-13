@@ -13,7 +13,8 @@ import SnapshotCard from "../SnapshotCard";
 import RevenueChart from "../charts/RevenueChart";
 import ExpenseBreakdownChart from "../charts/ExpenseBreakdownChart";
 import IncomeByPropertyChart from "../charts/IncomeByPropertyChart";
-import LoadingSpinner from "../LoadingSpinner";
+import { FinancialCardSkeleton, ChartSkeleton } from "../ui/skeletons";
+import { SkeletonLine } from "../ui/skeletons/SkeletonPrimitives";
 import { useAccounting } from "./AccountingContext";
 
 const OverviewTab = () => {
@@ -271,7 +272,110 @@ const OverviewTab = () => {
   }, [selectedProperty]); // Re-run whenever selectedProperty changes
 
   if (loading) {
-    return <LoadingSpinner message="Loading accounting data..." />;
+    return (
+      <div className="space-y-6">
+        {/* Property Filter Skeleton */}
+        <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-4">
+          <div className="flex items-center space-x-4">
+            <SkeletonLine width="120px" height="1rem" />
+            <SkeletonLine width="200px" height="2.25rem" rounded="md" />
+          </div>
+        </div>
+
+        {/* Financial Summary Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <FinancialCardSkeleton />
+          <FinancialCardSkeleton />
+          <FinancialCardSkeleton />
+        </div>
+
+        {/* Charts Section Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Revenue Chart Skeleton */}
+          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 h-full">
+            <div className="flex items-center mb-4">
+              <SkeletonLine width="180px" height="1.5rem" />
+            </div>
+            <ChartSkeleton height="300px" barCount={6} />
+          </div>
+
+          {/* Expense Chart Skeleton */}
+          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 h-full">
+            <div className="flex items-center mb-4">
+              <SkeletonLine width="160px" height="1.5rem" />
+            </div>
+            <div className="h-[300px] flex items-center justify-center">
+              <div className="w-48 h-48 rounded-full bg-gray-200 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Occupancy & Outstanding Payments Section Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Income by Property Chart Skeleton */}
+          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 h-full">
+            <div className="flex items-center mb-4">
+              <SkeletonLine width="140px" height="1.5rem" />
+            </div>
+            <ChartSkeleton height="300px" barCount={4} />
+          </div>
+
+          {/* Outstanding Payments Card Skeleton */}
+          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 h-full flex flex-col">
+            <div className="flex items-center mb-4">
+              <SkeletonLine width="180px" height="1.5rem" />
+              <SkeletonLine width="24px" height="20px" rounded="full" className="ml-2" />
+            </div>
+            
+            {/* Table Header Skeleton */}
+            <div className="border-b border-gray-200 mb-2">
+              <div className="grid grid-cols-12 text-sm">
+                <div className="col-span-5 py-3">
+                  <SkeletonLine width="60px" height="0.75rem" />
+                </div>
+                <div className="col-span-3 py-3">
+                  <SkeletonLine width="50px" height="0.75rem" className="mx-auto" />
+                </div>
+                <div className="col-span-4 py-3">
+                  <SkeletonLine width="80px" height="0.75rem" className="ml-auto" />
+                </div>
+              </div>
+            </div>
+            
+            {/* Payment Rows Skeleton */}
+            <div className="overflow-y-auto pr-1 custom-scrollbar min-h-[200px] max-h-[350px]">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="grid grid-cols-12 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150">
+                  <div className="col-span-5">
+                    <SkeletonLine width="85%" height="1rem" className="mb-1" />
+                    <SkeletonLine width="65%" height="0.75rem" />
+                  </div>
+                  <div className="col-span-3 flex justify-center">
+                    <SkeletonLine width="60px" height="1.25rem" rounded="full" />
+                  </div>
+                  <div className="col-span-4 text-right pr-2">
+                    <SkeletonLine width="75px" height="1rem" className="ml-auto" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Total Outstanding Skeleton */}
+            <div className="mt-4 pt-3 border-t border-gray-200">
+              <div className="grid grid-cols-12 items-center">
+                <div className="col-span-5">
+                  <SkeletonLine width="120px" height="1rem" />
+                </div>
+                <div className="col-span-3"></div>
+                <div className="col-span-4 text-right pr-2">
+                  <SkeletonLine width="90px" height="1.25rem" className="ml-auto" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -431,7 +535,7 @@ const OverviewTab = () => {
                   </div>
                 </div>
               </div>
-              <div className="overflow-y-auto pr-1 custom-scrollbar" style={{ minHeight: "200px", maxHeight: "350px" }}>
+              <div className="overflow-y-auto pr-1 custom-scrollbar min-h-[200px] max-h-[350px]">
                 {outstandingPayments.map((payment) => (
                   <div
                     key={payment.id}

@@ -3,6 +3,7 @@ import { Outlet, useLocation, Link } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import { useAuth } from "../hooks/useAuth";
 import LoadingSkeleton from "./ui/LoadingSkeleton";
+import { FaBell, FaSignOutAlt } from 'react-icons/fa';
 
 const Layout = React.memo(() => {
   const { user, signOut, loading } = useAuth();
@@ -119,7 +120,7 @@ const Layout = React.memo(() => {
                 className="relative p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
                 aria-label="View notifications"
               >
-                <i className="fas fa-bell text-lg" aria-hidden="true"></i>
+                <FaBell className="text-lg" aria-hidden="true" />
               </Link>
 
               {/* Link the avatar and name to settings */}
@@ -166,7 +167,7 @@ const Layout = React.memo(() => {
                 onClick={signOut}
                 aria-label="Sign out of account"
               >
-                <i className="fas fa-sign-out-alt mr-2" aria-hidden="true"></i> Logout
+                <FaSignOutAlt className="mr-2" aria-hidden="true" /> Logout
               </button>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { FaImage } from 'react-icons/fa';
 
 /**
  * Lazy loading image component with fallback and error handling
@@ -19,13 +20,13 @@ const LazyImage = ({
   const imgRef = useRef(null);
 
   useEffect(() => {
-    // Check if IntersectionObserver is available (not in test environment)
-    if (!window.IntersectionObserver) {
-      // Fallback for test environment - immediately set inView to true
+    // Guard for SSR/non-DOM environments
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
       setInView(true);
       return;
     }
 
+    const currentRef = imgRef.current;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -41,14 +42,15 @@ const LazyImage = ({
       }
     );
 
-    if (imgRef.current) {
-      observer.observe(imgRef.current);
+    if (currentRef) {
+      observer.observe(currentRef);
     }
 
     return () => {
-      if (imgRef.current) {
-        observer.unobserve(imgRef.current);
+      if (currentRef) {
+        observer.unobserve(currentRef);
       }
+      observer.disconnect();
     };
   }, []);
 
@@ -86,7 +88,7 @@ const LazyImage = ({
       
       {error && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-400">
-          <i className="fas fa-image text-2xl"></i>
+          <FaImage className="text-2xl" />
         </div>
       )}
     </div>

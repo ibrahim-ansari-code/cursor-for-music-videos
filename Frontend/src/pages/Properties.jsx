@@ -8,7 +8,7 @@ import {
   fetchPropertyById,
 } from "../utils/api";
 import NewPropertyModal from "../components/NewPropertyModal";
-import LoadingSpinner from "../components/LoadingSpinner";
+import { PropertiesTableSkeleton } from "../components/ui/skeletons";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -26,6 +26,7 @@ const StatusCard = ({
   textColor = "text-gray-900",
   onClick,
   icon,
+  isLoading = false,
 }) => (
   <div
     className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
@@ -40,7 +41,11 @@ const StatusCard = ({
               {title}
             </dt>
             <dd>
-              <div className={`text-lg font-medium ${textColor}`}>{count}</div>
+              {isLoading ? (
+                <div className="animate-pulse h-6 w-8 bg-gray-200 rounded"></div>
+              ) : (
+                <div className={`text-lg font-medium ${textColor}`}>{count}</div>
+              )}
             </dd>
           </dl>
         </div>
@@ -71,7 +76,7 @@ const StatusBadge = ({ status }) => {
 const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
   const navigate = useNavigate();
 
-  if (loading) return <LoadingSpinner message="Loading properties..." />;
+  if (loading) return <PropertiesTableSkeleton rowCount={8} />;
 
   if (error)
     return (
@@ -139,13 +144,13 @@ const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
             </th>
             <th
               scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
               Type
             </th>
             <th
               scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
               Address
             </th>
@@ -157,7 +162,7 @@ const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
             </th>
             <th
               scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
               Added
             </th>
@@ -188,12 +193,12 @@ const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
                   </div>
                 </div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-left">
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                 {property.property_type}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-left">
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                 <div
-                  className="max-w-xs truncate"
+                  className="max-w-xs truncate mx-auto"
                   title={`${property.address}, ${property.city}, ${property.state}`}
                 >
                   {property.address}, {property.city}, {property.state}
@@ -204,7 +209,7 @@ const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
                   <StatusBadge status={property.status || "ACTIVE"} />
                 </div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-left">
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                 {new Date(property.created_at).toLocaleDateString()}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
@@ -723,6 +728,7 @@ const Properties = () => {
           bgColor={statusFilter === "ACTIVE" ? "bg-green-100" : "bg-green-50"}
           textColor="text-green-600"
           onClick={() => handleStatusCardClick("ACTIVE")}
+          isLoading={loading && properties.length === 0}
           icon={
             <svg
               className="h-6 w-6 text-green-600"
@@ -748,6 +754,7 @@ const Properties = () => {
           }
           textColor="text-orange-600"
           onClick={() => handleStatusCardClick("MAINTENANCE")}
+          isLoading={loading && properties.length === 0}
           icon={
             <svg
               className="h-6 w-6 text-orange-600"
@@ -771,6 +778,7 @@ const Properties = () => {
           bgColor={statusFilter === "VACANT" ? "bg-yellow-100" : "bg-yellow-50"}
           textColor="text-yellow-600"
           onClick={() => handleStatusCardClick("VACANT")}
+          isLoading={loading && properties.length === 0}
           icon={
             <svg
               className="h-6 w-6 text-yellow-600"
@@ -792,6 +800,7 @@ const Properties = () => {
           title="Total"
           count={statusCounts.total}
           onClick={clearFilters}
+          isLoading={loading && properties.length === 0}
           icon={
             <svg
               className="h-6 w-6 text-indigo-600"

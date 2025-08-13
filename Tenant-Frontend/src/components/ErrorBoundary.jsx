@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { FaExclamationTriangle } from 'react-icons/fa';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -31,7 +32,7 @@ class ErrorBoundary extends React.Component {
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
           <div className="max-w-md w-full bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
             <div className="mb-4">
-              <i className="fas fa-exclamation-triangle text-4xl text-red-500"></i>
+              <FaExclamationTriangle className="text-4xl text-red-500 mx-auto" />
             </div>
             <h1 className="text-xl font-bold text-gray-900 mb-2">
               Something went wrong

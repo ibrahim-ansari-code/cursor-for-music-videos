@@ -61,16 +61,16 @@ describe('DashboardContent Component', () => {
     renderWithProviders(<DashboardContent />);
     
     const container = screen.getByText('My Unit').closest('.bg-white');
-    expect(container.querySelector('.fa-home')).toBeInTheDocument();
+    expect(container.querySelector('svg')).toBeInTheDocument();
     
     const rentContainer = screen.getByText('Monthly Rent').closest('.bg-white');
-    expect(rentContainer.querySelector('.fa-credit-card')).toBeInTheDocument();
+    expect(rentContainer.querySelector('svg')).toBeInTheDocument();
     
     const paymentContainer = screen.getByText('Next Payment').closest('.bg-white');
-    expect(paymentContainer.querySelector('.fa-calendar')).toBeInTheDocument();
+    expect(paymentContainer.querySelector('svg')).toBeInTheDocument();
     
     const maintenanceContainer = screen.getByText('Maintenance Requests').closest('.bg-white');
-    expect(maintenanceContainer.querySelector('.fa-wrench')).toBeInTheDocument();
+    expect(maintenanceContainer.querySelector('svg')).toBeInTheDocument();
   });
 
   it('handles info card action clicks correctly', () => {

@@ -1,22 +1,32 @@
 import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
 import LazyImage from "./ui/LazyImage";
+import { 
+  FaTachometerAlt, 
+  FaCreditCard, 
+  FaFileSignature, 
+  FaWrench, 
+  FaBell, 
+  FaCog,
+  FaAngleDoubleLeft,
+  FaAngleDoubleRight
+} from 'react-icons/fa';
 
 const Sidebar = React.memo(() => {
   const [collapsed, setCollapsed] = useState(false);
 
   // Navigation items organized by section
   const overviewItems = [
-    { name: "Dashboard", path: "/dashboard", icon: "fa-gauge-high" },
-    { name: "Rent & Payments", path: "/payments", icon: "fa-credit-card" },
-    { name: "Lease Documents", path: "/documents", icon: "fa-file-signature" },
-    { name: "Maintenance", path: "/maintenance", icon: "fa-wrench" },
-    { name: "Notifications", path: "/notifications", icon: "fa-bell" },
+    { name: "Dashboard", path: "/dashboard", icon: FaTachometerAlt },
+    { name: "Rent & Payments", path: "/payments", icon: FaCreditCard },
+    { name: "Lease Documents", path: "/documents", icon: FaFileSignature },
+    { name: "Maintenance", path: "/maintenance", icon: FaWrench },
+    { name: "Notifications", path: "/notifications", icon: FaBell },
   ];
 
   // Configuration section
   const configItems = [
-    { name: "Settings", path: "/settings", icon: "fa-gear" },
+    { name: "Settings", path: "/settings", icon: FaCog },
   ];
 
   // Function to render nav items
@@ -35,10 +45,10 @@ const Sidebar = React.memo(() => {
       >
         <div className="flex items-center w-full">
           <div className={`${collapsed ? "mx-auto" : "w-6 text-center"}`}>
-            <i
-              className={`fas ${item.icon} text-gray-400 group-hover:text-gray-600 transition-colors`}
+            <item.icon 
+              className="text-gray-400 group-hover:text-gray-600 transition-colors" 
               aria-hidden="true"
-            ></i>
+            />
           </div>
           {!collapsed && (
             <span className="ml-3">{item.name}</span>
@@ -97,10 +107,11 @@ const Sidebar = React.memo(() => {
             className="p-1.5 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none flex-shrink-0"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <i
-              className={`fas ${collapsed ? "fa-angles-right" : "fa-angles-left"
-                }`}
-            ></i>
+            {collapsed ? (
+              <FaAngleDoubleRight />
+            ) : (
+              <FaAngleDoubleLeft />
+            )}
           </button>
         </div>
 

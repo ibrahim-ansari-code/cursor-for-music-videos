@@ -9,6 +9,7 @@ import {
 import TenantModal from "../components/tenants/TenantModal";
 import UpdateTenantModal from "../components/tenants/UpdateTenantModal";
 import TenantTable from "../components/tenants/TenantTable";
+import { TenantsTableSkeleton, StatusCardSkeleton } from "../components/ui/skeletons";
 import useDebounce from "../hooks/useDebounce";
 import {
     countActiveLeases,
@@ -283,9 +284,13 @@ const Tenants = () => {
                     Total Tenants
                   </dt>
                   <dd>
-                    <div className="text-lg font-medium text-gray-900">
-                      {isLoading ? "..." : dashboardData.totalTenants}
-                    </div>
+                    {isLoading ? (
+                      <div className="animate-pulse h-6 w-8 bg-gray-200 rounded"></div>
+                    ) : (
+                      <div className="text-lg font-medium text-gray-900">
+                        {dashboardData.totalTenants}
+                      </div>
+                    )}
                   </dd>
                 </dl>
               </div>
@@ -319,9 +324,13 @@ const Tenants = () => {
                     Active Leases
                   </dt>
                   <dd>
-                    <div className="text-lg font-medium text-gray-900">
-                      {isLoading ? "..." : dashboardData.activeLeases}
-                    </div>
+                    {isLoading ? (
+                      <div className="animate-pulse h-6 w-8 bg-gray-200 rounded"></div>
+                    ) : (
+                      <div className="text-lg font-medium text-gray-900">
+                        {dashboardData.activeLeases}
+                      </div>
+                    )}
                   </dd>
                 </dl>
               </div>
@@ -355,9 +364,13 @@ const Tenants = () => {
                     Expiring in 30 Days
                   </dt>
                   <dd>
-                    <div className="text-lg font-medium text-gray-900">
-                      {isLoading ? "..." : dashboardData.expiringSoon}
-                    </div>
+                    {isLoading ? (
+                      <div className="animate-pulse h-6 w-8 bg-gray-200 rounded"></div>
+                    ) : (
+                      <div className="text-lg font-medium text-gray-900">
+                        {dashboardData.expiringSoon}
+                      </div>
+                    )}
                   </dd>
                 </dl>
               </div>
@@ -391,9 +404,13 @@ const Tenants = () => {
                     Overdue Payments
                   </dt>
                   <dd>
-                    <div className="text-lg font-medium text-gray-900">
-                      {isLoading ? "..." : dashboardData.overduePayments}
-                    </div>
+                    {isLoading ? (
+                      <div className="animate-pulse h-6 w-8 bg-gray-200 rounded"></div>
+                    ) : (
+                      <div className="text-lg font-medium text-gray-900">
+                        {dashboardData.overduePayments}
+                      </div>
+                    )}
                   </dd>
                 </dl>
               </div>
@@ -530,13 +547,17 @@ const Tenants = () => {
         )}
 
         {/* Tenant Table Component */}
-        <TenantTable
-          tenants={tenants}
-          onEditTenant={handleEditTenant}
-          onDeleteTenant={handleDeleteTenant}
-          onAddTenant={handleAddTenant}
-          isLoading={isLoading}
-        />
+        {isLoading ? (
+          <TenantsTableSkeleton rowCount={8} />
+        ) : (
+          <TenantTable
+            tenants={tenants}
+            onEditTenant={handleEditTenant}
+            onDeleteTenant={handleDeleteTenant}
+            onAddTenant={handleAddTenant}
+            isLoading={false}
+          />
+        )}
       </div>
 
       {/* Lease Expiry Warning */}

@@ -1,5 +1,6 @@
 import React from "react";
 import { formatCurrency } from "../../utils/formatters";
+import { FinancialCardSkeleton } from "../ui/skeletons";
 
 const FinancialSummary = ({
   summary,
@@ -14,14 +15,7 @@ const FinancialSummary = ({
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="dashboard-card animate-pulse">
-            <div className="h-4 w-24 bg-gray-200 rounded mb-3" />
-            <div className="flex items-baseline">
-              <div className="h-7 w-28 bg-gray-200 rounded" />
-              <div className="h-4 w-10 bg-gray-200 rounded ml-2" />
-            </div>
-            <div className="h-3 w-40 bg-gray-200 rounded mt-2" />
-          </div>
+          <FinancialCardSkeleton key={i} />
         ))}
       </div>
     );
