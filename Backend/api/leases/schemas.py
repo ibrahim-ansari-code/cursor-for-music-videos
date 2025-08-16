@@ -43,16 +43,11 @@ class LeaseBase(BaseModel):
         return self
 
 
-class LeaseCreate(BaseModel):
-    tenant_id: int
-    property_id: int
-    unit_id: int | None = None
-    start_date: date
-    end_date: date
-    monthly_rent: Decimal
-    security_deposit: Decimal
+class LeaseCreate(LeaseBase):
     status: LeaseStatus | None = LeaseStatus.DRAFT
     file_url: str | None = None
+
+    # Validation is inherited from LeaseBase - no need to duplicate
 
 
 class LeaseUpdate(BaseModel):
@@ -101,5 +96,6 @@ class LeaseAnalysisResponse(BaseModel):
 class LeaseUploadResponse(BaseModel):
     file_url: str
 
+
 # Rebuild the LeaseResponse model to resolve forward references
-LeaseResponse.model_rebuild() 
+LeaseResponse.model_rebuild()

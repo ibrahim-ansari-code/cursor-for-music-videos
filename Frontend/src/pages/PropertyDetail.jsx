@@ -15,6 +15,8 @@ import LoadingSpinner from "../components/LoadingSpinner"; // Import LoadingSpin
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import AssignTenantModal from "../components/units/AssignTenantModal"; // Import AssignTenantModal
+import BulkAssignTenantModal from "../components/units/BulkAssignTenantModal";
+import CSVUploadModal from "../components/units/CSVUploadModal";
 
 // Icons for StatCards
 const UnitIcon = () => <i className="fas fa-door-closed text-blue-600"></i>;
@@ -40,6 +42,12 @@ const PropertyDetail = () => {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [currentUnit, setCurrentUnit] = useState(null);
 
+  // Bulk operations state
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedUnits, setSelectedUnits] = useState([]);
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+  const [showCSVUploadModal, setShowCSVUploadModal] = useState(false);
+
   useEffect(() => {
     loadProperty();
   }, [id]);
@@ -51,7 +59,7 @@ const PropertyDetail = () => {
       console.log(`Fetching property details for ID: ${id}`);
       const data = await fetchPropertyById(id);
       console.log("Property data received:", data);
-      
+
       // Fetch lease data for rented units
       if (data.units && data.units.length > 0) {
         const unitsWithLeases = await Promise.all(
@@ -70,7 +78,7 @@ const PropertyDetail = () => {
         );
         data.units = unitsWithLeases;
       }
-      
+
       setProperty(data);
     } catch (err) {
       console.error("Error fetching property details:", err);
@@ -128,11 +136,11 @@ const PropertyDetail = () => {
         stats: prev.stats && unitToDelete ? {
           ...prev.stats,
           total_units: prev.stats.total_units - 1,
-          vacant_units: unitToDelete.is_rented 
-            ? prev.stats.vacant_units 
+          vacant_units: unitToDelete.is_rented
+            ? prev.stats.vacant_units
             : prev.stats.vacant_units - 1,
-          occupied_units: unitToDelete.is_rented 
-            ? prev.stats.occupied_units - 1 
+          occupied_units: unitToDelete.is_rented
+            ? prev.stats.occupied_units - 1
             : prev.stats.occupied_units,
           monthly_revenue: unitToDelete.is_rented && unitToDelete.monthly_rent
             ? (parseFloat(prev.stats.monthly_revenue) - parseFloat(unitToDelete.monthly_rent)).toFixed(2)
@@ -150,10 +158,10 @@ const PropertyDetail = () => {
       loadProperty();
     } catch (error) {
       console.error("Error deleting unit:", error);
-      
+
       // Rollback to original state on error
       setProperty(originalProperty);
-      
+
       toast.error(error.message || "Failed to delete unit");
     } finally {
       setIsSubmitting(false);
@@ -214,15 +222,15 @@ const PropertyDetail = () => {
     // Store original property state for rollback
     const originalProperty = property;
     const originalUnit = property.units.find(u => u.id === unitId);
-    
+
     try {
       setIsSubmitting(true);
       console.log(`Updating unit ${unitId} with data:`, unitData);
 
       // Optimistically update the unit in local state and recalculate stats
       setProperty(prev => {
-        const updatedUnits = prev.units.map(unit => 
-          unit.id === unitId 
+        const updatedUnits = prev.units.map(unit =>
+          unit.id === unitId
             ? { ...unit, ...unitData, lease: unit.lease } // Preserve lease data
             : unit
         );
@@ -233,7 +241,7 @@ const PropertyDetail = () => {
           const oldRent = parseFloat(originalUnit.monthly_rent || 0);
           const newRent = parseFloat(unitData.monthly_rent || 0);
           const rentDifference = newRent - oldRent;
-          
+
           newStats = {
             ...prev.stats,
             monthly_revenue: (parseFloat(prev.stats.monthly_revenue) + rentDifference).toFixed(2)
@@ -319,6 +327,89 @@ const PropertyDetail = () => {
   const handleCloseEditModal = () => {
     setIsEditModalOpen(false);
     setUnitToEdit(null);
+  };
+
+  const handleToggleBulkMode = () => {
+    setBulkMode(!bulkMode);
+    setSelectedUnits([]);
+  };
+
+  const handleUnitSelect = (unitId) => {
+    // Find the unit to check if it's occupied
+    const unit = property?.units?.find(u => u.id === unitId);
+    
+    // Prevent selection of occupied units
+    if (unit?.is_rented) {
+      toast.warning("Cannot select occupied units for bulk assignment");
+      return;
+    }
+
+    setSelectedUnits(prev => {
+      if (prev.includes(unitId)) {
+        return prev.filter(id => id !== unitId);
+      } else {
+        return [...prev, unitId];
+      }
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (!property?.units) return;
+
+    // Only select vacant units for bulk assignment
+    const vacantUnitIds = property.units
+      .filter(unit => !unit.is_rented)
+      .map(unit => unit.id);
+    
+    const allVacantSelected = vacantUnitIds.every(id => selectedUnits.includes(id));
+
+    if (allVacantSelected) {
+      setSelectedUnits([]); // Deselect all
+    } else {
+      setSelectedUnits(vacantUnitIds); // Select all vacant units only
+    }
+  };
+
+  const handleBulkAssign = () => {
+    if (selectedUnits.length === 0) {
+      toast.warning("Please select units to assign tenants to");
+      return;
+    }
+    setShowBulkAssignModal(true);
+  };
+
+  const handleCSVUpload = () => {
+    setShowCSVUploadModal(true);
+  };
+
+  const handleCSVUploadSuccess = (response) => {
+    // Refresh property data to reflect new assignments
+    loadProperty();
+    setSelectedUnits([]);
+  };
+
+  const handleBulkAssignSuccess = (response) => {
+    // Refresh property data to reflect new assignments
+    loadProperty();
+    setSelectedUnits([]);
+    setShowBulkAssignModal(false);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedUnits([]);
+  };
+
+  const getSelectedUnitsCount = () => selectedUnits.length;
+  const getVacantSelectedUnits = () => {
+    if (!property?.units) return [];
+    return property.units.filter(unit =>
+      selectedUnits.includes(unit.id) && !unit.is_rented
+    );
+  };
+
+  const getSelectedUnitObjects = () => {
+    if (!property?.units) return [];
+    return property.units.filter(unit => selectedUnits.includes(unit.id));
   };
 
   if (loading) return <LoadingSpinner message="Loading property details..." />;
@@ -430,20 +521,80 @@ const PropertyDetail = () => {
 
       {/* Units Section */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-          <div className="w-1/3">{/* Left spacer */}</div>
-          <h2 className="text-lg font-medium text-center text-gray-800 w-1/3">
-            Units
-          </h2>
-          <div className="w-1/3 flex justify-end">
-            <button
-              onClick={handleAddNewUnit}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
-            >
-              <i className="fas fa-plus text-xs"></i>
-              Add a new unit
-            </button>
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex justify-between items-center mb-4">
+            <div className="w-1/3"></div>
+            <h2 className="text-lg font-medium text-center text-gray-800 w-1/3">
+              Units
+            </h2>
+            <div className="w-1/3 flex justify-end items-center gap-3">
+              {!bulkMode && (
+                <button
+                  onClick={handleCSVUpload}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+                >
+                  <i className="fas fa-table text-xs"></i>
+                  CSV Upload
+                </button>
+              )}
+              <button
+                onClick={handleToggleBulkMode}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${bulkMode
+                  ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+              >
+                <i className={`fas ${bulkMode ? "fa-times" : "fa-check-square"} text-xs mr-2`}></i>
+                {bulkMode ? "Exit Bulk" : "Bulk Select"}
+              </button>
+              {!bulkMode && (
+                <button
+                  onClick={handleAddNewUnit}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+                >
+                  <i className="fas fa-plus text-xs"></i>
+                  Add a new unit
+                </button>
+              )}
+            </div>
           </div>
+
+          {bulkMode && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-medium text-blue-900">
+                    {getSelectedUnitsCount()} unit{getSelectedUnitsCount() !== 1 ? 's' : ''} selected
+                  </span>
+                  {getSelectedUnitsCount() > 0 && (
+                    <span className="text-sm text-blue-700">
+                      ({getVacantSelectedUnits().length} vacant)
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  {getSelectedUnitsCount() > 0 && (
+                    <>
+                      <button
+                        onClick={handleClearSelection}
+                        className="text-sm text-blue-600 hover:text-blue-800 underline"
+                      >
+                        Clear Selection
+                      </button>
+                      <button
+                        onClick={handleBulkAssign}
+                        disabled={getVacantSelectedUnits().length === 0}
+                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+                      >
+                        <i className="fas fa-user-plus text-xs"></i>
+                        Assign Tenants ({getVacantSelectedUnits().length})
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Unit Table */}
@@ -455,6 +606,12 @@ const PropertyDetail = () => {
           onDelete={handleDeleteUnit}
           onAssign={handleAssignTenant}
           onViewLease={handleViewLease}
+          // Bulk selection props
+          selectedUnits={selectedUnits}
+          onUnitSelect={handleUnitSelect}
+          onSelectAll={handleSelectAll}
+          showSelection={bulkMode}
+          bulkMode={bulkMode}
         />
       </div>
 
@@ -486,6 +643,23 @@ const PropertyDetail = () => {
           onSuccess={handleTenantAssigned}
         />
       )}
+
+      {/* Bulk Assign Tenant Modal */}
+      <BulkAssignTenantModal
+        isOpen={showBulkAssignModal}
+        onClose={() => setShowBulkAssignModal(false)}
+        selectedUnits={getSelectedUnitObjects()}
+        propertyId={id}
+        onSuccess={handleBulkAssignSuccess}
+      />
+
+      {/* CSV Upload Modal */}
+      <CSVUploadModal
+        isOpen={showCSVUploadModal}
+        onClose={() => setShowCSVUploadModal(false)}
+        propertyId={id}
+        onSuccess={handleCSVUploadSuccess}
+      />
     </div>
   );
 };

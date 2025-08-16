@@ -1,5 +1,6 @@
 import logging
-from typing import List
+from datetime import date
+from typing import List, cast
 
 from fastapi import HTTPException, status
 from pydantic import ValidationError
@@ -14,16 +15,100 @@ from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.property import Property, PropertyUnit
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
+from Backend.api.leases.service import create_lease
 
 from .schemas import (
     UnitCreate, UnitCreateResponse, UnitResponse, UnitUpdate,
-    BulkUnitCreate, BulkUnitCreateResponse, UnitSearchFilters
+    BulkUnitCreate, BulkUnitCreateResponse, UnitSearchFilters,
+    CSVBulkAssignRequest, CSVBulkAssignResponse, CSVAssignmentError,
+    BulkAssignmentRequest, BulkAssignmentResponse
 )
 
 logger = logging.getLogger(__name__)
 
 
 class UnitService:
+    @staticmethod
+    async def _find_unit_by_number(
+        session: AsyncSession, 
+        property_id: int, 
+        unit_number: str
+    ) -> PropertyUnit | None:
+        """
+        Find a unit by number with flexible matching strategies.
+        
+        Tries multiple approaches to match CSV unit_number against PropertyUnit.name:
+        1. Exact match
+        2. Case-insensitive match  
+        3. Match with common prefixes ("Unit ", "Apt ", etc.)
+        4. Match ignoring common prefixes
+        """
+        unit_number_clean = unit_number.strip()
+        
+        # Strategy 1: Exact match
+        result = await session.execute(
+            select(PropertyUnit)
+            .where(
+                and_(
+                    col(PropertyUnit.property_id) == property_id,
+                    col(PropertyUnit.name) == unit_number_clean
+                )
+            )
+        )
+        unit = result.scalar_one_or_none()
+        if unit:
+            return unit
+
+        # Strategy 2: Case-insensitive match
+        result = await session.execute(
+            select(PropertyUnit)
+            .where(
+                and_(
+                    col(PropertyUnit.property_id) == property_id,
+                    col(PropertyUnit.name).ilike(unit_number_clean)
+                )
+            )
+        )
+        unit = result.scalar_one_or_none()
+        if unit:
+            return unit
+
+        # Strategy 3: Try with common prefixes
+        common_prefixes = ["Unit ", "Apt ", "Suite ", "Room "]
+        for prefix in common_prefixes:
+            prefixed_number = f"{prefix}{unit_number_clean}"
+            result = await session.execute(
+                select(PropertyUnit)
+                .where(
+                    and_(
+                        col(PropertyUnit.property_id) == property_id,
+                        col(PropertyUnit.name).ilike(prefixed_number)
+                    )
+                )
+            )
+            unit = result.scalar_one_or_none()
+            if unit:
+                return unit
+
+        # Strategy 4: Try removing common prefixes from CSV input
+        for prefix in common_prefixes:
+            if unit_number_clean.lower().startswith(prefix.lower()):
+                stripped_number = unit_number_clean[len(prefix):].strip()
+                result = await session.execute(
+                    select(PropertyUnit)
+                    .where(
+                        and_(
+                            col(PropertyUnit.property_id) == property_id,
+                            col(PropertyUnit.name).ilike(stripped_number)
+                        )
+                    )
+                )
+                unit = result.scalar_one_or_none()
+                if unit:
+                    return unit
+
+        return None
+
     @staticmethod
     async def get_unit_or_404(unit_id: int, session: AsyncSession, current_user: User) -> PropertyUnit:
         """Retrieve a unit by ID, ensuring the current user has permission."""
@@ -87,7 +172,8 @@ class UnitService:
             # Use the specific create response model which omits tenant info
             return UnitCreateResponse.model_validate(new_unit)
         except ValidationError as e:  # Catch Pydantic validation errors specifically
-            logger.error(f"Response validation error for new unit: {e.errors()}")
+            logger.error(
+                f"Response validation error for new unit: {e.errors()}")
             # Don't rollback if commit succeeded but response failed
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -144,7 +230,8 @@ class UnitService:
         # Apply updates from request (excluding is_rented which is managed internally)
         for key, value in update_data.items():
             if key == 'is_rented':
-                logger.warning("Attempted to directly update is_rented field - this is managed internally")
+                logger.warning(
+                    "Attempted to directly update is_rented field - this is managed internally")
                 continue
             if hasattr(unit_to_update, key):
                 setattr(unit_to_update, key, value)
@@ -154,7 +241,7 @@ class UnitService:
 
         # --- Logic to handle tenant assignment and rental status ---
         # Note: is_rented is now derived from tenant assignment/lease status
-        
+
         # Scenario 1: Explicitly setting tenant_id to null (vacating)
         if tenant_id_updated and new_tenant_id is None:
             unit_to_update.is_rented = False  # Vacant units are not rented
@@ -179,7 +266,8 @@ class UnitService:
             final_unit = result.unique().scalar_one_or_none()
 
             if not final_unit:
-                logger.error(f"Failed to re-fetch unit {unit_id} after update.")
+                logger.error(
+                    f"Failed to re-fetch unit {unit_id} after update.")
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                     detail="Updated unit could not be found.")
 
@@ -288,7 +376,8 @@ class UnitService:
                 selectinload(getattr(PropertyUnit, "tenant")),
             )
             .where(col(PropertyUnit.property_id) == property_id)
-            .order_by(col(PropertyUnit.id))  # Order by ID to maintain creation order
+            # Order by ID to maintain creation order
+            .order_by(col(PropertyUnit.id))
             .offset(skip)
             .limit(limit)
         )
@@ -333,7 +422,8 @@ class UnitService:
                 )
                 session.add(new_unit)
                 await session.flush()  # Flush to get the ID without committing
-                created_units.append(UnitCreateResponse.model_validate(new_unit))
+                created_units.append(
+                    UnitCreateResponse.model_validate(new_unit))
             except ValidationError as e:
                 failed_units.append({
                     "index": idx,
@@ -347,7 +437,8 @@ class UnitService:
                     "data": unit_data.model_dump(),
                     "error": str(e)
                 })
-                logger.error(f"Unexpected error creating unit at index {idx}: {e}")
+                logger.error(
+                    f"Unexpected error creating unit at index {idx}: {e}")
 
         # Commit all successful units
         if created_units:
@@ -379,7 +470,7 @@ class UnitService:
     ) -> List[UnitResponse]:
         """
         Search for units across all properties owned by the user.
-        
+
         Applies various filters to find units matching the criteria.
         Admin users can search across all properties.
         """
@@ -392,47 +483,55 @@ class UnitService:
                 joinedload(getattr(PropertyUnit, "property"))
             )
         )
-        
+
         # Apply ownership filter for non-admin users
         if not current_user.is_admin:
             query = query.where(col(Property.user_id) == current_user.id)
-        
+
         # Apply property filter if specified
         if filters.property_ids:
-            query = query.where(col(PropertyUnit.property_id).in_(filters.property_ids))
-        
+            query = query.where(
+                col(PropertyUnit.property_id).in_(filters.property_ids))
+
         # Apply rent filters
         if filters.min_rent is not None:
-            query = query.where(col(PropertyUnit.monthly_rent) >= filters.min_rent)
+            query = query.where(
+                col(PropertyUnit.monthly_rent) >= filters.min_rent)
         if filters.max_rent is not None:
-            query = query.where(col(PropertyUnit.monthly_rent) <= filters.max_rent)
-        
+            query = query.where(
+                col(PropertyUnit.monthly_rent) <= filters.max_rent)
+
         # Apply bedroom filters
         if filters.min_bedrooms is not None:
-            query = query.where(col(PropertyUnit.bedrooms) >= filters.min_bedrooms)
+            query = query.where(col(PropertyUnit.bedrooms)
+                                >= filters.min_bedrooms)
         if filters.max_bedrooms is not None:
-            query = query.where(col(PropertyUnit.bedrooms) <= filters.max_bedrooms)
-        
+            query = query.where(col(PropertyUnit.bedrooms)
+                                <= filters.max_bedrooms)
+
         # Apply bathroom filter
         if filters.min_bathrooms is not None:
-            query = query.where(col(PropertyUnit.bathrooms) >= filters.min_bathrooms)
-        
+            query = query.where(col(PropertyUnit.bathrooms)
+                                >= filters.min_bathrooms)
+
         # Apply rental status filter
         if filters.is_rented is not None:
-            query = query.where(col(PropertyUnit.is_rented) == filters.is_rented)
-        
+            query = query.where(col(PropertyUnit.is_rented)
+                                == filters.is_rented)
+
         # Apply ordering and pagination
         # Use NULLS LAST to ensure consistent ordering when monthly_rent is null
-        query = query.order_by(nulls_last(col(PropertyUnit.monthly_rent)), PropertyUnit.name)
+        query = query.order_by(nulls_last(
+            col(PropertyUnit.monthly_rent)), PropertyUnit.name)
         query = query.offset(skip).limit(limit)
-        
+
         # Execute query
         result = await session.execute(query)
         units = result.unique().scalars().all()
-        
+
         # Convert to response models
         return [UnitResponse.model_validate(unit) for unit in units]
-    
+
     @staticmethod
     async def get_unit_lease(
         unit_id: int,
@@ -441,13 +540,13 @@ class UnitService:
     ) -> LeaseResponse:
         """
         Get the active lease for a unit.
-        
+
         Retrieves the currently active lease associated with the specified unit.
         Ensures the user has permission to access the unit and its lease information.
         """
         # First verify the unit exists and user has permission
         unit = await UnitService.get_unit_or_404(unit_id, session, current_user)
-        
+
         # Query for active lease
         result = await session.execute(
             select(Lease)
@@ -463,11 +562,321 @@ class UnitService:
             )
         )
         lease = result.unique().scalar_one_or_none()
-        
+
         if not lease:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No active lease found for this unit"
             )
-        
+
         return LeaseResponse.model_validate(lease)
+
+    @staticmethod
+    async def bulk_assign_from_csv(
+        property_id: int,
+        csv_data: CSVBulkAssignRequest,
+        session: AsyncSession,
+        current_user: User
+    ) -> CSVBulkAssignResponse:
+        """
+        Bulk assign tenants to units based on CSV data.
+
+        Validates each row, creates leases, and updates unit assignments.
+        Returns detailed results including errors for failed assignments.
+        """
+
+        # Check if property exists and user has permission
+        result = await session.execute(select(Property).where(col(Property.id) == property_id))
+        property_obj = result.scalar_one_or_none()
+
+        if not property_obj:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Property not found")
+
+        # Permission check using user_id
+        if not current_user.is_admin and property_obj.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to assign tenants to units in this property"
+            )
+
+        errors = []
+        created_leases = []
+        successful_assignments = 0
+
+        for row_idx, assignment in enumerate(csv_data.assignments, start=1):
+            try:
+                # Find unit by name/number in this property with flexible matching
+                unit = await UnitService._find_unit_by_number(
+                    session, property_id, assignment.unit_number
+                )
+
+                if not unit:
+                    errors.append(CSVAssignmentError(
+                        row_number=row_idx,
+                        unit_number=assignment.unit_number,
+                        error_message=f"Unit '{assignment.unit_number}' not found in this property",
+                        error_type="unit_not_found"
+                    ))
+                    continue
+
+                # Check if unit is available
+                if unit.is_rented:
+                    errors.append(CSVAssignmentError(
+                        row_number=row_idx,
+                        unit_number=assignment.unit_number,
+                        error_message=f"Unit '{assignment.unit_number}' is already occupied",
+                        error_type="unit_occupied"
+                    ))
+                    continue
+
+                # Verify tenant exists by email
+                tenant_result = await session.execute(
+                    select(Tenant).where(
+                        col(Tenant.email) == assignment.tenant_email.lower())
+                )
+                tenant = tenant_result.scalar_one_or_none()
+
+                if not tenant:
+                    errors.append(CSVAssignmentError(
+                        row_number=row_idx,
+                        unit_number=assignment.unit_number,
+                        error_message=f"Tenant with email '{assignment.tenant_email}' not found",
+                        error_type="tenant_not_found"
+                    ))
+                    continue
+
+                # Create lease using LeaseService
+                try:
+                    from Backend.api.leases.schemas import LeaseCreate
+
+                    # Type guards to ensure required fields are not None
+                    if tenant.id is None:
+                        raise ValueError("Tenant ID cannot be None")
+                    if unit.id is None:
+                        raise ValueError("Unit ID cannot be None")
+
+                    lease_data = LeaseCreate(
+                        tenant_id=tenant.id,
+                        property_id=property_id,
+                        unit_id=unit.id,
+                        start_date=assignment.lease_start_date,
+                        end_date=date(assignment.lease_start_date.year + 1, 
+                                    assignment.lease_start_date.month, 
+                                    assignment.lease_start_date.day),  # Default 1 year lease
+                        monthly_rent=assignment.monthly_rent,
+                        security_deposit=assignment.security_deposit or assignment.monthly_rent,  # Use provided or default to monthly rent
+                        rent_due_day=1,  # Default to 1st of month
+                        status=LeaseStatus.ACTIVE
+                    )
+
+                    # Create the lease
+                    created_lease = cast(Lease, await create_lease(lease_data, current_user, session))
+                    created_leases.append(created_lease.id)
+                    successful_assignments += 1
+
+                    logger.info(
+                        f"Successfully assigned tenant {tenant.id} ({assignment.tenant_email}) to unit {assignment.unit_number}")
+
+                except Exception as lease_error:
+                    logger.error(
+                        f"Failed to create lease for unit {assignment.unit_number}: {lease_error}")
+                    errors.append(CSVAssignmentError(
+                        row_number=row_idx,
+                        unit_number=assignment.unit_number,
+                        error_message=f"Failed to create lease: {str(lease_error)}",
+                        error_type="lease_creation_failed"
+                    ))
+                    continue
+
+            except Exception as e:
+                logger.error(f"Unexpected error processing row {row_idx}: {e}")
+                errors.append(CSVAssignmentError(
+                    row_number=row_idx,
+                    unit_number=assignment.unit_number,
+                    error_message=f"Unexpected error: {str(e)}",
+                    error_type="validation"
+                ))
+
+        # Commit successful assignments
+        if created_leases:
+            try:
+                await session.commit()
+                logger.info(
+                    f"Bulk CSV assignment completed: {successful_assignments} successful, {len(errors)} failed")
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Failed to commit bulk assignments: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to save bulk assignments to database"
+                )
+
+        return CSVBulkAssignResponse(
+            total_rows=len(csv_data.assignments),
+            successful_assignments=successful_assignments,
+            failed_assignments=len(errors),
+            errors=errors,
+            created_leases=created_leases
+        )
+
+    @staticmethod
+    async def bulk_assign_tenant(
+        bulk_data: BulkAssignmentRequest,
+        session: AsyncSession,
+        current_user: User
+    ) -> BulkAssignmentResponse:
+        """
+        Bulk assign a single tenant to multiple units.
+
+        Creates leases for all specified units with the same tenant and lease terms.
+        Returns detailed results including errors for failed assignments.
+        """
+        from Backend.api.leases.service import create_lease
+        from Backend.models.tenant import Tenant
+
+        # Verify tenant exists
+        tenant_result = await session.execute(
+            select(Tenant).where(col(Tenant.id) == bulk_data.tenant_id)
+        )
+        tenant = tenant_result.scalar_one_or_none()
+
+        if not tenant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Tenant with ID {bulk_data.tenant_id} not found"
+            )
+
+        errors = []
+        created_leases = []
+        successful_assignments = 0
+
+        for unit_id in bulk_data.unit_ids:
+            try:
+                # Get unit and verify permission
+                unit = await UnitService.get_unit_or_404(unit_id, session, current_user)
+
+                # Check if unit is available
+                if unit.is_rented:
+                    errors.append(CSVAssignmentError(
+                        row_number=0,  # Not applicable for bulk assignment
+                        unit_number=unit.name or str(unit.id),
+                        error_message=f"Unit '{unit.name or unit.id}' is already occupied",
+                        error_type="unit_occupied"
+                    ))
+                    continue
+
+                # Create lease using LeaseService
+                try:
+                    from Backend.api.leases.schemas import LeaseCreate
+                    from decimal import Decimal, InvalidOperation
+
+                    # Type guards to ensure required fields are not None
+                    if unit.property_id is None:
+                        raise ValueError("Unit property ID cannot be None")
+                    if unit.id is None:
+                        raise ValueError("Unit ID cannot be None")
+
+                    # Ensure monthly_rent is not None
+                    monthly_rent = bulk_data.monthly_rent or unit.monthly_rent
+                    if monthly_rent is None:
+                        raise ValueError("Monthly rent must be specified")
+                    
+                    # Convert to Decimal and validate positivity
+                    try:
+                        if not isinstance(monthly_rent, Decimal):
+                            monthly_rent = Decimal(str(monthly_rent))
+                        
+                        if monthly_rent <= 0:
+                            raise ValueError("Monthly rent must be a positive value")
+                    except (InvalidOperation, ValueError, TypeError) as e:
+                        if "positive value" in str(e):
+                            raise e  # Re-raise our custom validation error
+                        raise ValueError(f"Monthly rent must be a valid positive number, got: {monthly_rent}")
+
+                    lease_data = LeaseCreate(
+                        tenant_id=bulk_data.tenant_id,
+                        property_id=unit.property_id,
+                        unit_id=unit.id,
+                        start_date=bulk_data.lease_start_date,
+                        end_date=bulk_data.end_date,
+                        monthly_rent=monthly_rent,
+                        security_deposit=bulk_data.security_deposit,
+                        rent_due_day=bulk_data.rent_due_day,
+                        late_fee_amount=bulk_data.late_fee_amount,
+                        late_fee_after_days=bulk_data.late_fee_after_days,
+                        special_terms=bulk_data.special_terms,
+                        status=LeaseStatus.ACTIVE
+                    )
+
+                    # Create the lease
+                    created_lease = cast(Lease, await create_lease(lease_data, current_user, session))
+                    created_leases.append(created_lease.id)
+                    successful_assignments += 1
+
+                    logger.info(
+                        f"Successfully assigned tenant {bulk_data.tenant_id} to unit {unit.name or unit.id}")
+
+                except Exception as lease_error:
+                    logger.error(
+                        f"Failed to create lease for unit {unit.name or unit.id}: {lease_error}")
+                    errors.append(CSVAssignmentError(
+                        row_number=0,
+                        unit_number=unit.name or str(unit.id),
+                        error_message=f"Failed to create lease: {str(lease_error)}",
+                        error_type="lease_creation_failed"
+                    ))
+                    continue
+
+            except HTTPException as http_error:
+                # Preserve accurate error types based on HTTP status code
+                error_type = "unit_not_found"  # default
+                if http_error.status_code == 403:
+                    error_type = "permission_denied"
+                elif http_error.status_code == 404:
+                    error_type = "unit_not_found"
+                elif http_error.status_code == 400:
+                    error_type = "validation"
+                elif http_error.status_code == 409:
+                    error_type = "unit_occupied"
+                else:
+                    error_type = f"http_error_{http_error.status_code}"
+                
+                errors.append(CSVAssignmentError(
+                    row_number=0,
+                    unit_number=str(unit_id),
+                    error_message=str(http_error.detail),
+                    error_type=error_type
+                ))
+                continue
+            except Exception as e:
+                logger.error(
+                    f"Unexpected error processing unit {unit_id}: {e}")
+                errors.append(CSVAssignmentError(
+                    row_number=0,
+                    unit_number=str(unit_id),
+                    error_message=f"Unexpected error: {str(e)}",
+                    error_type="validation"
+                ))
+
+        # Commit successful assignments
+        if created_leases:
+            try:
+                await session.commit()
+                logger.info(
+                    f"Bulk assignment completed: {successful_assignments} successful, {len(errors)} failed")
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Failed to commit bulk assignments: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to save bulk assignments to database"
+                )
+
+        return BulkAssignmentResponse(
+            total_units=len(bulk_data.unit_ids),
+            successful_assignments=successful_assignments,
+            failed_assignments=len(errors),
+            errors=errors,
+            created_leases=created_leases
+        )

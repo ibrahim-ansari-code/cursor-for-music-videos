@@ -36,12 +36,12 @@ async def test_get_outstanding_payments(api_client: httpx.AsyncClient):
     """
     Tests retrieval of outstanding payments via the accounting API.
     """
-    logger.info("Testing GET /api/accounting/payments/outstanding...")
+    logger.info("Testing GET /api/accounting/payments/outstanding/current-month...")
     
-    response = await api_client.get("/api/accounting/payments/outstanding/")
+    response = await api_client.get("/api/accounting/payments/outstanding/current-month")
     outstanding = assert_valid_json_response(response, list)
     
-    logger.info(f"✅ GET /api/accounting/payments/outstanding successful, status 200, returned {len(outstanding)} items")
+    logger.info(f"✅ GET /api/accounting/payments/outstanding/current-month successful, status 200, returned {len(outstanding)} items")
 
 @pytest.mark.slow
 @pytest.mark.asyncio
@@ -50,7 +50,7 @@ async def test_generate_due_payments(api_client: httpx.AsyncClient, created_leas
     Tests that the POST /api/accounting/payments/generate-due endpoint successfully generates due payments.
     This test uses a fixture to ensure at least one active lease exists.
     """
-    logger.info("Testing POST /api/accounting/payments/generate-due...")
+    logger.info("Testing POST /api/accounting/payments/generate/monthly-rent...")
 
     # Get initial set of payment IDs
     initial_response = await api_client.get("/api/accounting/payments")
@@ -58,7 +58,7 @@ async def test_generate_due_payments(api_client: httpx.AsyncClient, created_leas
     initial_ids = {p["id"] for p in initial_payments.get("items", [])}
 
     # Generate due payments
-    response = await api_client.post("/api/accounting/payments/generate-due")
+    response = await api_client.post("/api/accounting/payments/generate/monthly-rent")
     assert_api_success(response)
 
     # Verify that the set of payments has grown
@@ -74,7 +74,7 @@ async def test_generate_due_payments(api_client: httpx.AsyncClient, created_leas
     # or the test environment's date.
     assert len(newly_created_ids) > 0, "Expected at least one new payment to be generated"
     
-    logger.info(f"✅ POST /api/accounting/payments/generate-due successful, created {len(newly_created_ids)} new payments.")
+    logger.info(f"✅ POST /api/accounting/payments/generate/monthly-rent successful, created {len(newly_created_ids)} new payments.")
 
 @pytest.mark.asyncio
 async def test_create_update_delete_payment(api_client: httpx.AsyncClient, created_lease: dict):

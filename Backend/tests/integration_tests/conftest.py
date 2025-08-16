@@ -236,28 +236,107 @@ __all__ = [
 ]
 
 
+def _is_test_lease(lease: dict) -> bool:
+    """
+    Helper function to identify test leases based on property and tenant patterns.
+    
+    Returns True if the lease is associated with test properties or tenants based on
+    specific naming patterns used in integration tests.
+    """
+    # Check if lease is associated with test properties
+    property_name = lease.get('property', {}).get('name', '')
+    if (property_name.startswith(('TestProp_Landlord_', 'Test Property ', 'BulkTest_Property_')) or
+        property_name in ('CreateTest Property', 'Status Test Property')):
+        return True
+    
+    # Check if lease is associated with test tenants by email
+    tenant_email = lease.get('tenant', {}).get('email', '')
+    if (tenant_email.startswith(('fixture_tenant_', 'create_test_', 'unassigned_', 'perf_tenant_', 'test.')) and 
+        tenant_email.endswith('@example.com')):
+        return True
+    
+    if '.bulktest.' in tenant_email and tenant_email.endswith('@example.com'):
+        return True
+    
+    # Check if lease is associated with test tenants by name
+    tenant_first_name = lease.get('tenant', {}).get('first_name', '')
+    if (tenant_first_name in ('Fixture', 'CreateTest', 'Unassigned', 'Perf') or
+        tenant_first_name.startswith('BulkTest')):
+        return True
+    
+    return False
+
+
 async def cleanup_test_data(api_client: httpx.AsyncClient):
     """
-    Deletes test tenants and properties created during testing that match specific naming or email patterns.
+    ULTRA-RESTRICTIVE cleanup of test data created during integration testing.
     
-    Identifies and removes tenants and properties used for tests, skipping protected accounts. Logs the outcome of each deletion attempt and handles network or request errors gracefully.
+    This function uses very specific patterns to identify ONLY test data created by integration test fixtures.
+    It is designed to be safe for use on development databases with real data.
+    
+    IMPORTANT: This cleanup function is HIGHLY RESTRICTIVE and will ONLY delete:
+    - Properties: 
+      * Names: "TestProp_Landlord_*", "Test Property *", "BulkTest_Property_*", "CreateTest Property", "Status Test Property"
+      * Addresses: "123 Test St" + "Testville" OR "123 Test Street" + "Test City"
+    - Tenants:
+      * Emails: "fixture_tenant_*@example.com", "create_test_*@example.com", "unassigned_*@example.com", 
+                "perf_tenant_*@example.com", "test.*@example.com", "*.bulktest.*@example.com"
+      * Names: first_name="Fixture"|"CreateTest"|"Unassigned"|"Perf" OR first_name starts with "BulkTest"
+    - Leases: Associated with any of the above properties/tenants
+    
+    SAFEGUARDS:
+    - Never deletes emails containing real domains (@brikli.dev, @gmail.com, @hotmail., @yahoo., @outlook.)
+    - Never deletes properties with business keywords (inc, corp, ltd, llc, avenue, street, road)
+    
+    Uses a multi-phase approach:
+    1. Delete all qualifying test leases first (to remove foreign key constraints)
+    2. Delete qualifying test tenants  
+    3. Delete qualifying test properties
     """
     logger.info("🧹 Starting test data cleanup...")
 
     try:
-        # Get all test tenants
+        # Phase 1: Clean up test leases first to remove foreign key constraints
+        leases_response = await api_client.get("/api/leases/")
+        if leases_response.status_code == 200:
+            leases = leases_response.json()
+            test_leases = [lease for lease in leases if _is_test_lease(lease)]
+            
+            for lease in test_leases:
+                try:
+                    delete_response = await api_client.delete(f"/api/leases/{lease['id']}")
+                    if delete_response.status_code == 204:
+                        logger.info(f"✅ Cleaned up test lease {lease['id']}")
+                    elif delete_response.status_code == 404:
+                        logger.debug(f"ℹ️ Test lease {lease['id']} already deleted")
+                    else:
+                        logger.debug(f"⚠️ Test lease {lease['id']} cleanup returned {delete_response.status_code}")
+                except Exception as e:
+                    logger.debug(f"⚠️ Failed to cleanup test lease {lease['id']}: {e}")
+
+        # Phase 2: Get all test tenants
         response = await api_client.get("/api/tenants/")
         if response.status_code == 200:
             tenants = response.json()
             test_tenants = [
                 t for t in tenants
                 if (
-                    (t.get('first_name', '').startswith(('Test', 'CreateTest', 'UpdateTest', 'DeleteTest')) or
-                     t.get('email', '').endswith('@example.com') or
-                     'test' in t.get('email', '').lower()) and
-                    # Don't delete production test user
-                    t.get('email') != 'test@gmail.com'
-                )
+                    # All actual test tenant patterns found in integration tests
+                    (t.get('email', '').startswith('fixture_tenant_') and t.get('email', '').endswith('@example.com')) or
+                    (t.get('email', '').startswith('create_test_') and t.get('email', '').endswith('@example.com')) or
+                    (t.get('email', '').startswith('unassigned_') and t.get('email', '').endswith('@example.com')) or
+                    (t.get('email', '').startswith('perf_tenant_') and t.get('email', '').endswith('@example.com')) or
+                    (t.get('email', '').startswith('test.') and t.get('email', '').endswith('@example.com')) or
+                    ('.bulktest.' in t.get('email', '') and t.get('email', '').endswith('@example.com')) or
+                    # Exact name patterns from fixtures
+                    (t.get('first_name') == 'Fixture' and t.get('last_name') == 'Tenant') or
+                    (t.get('first_name') == 'CreateTest') or
+                    (t.get('first_name') == 'Unassigned') or 
+                    (t.get('first_name') == 'Perf') or
+                    (t.get('first_name', '').startswith('BulkTest'))
+                ) and
+                # Safeguard: Never delete any @brikli.dev, @gmail.com, or other real domain emails  
+                not any(domain in t.get('email', '') for domain in ['@brikli.dev', '@gmail.com', '@hotmail.', '@yahoo.', '@outlook.'])
             ]
 
             for tenant in test_tenants:
@@ -267,25 +346,40 @@ async def cleanup_test_data(api_client: httpx.AsyncClient):
                         logger.info(
                             f"✅ Cleaned up test tenant {tenant['id']} ({tenant.get('email')})")
                     elif delete_response.status_code == 403:
-                        logger.info(
-                            f"⚠️ Test tenant {tenant['id']} cleanup blocked by RLS (expected)")
+                        logger.debug(
+                            f"ℹ️ Test tenant {tenant['id']} cleanup blocked by RLS (expected)")
+                    elif delete_response.status_code == 404:
+                        logger.debug(
+                            f"ℹ️ Test tenant {tenant['id']} already deleted")
+                    elif delete_response.status_code == 400:
+                        logger.debug(
+                            f"ℹ️ Test tenant {tenant['id']} has constraints (may have remaining relationships)")
                     else:
                         logger.warning(
                             f"⚠️ Test tenant {tenant['id']} cleanup returned {delete_response.status_code}")
                 except httpx.RequestError as exc:
-                    logger.warning(
+                    logger.debug(
                         f"⚠️ Failed to cleanup test tenant {tenant['id']} due to network/request error: {exc}")
                 except Exception:
-                    logger.exception(
-                        f"⚠️ Failed to cleanup test tenant {tenant['id']}:")
+                    logger.debug(
+                        f"⚠️ Failed to cleanup test tenant {tenant['id']} due to error")
 
-        # Get all test properties
+        # Phase 3: Get all test properties  
         response = await api_client.get("/api/properties/")
         if response.status_code == 200:
             properties = response.json()
             test_properties = [
                 p for p in properties
-                if p.get('name', '').startswith(('Test', 'CreateTest', 'UpdateTest', 'DeleteTest'))
+                if (
+                    # All actual test property patterns found in integration tests
+                    p.get('name', '').startswith(('TestProp_Landlord_', 'Test Property ', 'BulkTest_Property_')) or
+                    p.get('name') in ('CreateTest Property', 'Status Test Property') or
+                    # Properties with test addresses from fixtures  
+                    (p.get('address') == '123 Test St' and p.get('city') == 'Testville') or
+                    (p.get('address') == '123 Test Street' and p.get('city') == 'Test City')
+                ) and
+                # Safeguard: Never delete properties with real business names or addresses
+                not any(keyword in p.get('name', '').lower() for keyword in ['inc', 'corp', 'ltd', 'llc', 'avenue', 'street', 'road'])
             ]
 
             for prop in test_properties:
@@ -294,15 +388,21 @@ async def cleanup_test_data(api_client: httpx.AsyncClient):
                     if delete_response.status_code == 204:
                         logger.info(
                             f"✅ Cleaned up test property {prop['id']} ({prop.get('name')})")
+                    elif delete_response.status_code == 404:
+                        logger.debug(
+                            f"ℹ️ Test property {prop['id']} already deleted")
+                    elif delete_response.status_code == 400:
+                        logger.debug(
+                            f"ℹ️ Test property {prop['id']} has constraints (may have remaining units/leases)")
                     else:
                         logger.warning(
                             f"⚠️ Test property {prop['id']} cleanup returned {delete_response.status_code}")
                 except httpx.RequestError as exc:
-                    logger.warning(
+                    logger.debug(
                         f"⚠️ Failed to cleanup test property {prop['id']} due to network/request error: {exc}")
                 except Exception:
-                    logger.exception(
-                        f"⚠️ Failed to cleanup test property {prop['id']}:")
+                    logger.debug(
+                        f"⚠️ Failed to cleanup test property {prop['id']} due to error")
 
     except httpx.RequestError as exc:
         logger.warning(
@@ -356,7 +456,7 @@ async def created_property_id(api_client: httpx.AsyncClient) -> AsyncGenerator[i
         "city": "Testville",
         "province": "TS",
         "postal_code": "T5T5T5",
-        "property_type": "Apartment"
+        "property_type": "Residential"
     }
     response = await api_client.post("/api/properties/", json=property_data)
     assert response.status_code == 201
@@ -384,7 +484,7 @@ async def created_property(api_client: httpx.AsyncClient) -> AsyncGenerator[dict
         "city": "Test City",
         "province": "Test Province",
         "postal_code": "T5T5T5",
-        "property_type": "Apartment",
+        "property_type": "Residential",
         "description": "A test property created by fixture"
     }
 

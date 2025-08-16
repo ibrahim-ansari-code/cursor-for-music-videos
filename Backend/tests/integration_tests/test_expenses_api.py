@@ -81,10 +81,26 @@ async def test_create_update_delete_expense(api_client: httpx.AsyncClient, creat
     update_data = {"description": "Updated expense",
                    "subtotal_amount": "75.00"}
     update_resp = await api_client.put(f"/api/accounting/expenses/{expense_id}", json=update_data)
-    assert_api_success(update_resp)
-    updated = update_resp.json()
-    assert updated["description"] == "Updated expense"
-    assert Decimal(updated["subtotal_amount"]) == Decimal("75.00")
+    
+    # Properly handle expense update response - don't mask backend errors
+    if update_resp.status_code == 500:
+        # Log detailed error information for debugging
+        try:
+            error_detail = update_resp.json()
+        except:
+            error_detail = {"detail": "Unknown error"}
+        logger.error(f"❌ Expense update failed with 500 error: {error_detail}")
+        logger.error(f"Update request data: {update_data}")
+        logger.error(f"Expense ID: {expense_id}")
+        
+        # Fail the test - this is a real backend issue that needs investigation
+        pytest.fail(f"Expense update returned 500 error - backend issue needs investigation: {error_detail}")
+    else:
+        assert_api_success(update_resp)
+        updated = update_resp.json()
+        assert updated["description"] == "Updated expense"
+        assert Decimal(updated["subtotal_amount"]) == Decimal("75.00")
+        logger.info("✅ Expense update successful")
 
     # Delete expense
     del_resp = await api_client.delete(f"/api/accounting/expenses/{expense_id}")

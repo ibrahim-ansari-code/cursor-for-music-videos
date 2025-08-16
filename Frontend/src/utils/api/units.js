@@ -94,14 +94,14 @@ export const fetchUnitLease = async (unitId) => {
 export const searchUnits = async (filters = {}, options = {}) => {
   const { skip = 0, limit = 100 } = options;
   const params = new URLSearchParams();
-  
+
   // Add pagination
   params.append('skip', skip);
   params.append('limit', limit);
-  
+
   // Append query parameters to the URL
   const url = `/units/search?${params.toString()}`;
-  
+
   return apiRequest(url, {
     method: 'POST',
     body: JSON.stringify(filters),
@@ -119,6 +119,31 @@ export const searchUnits = async (filters = {}, options = {}) => {
  */
 export const createUnitsBulk = async (propertyId, bulkData) => {
   return apiRequest(`/properties/${propertyId}/units/bulk`, {
+    method: "POST",
+    body: JSON.stringify(bulkData),
+  });
+};
+
+/**
+ * Bulk assign tenants to units via CSV data
+ * @param {number} propertyId - The ID of the property
+ * @param {object} csvData - Object containing array of assignments from CSV
+ * @returns {Promise<object>} A promise that resolves to assignment results
+ */
+export const bulkAssignFromCSV = async (propertyId, csvData) => {
+  return apiRequest(`/properties/${propertyId}/units/bulk-assign-csv`, {
+    method: "POST",
+    body: JSON.stringify(csvData),
+  });
+};
+
+/**
+ * Bulk assign a single tenant to multiple units
+ * @param {object} bulkData - Object containing unit IDs and tenant assignment data
+ * @returns {Promise<object>} A promise that resolves to assignment results
+ */
+export const bulkAssignTenant = async (bulkData) => {
+  return apiRequest(`/units/bulk-assign`, {
     method: "POST",
     body: JSON.stringify(bulkData),
   });

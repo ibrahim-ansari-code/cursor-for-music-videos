@@ -31,7 +31,7 @@ async def test_create_property_basic(api_client: httpx.AsyncClient) -> None:
         "city": "Test City",
         "province": "Test Province",
         "postal_code": "12345",
-        "property_type": "Apartment",
+        "property_type": "Residential",
         "description": "A test property for pytest"
     }
 
@@ -65,7 +65,7 @@ async def test_create_property_with_units(api_client: httpx.AsyncClient) -> None
         "city": "Unit City",
         "province": "Unit Province",
         "postal_code": "54321",
-        "property_type": "Apartment",
+        "property_type": "Residential",
         "description": "A property with multiple units",
         "units": ["101", "201", "301", "Basement", "PH"]  # Test floor derivation
     }
@@ -112,7 +112,7 @@ async def test_create_property_validation_errors(api_client: httpx.AsyncClient) 
         "city": "Test City",
         "province": "Test Province",
         "postal_code": "12345",
-        "property_type": "Apartment"
+        "property_type": "Residential"
     }
 
     response = await api_client.post("/api/properties/", json=invalid_data)
@@ -127,7 +127,7 @@ async def test_create_property_validation_errors(api_client: httpx.AsyncClient) 
         "city": "Test City",
         "province": "Test Province",
         "postal_code": "12345",
-        "property_type": "Apartment"
+        "property_type": "Residential"
     }
 
     response = await api_client.post("/api/properties/", json=missing_field_data)
@@ -152,7 +152,7 @@ async def test_get_all_properties_with_filters(api_client: httpx.AsyncClient) ->
             "city": "Test City",
             "province": "Test Province",
             "postal_code": "11111",
-            "property_type": "House",
+            "property_type": "Residential",
             "status": "ACTIVE"
         },
         {
@@ -289,7 +289,7 @@ async def test_property_status_derivation(api_client: httpx.AsyncClient) -> None
         "city": "Status City",
         "province": "Status Province",
         "postal_code": "77777",
-        "property_type": "Apartment",
+        "property_type": "Residential",
         "units": ["101", "102", "103"]
     }
     
@@ -326,7 +326,7 @@ async def test_delete_property_with_constraints(api_client: httpx.AsyncClient) -
         "city": "Delete City",
         "province": "Delete Province",
         "postal_code": "99999",
-        "property_type": "House"
+        "property_type": "Residential"
     }
     
     response = await api_client.post("/api/properties/", json=property_data)

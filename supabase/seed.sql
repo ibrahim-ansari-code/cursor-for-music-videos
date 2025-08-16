@@ -398,36 +398,38 @@ INSERT INTO properties (id, name, address, city, province, postal_code, property
 -- PROPERTY UNITS (For Test User Properties)
 -- ===================================================================
 INSERT INTO property_units (id, property_id, tenant_id, name, description, size, monthly_rent, is_rented, bedrooms, bathrooms, floor, created_at, updated_at) VALUES
+-- All units are initially marked as vacant (is_rented = false) for testing purposes.
+-- This allows developers to simulate tenant assignment and lease creation during testing.
 -- Maple Apartments units
 (1, 1, NULL, 'Unit 101', 'Ground floor 1-bedroom with patio', 650.0, 1800.00, false, 1, 1.0, 1, now(), now()),
 (2, 1, NULL, 'Unit 102', 'Ground floor 2-bedroom corner unit', 950.0, 2400.00, false, 2, 1.5, 1, now(), now()),
-(3, 1, NULL, 'Unit 201', 'Second floor 1-bedroom with balcony', 650.0, 1900.00, true, 1, 1.0, 2, now(), now()),
-(4, 1, NULL, 'Unit 202', 'Second floor 2-bedroom premium unit', 950.0, 2600.00, true, 2, 2.0, 2, now(), now()),
+(3, 1, NULL, 'Unit 201', 'Second floor 1-bedroom with balcony', 650.0, 1900.00, false, 1, 1.0, 2, now(), now()),
+(4, 1, NULL, 'Unit 202', 'Second floor 2-bedroom premium unit', 950.0, 2600.00, false, 2, 2.0, 2, now(), now()),
 (5, 1, NULL, 'Unit 301', 'Third floor 1-bedroom city view', 650.0, 2000.00, false, 1, 1.0, 3, now(), now()),
 
 -- Downtown Condos units
-(6, 2, NULL, 'Penthouse A', 'Luxury penthouse with terrace', 1500.0, 4500.00, true, 3, 2.5, 20, now(), now()),
+(6, 2, NULL, 'Penthouse A', 'Luxury penthouse with terrace', 1500.0, 4500.00, false, 3, 2.5, 20, now(), now()),
 (7, 2, NULL, 'Unit 1502', 'High-floor 2-bedroom with view', 1100.0, 3200.00, false, 2, 2.0, 15, now(), now()),
 
 -- Student Housing units
-(8, 3, NULL, 'Room A1', 'Single bedroom in shared unit', 200.0, 800.00, true, 1, 1.0, 1, now(), now()),
-(9, 3, NULL, 'Room A2', 'Single bedroom in shared unit', 200.0, 800.00, true, 1, 1.0, 1, now(), now()),
+(8, 3, NULL, 'Room A1', 'Single bedroom in shared unit', 200.0, 800.00, false, 1, 1.0, 1, now(), now()),
+(9, 3, NULL, 'Room A2', 'Single bedroom in shared unit', 200.0, 800.00, false, 1, 1.0, 1, now(), now()),
 (10, 3, NULL, 'Studio B1', 'Private studio apartment', 400.0, 1200.00, false, 0, 1.0, 2, now(), now()),
 
 -- Oakville Family Homes
-(11, 4, NULL, 'Townhome 1', '3-bedroom family townhome', 1200.0, 2800.00, true, 3, 2.5, NULL, now(), now()),
+(11, 4, NULL, 'Townhome 1', '3-bedroom family townhome', 1200.0, 2800.00, false, 3, 2.5, NULL, now(), now()),
 (12, 4, NULL, 'Townhome 2', '4-bedroom family townhome', 1400.0, 3200.00, false, 4, 3.0, NULL, now(), now()),
 
 -- Business Plaza
-(13, 5, NULL, 'Suite 100', 'Ground floor retail space', 800.0, 3500.00, true, NULL, 1.0, 1, now(), now()),
+(13, 5, NULL, 'Suite 100', 'Ground floor retail space', 800.0, 3500.00, false, NULL, 1.0, 1, now(), now()),
 (14, 5, NULL, 'Suite 200', 'Second floor office space', 600.0, 2500.00, false, NULL, 1.0, 2, now(), now()),
 
 -- Riverside Apartments
-(15, 6, NULL, 'Apt 1A', 'Riverside view 1-bedroom', 700.0, 1700.00, true, 1, 1.0, 1, now(), now()),
+(15, 6, NULL, 'Apt 1A', 'Riverside view 1-bedroom', 700.0, 1700.00, false, 1, 1.0, 1, now(), now()),
 (16, 6, NULL, 'Apt 2B', 'Riverside view 2-bedroom', 900.0, 2200.00, false, 2, 1.5, 2, now(), now()),
 
 -- Suburban Duplex
-(17, 8, NULL, 'Unit A', 'Main floor duplex unit', 1000.0, 2000.00, true, 2, 1.5, 1, now(), now()),
+(17, 8, NULL, 'Unit A', 'Main floor duplex unit', 1000.0, 2000.00, false, 2, 1.5, 1, now(), now()),
 (18, 8, NULL, 'Unit B', 'Upper floor duplex unit', 1000.0, 1900.00, false, 2, 1.5, 2, now(), now());
 
 -- ===================================================================
@@ -581,6 +583,28 @@ SELECT setval('properties_id_seq', COALESCE((SELECT MAX(id) FROM properties), 1)
 SELECT setval('property_units_id_seq', COALESCE((SELECT MAX(id) FROM property_units), 1));
 SELECT setval('tenants_id_seq', COALESCE((SELECT MAX(id) FROM tenants), 1));
 SELECT setval('integrations_id_seq', COALESCE((SELECT MAX(id) FROM integrations), 1));
+
+-- ===================================================================
+-- POST-SEED DATA CONSISTENCY FIX
+-- ===================================================================
+-- Update unit rental status based on active leases
+-- This ensures consistency between lease creation and unit status
+UPDATE property_units 
+SET 
+    tenant_id = (
+        SELECT tenant_id 
+        FROM leases 
+        WHERE unit_id = property_units.id 
+        AND status = 'ACTIVE' 
+        ORDER BY created_at DESC
+        LIMIT 1
+    ),
+    is_rented = true
+WHERE EXISTS (
+    SELECT 1 FROM leases 
+    WHERE unit_id = property_units.id 
+    AND status = 'ACTIVE'
+);
 
 -- ===================================================================
 -- VERIFICATION QUERIES

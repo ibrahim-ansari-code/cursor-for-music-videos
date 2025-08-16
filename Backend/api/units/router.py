@@ -11,7 +11,9 @@ from Backend.api.leases.schemas import LeaseResponse
 
 from .schemas import (
     UnitCreate, UnitCreateResponse, UnitResponse, UnitUpdate,
-    BulkUnitCreate, BulkUnitCreateResponse, UnitSearchFilters
+    BulkUnitCreate, BulkUnitCreateResponse, UnitSearchFilters,
+    CSVBulkAssignRequest, CSVBulkAssignResponse,
+    BulkAssignmentRequest, BulkAssignmentResponse
 )
 from .service import UnitService
 
@@ -49,11 +51,11 @@ async def create_units_bulk(
 ):
     """
     Create multiple units for a property in a single request.
-    
+
     This endpoint allows bulk creation of units, which is useful when setting up a new property
     with multiple units. The operation is transactional - either all valid units are created
     or none are created if there's a database error.
-    
+
     Returns a response containing successfully created units and any failures with error details.
     """
     try:
@@ -74,14 +76,15 @@ async def search_units(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
     skip: int = Query(0, ge=0, description="Number of units to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Number of units to return")
+    limit: int = Query(100, ge=1, le=1000,
+                       description="Number of units to return")
 ) -> list[UnitResponse]:
     """
     Search for units across all properties with various filters.
-    
+
     This endpoint allows searching for units based on criteria like rent range, number of bedrooms,
     bathrooms, and rental status. Non-admin users can only search their own properties.
-    
+
     Example filters:
     - Find all 2-bedroom units under $1500/month that are available
     - Find all units in specific properties
@@ -126,7 +129,8 @@ async def get_units_for_property(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
     skip: int = Query(0, ge=0, description="Number of units to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Number of units to return")
+    limit: int = Query(100, ge=1, le=1000,
+                       description="Number of units to return")
 ) -> list[UnitResponse]:
     """
     Retrieves all units for a specified property, ensuring the user has permission to access them.
@@ -205,7 +209,7 @@ async def get_unit_lease(
 ) -> LeaseResponse:
     """
     Get the active lease for a unit.
-    
+
     Returns the currently active lease for the specified unit.
     Raises 404 if the unit doesn't exist or has no active lease.
     """
@@ -218,4 +222,64 @@ async def get_unit_lease(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while retrieving the unit lease."
+        )
+
+
+@router.post("/properties/{property_id}/units/bulk-assign-csv", response_model=CSVBulkAssignResponse)
+async def bulk_assign_from_csv(
+    property_id: int,
+    csv_data: CSVBulkAssignRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+) -> CSVBulkAssignResponse:
+    """
+    Bulk assign tenants to units based on CSV data.
+
+    This endpoint processes CSV data containing unit assignments with tenant information.
+    Expected CSV format:
+    - Unit Number: The unit identifier/name as it appears in the property (can be numeric like "101" or alphanumeric like "2A", "Unit-5", "Penthouse")
+    - Tenant Email: The email address of the tenant to assign
+    - Lease Start Date: When the lease should start (MM/DD/YYYY, DD/MM/YYYY, or YYYY-MM-DD)
+    - Monthly Rent: The monthly rent amount (can include $ and commas)
+
+    The operation is transactional - successful assignments are committed together.
+    Returns detailed results including any errors for failed assignments.
+    """
+    try:
+        return await UnitService.bulk_assign_from_csv(property_id, csv_data, session, current_user)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Unexpected error in CSV bulk assignment")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred during CSV bulk assignment."
+        )
+
+
+@router.post("/units/bulk-assign", response_model=BulkAssignmentResponse)
+async def bulk_assign_tenant(
+    bulk_data: BulkAssignmentRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+) -> BulkAssignmentResponse:
+    """
+    Bulk assign a single tenant to multiple units.
+
+    This endpoint assigns the same tenant to multiple units with identical lease terms.
+    Useful for bulk operations from the UI where a user selects multiple units
+    and assigns them all to the same tenant.
+
+    The operation is transactional - successful assignments are committed together.
+    Returns detailed results including any errors for failed assignments.
+    """
+    try:
+        return await UnitService.bulk_assign_tenant(bulk_data, session, current_user)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Unexpected error in bulk assignment")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred during bulk assignment."
         )
