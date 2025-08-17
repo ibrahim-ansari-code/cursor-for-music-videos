@@ -11,7 +11,7 @@ import {
   syncQuickBooksExpenses,
 } from '../utils/api';
 import { ModalShell, Button } from '../components/ui/SharedModalComponents';
-import LoadingSpinner from '../components/LoadingSpinner';
+import IntegrationsSkeleton from '../components/ui/skeletons/IntegrationsSkeleton';
 
 // --- Reusable Components (Tailored to Brikli's Style) ---
 
@@ -402,11 +402,11 @@ const Integrations = () => {
   };
 
   if (loading) {
-    return <LoadingSpinner message="Loading Integrations..." />;
+    return <IntegrationsSkeleton />;
   }
   
   if (isSyncing) {
-    return <LoadingSpinner message="Performing initial sync with QuickBooks... This may take a moment." />;
+    return <IntegrationsSkeleton showPlaceholder={false} />;
   }
 
   return (

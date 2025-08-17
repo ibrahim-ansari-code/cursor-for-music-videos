@@ -44,6 +44,9 @@ export * from './messages';
 // Reports
 export * from './reports';
 
+// Rent Tracker
+export * from './rentTracker';
+
 // User management
 export * from './users';
 

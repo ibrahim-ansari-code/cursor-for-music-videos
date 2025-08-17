@@ -24,16 +24,15 @@ const RentTrackerTab = () => {
         }
 
         // Update the rent tracker metrics when data is loaded from the RentTracker component
-        // Calculate actual rent amounts instead of just counting entries
+        // Calculate actual rent amounts - sum all expected rent
         const totalRent = data.reduce((sum, rent) => sum + (parseFloat(rent.monthly_rent) || 0), 0);
-        const paidRent = data
-          .filter((rent) => rent.status === "PAID")
-          .reduce((sum, rent) => {
-            // Only use amount_paid if it exists and is valid, otherwise use 0
-            // Using monthly_rent as fallback could lead to incorrect calculations for partial payments
-            const amountPaid = parseFloat(rent.amount_paid) || 0;
-            return sum + amountPaid;
-          }, 0);
+        
+        // Calculate total collected - sum amount_paid from ALL entries (not just PAID status)
+        // This correctly includes partial payments
+        const paidRent = data.reduce((sum, rent) => {
+          const amountPaid = parseFloat(rent.amount_paid) || 0;
+          return sum + amountPaid;
+        }, 0);
 
         setAccountingData((prevData) => ({
           ...prevData,

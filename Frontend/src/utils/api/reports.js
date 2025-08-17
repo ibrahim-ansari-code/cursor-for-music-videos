@@ -20,23 +20,4 @@ export const fetchReportSummary = async (params = {}) => {
 
   const queryString = queryParams.toString();
   return apiRequest(`/reports/summary${formatQueryString(queryString)}`);
-};
-
-/**
- * Fetches rent tracker data for a specific month and year.
- * @param {Object} [params={}] - Query parameters for filtering rent tracker data
- * @param {number} [params.month] - The month to fetch data for (1-12)
- * @param {number} [params.year] - The year to fetch data for
- * @param {number} [params.property_id] - The property ID to filter by
- * @returns {Promise<Array<Object>>} A promise that resolves to an array of rent tracking objects
- */
-export const fetchRentTracker = async (params = {}) => {
-  const queryParams = new URLSearchParams();
-
-  if (params.month) queryParams.append("month", params.month);
-  if (params.year) queryParams.append("year", params.year);
-  if (params.property_id) queryParams.append("property_id", params.property_id);
-
-  const queryString = queryParams.toString();
-  return apiRequest(`/rent-tracker/${formatQueryString(queryString)}`);
 }; 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchRentTracker } from "../utils/api/index.js";
+import { fetchRentTracker } from "../utils/api/rentTracker";
 
 export default function useRentTracker({ month, year, propertyId }) {
   const [data, setData] = useState([]);
@@ -13,7 +13,7 @@ export default function useRentTracker({ month, year, propertyId }) {
         setLoading(true);
         const resp = await fetchRentTracker({ month, year, property_id: propertyId });
         const unpaid = Array.isArray(resp)
-          ? resp.filter((r) => r.status === "DUE" || r.status === "PARTIAL")
+          ? resp.filter((r) => r.status === "DUE" || r.status === "PARTIAL" || r.status === "OVERDUE")
           : [];
         if (isMounted) setData(unpaid);
       } catch (err) {

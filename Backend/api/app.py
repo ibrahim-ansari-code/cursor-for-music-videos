@@ -162,11 +162,10 @@ try:
     from Backend.api.health import router as health_router
     from Backend.api.leases.router import router as leases_router
     from Backend.api.properties.router import router as properties_router
-    from Backend.api.rent_tracker import router as rent_tracker_router
     from Backend.api.reports import router as reports_router
     from Backend.api.tenants.router import router as tenants_router
     from Backend.api.units.router import router as units_router
-    from Backend.api.maintenance import router as maintenance_router
+    from Backend.api.maintenance.router import router as maintenance_router
     from Backend.api.quickbooks.router import router as quickbooks_router
 
     # Include routers into the central api_main_router
@@ -179,7 +178,6 @@ try:
     api_main_router.include_router(accounting_api_router, prefix="/accounting")
     api_main_router.include_router(agent_router)
     api_main_router.include_router(tenants_router)
-    api_main_router.include_router(rent_tracker_router)
     api_main_router.include_router(units_router)
     api_main_router.include_router(reports_router)
     api_main_router.include_router(health_router)

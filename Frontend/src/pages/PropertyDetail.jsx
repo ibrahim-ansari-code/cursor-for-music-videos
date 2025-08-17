@@ -11,7 +11,7 @@ import StatCard from "../components/StatCard"; // Import StatCard
 import UnitTable from "../components/units/UnitTable"; // Import UnitTable
 import NewUnitModal from "../components/units/NewUnitModal"; // Import NewUnitModal
 import EditUnitModal from "../components/units/EditUnitModal"; // Import EditUnitModal
-import LoadingSpinner from "../components/LoadingSpinner"; // Import LoadingSpinner
+import PropertyDetailSkeleton from "../components/ui/skeletons/PropertyDetailSkeleton";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import AssignTenantModal from "../components/units/AssignTenantModal"; // Import AssignTenantModal
@@ -412,7 +412,7 @@ const PropertyDetail = () => {
     return property.units.filter(unit => selectedUnits.includes(unit.id));
   };
 
-  if (loading) return <LoadingSpinner message="Loading property details..." />;
+  if (loading) return <PropertyDetailSkeleton />;
 
   if (error)
     return (

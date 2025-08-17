@@ -1,7 +1,7 @@
 import React, { useState, useContext } from "react";
 import { AuthContext } from "../contexts/AuthContext";
 import { toast } from "react-toastify";
-import LoadingSpinner from "../components/LoadingSpinner";
+import SettingsSkeleton from "../components/ui/skeletons/SettingsSkeleton";
 
 // Import settings components
 import ProfileCard from "../components/settings/ProfileCard";
@@ -46,7 +46,7 @@ const Settings = () => {
 
   // Loading state
   if (!authUser) {
-    return <LoadingSpinner message="Loading settings..." />;
+    return <SettingsSkeleton />;
   }
 
   return (

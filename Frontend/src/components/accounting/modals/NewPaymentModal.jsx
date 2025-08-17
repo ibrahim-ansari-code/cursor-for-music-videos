@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "react-toastify";
 import {
@@ -39,23 +39,42 @@ const PAYMENT_STATUSES = [
   "Refunded",
 ];
 
-const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
-  const initialFormData = {
-    property_id: "",
-    property_name: "",
-    tenant_id: "",
-    tenant_name: "",
-    amount: "",
-    payment_date: new Date().toISOString().split("T")[0],
-    payment_method: "Other",
-    status: "Paid",
-    notes: "",
-    receipt_url: null,
-    transaction_reference: "",
-    reduction: "",
-    reduction_reason: "",
-  };
-  const [formData, setFormData] = useState(initialFormData);
+const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
+  const memoizedInitialData = useMemo(() => ({
+    property_id: initialData.property_id || "",
+    property_name: initialData.property_name || "",
+    tenant_id: initialData.tenant_id || "",
+    tenant_name: initialData.tenant_name || "",
+    amount: initialData.amount || "",
+    payment_date: initialData.payment_date || new Date().toISOString().split("T")[0],
+    payment_method: initialData.payment_method || "Other",
+    status: initialData.status || "Paid",
+    notes: initialData.notes || "",
+    receipt_url: initialData.receipt_url || null,
+    transaction_reference: initialData.transaction_reference || "",
+    reduction: initialData.reduction || "",
+    reduction_reason: initialData.reduction_reason || "",
+    lease_id: initialData.lease_id || null,
+  }), [
+    initialData.property_id,
+    initialData.property_name,
+    initialData.tenant_id,
+    initialData.tenant_name,
+    initialData.amount,
+    initialData.payment_date,
+    initialData.payment_method,
+    initialData.status,
+    initialData.notes,
+    initialData.receipt_url,
+    initialData.transaction_reference,
+    initialData.reduction,
+    initialData.reduction_reason,
+    initialData.lease_id
+  ]);
+
+  const getInitialFormData = () => memoizedInitialData;
+  
+  const [formData, setFormData] = useState(getInitialFormData());
   const [properties, setProperties] = useState([]);
   const [tenants, setTenants] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -81,14 +100,14 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
     };
     if (isOpen) {
       loadProperties();
-      setFormData(initialFormData);
+      setFormData(getInitialFormData());
       setError(null);
       setLease(null);
       setTenants([]);
       receiptState.resetReceiptState();
       setDropdownOpen("");
     }
-  }, [isOpen]);
+  }, [isOpen, memoizedInitialData]);
 
   useEffect(() => {
     const loadTenants = async () => {
@@ -96,8 +115,18 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
         try {
           const data = await fetchTenantsByProperty(formData.property_id);
           setTenants(data);
-          setFormData((prev) => ({ ...prev, tenant_id: "", tenant_name: "" }));
-          setLease(null);
+          // Only reset tenant if it wasn't provided as initial data
+          if (!initialData.tenant_id) {
+            setFormData((prev) => ({ ...prev, tenant_id: "", tenant_name: "" }));
+            setLease(null);
+          } else {
+            // Validate preselected tenant exists in the loaded list
+            const exists = Array.isArray(data) && data.some(t => String(t.id) === String(initialData.tenant_id));
+            if (!exists) {
+              setFormData((prev) => ({ ...prev, tenant_id: "", tenant_name: "" }));
+              setLease(null);
+            }
+          }
         } catch (err) {
           console.error("Failed to load tenants:", err);
           toast.error("Failed to load tenants for the selected property.");
@@ -108,7 +137,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess }) => {
       }
     };
     loadTenants();
-  }, [formData.property_id]);
+  }, [formData.property_id, initialData.tenant_id]);
 
   useEffect(() => {
     const findActiveLease = async () => {

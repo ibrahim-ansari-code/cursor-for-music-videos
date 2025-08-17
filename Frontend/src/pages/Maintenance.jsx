@@ -9,7 +9,7 @@ import {
 import MaintenanceTable from "../components/maintenance/MaintenanceTable";
 import MaintenanceRequestModal from "../components/maintenance/MaintenanceRequestModal";
 import StatusCard from "../components/maintenance/StatusCard";
-import LoadingSpinner from "../components/LoadingSpinner";
+import MaintenanceSkeleton, { MaintenanceTableSkeleton } from "../components/ui/skeletons/MaintenanceSkeleton";
 
 const Maintenance = () => {
   const [summary, setSummary] = useState(null);
@@ -190,7 +190,7 @@ const Maintenance = () => {
   const TABS = ["All Requests", "Pending", "In Progress", "Completed"];
 
   if (loading && !summary)
-    return <LoadingSpinner message="Loading maintenance dashboard..." />;
+    return <MaintenanceSkeleton />;
   if (error && !summary)
     return <div className="p-6 text-center text-red-500">Error: {error}</div>;
 
@@ -280,9 +280,7 @@ const Maintenance = () => {
         </div>
 
         {loading && currentPage === 1 ? (
-          <div className="p-6">
-            <LoadingSpinner message="Loading requests..." />
-          </div>
+          <MaintenanceTableSkeleton />
         ) : (
           <>
             <MaintenanceTable

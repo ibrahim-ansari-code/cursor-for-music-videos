@@ -2,7 +2,7 @@
 Unit tests for LLM tool handlers.
 """
 import pytest
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, UTC, date
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 import json
@@ -331,33 +331,40 @@ class TestToolHandlers:
 
     async def test_get_lease_expiry_info(self, mock_session, user_id):
         """Test getting lease expiry information."""
+        from unittest.mock import patch
+        
         # Arrange
+        # Use a fixed date to ensure consistent test results across all environments
+        fixed_date = date(2024, 1, 15)  # Monday, January 15, 2024
+        fixed_datetime = datetime.combine(fixed_date, datetime.min.time()).replace(tzinfo=UTC)
+        
+        # Create leases with known date offsets
         leases = [
             Lease(
                 id=1,
                 property_id=1,
                 unit_id=1,
                 tenant_id=1,
-                start_date=datetime.now(UTC).date() - timedelta(days=300),
-                end_date=datetime.now(UTC).date() + timedelta(days=30),
+                start_date=fixed_date - timedelta(days=300),
+                end_date=fixed_date + timedelta(days=30),  # 30 days from fixed_date
                 monthly_rent=Decimal("2500"),
                 status=LeaseStatus.ACTIVE,
                 security_deposit=Decimal("2500"),
-                created_at=datetime.now(UTC),
-                updated_at=datetime.now(UTC)
+                created_at=fixed_datetime,
+                updated_at=fixed_datetime
             ),
             Lease(
                 id=2,
                 property_id=2,
                 unit_id=2,
                 tenant_id=2,
-                start_date=datetime.now(UTC).date() - timedelta(days=200),
-                end_date=datetime.now(UTC).date() + timedelta(days=60),
+                start_date=fixed_date - timedelta(days=200),
+                end_date=fixed_date + timedelta(days=60),  # 60 days from fixed_date
                 monthly_rent=Decimal("3000"),
                 status=LeaseStatus.ACTIVE,
                 security_deposit=Decimal("3000"),
-                created_at=datetime.now(UTC),
-                updated_at=datetime.now(UTC)
+                created_at=fixed_datetime,
+                updated_at=fixed_datetime
             )
         ]
         
@@ -369,8 +376,11 @@ class TestToolHandlers:
         
         args = {"days": 90}
         
-        # Act
-        result = await ToolHandlers.get_lease_expiry_info(args, user_id, mock_session)
+        # Mock date.today() in the tool handler to return our fixed date
+        with patch('Backend.llm.tool_handlers.date') as mock_date:
+            mock_date.today.return_value = fixed_date
+            # Act
+            result = await ToolHandlers.get_lease_expiry_info(args, user_id, mock_session)
         
         # Assert
         assert isinstance(result, dict)
@@ -381,22 +391,32 @@ class TestToolHandlers:
         assert len(result["leases"]) == 2
         assert result["leases"][0]["monthly_rent"] == 2500.0
         assert result["leases"][1]["monthly_rent"] == 3000.0
+        # Now these will be deterministic: lease 1 expires in exactly 30 days, lease 2 in 60 days
         assert result["leases"][0]["days_until_expiry"] == 30
         assert result["leases"][1]["days_until_expiry"] == 60
 
     async def test_get_payment_status_overdue(self, mock_session, user_id):
         """Test getting overdue payment status."""
+        from unittest.mock import patch
+        
         # Arrange
+        # Use a fixed date to ensure consistent test results across all environments
+        fixed_date = date(2024, 1, 15)  # Monday, January 15, 2024
+        fixed_datetime = datetime.combine(fixed_date, datetime.min.time()).replace(tzinfo=UTC)
+        
+        # Create invoice that's exactly 10 days overdue
+        overdue_due_date = fixed_datetime - timedelta(days=10)
+        
         overdue_invoices = [
             MagicMock(
                 id=1,
                 tenant_id=1,
                 amount=Decimal("2500"),
-                due_date=datetime.now(UTC) - timedelta(days=10),
+                due_date=overdue_due_date,  # 10 days before fixed_date
                 status="PENDING",
                 tenant=MagicMock(first_name="John", last_name="Doe"),
-                created_at=datetime.now(UTC),
-                updated_at=datetime.now(UTC)
+                created_at=fixed_datetime,
+                updated_at=fixed_datetime
             )
         ]
         
@@ -408,8 +428,11 @@ class TestToolHandlers:
         
         args = {"status": "overdue"}
         
-        # Act
-        result = await ToolHandlers.get_payment_status(args, user_id, mock_session)
+        # Mock date.today() in the tool handler to return our fixed date
+        with patch('Backend.llm.tool_handlers.date') as mock_date:
+            mock_date.today.return_value = fixed_date
+            # Act
+            result = await ToolHandlers.get_payment_status(args, user_id, mock_session)
         
         # Assert
         assert isinstance(result, dict)
@@ -419,6 +442,7 @@ class TestToolHandlers:
         assert result["total"] == 1
         assert result["payments"][0]["balance"] == 2500.0
         assert result["payments"][0]["is_overdue"] is True
+        # Now this will be deterministic: exactly 10 days overdue
         assert result["payments"][0]["days_overdue"] == 10
 
     async def test_handle_tool_call_success(self, mock_session, user_id):

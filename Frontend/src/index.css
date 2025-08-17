@@ -13,6 +13,30 @@ body {
   padding: 0;
 }
 
+/* Custom scrollbar styles for virtual scrolling */
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 rounded hover:bg-gray-500;
+  }
+  
+  /* Firefox scrollbar styling */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    /* Fallback for browsers that don't support theme() function */
+    scrollbar-color: #9ca3af #f3f4f6;
+    scrollbar-color: theme('colors.gray.400') theme('colors.gray.100');
+  }
+}
+
 /* Dashboard Card Styles */
 .dashboard-card {
   @apply bg-white rounded-lg shadow-sm p-5 border border-gray-100 transition-shadow duration-200;

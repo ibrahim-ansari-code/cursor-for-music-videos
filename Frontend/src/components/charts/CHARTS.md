@@ -22,6 +22,7 @@ This document describes the chart components used in Brikli V2, built with Recha
 ### Dependencies
 
 **Current:**
+
 ```json
 {
   "recharts": "^2.15.4"
@@ -43,6 +44,7 @@ This document describes the chart components used in Brikli V2, built with Recha
 ## 🚀 Recent Improvements
 
 ### Production-Ready Enhancements
+
 - **Data Validation**: Robust array length matching and type safety
 - **Performance**: Memoized calculations and optimized re-renders
 - **Visual Design**: Professional gradients, shadows, and animations
@@ -52,6 +54,7 @@ This document describes the chart components used in Brikli V2, built with Recha
 - **Dynamic Sizing**: Responsive height calculations based on data density
 
 ### Key Features Added
+
 - **RevenueChart**: NetIncome calculation, reference line for negatives, date formatting
 - **IncomeByPropertyChart**: Label collision prevention, dynamic height, animations
 - **ExpenseBreakdownChart**: Category sorting, currency formatting in legend
@@ -121,25 +124,27 @@ const RevenueChart = ({ data }) => {
 
 ### Application Locations
 
-1. **RevenueChart**: 
+1. **RevenueChart**:
    - `/dashboard` (main dashboard page)
    - `/accounting/overview` (accounting section)
-2. **ExpenseBreakdownChart**: 
+2. **ExpenseBreakdownChart**:
    - `/accounting/overview` (accounting section)
-3. **IncomeByPropertyChart**: 
+3. **IncomeByPropertyChart**:
    - `/accounting/overview` (accounting section)
-4. **OccupancyChart**: 
+4. **OccupancyChart**:
    - ⚠️ Available for future integration
 
 ### File Structure
 
 **Chart Components**: `Frontend/src/components/charts/`
+
 - `RevenueChart.jsx` - Revenue vs Expenses bar chart
 - `ExpenseBreakdownChart.jsx` - Expense category pie chart  
 - `IncomeByPropertyChart.jsx` - Income bars + Occupancy line chart
 - `OccupancyChart.jsx` - Property occupancy donut chart
 
 **Import Usage**:
+
 - `Frontend/src/components/Dashboard.jsx:2`
 - `Frontend/src/components/accounting/OverviewTab.jsx:14-16`
 
@@ -153,6 +158,7 @@ npm run dev
 ```
 
 **Test at**:
+
 - [Dashboard](http://localhost:5173/dashboard)
 - [Accounting Overview](http://localhost:5173/accounting/overview)
 
@@ -167,6 +173,7 @@ npm run dev
 7. Add ARIA labels for accessibility
 
 ### Production Checklist
+
 - [ ] Data validation with graceful error handling
 - [ ] Unique IDs for SVG elements (gradients, filters)
 - [ ] Memoized calculations with `useMemo`
@@ -179,5 +186,5 @@ npm run dev
 ---
 
 > **All chart components use Recharts for consistent, maintainable visualization.**
-> 
+>
 > **Production Ready**: All charts have been enhanced with robust error handling, performance optimizations, and professional visual design.

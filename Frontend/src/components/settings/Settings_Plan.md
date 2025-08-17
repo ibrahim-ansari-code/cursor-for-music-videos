@@ -1,10 +1,12 @@
 # Settings Page Redesign - Implementation Plan
 
 ## Overview
+
 Rebuild Settings.jsx with modern design matching Dashboard/Properties pages. Focus on clean UI, tab-based navigation, and modular components.
 
 ## File Structure
-```
+
+```text
 Frontend/src/
 ├── pages/
 │   └── Settings.jsx (main container - replace existing)
@@ -20,6 +22,7 @@ Frontend/src/
 ## Implementation Steps
 
 ### 1. Main Settings Container (pages/Settings.jsx)
+
 ```jsx
 // Tab-based navigation with responsive grid layout
 // Tabs: Profile | Security | Preferences | Notifications
@@ -27,12 +30,14 @@ Frontend/src/
 ```
 
 Key features:
+
 - Tab navigation matching app style
 - Responsive grid layout
 - Clean white background
 - No shadow/card styling (match Dashboard/Properties)
 
 ### 2. ProfileCard Component
+
 ```jsx
 // Left sidebar with user info
 - Avatar with modern upload (drag-drop, overlay button)
@@ -42,6 +47,7 @@ Key features:
 ```
 
 Avatar upload improvements:
+
 - Drag & drop zone
 - Click to upload fallback
 - Image preview before save
@@ -49,6 +55,7 @@ Avatar upload improvements:
 - Error handling
 
 ### 3. ProfileForm Component
+
 ```jsx
 // Personal information form
 - First/Last name (editable)
@@ -59,6 +66,7 @@ Avatar upload improvements:
 ```
 
 ### 4. SecurityForm Component
+
 ```jsx
 // Password management
 - New password field
@@ -69,6 +77,7 @@ Avatar upload improvements:
 ```
 
 ### 5. PreferencesForm Component
+
 ```jsx
 // User preferences
 - Theme toggle (light/dark) - future
@@ -79,6 +88,7 @@ Avatar upload improvements:
 ```
 
 ### 6. NotificationSettings Component
+
 ```jsx
 // Notification preferences
 - Email notifications toggle
@@ -90,11 +100,14 @@ Avatar upload improvements:
 ## Styling Guidelines
 
 ### Use existing SharedModalComponents
+
 Import from `components/ui/SharedModalComponents.jsx`:
+
 - `Input`, `Label`, `Button`, `Select`, `Checkbox`
 - `FormSection`, `ErrorMessage`
 
 ### Match existing app styling
+
 - Background: `bg-gray-50` for main, `bg-white` for sections
 - Borders: `border-gray-200`
 - Spacing: `p-4` or `p-6`
@@ -102,6 +115,7 @@ Import from `components/ui/SharedModalComponents.jsx`:
 - Focus states: `focus:ring-2 focus:ring-blue-500/30`
 
 ### Form styling
+
 ```jsx
 // Input example
 <Input
@@ -115,6 +129,7 @@ Import from `components/ui/SharedModalComponents.jsx`:
 ## State Management
 
 ### Simple, flat state structure
+
 ```jsx
 const [activeTab, setActiveTab] = useState('profile');
 const [profile, setProfile] = useState({});
@@ -123,6 +138,7 @@ const [errors, setErrors] = useState({});
 ```
 
 ### Form handling pattern
+
 ```jsx
 const handleSubmit = async (e) => {
   e.preventDefault();
@@ -141,6 +157,7 @@ const handleSubmit = async (e) => {
 ## API Integration
 
 Use existing API functions from `utils/api/users.js`:
+
 - `updateUserProfile(userId, data)`
 - `changeUserPassword(userId, newPassword)`
 - `uploadUserAvatar(userId, formData)`
@@ -148,6 +165,7 @@ Use existing API functions from `utils/api/users.js`:
 ## Component Examples
 
 ### Tab Navigation
+
 ```jsx
 <div className="border-b border-gray-200 mb-6">
   <nav className="-mb-px flex space-x-8">
@@ -170,6 +188,7 @@ Use existing API functions from `utils/api/users.js`:
 ```
 
 ### Avatar Upload Zone
+
 ```jsx
 <div className="relative group">
   <img 
@@ -228,4 +247,4 @@ Use existing API functions from `utils/api/users.js`:
 - [ ] Loading states display
 - [ ] Error handling works
 - [ ] Success messages show
-- [ ] Context updates properly 
+- [ ] Context updates properly
