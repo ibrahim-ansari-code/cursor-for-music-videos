@@ -12,23 +12,72 @@ const RentTrackerSkeleton = ({
   ...props
 }) => (
   <div className={`space-y-4 ${className}`} {...props}>
-    {/* Date Filters Skeleton */}
-    <div className="bg-white p-4 rounded-lg shadow-sm">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
-        <div className="flex items-center space-x-4">
-          <div>
-            <SkeletonLine width="50px" height="1rem" className="mb-1" />
-            <SkeletonLine width="120px" height="2.5rem" rounded="md" />
-          </div>
-          <div>
-            <SkeletonLine width="40px" height="1rem" className="mb-1" />
-            <SkeletonLine width="100px" height="2.5rem" rounded="md" />
-          </div>
+    {/* Summary Cards Skeleton */}
+    <div className="grid gap-4" style={{gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))"}}>
+      {/* Total Expected */}
+      <div className="bg-white p-4 rounded-lg shadow-sm">
+        <SkeletonLine width="90px" height="0.875rem" className="mb-2" />
+        <SkeletonLine width="120px" height="1.75rem" className="mb-1" />
+      </div>
+      {/* Total Collected */}
+      <div className="bg-white p-4 rounded-lg shadow-sm">
+        <SkeletonLine width="100px" height="0.875rem" className="mb-2" />
+        <SkeletonLine width="80px" height="1.75rem" className="mb-1" />
+      </div>
+      {/* Outstanding */}
+      <div className="bg-white p-4 rounded-lg shadow-sm">
+        <SkeletonLine width="80px" height="0.875rem" className="mb-2" />
+        <SkeletonLine width="120px" height="1.75rem" className="mb-1" />
+      </div>
+      {/* Collection Rate */}
+      <div className="bg-white p-4 rounded-lg shadow-sm">
+        <SkeletonLine width="100px" height="0.875rem" className="mb-2" />
+        <SkeletonLine width="60px" height="1.75rem" className="mb-1" />
+      </div>
+      {/* Status Breakdown */}
+      <div className="bg-white p-4 rounded-lg shadow-sm">
+        <SkeletonLine width="120px" height="0.875rem" className="mb-2" />
+        <div className="flex items-center space-x-2">
+          <SkeletonLine width="30px" height="1rem" />
+          <SkeletonLine width="30px" height="1rem" />
+          <SkeletonLine width="30px" height="1rem" />
         </div>
-        
-        {/* Search Bar Skeleton */}
-        <div className="flex items-center">
-          <SkeletonLine width="240px" height="2.5rem" rounded="md" />
+      </div>
+    </div>
+
+    {/* Export Buttons Skeleton */}
+    <div className="flex justify-end space-x-3">
+      <SkeletonLine width="100px" height="2.5rem" rounded="md" />
+      <SkeletonLine width="100px" height="2.5rem" rounded="md" />
+    </div>
+
+    {/* Filters Skeleton - matches exact grid layout from RentTracker */}
+    <div className="bg-white p-4 rounded-lg shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Month Filter */}
+        <div>
+          <SkeletonLine width="50px" height="1rem" className="mb-1" />
+          <SkeletonLine width="120px" height="2.5rem" rounded="md" />
+        </div>
+        {/* Year Filter */}
+        <div>
+          <SkeletonLine width="40px" height="1rem" className="mb-1" />
+          <SkeletonLine width="100px" height="2.5rem" rounded="md" />
+        </div>
+        {/* Property Filter */}
+        <div>
+          <SkeletonLine width="60px" height="1rem" className="mb-1" />
+          <SkeletonLine width="160px" height="2.5rem" rounded="md" />
+        </div>
+        {/* Status Filter */}
+        <div>
+          <SkeletonLine width="50px" height="1rem" className="mb-1" />
+          <SkeletonLine width="140px" height="2.5rem" rounded="md" />
+        </div>
+        {/* Search Filter - spans 2 columns on larger screens */}
+        <div className="sm:col-span-2 lg:col-span-2 xl:col-span-2">
+          <SkeletonLine width="50px" height="1rem" className="mb-1" />
+          <SkeletonLine width="100%" height="2.5rem" rounded="md" />
         </div>
       </div>
     </div>
@@ -39,21 +88,39 @@ const RentTrackerSkeleton = ({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              {/* TENANT */}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <SkeletonLine width="60px" height="0.75rem" />
               </th>
+              {/* PROPERTY */}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <SkeletonLine width="70px" height="0.75rem" />
               </th>
+              {/* RENT */}
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <SkeletonLine width="40px" height="0.75rem" className="mx-auto" />
+              </th>
+              {/* PAID */}
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <SkeletonLine width="40px" height="0.75rem" className="mx-auto" />
+              </th>
+              {/* DUE */}
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <SkeletonLine width="30px" height="0.75rem" className="mx-auto" />
+              </th>
+              {/* DUE DATE */}
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <SkeletonLine width="70px" height="0.75rem" className="mx-auto" />
+              </th>
+              {/* LAST PAYMENT */}
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <SkeletonLine width="90px" height="0.75rem" className="mx-auto" />
               </th>
+              {/* STATUS */}
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <SkeletonLine width="80px" height="0.75rem" className="mx-auto" />
+                <SkeletonLine width="50px" height="0.75rem" className="mx-auto" />
               </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <SkeletonLine width="90px" height="0.75rem" className="mx-auto" />
-              </th>
+              {/* ACTIONS */}
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <SkeletonLine width="60px" height="0.75rem" className="mx-auto" />
               </th>
@@ -69,27 +136,48 @@ const RentTrackerSkeleton = ({
                 
                 {/* Property Column */}
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <SkeletonLine width="140px" height="1rem" />
+                  <div>
+                    <SkeletonLine width="140px" height="1rem" className="mb-1" />
+                    <SkeletonLine width="80px" height="0.75rem" />
+                  </div>
                 </td>
                 
-                {/* Monthly Rent Column */}
+                {/* Rent Column */}
                 <td className="px-6 py-4 whitespace-nowrap text-center">
                   <SkeletonLine width="80px" height="1rem" className="mx-auto" />
                 </td>
                 
-                {/* Paid This Month Column */}
+                {/* Paid Column */}
                 <td className="px-6 py-4 whitespace-nowrap text-center">
                   <SkeletonLine width="60px" height="1rem" className="mx-auto" />
                 </td>
                 
-                {/* Amount Due Column */}
+                {/* Due Column */}
                 <td className="px-6 py-4 whitespace-nowrap text-center">
                   <SkeletonLine width="80px" height="1rem" className="mx-auto" />
                 </td>
                 
+                {/* Due Date Column */}
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  <div>
+                    <SkeletonLine width="80px" height="1rem" className="mx-auto mb-1" />
+                    <SkeletonLine width="60px" height="0.75rem" className="mx-auto" />
+                  </div>
+                </td>
+                
+                {/* Last Payment Column */}
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  <SkeletonLine width="40px" height="1rem" className="mx-auto" />
+                </td>
+                
                 {/* Status Column */}
                 <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <SkeletonLine width="60px" height="1.25rem" rounded="full" className="mx-auto" />
+                  <SkeletonLine width="80px" height="1.25rem" rounded="md" className="mx-auto" />
+                </td>
+                
+                {/* Actions Column */}
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  <SkeletonLine width="120px" height="2rem" rounded="md" className="mx-auto" />
                 </td>
               </tr>
             ))}

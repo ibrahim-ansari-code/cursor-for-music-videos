@@ -267,9 +267,5 @@ MaintenanceTable.propTypes = {
   pageSize: PropTypes.number,
 };
 
-MaintenanceTable.defaultProps = {
-  currentPage: 1,
-  pageSize: 20,
-};
 
 export default MaintenanceTable;

@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
-import { 
-  fetchPayments,
-  deletePayment,
-} from "../../utils/api/accounting";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { toast } from "react-toastify";
+import { CSVLink } from "react-csv";
 import NewPaymentModal from "../accounting/modals/NewPaymentModal";
 import EditPaymentModal from "../accounting/modals/EditPaymentModal";
 import { PaymentsTableSkeleton } from "../ui/skeletons";
 import { useAccounting } from "./AccountingContext";
+import { usePayments, useDeletePayment } from "../../hooks/useAccountingQueries";
 
 const paymentTableColumns = [
   { key: "tenant", label: "Tenant", align: "left" },
@@ -22,16 +20,9 @@ const paymentTableColumns = [
 
 
 const PaymentsTab = () => {
-  const {
-    loading,
-    setLoading,
-    error,
-    setError,
-    handlePreviewReceipt,
-  } = useAccounting();
+  const { handlePreviewReceipt } = useAccounting();
 
   // Local state for payments tab
-  const [payments, setPayments] = useState([]);
   const [paymentsPagination, setPaymentsPagination] = useState({
     currentPage: 0,
     limit: 15,
@@ -44,92 +35,73 @@ const PaymentsTab = () => {
     search: "",
   });
 
+  // Build query parameters
+  const queryParams = useMemo(() => {
+    const params = {};
+    
+    if (paymentFilters.status !== "all") {
+      params.payment_status =
+        paymentFilters.status.charAt(0).toUpperCase() +
+        paymentFilters.status.slice(1);
+    }
+
+    if (paymentFilters.search && paymentFilters.search.trim()) {
+      params.search = paymentFilters.search.trim();
+    }
+
+    params.limit = paymentsPagination.limit;
+    params.offset = paymentsPagination.currentPage * paymentsPagination.limit;
+
+    // Convert date range to actual date params
+    const today = new Date();
+    if (paymentFilters.dateRange === "week") {
+      const weekAgo = new Date();
+      weekAgo.setDate(today.getDate() - 7);
+      params.start_date = weekAgo.toISOString().split("T")[0];
+      params.end_date = today.toISOString().split("T")[0];
+    } else if (paymentFilters.dateRange === "month") {
+      const monthAgo = new Date();
+      monthAgo.setMonth(today.getMonth() - 1);
+      params.start_date = monthAgo.toISOString().split("T")[0];
+      params.end_date = today.toISOString().split("T")[0];
+    } else if (paymentFilters.dateRange === "quarter") {
+      const quarterAgo = new Date();
+      quarterAgo.setMonth(today.getMonth() - 3);
+      params.start_date = quarterAgo.toISOString().split("T")[0];
+      params.end_date = today.toISOString().split("T")[0];
+    } else if (paymentFilters.dateRange === "year") {
+      const yearAgo = new Date();
+      yearAgo.setFullYear(today.getFullYear() - 1);
+      params.start_date = yearAgo.toISOString().split("T")[0];
+      params.end_date = today.toISOString().split("T")[0];
+    }
+
+    return params;
+  }, [paymentFilters, paymentsPagination.currentPage, paymentsPagination.limit]);
+
+  // TanStack Query hooks
+  const { data: paymentsData, isLoading: loading, error, refetch } = usePayments(queryParams);
+  const deletePaymentMutation = useDeletePayment();
+
+  // Extract payments and pagination info
+  const payments = paymentsData?.items || [];
+
   // Modal states
   const [showNewPaymentModal, setShowNewPaymentModal] = useState(false);
   const [showEditPaymentModal, setShowEditPaymentModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  // Effect for handling filter changes on the payments tab
+  // Effect for handling filter changes - reset to first page
   useEffect(() => {
-    // When filters change, reset to the first page.
-    // The pagination effect will then trigger the data load.
     setPaymentsPagination((prev) => ({ ...prev, currentPage: 0 }));
   }, [paymentFilters]);
 
-  // Effect for handling data loading when pagination changes
+  // Update pagination state when query data changes
   useEffect(() => {
-    loadPaymentsData();
-    // The dependency array correctly triggers this effect when either the
-    // page or the active tab changes, ensuring data is loaded when needed.
-  }, [paymentsPagination.currentPage]);
-
-  // Load data on component mount
-  useEffect(() => {
-    loadPaymentsData();
-  }, []);
-
-  const loadPaymentsData = async () => {
-    try {
-      setLoading(true);
-
-      const params = {};
-      console.log("Loading payments with filters:", paymentFilters);
-
-      if (paymentFilters.status !== "all") {
-        // Ensure status is sent with initial cap to match backend enum
-        params.payment_status =
-          paymentFilters.status.charAt(0).toUpperCase() +
-          paymentFilters.status.slice(1);
-      }
-
-      // Add search parameter if provided
-      if (paymentFilters.search && paymentFilters.search.trim()) {
-        params.search = paymentFilters.search.trim();
-      }
-
-      // Add pagination params
-      params.limit = paymentsPagination.limit;
-      params.offset = paymentsPagination.currentPage * paymentsPagination.limit;
-
-      // Convert date range to actual date params
-      const today = new Date();
-      if (paymentFilters.dateRange === "week") {
-        const weekAgo = new Date();
-        weekAgo.setDate(today.getDate() - 7);
-        params.start_date = weekAgo.toISOString().split("T")[0];
-        params.end_date = today.toISOString().split("T")[0];
-      } else if (paymentFilters.dateRange === "month") {
-        const monthAgo = new Date();
-        monthAgo.setMonth(today.getMonth() - 1);
-        params.start_date = monthAgo.toISOString().split("T")[0];
-        params.end_date = today.toISOString().split("T")[0];
-      } else if (paymentFilters.dateRange === "quarter") {
-        const quarterAgo = new Date();
-        quarterAgo.setMonth(today.getMonth() - 3);
-        params.start_date = quarterAgo.toISOString().split("T")[0];
-        params.end_date = today.toISOString().split("T")[0];
-      } else if (paymentFilters.dateRange === "year") {
-        const yearAgo = new Date();
-        yearAgo.setFullYear(today.getFullYear() - 1);
-        params.start_date = yearAgo.toISOString().split("T")[0];
-        params.end_date = today.toISOString().split("T")[0];
-      } else if (paymentFilters.dateRange === "all_time") {
-        // If dateRange is "all_time", no date params are set, so all payments are fetched (unless other filters apply)
-      }
-
-      console.log("API params being sent for payments:", params);
-      const data = await fetchPayments(params);
-      console.log("Payments received from API:", data);
-      setPayments(data.items);
-      setPaymentsPagination((prev) => ({ ...prev, hasMore: data.has_more }));
-      setError(null);
-    } catch (err) {
-      console.error("Error loading payments data:", err);
-      setError("Failed to load payments data. Please try again.");
-    } finally {
-      setLoading(false);
+    if (paymentsData) {
+      setPaymentsPagination((prev) => ({ ...prev, hasMore: paymentsData.has_more || false }));
     }
-  };
+  }, [paymentsData]);
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
@@ -160,9 +132,8 @@ const PaymentsTab = () => {
       )
     ) {
       try {
-        await deletePayment(paymentId);
+        await deletePaymentMutation.mutateAsync(paymentId);
         toast.success("Payment deleted successfully.");
-        loadPaymentsData();
       } catch (err) {
         console.error("Failed to delete payment:", err);
         toast.error(err.message || "Failed to delete payment.");
@@ -194,6 +165,71 @@ const PaymentsTab = () => {
     setSelectedItem(null);
   };
 
+  // CSV Export configuration
+  const csvHeaders = [
+    { label: 'Tenant', key: 'tenant_name' },
+    { label: 'Property', key: 'property_name' },
+    { label: 'Amount', key: 'amount' },
+    { label: 'Payment Date', key: 'payment_date' },
+    { label: 'Payment Method', key: 'payment_method' },
+    { label: 'Status', key: 'status' },
+    { label: 'Transaction Reference', key: 'transaction_reference' },
+    { label: 'Description', key: 'description' },
+    { label: 'Source', key: 'source' },
+  ];
+
+  // Format data for CSV export with clean headers
+  const getFilterDescription = () => {
+    const filters = [];
+    if (paymentFilters.status !== 'all') filters.push(`Status: ${paymentFilters.status}`);
+    if (paymentFilters.dateRange !== 'all_time') filters.push(`Date Range: ${paymentFilters.dateRange.replace('_', ' ')}`);
+    if (paymentFilters.search) filters.push(`Search: "${paymentFilters.search}"`);
+    return filters.length > 0 ? filters.join(', ') : 'No filters applied';
+  };
+
+  const csvData = [
+    // Clean header with metadata in a single row
+    { 
+      tenant_name: 'Brikli Payments Report', 
+      property_name: `Exported: ${new Date().toLocaleDateString()}`,
+      amount: `Filters: ${getFilterDescription()}`,
+      payment_date: `Records: ${payments.length}`,
+      payment_method: '', 
+      status: '', 
+      transaction_reference: '', 
+      description: '', 
+      source: '' 
+    },
+    // Empty separator row
+    { tenant_name: '', property_name: '', amount: '', payment_date: '', payment_method: '', status: '', transaction_reference: '', description: '', source: '' },
+    // Actual data
+    ...payments.map(payment => {
+      const amt = Number(payment?.amount ?? 0);
+      const paymentDate = payment?.payment_date ? new Date(payment.payment_date) : null;
+      return {
+        tenant_name: payment?.tenant_name || 'N/A',
+        property_name: payment?.property_name || 'N/A',
+        amount: Number.isFinite(amt) ? amt.toFixed(2) : '0.00',
+        payment_date: paymentDate && !isNaN(paymentDate) ? paymentDate.toLocaleDateString() : 'N/A',
+        payment_method: payment?.payment_method || 'N/A',
+        status: payment?.status || 'N/A',
+        transaction_reference: payment?.transaction_reference || 'N/A',
+        description: payment?.description || 'N/A',
+        source: payment?.quickbooks_id ? 'QuickBooks' : 'Brikli',
+      };
+    })
+  ];
+
+  // Generate professional filename with current date and filters
+  const generateFilename = () => {
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '');
+    const filterSuffix = paymentFilters.status !== 'all' ? `-${paymentFilters.status}` : '';
+    const searchSuffix = paymentFilters.search ? `-search` : '';
+    return `Brikli-Payments-Report${filterSuffix}${searchSuffix}-${dateStr}-${timeStr}.csv`;
+  };
+
   if (loading) {
     return <PaymentsTableSkeleton rowCount={8} />;
   }
@@ -204,7 +240,7 @@ const PaymentsTab = () => {
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           <p>{error}</p>
           <button
-            onClick={loadPaymentsData}
+            onClick={refetch}
             className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
           >
             Retry
@@ -212,26 +248,7 @@ const PaymentsTab = () => {
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex justify-end space-x-3 mb-4">
-        <button
-          onClick={handleShowModal}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <i className="fas fa-plus mr-2"></i>
-          New Payment
-        </button>
 
-        <button
-          onClick={() => {
-            /* Export functionality would go here */
-          }}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <i className="fas fa-file-export mr-2"></i>
-          Export
-        </button>
-      </div>
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
@@ -291,7 +308,7 @@ const PaymentsTab = () => {
           </div>
         </div>
 
-        <div className="flex items-center">
+        <div className="flex items-center space-x-4">
           <div className="relative rounded-md shadow-sm">
             <input
               type="search"
@@ -309,6 +326,26 @@ const PaymentsTab = () => {
               <i className="fas fa-search text-gray-400"></i>
             </div>
           </div>
+          
+          {/* Export CSV Button */}
+          <CSVLink
+            data={csvData}
+            headers={csvHeaders}
+            filename={generateFilename()}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <i className="fas fa-download mr-2"></i>
+            Export CSV
+          </CSVLink>
+          
+          {/* New Payment Button */}
+          <button
+            onClick={handleShowModal}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <i className="fas fa-plus mr-2"></i>
+            New Payment
+          </button>
         </div>
       </div>
 
@@ -489,7 +526,7 @@ const PaymentsTab = () => {
           onClose={handleCloseModal}
           onSuccess={() => {
             setShowNewPaymentModal(false);
-            loadPaymentsData();
+            refetch();
             toast.success("Payment created successfully");
           }}
         />
@@ -505,7 +542,7 @@ const PaymentsTab = () => {
           onSuccess={() => {
             setShowEditPaymentModal(false);
             setSelectedItem(null);
-            loadPaymentsData();
+            refetch();
             toast.success("Payment updated successfully");
           }}
           paymentData={selectedItem}

@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  fetchProperties,
-  createProperty,
-  deleteProperty,
-  updateProperty,
-  fetchPropertyById,
-} from "../utils/api";
+import { fetchPropertyById } from "../utils/api";
 import NewPropertyModal from "../components/NewPropertyModal";
 import { PropertiesTableSkeleton } from "../components/ui/skeletons";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import useProperties from "../hooks/useProperties";
+import { 
+  useCreateProperty, 
+  useUpdateProperty, 
+  useDeleteProperty 
+} from "../hooks/usePropertiesMutations";
 
 // Utility functions
 // Capitalize first letter of string
@@ -250,21 +250,20 @@ const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
 
 const Properties = () => {
   const navigate = useNavigate();
-  const [properties, setProperties] = useState([]);
-  const [filteredProperties, setFilteredProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  
+  // Use standardized useProperties hook
+  const { properties, loading, error } = useProperties();
+  
+  // Mutation hooks
+  const createPropertyMutation = useCreateProperty();
+  const updatePropertyMutation = useUpdateProperty();
+  const deletePropertyMutation = useDeleteProperty();
+  
+  // Local UI state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusCounts, setStatusCounts] = useState({
-    ACTIVE: 0,
-    MAINTENANCE: 0,
-    VACANT: 0,
-    total: 0,
-  });
-  const [isDeleting, setIsDeleting] = useState(false);
   const [currentProperty, setCurrentProperty] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [sortOption, setSortOption] = useState(null);
@@ -276,55 +275,9 @@ const Properties = () => {
     dateAdded: null,
   });
 
-  // Refs for clicking outside filter/sort menus
-  const filterMenuRef = useRef(null);
-  const sortMenuRef = useRef(null);
-
-  // Helper function to calculate status counts
-  const calculateStatusCounts = (propertiesList) => {
-    return propertiesList.reduce(
-      (acc, property) => {
-        acc.total++;
-        const status = (property.status || "ACTIVE").toUpperCase(); // Default to active and ensure uppercase
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-      },
-      {
-        ACTIVE: 0,
-        MAINTENANCE: 0,
-        VACANT: 0,
-        total: 0,
-      }
-    );
-  };
-
-  useEffect(() => {
-    fetchPropertiesData();
-  }, []);
-
-  useEffect(() => {
-    // Close menus when clicking outside
-    function handleClickOutside(event) {
-      if (
-        filterMenuRef.current &&
-        !filterMenuRef.current.contains(event.target)
-      ) {
-        setShowFilterMenu(false);
-      }
-      if (sortMenuRef.current && !sortMenuRef.current.contains(event.target)) {
-        setShowSortMenu(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  useEffect(() => {
-    // Filter and sort properties based on search term, status filter and sort option
-    if (!properties.length) return;
+  // Memoized filtered and sorted properties
+  const filteredProperties = useMemo(() => {
+    if (!properties.length) return [];
 
     let result = [...properties];
 
@@ -416,43 +369,54 @@ const Properties = () => {
       });
     }
 
-    console.log("[Properties useEffect] Filtered/Sorted Properties:", result);
-    setFilteredProperties(result);
-
-    // Also update status counts whenever properties change
-    const newCounts = calculateStatusCounts(result);
-    console.log(
-      "[Properties useEffect] Setting statusCounts state:",
-      newCounts
-    );
-    setStatusCounts(newCounts);
+    return result;
   }, [properties, statusFilter, searchTerm, filterOptions, sortOption]);
 
-  const fetchPropertiesData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  // Memoized status counts
+  const statusCounts = useMemo(() => {
+    return filteredProperties.reduce(
+      (acc, property) => {
+        acc.total++;
+        const status = (property.status || "ACTIVE").toUpperCase();
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      },
+      {
+        ACTIVE: 0,
+        MAINTENANCE: 0,
+        VACANT: 0,
+        total: 0,
+      }
+    );
+  }, [filteredProperties]);
 
-      console.log("Fetching properties...");
-      const response = await fetchProperties();
-      console.log("Properties response:", response);
+  // Refs for clicking outside filter/sort menus
+  const filterMenuRef = useRef(null);
+  const sortMenuRef = useRef(null);
 
-      setProperties(response);
-      setFilteredProperties(response);
 
-      // Calculate status counts using the helper
-      const counts = calculateStatusCounts(response);
-      setStatusCounts(counts);
-    } catch (err) {
-      console.error("Error fetching properties:", err);
-      setError(err.message || "Failed to load properties. Please try again.");
-      // If fetch fails, set empty arrays to avoid undefined errors
-      setProperties([]);
-      setFilteredProperties([]);
-    } finally {
-      setLoading(false);
+
+  useEffect(() => {
+    // Close menus when clicking outside
+    function handleClickOutside(event) {
+      if (
+        filterMenuRef.current &&
+        !filterMenuRef.current.contains(event.target)
+      ) {
+        setShowFilterMenu(false);
+      }
+      if (sortMenuRef.current && !sortMenuRef.current.contains(event.target)) {
+        setShowSortMenu(false);
+      }
     }
-  };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+
 
   const handleCreateProperty = async (propertyData) => {
     setIsSubmitting(true);
@@ -468,19 +432,11 @@ const Properties = () => {
           propertyData
         );
         // Update existing property
-        result = await updateProperty(currentProperty.id, propertyData);
+        result = await updatePropertyMutation.mutateAsync({ 
+          propertyId: currentProperty.id, 
+          propertyData 
+        });
         console.log("[handleCreateProperty - Edit] API Response:", result);
-
-        // Update the properties list
-        updatedProperties = properties.map((p) =>
-          p.id === currentProperty.id ? result : p
-        );
-        console.log(
-          "[handleCreateProperty - Edit] Setting properties state:",
-          updatedProperties
-        );
-        setProperties(updatedProperties);
-
         toast.success("Property updated successfully");
       } else {
         console.log(
@@ -488,111 +444,8 @@ const Properties = () => {
           propertyData
         );
         // Create new property
-        result = await createProperty(propertyData);
+        result = await createPropertyMutation.mutateAsync(propertyData);
         console.log("[handleCreateProperty - Create] API Response:", result);
-
-        // Add new property to the list
-        updatedProperties = [result, ...properties];
-        console.log(
-          "[handleCreateProperty - Create] Setting properties state:",
-          updatedProperties
-        );
-        setProperties(updatedProperties);
-
-        // Ensure filtered list and counts are updated using the final list
-        // Apply current filters/sorting to the new list
-        let finalFilteredProperties = [...updatedProperties];
-        // Re-apply filters (this logic is duplicated from the useEffect hook, consider extracting)
-        if (statusFilter) {
-          finalFilteredProperties = finalFilteredProperties.filter(
-            (p) =>
-              (p.status || "ACTIVE").toUpperCase() ===
-              statusFilter.toUpperCase()
-          );
-        }
-        if (searchTerm.trim()) {
-          const term = searchTerm.toLowerCase();
-          finalFilteredProperties = finalFilteredProperties.filter(
-            (p) =>
-              p.name.toLowerCase().includes(term) ||
-              p.address.toLowerCase().includes(term) ||
-              p.city.toLowerCase().includes(term) ||
-              p.property_type.toLowerCase().includes(term)
-          );
-        }
-        if (filterOptions.propertyType) {
-          finalFilteredProperties = finalFilteredProperties.filter(
-            (p) => p.property_type === filterOptions.propertyType
-          );
-        }
-        if (filterOptions.status) {
-          finalFilteredProperties = finalFilteredProperties.filter(
-            (p) =>
-              (p.status || "ACTIVE").toUpperCase() ===
-              filterOptions.status.toUpperCase()
-          );
-        }
-        if (filterOptions.dateAdded) {
-          const now = new Date();
-          const cutoffDate = new Date();
-          switch (filterOptions.dateAdded) {
-            case "last-week":
-              cutoffDate.setDate(now.getDate() - 7);
-              break;
-            case "last-month":
-              cutoffDate.setMonth(now.getMonth() - 1);
-              break;
-            case "last-year":
-              cutoffDate.setFullYear(now.getFullYear() - 1);
-              break;
-          }
-          finalFilteredProperties = finalFilteredProperties.filter(
-            (p) => new Date(p.created_at) >= cutoffDate
-          );
-        }
-        // Re-apply sorting
-        if (sortOption) {
-          finalFilteredProperties.sort((a, b) => {
-            switch (sortOption) {
-              case "name-asc":
-                return a.name.localeCompare(b.name);
-              case "name-desc":
-                return b.name.localeCompare(a.name);
-              case "type-asc":
-                return a.property_type.localeCompare(b.property_type);
-              case "type-desc":
-                return b.property_type.localeCompare(a.property_type);
-              case "status-asc":
-                return (a.status || "ACTIVE")
-                  .toUpperCase()
-                  .localeCompare((b.status || "ACTIVE").toUpperCase());
-              case "status-desc":
-                return (b.status || "ACTIVE")
-                  .toUpperCase()
-                  .localeCompare((a.status || "ACTIVE").toUpperCase());
-              case "date-asc":
-                return new Date(a.created_at) - new Date(b.created_at);
-              case "date-desc":
-                return new Date(b.created_at) - new Date(a.created_at);
-              default:
-                return 0;
-            }
-          });
-        }
-        console.log(
-          "[handleCreateProperty] Setting filteredProperties state:",
-          finalFilteredProperties
-        );
-        setFilteredProperties(finalFilteredProperties); // Update filtered properties
-
-        // Update counts based on the complete updated list
-        const newCounts = calculateStatusCounts(updatedProperties);
-        console.log(
-          "[handleCreateProperty] Setting statusCounts state:",
-          newCounts
-        );
-        setStatusCounts(newCounts);
-
         toast.success("Property created successfully");
       }
 
@@ -648,51 +501,13 @@ const Properties = () => {
   };
 
   const handleDeleteProperty = async (propertyId) => {
-    setIsDeleting(true);
     try {
       console.log(`[handleDeleteProperty] Deleting property ID: ${propertyId}`);
-      // The delete endpoint returns 204 No Content which doesn't have a JSON body
-      // so we need to handle it differently
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/properties/${propertyId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      if (!response.ok && response.status !== 204) {
-        let errorData;
-        try {
-          errorData = await response.json();
-        } catch (e) {
-          // Ignore if the response is not JSON
-          errorData = { detail: `Request failed with status ${response.status}` };
-        }
-        throw new Error(errorData.detail || "Failed to delete property");
-      }
-
-      // Update properties list after successful deletion
-      const newPropertiesList = properties.filter((p) => p.id !== propertyId);
-      console.log(
-        "[handleDeleteProperty] Setting properties state:",
-        newPropertiesList
-      );
-      setProperties(newPropertiesList);
-
-      // Show success notification
+      await deletePropertyMutation.mutateAsync(propertyId);
       toast.success("Property was successfully deleted");
-
     } catch (error) {
       console.error("Error deleting property:", error);
-
-      // Show error notification
       toast.error(error.message || "Failed to delete property. Please try again.");
-
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -1139,7 +954,7 @@ const Properties = () => {
         </div>
         <PropertyTable
           properties={filteredProperties}
-          loading={loading || isDeleting}
+          loading={loading || deletePropertyMutation.isPending}
           error={error}
           onDelete={handleDeleteProperty}
           onEdit={handleEditProperty}

@@ -14,6 +14,8 @@ import {
 import { ChartSkeleton } from "../ui/skeletons";
 
 const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will appear here once available", isLoading = false }) => {
+  // ALL HOOKS MUST BE CALLED FIRST - BEFORE ANY CONDITIONAL LOGIC
+  
   // Generate unique IDs for this chart instance
   const chartId = useId();
   const incomeGradientId = `incomeGradient-${chartId}`;
@@ -66,44 +68,10 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
     };
   }, [data]);
 
-  // Show loading skeleton
-  if (isLoading) {
-    return <ChartSkeleton height="300px" />;
-  }
-
-  // Show improved empty state
-  if (!trimFinancialData) {
-    return (
-      <div className="flex items-center justify-center h-[300px]">
-        <div className="text-center">
-          <div className="w-16 h-16 mb-4 mx-auto rounded-full bg-gray-100 flex items-center justify-center">
-            <svg
-              className="w-8 h-8 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"
-              />
-            </svg>
-          </div>
-          <h3 className="text-base font-medium text-gray-800 mb-1">
-            No Revenue Data
-          </h3>
-          <p className="text-xs text-gray-600">
-            {emptyStateMessage}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   // Transform and enhance data for chart
   const chartData = useMemo(() => {
+    if (!trimFinancialData) return [];
+    
     return trimFinancialData.months.map((month, index) => {
       const income = trimFinancialData.revenue[index] || 0;
       const expenses = trimFinancialData.expenses[index] || 0;
@@ -167,6 +135,44 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
     if (chartData.length <= 6) return 320;
     return Math.min(400, 320 + (chartData.length - 6) * 10);
   }, [chartData.length]);
+
+  // NOW SAFE TO DO CONDITIONAL RENDERING AFTER ALL HOOKS
+  
+  // Show loading skeleton
+  if (isLoading) {
+    return <ChartSkeleton height="300px" />;
+  }
+
+  // Show improved empty state
+  if (!trimFinancialData) {
+    return (
+      <div className="flex items-center justify-center h-[300px]">
+        <div className="text-center">
+          <div className="w-16 h-16 mb-4 mx-auto rounded-full bg-gray-100 flex items-center justify-center">
+            <svg
+              className="w-8 h-8 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-base font-medium text-gray-800 mb-1">
+            No Revenue Data
+          </h3>
+          <p className="text-xs text-gray-600">
+            {emptyStateMessage}
+          </p>
+        </div>
+      </div>
+    );
+  }
   
   // Custom tooltip component
   const CustomTooltip = ({ active, payload, label }) => {

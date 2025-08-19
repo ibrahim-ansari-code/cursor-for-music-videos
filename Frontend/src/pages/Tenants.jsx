@@ -1,11 +1,4 @@
-import React, { useState, useEffect } from "react";
-import {
-  fetchTenants,
-  deleteTenant,
-  fetchDashboardData,
-  fetchOutstandingPayments,
-  fetchLeases,
-} from "../utils/api";
+import React, { useState, useEffect, useMemo } from "react";
 import TenantModal from "../components/tenants/TenantModal";
 import UpdateTenantModal from "../components/tenants/UpdateTenantModal";
 import TenantTable from "../components/tenants/TenantTable";
@@ -18,149 +11,70 @@ import {
     formatDate,
     getStatusBadgeClass,
 } from "../utils/tenantUtils";
+import { useTenants, useDeleteTenant } from "../hooks/useTenants";
+import { useLeases } from "../hooks/useLeases";
+import useDashboardData from "../hooks/useDashboardData";
+import { useOutstandingPayments } from "../hooks/useAccountingQueries";
 
 const Tenants = () => {
-  const [tenants, setTenants] = useState([]);
-  const [allLeases, setAllLeases] = useState([]);
-  const [dashboardData, setDashboardData] = useState({
-    totalTenants: 0,
-    activeLeases: 0,
-    expiringSoon: 0,
-    overduePayments: 0,
-  });
-  const [expiringLeases, setExpiringLeases] = useState([]);
+  // Local UI state
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [notification, setNotification] = useState(null);
   const [actionMenuOpen, setActionMenuOpen] = useState(null);
-  const [leasesLoaded, setLeasesLoaded] = useState(false);
 
-  // Fetch all leases once on component mount
-  useEffect(() => {
-    const fetchAllLeases = async () => {
-      try {
-        const leasesData = await fetchLeases();
-        setAllLeases(leasesData);
-      } catch (err) {
-        console.error("Failed to fetch leases:", err);
-        setError((prevError) => prevError || "Failed to load lease data.");
-      } finally {
-        setLeasesLoaded(true);
-      }
-    };
-    fetchAllLeases();
-  }, []);
-
-  // Fetch tenants and dashboard data
-  useEffect(() => {
-    if (!leasesLoaded) {
-      return;
+  // Build query parameters
+  const tenantParams = useMemo(() => {
+    const params = {};
+    if (debouncedSearchTerm) {
+      params.search = debouncedSearchTerm;
     }
+    return params;
+  }, [debouncedSearchTerm]);
 
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // Fetch tenants
-        const tenantParams = {};
-        if (debouncedSearchTerm) {
-          tenantParams.search = debouncedSearchTerm;
-        }
+  // TanStack Query hooks
+  const { data: tenants = [], isLoading: tenantsLoading, error: tenantsError } = useTenants(tenantParams);
+  const { data: allLeases = [], isLoading: leasesLoading, error: leasesError } = useLeases();
+  const { data: dashData, isLoading: dashLoading, error: dashError } = useDashboardData({});
+  const { data: outstandingPayments = [], isLoading: paymentsLoading, error: paymentsError } = useOutstandingPayments();
+  const deleteTenantMutation = useDeleteTenant();
 
-        const tenantsData = await fetchTenants(tenantParams);
+  // Combine tenant and lease data
+  const tenantsWithLeases = useMemo(() => {
+    return tenants.map((tenant) => {
+      const tenantLeases = allLeases.filter(
+        (lease) => lease.tenant_id === tenant.id
+      );
+      return {
+        ...tenant,
+        leases: tenantLeases,
+      };
+    });
+  }, [tenants, allLeases]);
 
-        // Combine tenant and lease data
-        const tenantsWithLeases = tenantsData.map((tenant) => {
-          // Find all leases belonging to this tenant
-          const tenantLeases = allLeases.filter(
-            (lease) => lease.tenant_id === tenant.id
-          );
-          // Return a new tenant object with leases array
-          return {
-            ...tenant,
-            leases: tenantLeases,
-          };
-        });
-
-        setTenants(tenantsWithLeases);
-
-        // Check active leases count based on tenant leases
-        const activeLeaseCount = countActiveLeases(tenantsWithLeases);
-
-        // Check expiring leases count and get the list
-        const expiringLeasesList = getExpiringLeases(tenantsWithLeases);
-        setExpiringLeases(expiringLeasesList);
-
-        // Try to fetch dashboard data from API
-        try {
-          const dashData = await fetchDashboardData();
-
-          // Try to fetch outstanding payments data
-          let overduePayments = 0;
-          try {
-            const outstandingPayments = await fetchOutstandingPayments();
-            overduePayments = outstandingPayments?.length || 0;
-          } catch (paymentsError) {
-            console.warn("Failed to fetch overdue payments:", paymentsError);
-          }
-
-          setDashboardData({
-            totalTenants:
-              dashData.summary?.total_tenants || tenantsData.length || 0,
-            activeLeases: activeLeaseCount,
-            expiringSoon: expiringLeasesList.length,
-            overduePayments:
-              overduePayments || dashData.payments_due?.length || 0,
-          });
-        } catch (dashError) {
-          console.warn(
-            "Failed to fetch dashboard data, using tenant data for counts:",
-            dashError
-          );
-
-          // Try to fetch just the overdue payments if main dashboard failed
-          let overduePayments = 0;
-          try {
-            const outstandingPayments = await fetchOutstandingPayments();
-            overduePayments = outstandingPayments?.length || 0;
-          } catch (paymentsError) {
-            console.warn("Failed to fetch overdue payments:", paymentsError);
-          }
-
-          // Calculate dashboard data from tenant list if API call fails
-          setDashboardData({
-            totalTenants: tenantsData.length,
-            activeLeases: activeLeaseCount,
-            expiringSoon: expiringLeasesList.length,
-            overduePayments: overduePayments,
-          });
-        }
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        console.error("Error details:", err.response || err.message || err);
-        setError("Failed to load data. Please check console for details.");
-
-        // Set empty data on error
-        setTenants([]);
-        setExpiringLeases([]);
-        setDashboardData({
-          totalTenants: 0,
-          activeLeases: 0,
-          expiringSoon: 0,
-          overduePayments: 0,
-        });
-      } finally {
-        setIsLoading(false);
-      }
+  // Calculate dashboard metrics
+  const dashboardData = useMemo(() => {
+    const activeLeaseCount = countActiveLeases(tenantsWithLeases);
+    const expiringLeasesList = getExpiringLeases(tenantsWithLeases);
+    
+    return {
+      totalTenants: dashData?.summary?.total_tenants || tenants.length || 0,
+      activeLeases: activeLeaseCount,
+      expiringSoon: expiringLeasesList.length,
+      overduePayments: outstandingPayments?.length || dashData?.payments_due?.length || 0,
     };
+  }, [dashData, tenants.length, tenantsWithLeases, outstandingPayments]);
 
-    fetchData();
-  }, [debouncedSearchTerm, leasesLoaded]);
+  const expiringLeases = useMemo(() => getExpiringLeases(tenantsWithLeases), [tenantsWithLeases]);
+
+  // Combined loading and error states
+  const isLoading = tenantsLoading || leasesLoading || dashLoading || paymentsLoading;
+  const error = tenantsError || leasesError || dashError || paymentsError;
+
+
 
   // Handle sending renewal email via email client
   const handleSendRenewal = (tenantName, tenantEmail, expiryDate, unitInfo) => {
@@ -195,53 +109,24 @@ const Tenants = () => {
     setIsUpdateModalOpen(true);
   };
 
-  // Handle tenant save (create/update)
+  // Handle tenant save (create/update) - TanStack Query will auto-refresh
   const handleSaveTenant = async (savedTenant) => {
-    try {
-      // Refresh tenants list
-      const updatedTenants = await fetchTenants();
-      setTenants(updatedTenants);
-
-      // Update dashboard counts
-      setDashboardData((prev) => ({
-        ...prev,
-        totalTenants: updatedTenants.length,
-        activeLeases: countActiveLeases(updatedTenants),
-        expiringSoon: getExpiringLeases(updatedTenants).length,
-      }));
-
-      // Close modals
-      setIsModalOpen(false);
-      setIsUpdateModalOpen(false);
-      setSelectedTenant(null);
-    } catch (err) {
-      console.error("Failed to refresh tenant data:", err);
-    }
+    // Close modals
+    setIsModalOpen(false);
+    setIsUpdateModalOpen(false);
+    setSelectedTenant(null);
   };
 
   // Handle tenant deletion
   const handleDeleteTenant = async (tenantId) => {
     if (window.confirm("Are you sure you want to delete this tenant?")) {
       try {
-        await deleteTenant(tenantId);
-        // Refresh tenants list
-        const updatedTenants = await fetchTenants();
-        setTenants(updatedTenants);
-
-        // Update dashboard counts
-        setDashboardData((prev) => ({
-          ...prev,
-          totalTenants: updatedTenants.length,
-          activeLeases: countActiveLeases(updatedTenants),
-          expiringSoon: getExpiringLeases(updatedTenants).length,
-        }));
+        await deleteTenantMutation.mutateAsync(tenantId);
       } catch (err) {
         console.error("Failed to delete tenant:", err);
         // Display the specific error message from the backend if available
         if (err.data && err.data.detail) {
-          setError(err.data.detail);
-        } else {
-          setError("Failed to delete tenant. Please try again.");
+          console.error("Delete error details:", err.data.detail);
         }
       }
     }
@@ -551,12 +436,12 @@ const Tenants = () => {
           <TenantsTableSkeleton rowCount={8} />
         ) : (
           <TenantTable
-            tenants={tenants}
-            onEditTenant={handleEditTenant}
-            onDeleteTenant={handleDeleteTenant}
-            onAddTenant={handleAddTenant}
-            isLoading={false}
-          />
+          tenants={tenantsWithLeases}
+          onEditTenant={handleEditTenant}
+          onDeleteTenant={handleDeleteTenant}
+          onAddTenant={handleAddTenant}
+          isLoading={false}
+        />
         )}
       </div>
 

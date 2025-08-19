@@ -126,7 +126,7 @@ class ErrorBoundary extends React.Component {
                 {this.props.resetText || 'Try Again'}
               </button>
               
-              {this.props.showReload && (
+              {(this.props.showReload ?? true) && (
                 <button
                   onClick={() => window.location.reload()}
                   className="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
@@ -162,8 +162,5 @@ ErrorBoundary.propTypes = {
   showReload: PropTypes.bool
 };
 
-ErrorBoundary.defaultProps = {
-  showReload: true
-};
 
 export default ErrorBoundary;

@@ -1,35 +1,27 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchTenants, fetchTenantsByProperty } from "../utils/api/index.js";
+import { QUERY_KEYS } from "./queryKeys";
 
 export default function useTenantsCount(selectedProperty, fallbackOccupiedUnits = 0) {
-  const [count, setCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    const load = async () => {
-      try {
-        setLoading(true);
-        let total = 0;
-        if (selectedProperty === "all") {
-          const allTenants = await fetchTenants();
-          total = Array.isArray(allTenants) ? allTenants.length : 0;
-        } else {
-          const propertyTenants = await fetchTenantsByProperty(selectedProperty);
-          total = Array.isArray(propertyTenants) ? propertyTenants.length : 0;
-        }
-        if (isMounted) setCount(total);
-      } catch (err) {
-        if (isMounted) setCount(fallbackOccupiedUnits || 0);
-      } finally {
-        if (isMounted) setLoading(false);
+  // Use TanStack Query internally
+  const { data: tenants, isLoading: loading, error } = useQuery({
+    queryKey: QUERY_KEYS.tenants.count(selectedProperty),
+    queryFn: () => {
+      if (selectedProperty === "all") {
+        return fetchTenants();
+      } else {
+        return fetchTenantsByProperty(selectedProperty);
       }
-    };
-    load();
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedProperty, fallbackOccupiedUnits]);
+    },
+    staleTime: 3 * 60 * 1000, // 3 minutes for tenant counts
+  });
+
+  // Calculate count with fallback
+  const count = useMemo(() => {
+    if (error) return fallbackOccupiedUnits || 0;
+    return Array.isArray(tenants) ? tenants.length : 0;
+  }, [tenants, error, fallbackOccupiedUnits]);
 
   return { count, loading };
 }

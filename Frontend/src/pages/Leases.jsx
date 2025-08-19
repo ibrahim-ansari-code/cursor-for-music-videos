@@ -1,38 +1,46 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { toast } from "react-toastify";
 import * as Sentry from "@sentry/react";
-import {
-  fetchLeases,
-  uploadLeaseDocument,
-  fetchLeaseDocuments,
-  deleteLease as apiDeleteLease,
-} from "../utils/api";
 import ImportLeaseModal from "../components/ImportLeaseModal";
 import UpdateLeaseStatusModal from "../components/UpdateLeaseStatusModal";
 import FilePreviewModal from "../components/FilePreviewModal";
 import EditLeaseModal from "../components/EditLeaseModal";
 import { LeasesTableSkeleton } from "../components/ui/skeletons";
+import { 
+  useLeasesWithDocuments, 
+  useDeleteLease, 
+  useUploadLeaseDocument 
+} from "../hooks/useLeases";
 
 const Leases = () => {
-  const [leases, setLeases] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Local UI state
   const [selectedLease, setSelectedLease] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadDocumentType, setUploadDocumentType] = useState("contract");
-  const [documentUploading, setDocumentUploading] = useState(false);
-  const [documentsLoading, setDocumentsLoading] = useState(false);
   const [openDocumentDropdown, setOpenDocumentDropdown] = useState(null);
-  const [dropdownPositionClass, setDropdownPositionClass] =
-    useState("top-full mt-2");
+  const [dropdownPositionClass, setDropdownPositionClass] = useState("top-full mt-2");
   const documentButtonRefs = useRef({});
   const [fileToPreviewUrl, setFileToPreviewUrl] = useState(null);
   const [filePreviewName, setFilePreviewName] = useState("");
   const [showFilePreviewModal, setShowFilePreviewModal] = useState(false);
   const tableScrollContainerRef = useRef(null);
+
+  // Build query parameters
+  const queryParams = useMemo(() => {
+    const params = {};
+    if (statusFilter !== "all") {
+      params.status = statusFilter;
+    }
+    return params;
+  }, [statusFilter]);
+
+  // TanStack Query hooks
+  const { data: leases = [], isLoading: loading, error } = useLeasesWithDocuments(queryParams);
+  const deleteLeaseMutation = useDeleteLease();
+  const uploadDocumentMutation = useUploadLeaseDocument();
 
   // Helper function for dropdown positioning
   const calculateDropdownPosition = (
@@ -64,9 +72,7 @@ const Leases = () => {
     return "top-full mt-2"; // Default position below
   };
 
-  useEffect(() => {
-    loadLeases();
-  }, [statusFilter]);
+
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -82,75 +88,7 @@ const Leases = () => {
     };
   }, [openDocumentDropdown]);
 
-  const loadLeases = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setDocumentsLoading(false);
 
-      const data = await fetchLeases({
-        status: statusFilter !== "all" ? statusFilter : undefined,
-      });
-
-      if (data && data.length > 0) {
-        setDocumentsLoading(true);
-        try {
-          const leasesWithDocuments = await Promise.all(
-            data.map(async (lease) => {
-              try {
-                const documents = await fetchLeaseDocuments(lease.id);
-                const contractDoc =
-                  documents.find(
-                    (doc) =>
-                      doc.document_type === "contract" ||
-                      doc.document_type === "lease" ||
-                      doc.document_type === "agreement"
-                  ) || documents[0];
-
-                return {
-                  ...lease,
-                  documents: documents,
-                  file_url: contractDoc ? contractDoc.file_path : null,
-                };
-              } catch (err) {
-                console.error(
-                  `Failed to fetch documents for lease ${lease.id}:`,
-                  err
-                );
-
-                // Report document fetch failure to monitoring service
-                Sentry.captureException(err, {
-                  tags: {
-                    feature: "lease_documents",
-                    operation: "fetch_documents",
-                  },
-                  extra: {
-                    leaseId: lease.id,
-                    tenantId: lease.tenant_id,
-                    propertyId: lease.property_id,
-                    leaseStatus: lease.status,
-                  },
-                  level: "warning", // Non-critical since we return partial results
-                });
-
-                return { ...lease, documents: [], file_url: null };
-              }
-            })
-          );
-          setLeases(leasesWithDocuments);
-        } finally {
-          setDocumentsLoading(false);
-        }
-      } else {
-        setLeases([]);
-      }
-    } catch (err) {
-      console.error("Error loading leases:", err);
-      setError("Failed to load leases. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleShowModal = (type, lease = null) => {
     setModalType(type);
@@ -166,7 +104,6 @@ const Leases = () => {
     setShowFilePreviewModal(false);
     setFileToPreviewUrl(null);
     setFilePreviewName("");
-    loadLeases();
   };
 
   const handleFileChange = (e) => {
@@ -179,21 +116,18 @@ const Leases = () => {
     if (!uploadFile || !selectedLease) return;
 
     try {
-      setDocumentUploading(true);
-
       const formData = new FormData();
       formData.append("file", uploadFile);
       formData.append("document_type", uploadDocumentType);
 
-      await uploadLeaseDocument(selectedLease.id, formData);
+      await uploadDocumentMutation.mutateAsync({ 
+        leaseId: selectedLease.id, 
+        formData 
+      });
 
       handleCloseModal();
-      loadLeases();
     } catch (err) {
       console.error("Error uploading document:", err);
-      setError("Failed to upload document. Please try again.");
-    } finally {
-      setDocumentUploading(false);
     }
   };
 
@@ -215,7 +149,6 @@ const Leases = () => {
 
   const handleImport = () => {
     handleCloseModal();
-    loadLeases();
   };
 
   // Get the tenant's full name or construct it from first and last name
@@ -323,7 +256,6 @@ const Leases = () => {
 
   const handleLeaseUpdated = (updatedLease) => {
     setShowModal(false);
-    loadLeases();
   };
 
   const handleDeleteLease = async (leaseId) => {
@@ -335,15 +267,11 @@ const Leases = () => {
       return;
     }
 
-    const originalLeases = [...leases];
-    setLeases((prevLeases) => prevLeases.filter((lease) => lease.id !== leaseId));
-
     try {
-      await apiDeleteLease(leaseId);
+      await deleteLeaseMutation.mutateAsync(leaseId);
       toast.success("Lease deleted successfully.");
     } catch (err) {
       console.error("Error deleting lease:", err);
-      setLeases(originalLeases);
       const errorMessage =
         err.data?.detail ||
         err.message ||
@@ -404,7 +332,7 @@ const Leases = () => {
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           <p>{error}</p>
           <button
-            onClick={loadLeases}
+            onClick={() => window.location.reload()}
             className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
           >
             Retry
@@ -691,10 +619,10 @@ const Leases = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={!uploadFile || documentUploading}
+                  disabled={!uploadFile || uploadDocumentMutation.isPending}
                   className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                 >
-                  {documentUploading ? "Uploading..." : "Upload"}
+                  {uploadDocumentMutation.isPending ? "Uploading..." : "Upload"}
                 </button>
               </div>
             </form>
@@ -708,7 +636,7 @@ const Leases = () => {
           isOpen={true}
           onClose={handleCloseModal}
           lease={selectedLease}
-          onUpdate={loadLeases}
+          onUpdate={handleLeaseUpdated}
         />
       )}
 

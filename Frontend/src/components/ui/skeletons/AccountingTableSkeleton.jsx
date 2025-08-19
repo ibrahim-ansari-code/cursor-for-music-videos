@@ -2,6 +2,13 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { SkeletonLine, SkeletonCircle } from './SkeletonPrimitives';
 
+// Column width constants to avoid duplication
+const COLUMN_WIDTHS = {
+  payments: ['w-4/12', 'w-2/12', 'w-2/12', 'w-2/12', 'w-1/12', 'w-1/12', 'w-1/12'],
+  expenses: ['w-3/12', 'w-2/12', 'w-2/12', 'w-2/12', 'w-2/12', 'w-1/12', 'w-1/12', 'w-1/12'],
+  invoices: ['w-2/12', 'w-3/12', 'w-2/12', 'w-2/12', 'w-2/12', 'w-1/12', 'w-1/12', 'w-1/12'],
+};
+
 /**
  * Accounting table skeleton component for consistent loading states
  * Prevents layout shifts by matching exact table structure
@@ -14,12 +21,12 @@ const AccountingTableSkeleton = ({
   avatarColumn = 0,
   className = '',
   showFilters = true,
-  showActionButtons = true,
+  showActionButtons = false, // Changed default to false since buttons are now inside filters
   showPagination = true,
   ...props
 }) => (
   <div className={`space-y-4 ${className}`} {...props}>
-    {/* Action Buttons Skeleton */}
+    {/* Action Buttons Skeleton - Only show if explicitly requested */}
     {showActionButtons && (
       <div className="flex justify-end space-x-3">
         <SkeletonLine width="120px" height="2.5rem" rounded="md" />
@@ -27,7 +34,7 @@ const AccountingTableSkeleton = ({
       </div>
     )}
 
-    {/* Filters Skeleton */}
+    {/* Filters Skeleton with integrated buttons */}
     {showFilters && (
       <div className="bg-white p-4 rounded-lg shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
@@ -41,8 +48,10 @@ const AccountingTableSkeleton = ({
               <SkeletonLine width="160px" height="2.5rem" rounded="md" />
             </div>
           </div>
-          <div className="flex items-center">
-            <SkeletonLine width="240px" height="2.5rem" rounded="md" />
+          <div className="flex items-center space-x-4">
+            <SkeletonLine width="200px" height="2.5rem" rounded="md" />
+            <SkeletonLine width="100px" height="2.5rem" rounded="md" />
+            <SkeletonLine width="120px" height="2.5rem" rounded="md" />
           </div>
         </div>
       </div>
@@ -129,9 +138,10 @@ AccountingTableSkeleton.propTypes = {
  */
 export const PaymentsTableSkeleton = (props) => (
   <AccountingTableSkeleton
-    columns={['w-4/12', 'w-2/12', 'w-2/12', 'w-2/12', 'w-1/12', 'w-1/12', 'w-1/12']}
+    columns={COLUMN_WIDTHS.payments}
     showAvatar={true}
     avatarColumn={0}
+    showActionButtons={false}
     {...props}
   />
 );
@@ -141,21 +151,94 @@ export const PaymentsTableSkeleton = (props) => (
  */
 export const ExpensesTableSkeleton = (props) => (
   <AccountingTableSkeleton
-    columns={['w-3/12', 'w-2/12', 'w-2/12', 'w-2/12', 'w-2/12', 'w-1/12', 'w-1/12', 'w-1/12']}
+    columns={COLUMN_WIDTHS.expenses}
     showAvatar={false}
+    showActionButtons={false}
     {...props}
   />
 );
 
 /**
- * Pre-configured skeleton for Invoices table
+ * Pre-configured skeleton for Invoices table with unique 4-filter layout
  */
 export const InvoicesTableSkeleton = (props) => (
-  <AccountingTableSkeleton
-    columns={['w-2/12', 'w-3/12', 'w-2/12', 'w-2/12', 'w-2/12', 'w-1/12', 'w-1/12', 'w-1/12']}
-    showAvatar={false}
-    {...props}
-  />
+  <div className="space-y-4">
+    {/* Invoices-specific Filters Skeleton - 4 filters in grid + search/buttons */}
+    <div className="bg-white p-4 rounded-lg shadow-sm">
+      {/* 4-filter grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div>
+          <SkeletonLine width="60px" height="1rem" className="mb-1" />
+          <SkeletonLine width="140px" height="2.5rem" rounded="md" />
+        </div>
+        <div>
+          <SkeletonLine width="80px" height="1rem" className="mb-1" />
+          <SkeletonLine width="120px" height="2.5rem" rounded="md" />
+        </div>
+        <div>
+          <SkeletonLine width="60px" height="1rem" className="mb-1" />
+          <SkeletonLine width="160px" height="2.5rem" rounded="md" />
+        </div>
+        <div>
+          <SkeletonLine width="50px" height="1rem" className="mb-1" />
+          <SkeletonLine width="140px" height="2.5rem" rounded="md" />
+        </div>
+      </div>
+      
+      {/* Search bar and action buttons */}
+      <div className="flex items-center justify-between">
+        <SkeletonLine width="300px" height="2.5rem" rounded="md" />
+        <div className="flex items-center space-x-4">
+          <SkeletonLine width="100px" height="2.5rem" rounded="md" />
+          <SkeletonLine width="120px" height="2.5rem" rounded="md" />
+        </div>
+      </div>
+    </div>
+
+    {/* Table Skeleton */}
+    <div className="bg-white shadow rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              {COLUMN_WIDTHS.invoices.map((width, index) => (
+                <th
+                  key={index}
+                  className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${width}`}
+                >
+                  <SkeletonLine width="80%" height="0.75rem" />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {Array.from({ length: 8 }, (_, rowIndex) => (
+              <tr key={rowIndex} className="hover:bg-gray-50">
+                {COLUMN_WIDTHS.invoices.map((width, colIndex) => (
+                  <td key={colIndex} className={`px-6 py-4 whitespace-nowrap ${width}`}>
+                    <div className="text-center">
+                      <SkeletonLine 
+                        width={colIndex === 0 ? '90%' : '75%'} 
+                        height="1rem"
+                        className="mx-auto"
+                      />
+                    </div>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      
+      {/* Pagination Skeleton */}
+      <div className="flex justify-between items-center mt-4 p-4">
+        <SkeletonLine width="80px" height="2.5rem" rounded="md" />
+        <SkeletonLine width="60px" height="1rem" />
+        <SkeletonLine width="60px" height="2.5rem" rounded="md" />
+      </div>
+    </div>
+  </div>
 );
 
 export default AccountingTableSkeleton;

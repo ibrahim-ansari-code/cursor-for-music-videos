@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from "react";
-import { 
-  fetchExpenses, 
-  fetchProperties, 
-  deleteExpense 
-} from "../../utils/api";
+import React, { useState, useEffect, useMemo } from "react";
 import { toast } from "react-toastify";
+import { CSVLink } from "react-csv";
 import NewExpenseModal from "./modals/NewExpenseModal";
 import EditExpenseModal from "./modals/EditExpenseModal";
 import { ExpensesTableSkeleton } from "../ui/skeletons";
 import { useAccounting } from "./AccountingContext";
 import { getDateRangeParams } from "../../utils/dateHelpers";
+import { useExpenses, useDeleteExpense } from "../../hooks/useAccountingQueries";
+import useProperties from "../../hooks/useProperties";
+import useDebounce from "../../hooks/useDebounce";
 
 const expenseTableColumns = [
   { key: "property", label: "Property", align: "left" },
@@ -25,17 +24,11 @@ const expenseTableColumns = [
 
 
 const ExpensesTab = () => {
-  const {
-    loading,
-    setLoading,
-    error,
-    setError,
-    handlePreviewReceipt,
-  } = useAccounting();
+  const { handlePreviewReceipt } = useAccounting();
 
   // Local state for expenses tab
-  const [expenses, setExpenses] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [expensesPagination, setExpensesPagination] = useState({
     currentPage: 0,
     limit: 15,
@@ -46,84 +39,75 @@ const ExpensesTab = () => {
     dateRange: "month",
   });
 
+  // Build query parameters
+  const queryParams = useMemo(() => {
+    const params = {};
+
+    if (expenseFilters.category !== "all") {
+      params.category = expenseFilters.category;
+    }
+
+    params.limit = expensesPagination.limit;
+    params.offset = expensesPagination.currentPage * expensesPagination.limit;
+
+    if (debouncedSearchQuery.trim()) {
+      params.search = debouncedSearchQuery.trim();
+    }
+
+    // Convert date range to actual date params using utility function
+    if (expenseFilters.dateRange !== "all") {
+      const dateRangeParams = getDateRangeParams(expenseFilters.dateRange);
+      Object.assign(params, dateRangeParams);
+    }
+
+    return params;
+  }, [expenseFilters, expensesPagination.currentPage, expensesPagination.limit, debouncedSearchQuery]);
+
+  // TanStack Query hooks
+  const { data: expensesData, isLoading: loading, error, refetch } = useExpenses(queryParams);
+  const { properties } = useProperties();
+  const deleteExpenseMutation = useDeleteExpense();
+
+  // Extract expenses from paginated response and enhance with property names
+  const expenses = useMemo(() => {
+    const expensesList = expensesData?.items || [];
+    
+    // Create property map for names - ensure properties is an array
+    const safeProperties = Array.isArray(properties) ? properties : [];
+    const propertyMap = safeProperties.reduce((map, property) => {
+      map[property.id] = property.name;
+      return map;
+    }, {});
+
+    // Enhance expense data with property names
+    return expensesList.map((expense) => ({
+      ...expense,
+      property_name:
+        propertyMap[expense.property_id] ||
+        `Property #${expense.property_id}`,
+    }));
+  }, [expensesData, properties]);
+
+  const hasMore = expensesData?.has_more || false;
+
   // Modal states
   const [showNewExpenseModal, setShowNewExpenseModal] = useState(false);
   const [showEditExpenseModal, setShowEditExpenseModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  // Effect for handling filter changes on the expenses tab
+  // Effect for handling filter changes - reset to first page
   useEffect(() => {
-    // When filters change, reset to the first page.
-    // The pagination effect will then trigger the data load.
     setExpensesPagination((prev) => ({ ...prev, currentPage: 0 }));
   }, [expenseFilters]);
 
-  // Effect for handling data loading when pagination or filters change
+  // Update pagination state when query data changes
   useEffect(() => {
-    loadExpensesData();
-    // The dependency array correctly triggers this effect when either the
-    // page or filters change, ensuring data is loaded when needed.
-  }, [expensesPagination.currentPage, expenseFilters]);
-
-  const loadExpensesData = async () => {
-    try {
-      setLoading(true);
-
-      const params = {};
-
-      // Add category filter - only if not "all"
-      if (expenseFilters.category !== "all") {
-        params.category = expenseFilters.category;
-      }
-
-      // Add pagination params
-      params.limit = expensesPagination.limit;
-      params.offset = expensesPagination.currentPage * expensesPagination.limit;
-
-      // Add search query if present
-      if (searchQuery.trim()) {
-        params.search = searchQuery.trim();
-      }
-
-      // Convert date range to actual date params using utility function - only if not "all"
-      if (expenseFilters.dateRange !== "all") {
-        const dateRangeParams = getDateRangeParams(expenseFilters.dateRange);
-        Object.assign(params, dateRangeParams);
-      }
-
-      const data = await fetchExpenses(params);
-
-      // Try to fetch property data for names, but don't fail if user has no properties
-      let propertyMap = {};
-      try {
-        const properties = await fetchProperties();
-        // Map property IDs to names
-        propertyMap = properties.reduce((map, property) => {
-          map[property.id] = property.name;
-          return map;
-        }, {});
-      } catch (propErr) {
-        // Continue without property names - user may not have properties yet
-      }
-
-      // Enhance expense data with property names
-      const enhancedExpenses = data.items.map((expense) => ({
-        ...expense,
-        property_name:
-          propertyMap[expense.property_id] ||
-          `Property #${expense.property_id}`,
-      }));
-
-      setExpenses(enhancedExpenses);
-      setExpensesPagination((prev) => ({ ...prev, hasMore: data.has_more }));
-      setError(null);
-    } catch (err) {
-      console.error("Error loading expenses data:", err);
-      setError("Failed to load expenses data. Please try again.");
-    } finally {
-      setLoading(false);
+    if (expensesData) {
+      setExpensesPagination((prev) => ({ ...prev, hasMore: expensesData.has_more || false }));
     }
-  };
+  }, [expensesData]);
+
+
 
   const handleEditExpense = (expense) => {
     setSelectedItem(expense);
@@ -146,9 +130,8 @@ const ExpensesTab = () => {
       )
     ) {
       try {
-        await deleteExpense(expenseId);
+        await deleteExpenseMutation.mutateAsync(expenseId);
         toast.success(`${expenseDescription} deleted successfully.`);
-        loadExpensesData(); // Refresh the list
       } catch (err) {
         console.error("Failed to delete expense:", err);
         toast.error(err.message || "Failed to delete expense.");
@@ -180,16 +163,80 @@ const ExpensesTab = () => {
     setSelectedItem(null);
   };
 
-  // Handle search with debouncing to avoid too many API calls
+  // Reset pagination when debounced search query changes
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      // Reset to first page when search changes and trigger data reload
-      setExpensesPagination((prev) => ({ ...prev, currentPage: 0 }));
-      loadExpensesData();
-    }, 500);
+    setExpensesPagination((prev) => ({ ...prev, currentPage: 0 }));
+  }, [debouncedSearchQuery]);
 
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  // CSV Export configuration
+  const csvHeaders = [
+    { label: 'Property', key: 'property_name' },
+    { label: 'Category', key: 'category' },
+    { label: 'Amount', key: 'total_amount' },
+    { label: 'Date', key: 'expense_date' },
+    { label: 'Payment Method', key: 'payment_method' },
+    { label: 'Description', key: 'description' },
+    { label: 'Subtotal', key: 'subtotal_amount' },
+    { label: 'Tax Amount', key: 'tax_amount' },
+    { label: 'Has Receipt', key: 'has_receipt' },
+    { label: 'Source', key: 'source' },
+  ];
+
+  // Format data for CSV export with clean headers
+  const getFilterDescription = () => {
+    const filters = [];
+    if (expenseFilters.category !== 'all') filters.push(`Category: ${expenseFilters.category}`);
+    if (expenseFilters.dateRange !== 'all') filters.push(`Date Range: ${expenseFilters.dateRange.replace('_', ' ')}`);
+    if (searchQuery) filters.push(`Search: "${searchQuery}"`);
+    return filters.length > 0 ? filters.join(', ') : 'No filters applied';
+  };
+
+  const csvData = [
+    // Clean header with metadata in a single row
+    { 
+      property_name: 'Brikli Expenses Report', 
+      category: `Exported: ${new Date().toLocaleDateString()}`,
+      total_amount: `Filters: ${getFilterDescription()}`,
+      expense_date: `Records: ${expenses.length}`,
+      payment_method: '', 
+      description: '', 
+      subtotal_amount: '', 
+      tax_amount: '', 
+      has_receipt: '', 
+      source: '' 
+    },
+    // Empty separator row
+    { property_name: '', category: '', total_amount: '', expense_date: '', payment_method: '', description: '', subtotal_amount: '', tax_amount: '', has_receipt: '', source: '' },
+    // Actual data
+    ...expenses.map(expense => {
+      const totalAmt = Number(expense?.total_amount ?? 0);
+      const subtotalAmt = Number(expense?.subtotal_amount ?? 0);
+      const taxAmt = Number(expense?.tax_amount ?? 0);
+      const expenseDate = expense?.expense_date ? new Date(expense.expense_date) : null;
+      return {
+        property_name: expense?.property_name || 'N/A',
+        category: expense?.category ? expense.category.charAt(0).toUpperCase() + expense.category.slice(1) : 'N/A',
+        total_amount: Number.isFinite(totalAmt) ? totalAmt.toFixed(2) : '0.00',
+        expense_date: expenseDate && !isNaN(expenseDate) ? expenseDate.toLocaleDateString() : 'N/A',
+        payment_method: expense?.payment_method || 'Other',
+        description: expense?.description || 'N/A',
+        subtotal_amount: Number.isFinite(subtotalAmt) ? subtotalAmt.toFixed(2) : '0.00',
+        tax_amount: Number.isFinite(taxAmt) ? taxAmt.toFixed(2) : '0.00',
+        has_receipt: expense?.receipt_url ? 'Yes' : 'No',
+        source: expense?.quickbooks_id ? 'QuickBooks' : 'Brikli',
+      };
+    })
+  ];
+
+  // Generate professional filename with current date and filters
+  const generateFilename = () => {
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '');
+    const filterSuffix = expenseFilters.category !== 'all' ? `-${expenseFilters.category}` : '';
+    const searchSuffix = searchQuery ? `-search` : '';
+    return `Brikli-Expenses-Report${filterSuffix}${searchSuffix}-${dateStr}-${timeStr}.csv`;
+  };
 
   if (loading) {
     return <ExpensesTableSkeleton rowCount={8} />;
@@ -201,7 +248,7 @@ const ExpensesTab = () => {
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           <p>{error}</p>
           <button
-            onClick={loadExpensesData}
+            onClick={refetch}
             className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
           >
             Retry
@@ -209,26 +256,7 @@ const ExpensesTab = () => {
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex justify-end space-x-3 mb-4">
-        <button
-          onClick={handleShowModal}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <i className="fas fa-plus mr-2"></i>
-          New Expense
-        </button>
 
-        <button
-          onClick={() => {
-            /* Export functionality would go here */
-          }}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <i className="fas fa-file-export mr-2"></i>
-          Export
-        </button>
-      </div>
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
@@ -288,7 +316,7 @@ const ExpensesTab = () => {
           </div>
         </div>
 
-        <div className="flex items-center">
+        <div className="flex items-center space-x-4">
           <div className="relative rounded-md shadow-sm">
             <input
               type="search"
@@ -301,6 +329,26 @@ const ExpensesTab = () => {
               <i className="fas fa-search text-gray-400"></i>
             </div>
           </div>
+          
+          {/* Export CSV Button */}
+          <CSVLink
+            data={csvData}
+            headers={csvHeaders}
+            filename={generateFilename()}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <i className="fas fa-download mr-2"></i>
+            Export CSV
+          </CSVLink>
+          
+          {/* New Expense Button */}
+          <button
+            onClick={handleShowModal}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <i className="fas fa-plus mr-2"></i>
+            New Expense
+          </button>
         </div>
       </div>
 
@@ -447,7 +495,7 @@ const ExpensesTab = () => {
           <button
             type="button"
             onClick={handleNextPage}
-            disabled={!expensesPagination.hasMore || loading}
+            disabled={!hasMore || loading}
             className="btn btn-secondary disabled:opacity-50"
             aria-label="Go to next page"
           >
@@ -464,7 +512,7 @@ const ExpensesTab = () => {
           onClose={handleCloseModal}
           onSuccess={() => {
             setShowNewExpenseModal(false);
-            loadExpensesData();
+            refetch();
             toast.success("Expense created successfully");
           }}
         />
@@ -480,7 +528,7 @@ const ExpensesTab = () => {
           onSuccess={() => {
             setShowEditExpenseModal(false);
             setSelectedItem(null);
-            loadExpensesData();
+            refetch();
             toast.success("Expense updated successfully");
           }}
           expenseData={selectedItem}

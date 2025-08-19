@@ -1,13 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchDashboardData } from "../utils/api/index.js";
 import { getPresetRange, toIsoDate, startOfMonth, startOfQuarter, startOfYear } from "../utils/dateRanges";
+import { QUERY_KEYS } from "./queryKeys";
 
 
 export default function usePreviousPeriodData({ propertyId, timePeriod, currentRange }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
   const rangeParams = useMemo(() => {
     // If currentRange (start/end) supplied, derive previous range of same length ending at the day before current start
     if (currentRange?.start && currentRange?.end) {
@@ -41,38 +39,19 @@ export default function usePreviousPeriodData({ propertyId, timePeriod, currentR
     return { start_date: toIsoDate(prev.start), end_date: toIsoDate(prev.end) };
   }, [currentRange, timePeriod]);
 
-  useEffect(() => {
-    let isMounted = true;
-    const controller = new AbortController();
+  // Build query parameters
+  const queryParams = useMemo(() => ({
+    property_id: propertyId || undefined,
+    time_period: timePeriod,
+    ...rangeParams,
+  }), [propertyId, timePeriod, rangeParams]);
 
-    const load = async () => {
-      try {
-        setLoading(true);
-        const resp = await fetchDashboardData(
-          {
-            property_id: propertyId || undefined,
-            time_period: timePeriod,
-            ...rangeParams,
-          },
-          { signal: controller.signal }
-        );
-        if (isMounted) {
-          setData(resp);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) setError(err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    load();
-
-    return () => {
-      isMounted = false;
-      controller.abort();
-    };
-  }, [propertyId, timePeriod, rangeParams]);
+  // Use TanStack Query internally
+  const { data, isLoading: loading, error } = useQuery({
+    queryKey: QUERY_KEYS.dashboard.previousPeriod(queryParams),
+    queryFn: () => fetchDashboardData(queryParams),
+    staleTime: 3 * 60 * 1000, // 3 minutes for previous period data
+  });
 
   return { data, loading, error };
 }

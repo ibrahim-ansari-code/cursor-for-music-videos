@@ -1,55 +1,47 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchInvoices } from "../utils/api/index.js";
+import { QUERY_KEYS } from "./queryKeys";
 
 // Fetch top due invoices (Pending/Overdue), filtered by property and date window
 export default function useDueInvoices({ propertyId, startDate, endDate, limit = 5 }) {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Build query parameters
+  const queryParams = useMemo(() => {
+    const params = {};
+    if (propertyId) params.property_id = propertyId;
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
+    return params;
+  }, [propertyId, startDate, endDate]);
 
-  useEffect(() => {
-    let isMounted = true;
-    const controller = new AbortController();
+  // Use TanStack Query internally
+  const { data: invoicesResponse, isLoading: loading, error } = useQuery({
+    queryKey: QUERY_KEYS.dashboard.dueInvoices({ ...queryParams, limit }),
+    queryFn: () => fetchInvoices(queryParams),
+    staleTime: 1 * 60 * 1000, // 1 minute for due invoices (need fresh data)
+  });
 
-    const load = async () => {
-      try {
-        setLoading(true);
-        const params = {};
-        if (propertyId) params.property_id = propertyId;
-        if (startDate) params.start_date = startDate;
-        if (endDate) params.end_date = endDate;
+  // Process data to extract due invoices
+  const data = useMemo(() => {
+    if (!invoicesResponse) return [];
+    
+    const all = Array.isArray(invoicesResponse) ? invoicesResponse : invoicesResponse?.items || [];
 
-        const resp = await fetchInvoices(params, { signal: controller.signal });
-        const all = Array.isArray(resp) ? resp : resp?.items || [];
+    // Keep only Pending or Overdue
+    const pending = all.filter((inv) => {
+      const s = (inv.status || "").toLowerCase();
+      return s === "pending" || s === "overdue";
+    });
 
-        // Keep only Pending or Overdue
-        const pending = all.filter((inv) => {
-          const s = (inv.status || "").toLowerCase();
-          return s === "pending" || s === "overdue";
-        });
+    // Sort by due_date ascending, nulls last
+    pending.sort((a, b) => {
+      const ad = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+      const bd = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+      return ad - bd;
+    });
 
-        // Sort by due_date ascending, nulls last
-        pending.sort((a, b) => {
-          const ad = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-          const bd = b.due_date ? new Date(b.due_date).getTime() : Infinity;
-          return ad - bd;
-        });
-
-        const sliced = limit ? pending.slice(0, limit) : pending;
-        if (isMounted) setData(sliced);
-      } catch (err) {
-        if (isMounted) setError(err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    load();
-    return () => {
-      isMounted = false;
-      controller.abort();
-    };
-  }, [propertyId, startDate, endDate, limit]);
+    return limit ? pending.slice(0, limit) : pending;
+  }, [invoicesResponse, limit]);
 
   return { data, loading, error };
 }

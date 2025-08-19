@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from "@tanstack/react-query";
 import { fetchUnitLease } from '../utils/api';
+import { QUERY_KEYS } from './queryKeys';
 
 /**
  * Custom hook to fetch and manage unit lease status
@@ -7,79 +9,31 @@ import { fetchUnitLease } from '../utils/api';
  * @returns {object} An object containing lease data, loading state, and error state
  */
 export const useUnitStatus = (unitId) => {
-  const [lease, setLease] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Use TanStack Query internally
+  const { data: lease, isLoading: loading, error, refetch } = useQuery({
+    queryKey: QUERY_KEYS.leases.unitStatus(unitId),
+    queryFn: () => fetchUnitLease(unitId),
+    enabled: !!unitId,
+    staleTime: 3 * 60 * 1000, // 3 minutes for unit lease status
+    retry: (failureCount, error) => {
+      // Don't retry on 404 - unit just doesn't have an active lease
+      if (error?.status === 404) return false;
+      return failureCount < 1;
+    },
+    throwOnError: (error) => {
+      // Don't throw on 404 - treat as "no lease"
+      return error?.status !== 404;
+    },
+  });
 
-  useEffect(() => {
-    if (!unitId) {
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    const fetchLeaseInfo = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const leaseData = await fetchUnitLease(unitId);
-        
-        if (!cancelled) {
-          setLease(leaseData);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          // If it's a 404, the unit just doesn't have an active lease
-          if (err.status === 404) {
-            setLease(null);
-            setError(null);
-          } else {
-            setError(err.message || 'Failed to fetch lease information');
-          }
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchLeaseInfo();
-
-    // Cleanup function to prevent state updates on unmounted component
-    return () => {
-      cancelled = true;
-    };
-  }, [unitId]);
-
-  // Refetch function for manual refresh
-  const refetch = () => {
-    if (unitId) {
-      setLoading(true);
-      fetchUnitLease(unitId)
-        .then((leaseData) => {
-          setLease(leaseData);
-        })
-        .catch((err) => {
-          if (err.status === 404) {
-            setLease(null);
-            setError(null);
-          } else {
-            setError(err.message || 'Failed to fetch lease information');
-          }
-        })
-        .finally(() => setLoading(false));
-    }
-  };
+  const hasActiveLease = useMemo(() => !!lease, [lease]);
 
   return {
-    lease,
+    lease: lease || null,
     loading,
-    error,
+    error: error?.status === 404 ? null : error, // Don't show error for 404
     refetch,
-    hasActiveLease: !!lease,
+    hasActiveLease,
   };
 };
 

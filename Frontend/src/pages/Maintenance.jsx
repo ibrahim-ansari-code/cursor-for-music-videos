@@ -1,105 +1,76 @@
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  getMaintenanceSummary,
-  fetchMaintenanceRequests,
-  createMaintenanceRequest,
-  updateMaintenanceRequest,
-  deleteMaintenanceRequest,
-} from "../utils/api";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import MaintenanceTable from "../components/maintenance/MaintenanceTable";
 import MaintenanceRequestModal from "../components/maintenance/MaintenanceRequestModal";
 import StatusCard from "../components/maintenance/StatusCard";
 import MaintenanceSkeleton, { MaintenanceTableSkeleton } from "../components/ui/skeletons/MaintenanceSkeleton";
+import {
+  useMaintenanceSummary,
+  useMaintenanceRequests,
+  useCreateMaintenanceRequest,
+  useUpdateMaintenanceRequest,
+  useDeleteMaintenanceRequest,
+} from "../hooks/useMaintenanceQueries";
 
 const Maintenance = () => {
-  const [summary, setSummary] = useState(null);
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  // Local UI state
   const [statusFilter, setStatusFilter] = useState("All Requests");
-
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(20); // Items per page
-  const [hasMore, setHasMore] = useState(false);
-  const [totalCount, setTotalCount] = useState(0); // Accurate total from API
-
+  const [pageSize] = useState(20);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRequest, setEditingRequest] = useState(null);
   const [viewingRequest, setViewingRequest] = useState(null);
 
-  const fetchData = useCallback(
-    async (page = currentPage, resetData = false) => {
-      try {
-        setLoading(true);
-        setError(null);
+  // Build query parameters
+  const queryParams = useMemo(() => {
+    const params = {
+      limit: pageSize,
+      offset: (currentPage - 1) * pageSize,
+    };
 
-        // Build query parameters for pagination and filtering
-        const params = {
-          limit: pageSize,
-          offset: (page - 1) * pageSize,
-        };
+    // Add status filter if not "All Requests"
+    if (statusFilter !== "All Requests") {
+      const statusMap = {
+        Pending: "pending",
+        "In Progress": "in_progress", 
+        Completed: "completed",
+      };
+      params.req_status = statusMap[statusFilter] ?? statusFilter;
+    }
 
-        // Add status filter if not "All Requests"
-        if (statusFilter !== "All Requests") {
-          // map UI label ➜ API enum
-          const map = {
-            Pending: "pending",
-            "In Progress": "in_progress",
-            Completed: "completed",
-          };
-          params.req_status = map[statusFilter] ?? statusFilter;
-        }
+    return params;
+  }, [statusFilter, currentPage, pageSize]);
 
-        // Fetch summary only on initial load or after mutations.
-        const summaryPromise =
-          resetData || page === 1
-            ? getMaintenanceSummary()
-            : Promise.resolve(null);
-        const [summaryData, requestsData] = await Promise.all([
-          summaryPromise,
-          fetchMaintenanceRequests(params),
-        ]);
-        if (summaryData) setSummary(summaryData);
+  // TanStack Query hooks
+  const { data: summary, isLoading: summaryLoading, error: summaryError } = useMaintenanceSummary();
+  const { data: requestsData, isLoading: requestsLoading, error: requestsError, refetch } = useMaintenanceRequests(queryParams);
+  
+  // Mutation hooks
+  const createRequestMutation = useCreateMaintenanceRequest();
+  const updateRequestMutation = useUpdateMaintenanceRequest();
+  const deleteRequestMutation = useDeleteMaintenanceRequest();
 
-        if (resetData || page === 1) {
-          setRequests(requestsData.results || requestsData);
-        } else {
-          // For pagination, append new data (if implementing "load more" behavior)
-          setRequests((prev) => [
-            ...prev,
-            ...(requestsData.results || requestsData),
-          ]);
-        }
-        // Update pagination state
-        setHasMore(
-          typeof requestsData.total === "number"
-            ? page * pageSize < requestsData.total
-            : (requestsData.results || requestsData).length === pageSize
-        );
-        setTotalCount(
-          requestsData.total ??
-            (requestsData.results
-              ? requestsData.results.length
-              : requestsData.length)
-        );
-      } catch (err) {
-        setError(err.message || "Failed to fetch maintenance data.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [currentPage, pageSize, statusFilter]
-  );
+  // Extract data from query response
+  const requests = useMemo(() => requestsData?.results || requestsData || [], [requestsData]);
+  const hasMore = useMemo(() => {
+    if (typeof requestsData?.total === "number") {
+      return currentPage * pageSize < requestsData.total;
+    }
+    return (requestsData?.results || requestsData || []).length === pageSize;
+  }, [requestsData, currentPage, pageSize]);
+  const totalCount = useMemo(() => {
+    return requestsData?.total ?? (requestsData?.results ? requestsData.results.length : requestsData?.length || 0);
+  }, [requestsData]);
 
+  // Combined loading and error states
+  const loading = summaryLoading || requestsLoading;
+  const error = summaryError || requestsError;
+
+  // Reset to first page when status filter changes
   useEffect(() => {
-    fetchData(1, true);
-  }, [statusFilter]); // Refetch when status filter changes
+    setCurrentPage(1);
+  }, [statusFilter]);
 
   const handleModalSubmit = async (formData) => {
-    setIsSubmitting(true);
-    setError(null);
     try {
       const payload = {
         ...formData,
@@ -119,17 +90,18 @@ const Maintenance = () => {
       };
 
       if (editingRequest) {
-        await updateMaintenanceRequest(editingRequest.id, payload);
+        await updateRequestMutation.mutateAsync({ 
+          requestId: editingRequest.id, 
+          requestData: payload 
+        });
       } else {
-        await createMaintenanceRequest(payload);
+        await createRequestMutation.mutateAsync(payload);
       }
       closeModal();
-      await fetchData(1, true); // Reset to first page after creating/editing
+      setCurrentPage(1); // Reset to first page after creating/editing
     } catch (error) {
       console.error("Failed to save request:", error);
-      setError(error.message || "Failed to save the request.");
-    } finally {
-      setIsSubmitting(false);
+      throw error; // Let the modal handle the error
     }
   };
 
@@ -147,14 +119,10 @@ const Maintenance = () => {
 
   const handleDelete = async (requestId) => {
     if (window.confirm("Are you sure you want to delete this request?")) {
-      setError(null);
       try {
-        await deleteMaintenanceRequest(requestId);
-        // Refresh current page data
-        await fetchData(currentPage, true);
+        await deleteRequestMutation.mutateAsync(requestId);
       } catch (error) {
         console.error("Failed to delete request:", error);
-        setError(error.message || "Failed to delete request.");
       }
     }
   };
@@ -166,13 +134,10 @@ const Maintenance = () => {
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
-    fetchData(newPage, true);
   };
 
   const handleLoadMore = () => {
-    const nextPage = currentPage + 1;
-    setCurrentPage(nextPage);
-    fetchData(nextPage, false); // Append data, don't reset
+    setCurrentPage(prev => prev + 1);
   };
 
   const openModalForNew = () => {
@@ -345,7 +310,7 @@ const Maintenance = () => {
           onSubmit={handleModalSubmit}
           request={editingRequest || viewingRequest}
           isViewing={!!viewingRequest}
-          isSubmitting={isSubmitting}
+          isSubmitting={createRequestMutation.isPending || updateRequestMutation.isPending}
         />
       )}
     </div>

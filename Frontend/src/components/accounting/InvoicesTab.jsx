@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { 
-  fetchInvoices, 
-  fetchProperties, 
-  fetchTenants,
-  deleteInvoice,
-  markInvoicePaid
-} from "../../utils/api";
 import { toast } from "react-toastify";
-import NewInvoiceModal from "../NewInvoiceModal";
-import EditInvoiceModal from "../EditInvoiceModal";
+import { CSVLink } from "react-csv";
+import NewInvoiceModal from "./modals/NewInvoiceModal";
+import EditInvoiceModal from "./modals/EditInvoiceModal";
 import { InvoicesTableSkeleton } from "../ui/skeletons";
 import { useAccounting } from "./AccountingContext";
 import { INVOICE_STATUSES } from "../../utils/constants";
+import { 
+  useInvoices, 
+  useDeleteInvoice,
+  useMarkInvoicePaid 
+} from "../../hooks/useAccountingQueries";
+import useProperties from "../../hooks/useProperties";
+import { fetchTenants } from "../../utils/api/tenants";
 
 const invoiceTableColumns = [
   { key: "invoice_number", label: "Invoice #", align: "left" },
@@ -27,16 +28,9 @@ const invoiceTableColumns = [
 
 
 const InvoicesTab = () => {
-  const {
-    loading,
-    setLoading,
-    error,
-    setError,
-  } = useAccounting();
+  const { } = useAccounting();
 
   // Local state for invoices tab
-  const [invoices, setInvoices] = useState([]);
-  const [properties, setProperties] = useState([]);
   const [tenants, setTenants] = useState([]);
   const [invoiceFilters, setInvoiceFilters] = useState({
     status: "all",
@@ -51,92 +45,87 @@ const InvoicesTab = () => {
     hasMore: true,
   });
 
+  // Build query parameters
+  const queryParams = useMemo(() => {
+    const params = {};
+    
+    if (invoiceFilters.status !== "all") {
+      params.status = invoiceFilters.status;
+    }
+
+    if (invoiceFilters.property_id !== "all") {
+      params.property_id = invoiceFilters.property_id;
+    }
+
+    if (invoiceFilters.tenant_id !== "all") {
+      params.tenant_id = invoiceFilters.tenant_id;
+    }
+
+    if (invoiceFilters.search) {
+      params.search = invoiceFilters.search;
+    }
+
+    params.limit = invoicesPagination.limit;
+    params.offset = invoicesPagination.currentPage * invoicesPagination.limit;
+
+    // Convert date range to actual date params based on issue_date
+    const today = new Date();
+    if (invoiceFilters.dateRange === "week") {
+      const weekAgo = new Date();
+      weekAgo.setDate(today.getDate() - 7);
+      params.start_date = weekAgo.toISOString().split("T")[0];
+      params.end_date = today.toISOString().split("T")[0];
+    } else if (invoiceFilters.dateRange === "month") {
+      const monthAgo = new Date();
+      monthAgo.setMonth(today.getMonth() - 1);
+      params.start_date = monthAgo.toISOString().split("T")[0];
+      params.end_date = today.toISOString().split("T")[0];
+    } else if (invoiceFilters.dateRange === "quarter") {
+      const quarterAgo = new Date();
+      quarterAgo.setMonth(today.getMonth() - 3);
+      params.start_date = quarterAgo.toISOString().split("T")[0];
+      params.end_date = today.toISOString().split("T")[0];
+    } else if (invoiceFilters.dateRange === "year") {
+      const yearAgo = new Date();
+      yearAgo.setFullYear(today.getFullYear() - 1);
+      params.start_date = yearAgo.toISOString().split("T")[0];
+      params.end_date = today.toISOString().split("T")[0];
+    }
+
+    return params;
+  }, [invoiceFilters, invoicesPagination.currentPage, invoicesPagination.limit]);
+
+  // TanStack Query hooks
+  const { data: invoicesData, isLoading: loading, error, refetch } = useInvoices(queryParams);
+  const { properties } = useProperties();
+  const deleteInvoiceMutation = useDeleteInvoice();
+  const markInvoicePaidMutation = useMarkInvoicePaid();
+
+  // Extract invoices and pagination info
+  const invoices = useMemo(() => {
+    if (invoicesData && Array.isArray(invoicesData)) {
+      return invoicesData;
+    } else if (invoicesData && invoicesData.items) {
+      return invoicesData.items;
+    }
+    return [];
+  }, [invoicesData]);
+
+  const hasMore = useMemo(() => {
+    if (invoicesData && Array.isArray(invoicesData)) {
+      return invoicesData.length === invoicesPagination.limit;
+    } else if (invoicesData && invoicesData.has_more !== undefined) {
+      return invoicesData.has_more;
+    }
+    return false;
+  }, [invoicesData, invoicesPagination.limit]);
+
   // Modal states
   const [showNewInvoiceModal, setShowNewInvoiceModal] = useState(false);
   const [showEditInvoiceModal, setShowEditInvoiceModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  const loadInvoicesData = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      const params = {};
-      
-      if (invoiceFilters.status !== "all") {
-        params.status = invoiceFilters.status;
-      }
-
-      if (invoiceFilters.property_id !== "all") {
-        params.property_id = invoiceFilters.property_id;
-      }
-
-      if (invoiceFilters.tenant_id !== "all") {
-        params.tenant_id = invoiceFilters.tenant_id;
-      }
-
-      if (invoiceFilters.search) {
-        params.search = invoiceFilters.search;
-      }
-
-      // Add pagination params
-      params.limit = invoicesPagination.limit;
-      params.offset = invoicesPagination.currentPage * invoicesPagination.limit;
-
-      // Convert date range to actual date params based on issue_date
-      const today = new Date();
-      if (invoiceFilters.dateRange === "week") {
-        const weekAgo = new Date();
-        weekAgo.setDate(today.getDate() - 7);
-        params.start_date = weekAgo.toISOString().split("T")[0];
-        params.end_date = today.toISOString().split("T")[0];
-      } else if (invoiceFilters.dateRange === "month") {
-        const monthAgo = new Date();
-        monthAgo.setMonth(today.getMonth() - 1);
-        params.start_date = monthAgo.toISOString().split("T")[0];
-        params.end_date = today.toISOString().split("T")[0];
-      } else if (invoiceFilters.dateRange === "quarter") {
-        const quarterAgo = new Date();
-        quarterAgo.setMonth(today.getMonth() - 3);
-        params.start_date = quarterAgo.toISOString().split("T")[0];
-        params.end_date = today.toISOString().split("T")[0];
-      } else if (invoiceFilters.dateRange === "year") {
-        const yearAgo = new Date();
-        yearAgo.setFullYear(today.getFullYear() - 1);
-        params.start_date = yearAgo.toISOString().split("T")[0];
-        params.end_date = today.toISOString().split("T")[0];
-      }
-
-      const data = await fetchInvoices(params);
-      
-      // Handle pagination response structure
-      if (data && Array.isArray(data)) {
-        setInvoices(data);
-        setInvoicesPagination((prev) => ({ ...prev, hasMore: data.length === prev.limit }));
-      } else if (data && data.items) {
-        setInvoices(data.items);
-        setInvoicesPagination((prev) => ({ ...prev, hasMore: data.has_more }));
-      } else {
-        setInvoices([]);
-        setInvoicesPagination((prev) => ({ ...prev, hasMore: false }));
-      }
-      
-      setError(null);
-    } catch (err) {
-      setError("Failed to load invoices data. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [invoiceFilters, invoicesPagination.currentPage, invoicesPagination.limit, setLoading, setError]);
-
-  const loadProperties = useCallback(async () => {
-    try {
-      const data = await fetchProperties();
-      setProperties(data || []);
-    } catch (err) {
-      setProperties([]);
-    }
-  }, []);
-
+  // Load tenants on mount (not using TanStack Query for this yet as it's a different domain)
   const loadTenants = useCallback(async () => {
     try {
       const data = await fetchTenants();
@@ -146,17 +135,22 @@ const InvoicesTab = () => {
     }
   }, []);
 
-  // Load initial data and properties/tenants
-  useEffect(() => {
-    loadInvoicesData();
-    loadProperties();
-    loadTenants();
-  }, [loadInvoicesData, loadProperties, loadTenants]);
-
   // Reset pagination when filters change
   useEffect(() => {
     setInvoicesPagination((prev) => ({ ...prev, currentPage: 0 }));
   }, [invoiceFilters]);
+
+  // Update pagination state when query data changes
+  useEffect(() => {
+    if (invoicesData) {
+      setInvoicesPagination((prev) => ({ ...prev, hasMore }));
+    }
+  }, [invoicesData, hasMore]);
+
+  // Load tenants on component mount
+  useEffect(() => {
+    loadTenants();
+  }, [loadTenants]);
 
   const getStatusBadgeClass = (status) => {
     switch (status?.toLowerCase()) {
@@ -218,9 +212,8 @@ const InvoicesTab = () => {
       )
     ) {
       try {
-        await deleteInvoice(invoiceId);
+        await deleteInvoiceMutation.mutateAsync(invoiceId);
         toast.success(`${invoiceDescription} deleted successfully.`);
-        loadInvoicesData();
       } catch (err) {
         toast.error(err.message || "Failed to delete invoice.");
       }
@@ -239,9 +232,8 @@ const InvoicesTab = () => {
       )
     ) {
       try {
-        await markInvoicePaid(invoiceId);
+        await markInvoicePaidMutation.mutateAsync(invoiceId);
         toast.success(`${invoiceDescription} marked as paid.`);
-        loadInvoicesData();
       } catch (err) {
         toast.error(err.message || "Failed to mark invoice as paid.");
       }
@@ -281,6 +273,86 @@ const InvoicesTab = () => {
     });
   }, [tenants, invoiceFilters.property_id]);
 
+  // CSV Export configuration
+  const csvHeaders = [
+    { label: 'Invoice Number', key: 'invoice_number' },
+    { label: 'Property', key: 'property_name' },
+    { label: 'Tenant', key: 'tenant_name' },
+    { label: 'Amount', key: 'amount' },
+    { label: 'Description', key: 'description' },
+    { label: 'Issue Date', key: 'issue_date' },
+    { label: 'Due Date', key: 'due_date' },
+    { label: 'Status', key: 'status' },
+    { label: 'Source', key: 'source' },
+  ];
+
+  // Format data for CSV export with clean headers
+  const getFilterDescription = () => {
+    const filters = [];
+    if (invoiceFilters.status !== 'all') filters.push(`Status: ${invoiceFilters.status}`);
+    if (invoiceFilters.dateRange !== 'all_time') filters.push(`Date Range: ${invoiceFilters.dateRange.replace('_', ' ')}`);
+    if (invoiceFilters.property_id !== 'all') {
+      const propId = String(invoiceFilters.property_id);
+      const propertyName = Array.isArray(properties) 
+        ? properties.find(p => String(p.id) === propId)?.name 
+        : undefined;
+      filters.push(`Property: ${propertyName || 'Selected Property'}`);
+    }
+    if (invoiceFilters.tenant_id !== 'all') {
+      const tenantId = String(invoiceFilters.tenant_id);
+      const tenantName = Array.isArray(tenants) 
+        ? tenants.find(t => String(t.id) === tenantId)?.full_name 
+        : undefined;
+      filters.push(`Tenant: ${tenantName || 'Selected Tenant'}`);
+    }
+    if (invoiceFilters.search) filters.push(`Search: "${invoiceFilters.search}"`);
+    return filters.length > 0 ? filters.join(', ') : 'No filters applied';
+  };
+
+  const csvData = [
+    // Clean header with metadata in a single row
+    { 
+      invoice_number: 'Brikli Invoices Report', 
+      property_name: `Exported: ${new Date().toLocaleDateString()}`,
+      tenant_name: `Filters: ${getFilterDescription()}`,
+      amount: `Records: ${invoices.length}`,
+      description: '', 
+      issue_date: '', 
+      due_date: '', 
+      status: '', 
+      source: '' 
+    },
+    // Empty separator row
+    { invoice_number: '', property_name: '', tenant_name: '', amount: '', description: '', issue_date: '', due_date: '', status: '', source: '' },
+    // Actual data
+    ...invoices.map(invoice => {
+      const amount = Number(invoice?.amount ?? 0);
+      const issueDate = invoice?.issue_date ? new Date(invoice.issue_date) : null;
+      const dueDate = invoice?.due_date ? new Date(invoice.due_date) : null;
+      return {
+        invoice_number: invoice?.invoice_number || 'N/A',
+        property_name: invoice?.property?.name || 'N/A',
+        tenant_name: invoice?.tenant?.full_name || 'N/A',
+        amount: Number.isFinite(amount) ? amount.toFixed(2) : '0.00',
+        description: invoice?.description || 'N/A',
+        issue_date: issueDate && !isNaN(issueDate) ? issueDate.toLocaleDateString() : 'N/A',
+        due_date: dueDate && !isNaN(dueDate) ? dueDate.toLocaleDateString() : 'N/A',
+        status: invoice?.status || 'N/A',
+        source: invoice?.quickbooks_id ? 'QuickBooks' : 'Brikli',
+      };
+    })
+  ];
+
+  // Generate professional filename with current date and filters
+  const generateFilename = () => {
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '');
+    const filterSuffix = invoiceFilters.status !== 'all' ? `-${invoiceFilters.status}` : '';
+    const searchSuffix = invoiceFilters.search ? `-search` : '';
+    return `Brikli-Invoices-Report${filterSuffix}${searchSuffix}-${dateStr}-${timeStr}.csv`;
+  };
+
   if (loading) {
     return <InvoicesTableSkeleton rowCount={8} />;
   }
@@ -291,7 +363,7 @@ const InvoicesTab = () => {
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           <p>{error}</p>
           <button
-            onClick={loadInvoicesData}
+            onClick={refetch}
             className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
           >
             Retry
@@ -299,26 +371,7 @@ const InvoicesTab = () => {
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex justify-end space-x-3">
-        <button
-          onClick={handleShowModal}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <i className="fas fa-plus mr-2"></i>
-          New Invoice
-        </button>
 
-        <button
-          onClick={() => {
-            /* Export functionality would go here */
-          }}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <i className="fas fa-file-export mr-2"></i>
-          Export
-        </button>
-      </div>
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm">
@@ -436,8 +489,8 @@ const InvoicesTab = () => {
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="flex items-center">
+        {/* Search Bar and Action Buttons */}
+        <div className="flex items-center justify-between">
           <div className="relative rounded-md shadow-sm flex-1 max-w-md">
             <input
               type="search"
@@ -454,6 +507,28 @@ const InvoicesTab = () => {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <i className="fas fa-search text-gray-400"></i>
             </div>
+          </div>
+          
+          <div className="flex items-center space-x-4 ml-4">
+            {/* Export CSV Button */}
+            <CSVLink
+              data={csvData}
+              headers={csvHeaders}
+              filename={generateFilename()}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <i className="fas fa-download mr-2"></i>
+              Export CSV
+            </CSVLink>
+            
+            {/* New Invoice Button */}
+            <button
+              onClick={handleShowModal}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <i className="fas fa-plus mr-2"></i>
+              New Invoice
+            </button>
           </div>
         </div>
       </div>
@@ -632,7 +707,7 @@ const InvoicesTab = () => {
           onClose={handleCloseModal}
           onSuccess={() => {
             setShowNewInvoiceModal(false);
-            loadInvoicesData();
+            refetch();
             toast.success("Invoice created successfully");
           }}
         />
@@ -648,7 +723,7 @@ const InvoicesTab = () => {
           onSuccess={() => {
             setShowEditInvoiceModal(false);
             setSelectedItem(null);
-            loadInvoicesData();
+            refetch();
             toast.success("Invoice updated successfully");
           }}
           invoiceData={selectedItem}

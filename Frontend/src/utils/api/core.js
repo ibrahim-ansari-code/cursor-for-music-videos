@@ -144,11 +144,19 @@ export const apiRequest = async (endpoint, options = {}) => {
     ...options.headers,
   };
 
-  // Add Cache-Control header for GET requests to prevent unwanted caching
+  // Add intelligent Cache-Control header for GET requests
+  // Allow caching unless explicitly disabled
   if (!options.method || options.method.toUpperCase() === "GET") {
-    requestHeaders["Cache-Control"] = "no-cache";
-    requestHeaders["Pragma"] = "no-cache"; // For older HTTP/1.0 caches
-    requestHeaders["Expires"] = "0"; // For proxies
+    if (options.cache === false) {
+      // Explicit no-cache when needed
+      requestHeaders["Cache-Control"] = "no-cache";
+      requestHeaders["Pragma"] = "no-cache";
+      requestHeaders["Expires"] = "0";
+    } else {
+      // Allow reasonable caching for GET requests (5 minutes default)
+      const maxAge = options.cacheMaxAge || 300; // 5 minutes default
+      requestHeaders["Cache-Control"] = `max-age=${maxAge}, must-revalidate`;
+    }
   }
 
   // Do NOT set Content-Type for FormData; browser handles it.

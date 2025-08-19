@@ -1,12 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import {
-  getAccountingOverview,
-  fetchProperties,
-  fetchOutstandingPayments,
-  fetchReportSummary,
-  fetchExpenses,
-  fetchRentTracker,
-} from "../../utils/api";
 import MonthlyMetricsCard from "../MonthlyMetricsCard";
 import YTDCard from "../YTDCard";
 import SnapshotCard from "../SnapshotCard";
@@ -16,6 +8,14 @@ import IncomeByPropertyChart from "../charts/IncomeByPropertyChart";
 import { FinancialCardSkeleton, ChartSkeleton } from "../ui/skeletons";
 import { SkeletonLine } from "../ui/skeletons/SkeletonPrimitives";
 import { useAccounting } from "./AccountingContext";
+import {
+  useAccountingOverview,
+  useOutstandingPayments,
+  useExpenses,
+  useReportSummary,
+  useRentTracker,
+} from "../../hooks/useAccountingQueries";
+import useProperties from "../../hooks/useProperties";
 
 const OverviewTab = () => {
   const {
@@ -25,19 +25,86 @@ const OverviewTab = () => {
     setAccountingData,
     incomeByPropertyData,
     setIncomeByPropertyData,
-    loading,
-    setLoading,
-    error,
-    setError,
     currentMonth,
     currentYear,
   } = useAccounting();
 
-  // Local state for overview-specific data
-  const [outstandingPayments, setOutstandingPayments] = useState([]);
-  const [expenses, setExpenses] = useState([]);
+  // Local state
   const [selectedProperty, setSelectedProperty] = useState("all");
-  const [properties, setProperties] = useState([]);
+
+  // Query parameters based on selected property
+  const queryParams = useMemo(() => {
+    const params = {};
+    if (selectedProperty !== "all") {
+      params.property_id = selectedProperty;
+    }
+    return params;
+  }, [selectedProperty]);
+
+  // Expense query parameters (last month)
+  const expenseParams = useMemo(() => {
+    const params = { ...queryParams };
+    const today = new Date();
+    const monthAgo = new Date();
+    monthAgo.setMonth(today.getMonth() - 1);
+    params.start_date = monthAgo.toISOString().split("T")[0];
+    params.end_date = today.toISOString().split("T")[0];
+    return params;
+  }, [queryParams]);
+
+  // Report summary parameters
+  const reportParams = useMemo(() => {
+    const params = { date_range: "Current Month" };
+    if (selectedProperty !== "all") {
+      params.property_ids = [selectedProperty];
+    }
+    return params;
+  }, [selectedProperty]);
+
+  // Rent tracker parameters
+  const rentTrackerParams = useMemo(() => {
+    const params = {
+      month: currentMonth,
+      year: currentYear,
+    };
+    if (selectedProperty !== "all") {
+      params.property_id = selectedProperty;
+    }
+    return params;
+  }, [selectedProperty, currentMonth, currentYear]);
+
+  // TanStack Query hooks
+  const { data: overviewQueryData, isLoading: overviewLoading, error: overviewError } = useAccountingOverview(queryParams);
+  const { data: outstandingPayments = [], isLoading: paymentsLoading, error: paymentsError } = useOutstandingPayments(queryParams);
+  const { data: expensesResponse, isLoading: expensesLoading, error: expensesError } = useExpenses(expenseParams);
+  const { properties, loading: propertiesLoading, error: propertiesError } = useProperties();
+  const { data: reportData, isLoading: reportLoading, error: reportError } = useReportSummary(reportParams);
+  const { data: rentTrackerData = [], isLoading: rentTrackerLoading, error: rentTrackerError } = useRentTracker(rentTrackerParams);
+
+  // Extract expenses from paginated response and enhance with property names
+  const expenses = useMemo(() => {
+    const expensesList = expensesResponse?.items || [];
+    
+    // Create property map for names
+    const propertyMap = (properties || []).reduce((map, property) => {
+      map[property.id] = property.name;
+      return map;
+    }, {});
+
+    // Enhance expense data with property names
+    return expensesList.map((expense) => ({
+      ...expense,
+      property_name:
+        propertyMap[expense.property_id] ||
+        `Property #${expense.property_id}`,
+    }));
+  }, [expensesResponse, properties]);
+
+  // Combine all loading states
+  const loading = overviewLoading || paymentsLoading || expensesLoading || propertiesLoading || reportLoading || rentTrackerLoading;
+
+  // Combine all error states  
+  const error = overviewError || paymentsError || expensesError || propertiesError || reportError || rentTrackerError;
 
   // Memoize the total outstanding amount calculation
   const totalOutstandingAmount = useMemo(() => {
@@ -46,253 +113,174 @@ const OverviewTab = () => {
       .toFixed(2);
   }, [outstandingPayments]);
 
-  const loadOverviewData = useCallback(async () => {
-    try {
-      const params = {};
-      // Add property filter if selected
-      if (selectedProperty !== "all") {
-        params.property_id = selectedProperty;
-      }
+  // Memoize processed overview data to prevent unnecessary re-renders
+  const processedOverviewData = useMemo(() => {
+    if (!overviewQueryData) return null;
+    return {
+      monthly: {
+        revenue: Number(overviewQueryData.monthly_revenue) || 0,
+        expenses: Number(overviewQueryData.monthly_expenses) || 0,
+        netIncome: Number(overviewQueryData.monthly_net_income) || 0,
+      },
+      ytd: {
+        revenue: Number(overviewQueryData.ytd_revenue) || 0,
+        expenses: Number(overviewQueryData.ytd_expenses) || 0,
+        netIncome: Number(overviewQueryData.ytd_net_income) || 0,
+      },
+      snapshot: {
+        occupancyRate: Number(overviewQueryData.occupancy_rate) || 0,
+        avgRent: Number(overviewQueryData.average_rent) || 0,
+      },
+    };
+  }, [overviewQueryData]);
 
-      const data = await getAccountingOverview(params);
-      setOverviewData(data);
+  // Update context state when processed data changes
+  useEffect(() => {
+    if (processedOverviewData) {
+      setOverviewData(overviewQueryData);
 
-      // Update accounting data directly from backend response
-      const newAccountingData = {
-        monthly: {
-          revenue: Number(data.monthly_revenue) || 0,
-          expenses: Number(data.monthly_expenses) || 0,
-          netIncome: Number(data.monthly_net_income) || 0,
-        },
-        ytd: {
-          revenue: Number(data.ytd_revenue) || 0,
-          expenses: Number(data.ytd_expenses) || 0,
-          netIncome: Number(data.ytd_net_income) || 0,
-        },
+      // Update accounting data from processed data
+      setAccountingData(prev => ({
+        ...processedOverviewData,
         snapshot: {
-          occupancyRate: Number(data.occupancy_rate) || 0,
-          paidRent: accountingData.snapshot.paidRent, // Keep existing value, will be updated by rent tracker
-          totalRent: accountingData.snapshot.totalRent, // Keep existing value, will be updated by rent tracker
-          avgRent: Number(data.average_rent) || 0,
+          ...processedOverviewData.snapshot,
+          paidRent: prev.snapshot.paidRent, // Keep existing value, will be updated by rent tracker
+          totalRent: prev.snapshot.totalRent, // Keep existing value, will be updated by rent tracker
         },
-      };
-
-      setAccountingData(newAccountingData);
-
-      setError(null);
-    } catch (err) {
-      console.error("Error loading overview data:", err);
-      // Check if it's a 404 error (no properties found for new users)
-      if (
-        err.status === 404 ||
-        (err.data &&
-          err.data.detail &&
-          err.data.detail.includes("No accessible properties"))
-      ) {
-        // For new users with no properties, set default values
-        setOverviewData({
-          monthly_revenue: 0,
-          monthly_expenses: 0,
-          monthly_net_income: 0,
-          ytd_revenue: 0,
-          ytd_expenses: 0,
-          ytd_net_income: 0,
-          occupancy_rate: 0,
-          average_rent: 0,
-          revenue_trends: [],
-        });
-
-        setAccountingData({
-          monthly: { revenue: 0, expenses: 0, netIncome: 0 },
-          ytd: { revenue: 0, expenses: 0, netIncome: 0 },
-          snapshot: { occupancyRate: 0, paidRent: 0, totalRent: 0, avgRent: 0 },
-        });
-
-        setError(null); // Clear error for new users
-      } else {
-        // Rethrow error to be handled by Promise.all
-        throw err;
-      }
-    }
-  }, [selectedProperty, setOverviewData, setAccountingData, setError]);
-
-  const loadOutstandingPayments = useCallback(async () => {
-    try {
-      const params = {};
-      // Add property filter if selected
-      if (selectedProperty !== "all") {
-        params.property_id = selectedProperty;
-      }
-
-      const data = await fetchOutstandingPayments(params);
-      setOutstandingPayments(data);
-    } catch (err) {
-      console.error("Error loading outstanding payments:", err);
-      throw err;
-    }
-  }, [selectedProperty]);
-
-  const loadExpensesData = useCallback(async () => {
-    try {
-      const params = {};
-      const today = new Date();
-      const monthAgo = new Date();
-      monthAgo.setMonth(today.getMonth() - 1);
-      params.start_date = monthAgo.toISOString().split("T")[0];
-      params.end_date = today.toISOString().split("T")[0];
-
-      // Add property filter if selected
-      if (selectedProperty !== "all") {
-        params.property_id = selectedProperty;
-      }
-
-      const data = await fetchExpenses(params);
-
-      // Handle paginated response - expenses are in data.items
-      const expensesList = data.items || [];
-
-      // Try to fetch property data for names, but don't fail if user has no properties
-      let propertyMap = {};
-      try {
-        const propertiesData = await fetchProperties();
-        // Set properties for the dropdown
-        setProperties(propertiesData);
-        // Map property IDs to names
-        propertyMap = propertiesData.reduce((map, property) => {
-          map[property.id] = property.name;
-          return map;
-        }, {});
-      } catch (propErr) {
-        console.log("No properties found, using property IDs instead of names");
-        // Continue without property names
-      }
-
-      // Enhance expense data with property names
-      const enhancedExpenses = expensesList.map((expense) => ({
-        ...expense,
-        property_name:
-          propertyMap[expense.property_id] ||
-          `Property #${expense.property_id}`,
       }));
-
-      setExpenses(enhancedExpenses);
-    } catch (err) {
-      console.error("Error loading expenses data:", err);
-      throw err;
     }
-  }, [selectedProperty]);
+  }, [processedOverviewData, overviewQueryData]);
 
-  const loadIncomeByProperty = useCallback(async () => {
-    try {
-      // Always fetch current month data
-      const reportParams = { date_range: "Current Month" };
-
-      // Add property filter if selected
-      if (selectedProperty !== "all") {
-        reportParams.property_ids = [selectedProperty];
-      }
-
-      const reportData = await fetchReportSummary(reportParams);
-
-      // Map the data to the format expected by IncomeByPropertyChart
+  // Update income by property data when report data changes
+  useEffect(() => {
+    if (reportData?.income_by_property) {
       const mappedData = reportData.income_by_property.map((item) => ({
-        id: item.property_id, // Use property_id as key
+        id: item.property_id,
         name: item.property,
         monthlyIncome: item.monthly_income,
         occupancyRate: item.occupancy_rate,
       }));
-
-      // Backend handles filtering, so directly set the data
       setIncomeByPropertyData(mappedData);
-    } catch (err) {
-      console.error("Error loading income by property data:", err);
-      // Don't show error toast for new users who have no properties yet
-      // Just set empty data silently
-      setIncomeByPropertyData([]);
     }
-  }, [selectedProperty, setIncomeByPropertyData]);
+  }, [reportData, setIncomeByPropertyData]);
 
-  const loadRentTrackerData = useCallback(async () => {
-    try {
-      const rentParams = {
-        month: currentMonth,
-        year: currentYear,
-      };
+  // Memoize rent calculations to avoid unnecessary re-renders
+  const rentStats = useMemo(() => {
+    if (!rentTrackerData) return { totalRent: 0, paidRent: 0 };
+    
+    const totalRent = rentTrackerData.length;
+    const paidRent = rentTrackerData.filter(
+      (entry) => entry.status === "PAID" || entry.status === "PARTIAL"
+    ).length;
+    
+    return { totalRent, paidRent };
+  }, [rentTrackerData]);
 
-      // Add property filter if selected
-      if (selectedProperty !== "all") {
-        rentParams.property_id = selectedProperty;
-      }
-
-      const rentData = await fetchRentTracker(rentParams);
-
-      // Calculate paid vs total rent from rent tracker data
-      // Count tenants instead of summing monetary amounts
-      const totalRent = rentData.length; // Total number of tenants
-      const paidRent = rentData.filter(
-        (entry) => entry.status === "PAID" || entry.status === "PARTIAL"
-      ).length; // Number of tenants who have paid
-
-      // Update the accounting data with rent tracker information
-      setAccountingData((prev) => ({
-        ...prev,
-        snapshot: {
-          ...prev.snapshot,
-          paidRent,
-          totalRent,
-        },
-      }));
-    } catch (err) {
-      console.error("Error loading rent tracker data:", err);
-      // Don't show error for new users, just keep default 0/0
-    }
-  }, [selectedProperty, currentMonth, currentYear, setAccountingData]);
-
-  // Load data on component mount and when property filter changes
+  // Update snapshot with rent tracker data only when values actually change
   useEffect(() => {
-    const loadAllData = async () => {
-      try {
-        setLoading(true);
-        await Promise.all([
-          loadOverviewData(),
-          loadOutstandingPayments(),
-          loadExpensesData(),
-          loadIncomeByProperty(),
-          loadRentTrackerData(),
-        ]);
-      } catch (err) {
-        console.error("Error loading data:", err);
-        setError("Failed to load accounting data. Please try refreshing.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadAllData();
-  }, [selectedProperty]); // Re-run whenever selectedProperty changes
+    if (rentTrackerData && rentStats.totalRent > 0) {
+      setAccountingData((prev) => {
+        // Only update if values have actually changed
+        if (prev.snapshot.paidRent !== rentStats.paidRent || 
+            prev.snapshot.totalRent !== rentStats.totalRent) {
+          return {
+            ...prev,
+            snapshot: {
+              ...prev.snapshot,
+              paidRent: rentStats.paidRent,
+              totalRent: rentStats.totalRent,
+            },
+          };
+        }
+        return prev;
+      });
+    }
+  }, [rentStats.paidRent, rentStats.totalRent]);
 
   if (loading) {
     return (
       <div className="space-y-6">
-        {/* Property Filter Skeleton */}
-        <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-4">
+        {/* Property Filter Skeleton - Match actual component height */}
+        <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-4" style={{minHeight: "72px"}}>
           <div className="flex items-center space-x-4">
             <SkeletonLine width="120px" height="1rem" />
-            <SkeletonLine width="200px" height="2.25rem" rounded="md" />
+            <SkeletonLine width="200px" height="2.5rem" rounded="md" />
           </div>
         </div>
 
-        {/* Financial Summary Cards Skeleton */}
+        {/* Financial Summary Cards Skeleton - Match actual card heights */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <FinancialCardSkeleton />
-          <FinancialCardSkeleton />
-          <FinancialCardSkeleton />
+          {/* Monthly Metrics Card */}
+          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "140px"}}>
+            <div className="flex items-center justify-between mb-4">
+              <SkeletonLine width="100px" height="1.25rem" />
+              <SkeletonLine width="60px" height="1rem" rounded="full" />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <SkeletonLine width="60px" height="0.875rem" className="mb-2" />
+                <SkeletonLine width="80px" height="1.5rem" />
+              </div>
+              <div>
+                <SkeletonLine width="70px" height="0.875rem" className="mb-2" />
+                <SkeletonLine width="80px" height="1.5rem" />
+              </div>
+              <div>
+                <SkeletonLine width="80px" height="0.875rem" className="mb-2" />
+                <SkeletonLine width="80px" height="1.5rem" />
+              </div>
+            </div>
+          </div>
+          
+          {/* YTD Card */}
+          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "140px"}}>
+            <div className="flex items-center justify-between mb-4">
+              <SkeletonLine width="120px" height="1.25rem" />
+              <SkeletonLine width="60px" height="1rem" rounded="full" />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <SkeletonLine width="60px" height="0.875rem" className="mb-2" />
+                <SkeletonLine width="90px" height="1.5rem" />
+              </div>
+              <div>
+                <SkeletonLine width="70px" height="0.875rem" className="mb-2" />
+                <SkeletonLine width="80px" height="1.5rem" />
+              </div>
+              <div>
+                <SkeletonLine width="80px" height="0.875rem" className="mb-2" />
+                <SkeletonLine width="90px" height="1.5rem" />
+              </div>
+            </div>
+          </div>
+          
+          {/* Snapshot Card */}
+          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "140px"}}>
+            <div className="flex items-center justify-between mb-4">
+              <SkeletonLine width="80px" height="1.25rem" />
+              <SkeletonLine width="60px" height="1rem" rounded="full" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <SkeletonLine width="100px" height="0.875rem" className="mb-2" />
+                <SkeletonLine width="60px" height="1.5rem" />
+              </div>
+              <div>
+                <SkeletonLine width="70px" height="0.875rem" className="mb-2" />
+                <SkeletonLine width="50px" height="1.5rem" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <SkeletonLine width="80px" height="0.875rem" className="mb-2" />
+              <SkeletonLine width="120px" height="1.5rem" />
+            </div>
+          </div>
         </div>
 
         {/* Charts Section Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Revenue Chart Skeleton */}
-          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 h-full">
+          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "400px"}}>
             <div className="flex items-center mb-4">
               <SkeletonLine width="180px" height="1.5rem" />
             </div>
@@ -300,7 +288,7 @@ const OverviewTab = () => {
           </div>
 
           {/* Expense Chart Skeleton */}
-          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 h-full">
+          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "400px"}}>
             <div className="flex items-center mb-4">
               <SkeletonLine width="160px" height="1.5rem" />
             </div>
@@ -313,7 +301,7 @@ const OverviewTab = () => {
         {/* Occupancy & Outstanding Payments Section Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Income by Property Chart Skeleton */}
-          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 h-full">
+          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "400px"}}>
             <div className="flex items-center mb-4">
               <SkeletonLine width="140px" height="1.5rem" />
             </div>
@@ -321,7 +309,7 @@ const OverviewTab = () => {
           </div>
 
           {/* Outstanding Payments Card Skeleton */}
-          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 h-full flex flex-col">
+          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 flex flex-col" style={{minHeight: "400px"}}>
             <div className="flex items-center mb-4">
               <SkeletonLine width="180px" height="1.5rem" />
               <SkeletonLine width="24px" height="20px" rounded="full" className="ml-2" />

@@ -10,6 +10,7 @@ import "react-toastify/dist/ReactToastify.css";
 import "./styles/ui-feedback.css";
 import { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Auth
 import { AuthProvider } from "./contexts/AuthProvider";
@@ -98,19 +99,33 @@ const AppRoutes = () => {
   );
 };
 
+// Create a client for TanStack Query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 /**
  * Main App component
  */
 function App() {
   return (
-    <Router>
-      <SkeletonTheme baseColor="#e5e7eb" highlightColor="#f3f4f6">
-        <AuthProvider>
-          <ToastContainer position="top-right" autoClose={5000} />
-          <AppRoutes />
-        </AuthProvider>
-      </SkeletonTheme>
-    </Router>
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <SkeletonTheme baseColor="#e5e7eb" highlightColor="#f3f4f6">
+          <AuthProvider>
+            <ToastContainer position="top-right" autoClose={5000} />
+            <AppRoutes />
+          </AuthProvider>
+        </SkeletonTheme>
+      </Router>
+    </QueryClientProvider>
   );
 }
 

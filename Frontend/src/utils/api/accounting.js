@@ -9,6 +9,7 @@ export const fetchPayments = async (params = {}) => {
   if (params.tenant_id) queryParams.append("tenant_id", params.tenant_id);
   if (params.payment_status)
     queryParams.append("payment_status", params.payment_status);
+  if (params.search) queryParams.append("search", params.search);
   if (params.start_date) queryParams.append("start_date", params.start_date);
   if (params.end_date) queryParams.append("end_date", params.end_date);
   if (params.limit) queryParams.append("limit", params.limit);
@@ -67,6 +68,8 @@ export const fetchInvoices = async (params = {}) => {
   if (params.tenant_id) queryParams.append("tenant_id", params.tenant_id);
   if (params.property_id) queryParams.append("property_id", params.property_id);
   if (params.payment_status_filter) queryParams.append("payment_status_filter", params.payment_status_filter);
+  if (params.status) queryParams.append("status", params.status);
+  if (params.search) queryParams.append("search", params.search);
   if (params.start_date) queryParams.append("start_date", params.start_date);
   if (params.end_date) queryParams.append("end_date", params.end_date);
   if (params.limit) queryParams.append("limit", params.limit);
