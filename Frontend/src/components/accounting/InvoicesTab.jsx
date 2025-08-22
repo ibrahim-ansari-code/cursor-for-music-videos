@@ -3,6 +3,7 @@ import { toast } from "react-toastify";
 import { CSVLink } from "react-csv";
 import NewInvoiceModal from "./modals/NewInvoiceModal";
 import EditInvoiceModal from "./modals/EditInvoiceModal";
+import CSVImportModal from "./modals/CSVImportModal";
 import { InvoicesTableSkeleton } from "../ui/skeletons";
 import { useAccounting } from "./AccountingContext";
 import { INVOICE_STATUSES } from "../../utils/constants";
@@ -11,6 +12,7 @@ import {
   useDeleteInvoice,
   useMarkInvoicePaid 
 } from "../../hooks/useAccountingQueries";
+import { importInvoicesFromCSV } from "../../utils/api/accounting";
 import useProperties from "../../hooks/useProperties";
 import { fetchTenants } from "../../utils/api/tenants";
 
@@ -123,6 +125,7 @@ const InvoicesTab = () => {
   // Modal states
   const [showNewInvoiceModal, setShowNewInvoiceModal] = useState(false);
   const [showEditInvoiceModal, setShowEditInvoiceModal] = useState(false);
+  const [showCSVImportModal, setShowCSVImportModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
   // Load tenants on mount (not using TanStack Query for this yet as it's a different domain)
@@ -261,7 +264,14 @@ const InvoicesTab = () => {
   const handleCloseModal = () => {
     setShowNewInvoiceModal(false);
     setShowEditInvoiceModal(false);
+    setShowCSVImportModal(false);
     setSelectedItem(null);
+  };
+
+  const handleCSVImportSuccess = () => {
+    setShowCSVImportModal(false);
+    refetch(); // Refresh the invoices list
+    toast.success("Invoices imported successfully!");
   };
 
   const filteredTenants = useMemo(() => {
@@ -351,6 +361,52 @@ const InvoicesTab = () => {
     const filterSuffix = invoiceFilters.status !== 'all' ? `-${invoiceFilters.status}` : '';
     const searchSuffix = invoiceFilters.search ? `-search` : '';
     return `Brikli-Invoices-Report${filterSuffix}${searchSuffix}-${dateStr}-${timeStr}.csv`;
+  };
+
+  // CSV Import configuration
+  const csvImportConfig = {
+    title: "Import Invoices",
+    description: "Import invoices from your CSV file",
+    expectedHeaders: [
+      { key: 'invoice_number', label: 'Invoice Number', required: true, aliases: ['invoice #', 'invoice_num', 'number', 'invoicenumber'] },
+      { key: 'amount', label: 'Amount', required: true, type: 'number', aliases: ['total', 'cost', 'price'] },
+      { key: 'description', label: 'Description', required: true, aliases: ['desc', 'details', 'item'] },
+      { key: 'issue_date', label: 'Issue Date', required: true, type: 'date', aliases: ['date', 'created', 'issued', 'issuedate'] },
+      { key: 'due_date', label: 'Due Date', required: true, type: 'date', aliases: ['payment_due', 'expires', 'duedate'] },
+      { key: 'status', label: 'Status', required: false, aliases: ['payment_status', 'state'] },
+      { key: 'property_name', label: 'Property Name', required: false, aliases: ['property', 'building', 'location', 'propertyname'] },
+      { key: 'tenant_name', label: 'Tenant Name', required: false, aliases: ['tenant', 'customer', 'client', 'tenantname'] }
+    ],
+    apiFunction: importInvoicesFromCSV,
+    sampleData: [
+      {
+        invoice_number: 'INV-001',
+        amount: '1500.00',
+        description: 'Monthly rent - January',
+        issue_date: '2024-01-01',
+        due_date: '2024-01-31',
+        status: 'PENDING',
+        property_name: 'Downtown Apartments',
+        tenant_name: 'John Doe'
+      },
+      {
+        invoice_number: 'INV-002',
+        amount: '2000.00',
+        description: 'Monthly rent - February',
+        issue_date: '2024-02-01',
+        due_date: '2024-02-28',
+        status: 'PAID',
+        property_name: 'Sunset Tower',
+        tenant_name: 'Jane Smith'
+      }
+    ],
+    validationTips: [
+      'Invoice numbers should be unique across your system',
+      'Amounts should be positive numbers (no $ signs or commas needed)',
+      'Dates should be in YYYY-MM-DD format for best results',
+      'Property and tenant names must match existing records exactly',
+      'Status can be PENDING, PAID, OVERDUE, or CANCELLED'
+    ]
   };
 
   if (loading) {
@@ -510,6 +566,15 @@ const InvoicesTab = () => {
           </div>
           
           <div className="flex items-center space-x-4 ml-4">
+            {/* Import CSV Button */}
+            <button
+              onClick={() => setShowCSVImportModal(true)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <i className="fas fa-upload mr-2"></i>
+              Import CSV
+            </button>
+            
             {/* Export CSV Button */}
             <CSVLink
               data={csvData}
@@ -727,6 +792,16 @@ const InvoicesTab = () => {
             toast.success("Invoice updated successfully");
           }}
           invoiceData={selectedItem}
+        />
+      )}
+      
+      {/* CSV Import Modal */}
+      {showCSVImportModal && (
+        <CSVImportModal
+          isOpen={showCSVImportModal}
+          onClose={handleCloseModal}
+          onSuccess={handleCSVImportSuccess}
+          config={csvImportConfig}
         />
       )}
     </div>

@@ -109,6 +109,33 @@ export const markInvoicePaid = async (invoiceId) => {
   });
 };
 
+export const importInvoicesFromCSV = async (csvData) => {
+  const payload = { invoices: csvData };
+  
+  return apiRequest("/accounting/invoices/import-csv", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const importExpensesFromCSV = async (csvData) => {
+  const payload = { expenses: csvData };
+  
+  return apiRequest("/accounting/expenses/import-csv", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const importPaymentsFromCSV = async (csvData) => {
+  const payload = { payments: csvData };
+  
+  return apiRequest("/accounting/payments/import-csv", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
 // ===== EXPENSES =====
 export const fetchExpenses = async (params = {}) => {
   const queryParams = new URLSearchParams();

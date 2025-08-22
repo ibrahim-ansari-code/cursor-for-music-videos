@@ -65,3 +65,79 @@ class ExpenseReceiptParseResponse(BaseModel):
 class PaginatedExpensesResponse(BaseModel):
     items: list[ExpenseResponse]
     has_more: bool
+
+
+# CSV Import schemas
+class CSVExpenseData(BaseModel):
+    """Schema for individual expense data from CSV"""
+    category: str
+    description: str | None = None
+    expense_date: str  # Will be parsed as datetime
+    subtotal_amount: Decimal
+    total_tax_amount: Decimal | None = None
+    payment_method: str | None = None
+    property_name: str | None = None
+    
+    @field_validator('category')
+    @classmethod
+    def validate_category_length(cls, v):
+        """Validate category length."""
+        if v and len(v) > 100:
+            raise ValueError('Category must be 100 characters or less')
+        return v
+    
+    @field_validator('description')
+    @classmethod
+    def validate_description_length(cls, v):
+        """Validate description length."""
+        if v and len(v) > 500:
+            raise ValueError('Description must be 500 characters or less')
+        return v
+    
+    @field_validator('property_name')
+    @classmethod
+    def validate_property_name_length(cls, v):
+        """Validate property name length."""
+        if v and len(v) > 255:
+            raise ValueError('Property name must be 255 characters or less')
+        return v
+    
+    @field_validator('expense_date')
+    @classmethod
+    def validate_date_format(cls, v):
+        """Validate date string follows expected formats."""
+        if not v:
+            raise ValueError('Expense date is required')
+        
+        # Check for common date formats
+        import re
+        valid_patterns = [
+            r'^\d{4}-\d{2}-\d{2}$',  # YYYY-MM-DD
+            r'^\d{2}/\d{2}/\d{4}$',  # MM/DD/YYYY or DD/MM/YYYY
+            r'^\d{2}-\d{2}-\d{4}$',  # MM-DD-YYYY or DD-MM-YYYY
+        ]
+        
+        if not any(re.match(pattern, v) for pattern in valid_patterns):
+            raise ValueError(f'Date format not recognized. Expected formats: YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY')
+        
+        return v
+
+
+class CSVImportError(BaseModel):
+    """Schema for CSV import error details"""
+    row_number: int
+    error_message: str
+
+
+class CSVExpenseImportRequest(BaseModel):
+    """Schema for CSV expense import request"""
+    expenses: list[CSVExpenseData]
+
+
+class CSVExpenseImportResult(BaseModel):
+    """Schema for CSV expense import response"""
+    total_rows: int
+    successful_imports: int
+    failed_imports: int
+    errors: list[CSVImportError]
+    created_expense_ids: list[int]

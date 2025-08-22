@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     ALLOWED_RECEIPT_MIME_TYPES: set[str] = {
         'application/pdf', 'image/jpeg', 'image/png', 'image/jpg'
     }
+    
+    # === CSV Import Settings ===
+    MAX_CSV_IMPORT_ROWS: int = int(os.getenv("MAX_CSV_IMPORT_ROWS", 1000))  # Max rows per CSV import
+    CSV_IMPORT_BATCH_SIZE: int = int(os.getenv("CSV_IMPORT_BATCH_SIZE", 100))  # Rows to process per batch
+    CSV_IMPORT_TIMEOUT_SECONDS: int = int(os.getenv("CSV_IMPORT_TIMEOUT_SECONDS", 300))  # 5 minutes default
 
     # === Blob Storage Settings ===
     BLOB_CONTAINER_RECEIPTS: str = os.getenv("BLOB_CONTAINER_RECEIPTS", "receipts")

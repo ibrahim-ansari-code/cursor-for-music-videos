@@ -109,7 +109,7 @@ async def analyze_lease_text(text: str) -> Dict[str, Any]:
         # Validate required fields in the nested structure
         # These fields are expected by LeaseAnalysisResponse but we will allow them to be missing
         # and default them if not found, rather than raising an error.
-        fields_to_default = {
+        fields_to_default: dict[str, dict[str, Any]] = {
             # Default to 0.0 if not found
             'rent_payment': {'monthly_rent': 0.0},
             # Default to empty string

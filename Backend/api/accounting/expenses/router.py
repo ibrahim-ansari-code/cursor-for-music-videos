@@ -20,7 +20,10 @@ from Backend.models.accounting.expense import (
 from Backend.models.user import User
 
 from . import service
-from .schemas import ExpenseReceiptParseResponse, PaginatedExpensesResponse
+from .schemas import (
+    ExpenseReceiptParseResponse, PaginatedExpensesResponse,
+    CSVExpenseImportRequest, CSVExpenseImportResult
+)
 from .helpers import delete_blob_with_error_handling
 
 logger = logging.getLogger(__name__)
@@ -174,3 +177,18 @@ async def delete_expense(
     if receipt_url_to_delete:
         background_tasks.add_task(
             delete_blob_with_error_handling, receipt_url_to_delete)
+
+
+@router.post("/import-csv", response_model=CSVExpenseImportResult)
+async def import_expenses_from_csv(
+    import_request: CSVExpenseImportRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+) -> CSVExpenseImportResult:
+    """
+    Import expenses from CSV data.
+    
+    Validates user permissions, processes CSV data, and creates expense records.
+    Returns import results with success/failure counts and error details.
+    """
+    return await service.import_expenses_from_csv(import_request, session, current_user)

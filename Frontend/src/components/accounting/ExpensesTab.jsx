@@ -3,10 +3,12 @@ import { toast } from "react-toastify";
 import { CSVLink } from "react-csv";
 import NewExpenseModal from "./modals/NewExpenseModal";
 import EditExpenseModal from "./modals/EditExpenseModal";
+import CSVImportModal from "./modals/CSVImportModal";
 import { ExpensesTableSkeleton } from "../ui/skeletons";
 import { useAccounting } from "./AccountingContext";
 import { getDateRangeParams } from "../../utils/dateHelpers";
 import { useExpenses, useDeleteExpense } from "../../hooks/useAccountingQueries";
+import { importExpensesFromCSV } from "../../utils/api/accounting";
 import useProperties from "../../hooks/useProperties";
 import useDebounce from "../../hooks/useDebounce";
 
@@ -93,6 +95,7 @@ const ExpensesTab = () => {
   // Modal states
   const [showNewExpenseModal, setShowNewExpenseModal] = useState(false);
   const [showEditExpenseModal, setShowEditExpenseModal] = useState(false);
+  const [showCSVImportModal, setShowCSVImportModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
   // Effect for handling filter changes - reset to first page
@@ -155,6 +158,12 @@ const ExpensesTab = () => {
 
   const handleShowModal = () => {
     setShowNewExpenseModal(true);
+  };
+
+  const handleCSVImportSuccess = () => {
+    // Refresh the expenses data after successful import
+    refetch();
+    setShowCSVImportModal(false);
   };
 
   const handleCloseModal = () => {
@@ -236,6 +245,49 @@ const ExpensesTab = () => {
     const filterSuffix = expenseFilters.category !== 'all' ? `-${expenseFilters.category}` : '';
     const searchSuffix = searchQuery ? `-search` : '';
     return `Brikli-Expenses-Report${filterSuffix}${searchSuffix}-${dateStr}-${timeStr}.csv`;
+  };
+
+  // CSV Import configuration
+  const csvImportConfig = {
+    title: "Import Expenses",
+    description: "Upload your expense data",
+    apiFunction: importExpensesFromCSV,
+    expectedHeaders: [
+      { key: "category", label: "Category", required: true, aliases: ["category", "expense_category", "type"] },
+      { key: "subtotal_amount", label: "Subtotal Amount", required: true, type: "number", aliases: ["subtotal", "amount", "subtotal_amount"] },
+      { key: "expense_date", label: "Expense Date", required: true, type: "date", aliases: ["date", "expense_date", "payment_date"] },
+      { key: "description", label: "Description", required: false, aliases: ["description", "notes", "memo"] },
+      { key: "total_tax_amount", label: "Tax Amount", required: false, type: "number", aliases: ["tax_amount", "tax", "total_tax_amount"] },
+      { key: "payment_method", label: "Payment Method", required: false, aliases: ["payment_method", "method", "payment_type"] },
+      { key: "property_name", label: "Property Name", required: false, aliases: ["property", "property_name", "property_id"] }
+    ],
+    sampleData: [
+      {
+        category: "Maintenance",
+        subtotal_amount: 500.00,
+        expense_date: "2024-01-15",
+        description: "HVAC repair",
+        total_tax_amount: 50.00,
+        payment_method: "Credit Card",
+        property_name: "123 Main St"
+      },
+      {
+        category: "Utilities",
+        subtotal_amount: 200.00,
+        expense_date: "2024-01-20",
+        description: "Electric bill",
+        total_tax_amount: 20.00,
+        payment_method: "Bank Transfer",
+        property_name: "123 Main St"
+      }
+    ],
+    validationTips: [
+      "Category is required (e.g., Maintenance, Utilities, Insurance)",
+      "Amounts should be positive numbers without currency symbols",
+      "Dates should be in YYYY-MM-DD format or MM/DD/YYYY",
+      "Payment methods: Credit Card, Debit Card, Bank Transfer, Cash, Check, Other",
+      "Property name should match exactly as it appears in your properties list"
+    ]
   };
 
   if (loading) {
@@ -330,6 +382,15 @@ const ExpensesTab = () => {
             </div>
           </div>
           
+          {/* Import CSV Button */}
+          <button
+            onClick={() => setShowCSVImportModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <i className="fas fa-upload mr-2"></i>
+            Import CSV
+          </button>
+
           {/* Export CSV Button */}
           <CSVLink
             data={csvData}
@@ -532,6 +593,15 @@ const ExpensesTab = () => {
             toast.success("Expense updated successfully");
           }}
           expenseData={selectedItem}
+        />
+      )}
+
+      {showCSVImportModal && (
+        <CSVImportModal
+          isOpen={showCSVImportModal}
+          onClose={() => setShowCSVImportModal(false)}
+          onSuccess={handleCSVImportSuccess}
+          config={csvImportConfig}
         />
       )}
     </div>

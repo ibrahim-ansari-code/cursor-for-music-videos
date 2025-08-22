@@ -19,6 +19,7 @@ from Backend.models.accounting.common import PaymentStatus
 from Backend.models.accounting.invoice import Invoice
 from Backend.models.enums import UserType
 from Backend.models.lease import Lease
+from Backend.models.property import Property
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
 from Backend.utils.datetime_utils import (
@@ -32,7 +33,7 @@ from .helpers import (
     apply_admin_invoice_filters,
     build_invoice_response
 )
-from .schemas import InvoiceCreate, InvoiceResponse, InvoiceUpdate
+from .schemas import InvoiceCreate, InvoiceResponse, InvoiceUpdate, CSVImportRequest, CSVImportResult
 
 
 logger = logging.getLogger(__name__)
@@ -77,7 +78,6 @@ async def create_invoice(
             inferred_property_id = await infer_property_for_invoice(tenant, current_user)
             if inferred_property_id:
                 final_property_id = inferred_property_id
-                logger.info(f"Inferred property_id {final_property_id} for tenant {invoice_data.tenant_id}")
 
     # If property_id is set (original or inferred), verify ownership
     if final_property_id:
@@ -115,12 +115,9 @@ async def create_invoice(
         if new_invoice.tenant_id:
             await session.refresh(new_invoice, ["tenant"])
         
-        logger.info("Invoice %s created for tenant %s, property %s by user %s", 
-                    new_invoice.id, new_invoice.tenant_id, new_invoice.property_id, current_user.id)
         return InvoiceResponse(**build_invoice_response(new_invoice))
     except Exception as e:
         await session.rollback()
-        logger.exception("Error creating invoice")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail="Failed to create invoice."
@@ -177,7 +174,6 @@ async def get_invoices(
     elif current_user.user_type == UserType.LANDLORD:
         can_proceed = await apply_landlord_invoice_filters(filters, property_id, tenant_id, current_user, session)
         if not can_proceed:
-            logger.info("Landlord user %s has no accessible properties for invoice query", current_user.id)
             return []
     elif current_user.user_type == UserType.ADMIN:
         apply_admin_invoice_filters(filters, property_id, tenant_id)
@@ -306,7 +302,6 @@ async def update_invoice(
     if invoice.tenant_id:
         await session.refresh(invoice, ["tenant"])
     
-    logger.info("Invoice %s updated by user %s", invoice_id, current_user.id)
     return InvoiceResponse(**build_invoice_response(invoice))
 
 
@@ -342,8 +337,6 @@ async def delete_invoice(
     # Delete the invoice
     await session.delete(invoice)
     await session.commit()
-    
-    logger.info("Invoice %s deleted by user %s", invoice_id, current_user.id)
 
 
 async def mark_invoice_paid(
@@ -399,8 +392,126 @@ async def mark_invoice_paid(
     if invoice.tenant_id:
         await session.refresh(invoice, ["tenant"])
     
-    logger.info("Invoice %s marked as paid by user %s", invoice_id, current_user.id)
     return InvoiceResponse(**build_invoice_response(invoice))
+
+
+async def import_invoices_from_csv(
+    import_request: CSVImportRequest,
+    session: AsyncSession,
+    current_user: User
+) -> CSVImportResult:
+    """
+    Import invoices from CSV data with batch processing.
+    
+    Args:
+        import_request: The CSV import request containing invoice data.
+        session: Database session.
+        current_user: The current user making the request.
+    
+    Returns:
+        Import results with success/failure counts and error details.
+    """
+    from .service_batch import prepare_invoice_batch, bulk_create_invoices, check_duplicate_invoices
+    from Backend.config import settings
+    
+    # Validate user permissions
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to import invoices"
+        )
+    
+    total_rows = len(import_request.invoices)
+    
+    # Validate row limit
+    if total_rows > settings.MAX_CSV_IMPORT_ROWS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"CSV contains {total_rows} rows, exceeding maximum of {settings.MAX_CSV_IMPORT_ROWS}"
+        )
+    
+    # Get all properties and tenants for matching
+    properties_query = select(Property)
+    if current_user.user_type == UserType.LANDLORD:
+        properties_query = properties_query.where(col(Property.user_id) == current_user.id)
+    
+    properties_result = await session.execute(properties_query)
+    properties = {prop.name.lower(): prop for prop in properties_result.scalars().all()}
+    
+    tenants_query = select(Tenant)
+    if current_user.user_type == UserType.LANDLORD:
+        # Get tenants for landlord's properties only
+        landlord_tenant_ids_query = select(col(Lease.tenant_id)).where(
+            col(Lease.property_id).in_([prop.id for prop in properties.values()])
+        )
+        landlord_tenant_ids_result = await session.execute(landlord_tenant_ids_query)
+        tenant_ids = [row[0] for row in landlord_tenant_ids_result.all()]
+        tenants_query = tenants_query.where(col(Tenant.id).in_(tenant_ids))
+    
+    tenants_result = await session.execute(tenants_query)
+    tenants = {}
+    for tenant in tenants_result.scalars().all():
+        # Build display name similar to get_tenant_display_name function
+        if tenant.first_name:
+            full_name = tenant.first_name
+            if tenant.last_name:
+                full_name += f" {tenant.last_name}"
+            tenants[full_name.strip().lower()] = tenant
+        elif tenant.company_name:
+            tenants[tenant.company_name.strip().lower()] = tenant
+    
+    # Prepare invoices in batch
+    valid_invoices, preparation_errors = prepare_invoice_batch(
+        import_request.invoices,
+        properties,
+        tenants,
+        str(current_user.id),
+        current_user.user_type.value
+    )
+    
+    # Check for duplicates
+    duplicate_indices = await check_duplicate_invoices(valid_invoices, session)
+    
+    # Remove duplicates from valid invoices and add to errors
+    if duplicate_indices:
+        for idx in sorted(duplicate_indices, reverse=True):
+            invoice = valid_invoices.pop(idx)
+            preparation_errors.append({
+                "row_number": idx + 1,
+                "error_message": f"Invoice number '{invoice['invoice_number']}' already exists"
+            })
+    
+    # Process invoices in batches with atomic transaction
+    created_invoice_ids = []
+    
+    try:
+        # Start nested transaction for atomicity
+        async with session.begin_nested():
+            # Process in batches
+            for i in range(0, len(valid_invoices), settings.CSV_IMPORT_BATCH_SIZE):
+                batch = valid_invoices[i:i + settings.CSV_IMPORT_BATCH_SIZE]
+                batch_ids = await bulk_create_invoices(batch, session)
+                created_invoice_ids.extend(batch_ids)
+            
+            # Commit the nested transaction
+            await session.commit()
+            
+    except Exception as e:
+        # Rollback will happen automatically
+        logger.error(f"Failed to import invoices batch: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to import invoices: {str(e)}"
+        )
+    
+    from .schemas import CSVImportError
+    return CSVImportResult(
+        total_rows=total_rows,
+        successful_imports=len(created_invoice_ids),
+        failed_imports=len(preparation_errors),
+        errors=[CSVImportError(**error) for error in preparation_errors],
+        created_invoice_ids=created_invoice_ids
+    )
 
 
 # Export all service functions
@@ -410,5 +521,6 @@ __all__ = [
     "get_invoice_by_id",
     "update_invoice",
     "delete_invoice",
-    "mark_invoice_paid"
+    "mark_invoice_paid",
+    "import_invoices_from_csv"
 ]

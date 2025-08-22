@@ -35,14 +35,14 @@ const Accounting = () => {
               Overview
             </button>
             <button
-              onClick={() => handleTabChange("payments")}
+              onClick={() => handleTabChange("invoices")}
               className={`${
-                activeTab === "payments"
+                activeTab === "invoices"
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
-              Payments
+              Invoices
             </button>
             <button
               onClick={() => handleTabChange("expenses")}
@@ -55,14 +55,14 @@ const Accounting = () => {
               Expenses
             </button>
             <button
-              onClick={() => handleTabChange("invoices")}
+              onClick={() => handleTabChange("payments")}
               className={`${
-                activeTab === "invoices"
+                activeTab === "payments"
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
-              Invoices
+              Payments
             </button>
             <button
               onClick={() => handleTabChange("rent-tracker")}

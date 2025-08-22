@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { toast } from "react-toastify";
+import { CSVLink } from "react-csv";
 import { 
   fetchRentTracker, 
   fetchRentTrackerSummary,
@@ -153,6 +154,83 @@ const RentTracker = ({ onDataLoaded }) => {
     return filtered;
   }, [rentData, searchTerm]);
 
+  // CSV Export configuration
+  const csvHeaders = [
+    { label: 'Tenant', key: 'tenant_name' },
+    { label: 'Property', key: 'property_name' },
+    { label: 'Unit', key: 'unit_name' },
+    { label: 'Monthly Rent', key: 'monthly_rent' },
+    { label: 'Amount Paid', key: 'amount_paid' },
+    { label: 'Remaining Due', key: 'remaining_due' },
+    { label: 'Due Date', key: 'due_date' },
+    { label: 'Last Payment', key: 'last_payment_date' },
+    { label: 'Status', key: 'status' },
+  ];
+
+  // Format data for CSV export with clean headers
+  const getFilterDescription = () => {
+    const filters = [];
+    const monthLabel = monthOptions.find(m => m.value === currentMonth)?.label || currentMonth;
+    filters.push(`Month: ${monthLabel} ${currentYear}`);
+    if (selectedProperty) {
+      const propertyName = properties.find(p => p.id === selectedProperty)?.name || 'Selected Property';
+      filters.push(`Property: ${propertyName}`);
+    }
+    if (selectedStatus) {
+      filters.push(`Status: ${selectedStatus}`);
+    }
+    if (searchTerm) filters.push(`Search: "${searchTerm}"`);
+    return filters.length > 0 ? filters.join(', ') : 'No filters applied';
+  };
+
+  const csvData = [
+    // Clean header with metadata in a single row - marked to allow safe skipping during import
+    { 
+      tenant_name: '__METADATA__ Brikli Rent Tracker Report', 
+      property_name: `Exported: ${new Date().toLocaleDateString()}`,
+      unit_name: `Filters: ${getFilterDescription()}`,
+      monthly_rent: `Records: ${filteredRentData.length}`,
+      amount_paid: '', 
+      remaining_due: '', 
+      due_date: '', 
+      last_payment_date: '', 
+      status: '' 
+    },
+    // Empty separator row with metadata marker
+    { tenant_name: '__SEPARATOR__', property_name: '', unit_name: '', monthly_rent: '', amount_paid: '', remaining_due: '', due_date: '', last_payment_date: '', status: '' },
+    // Actual data
+    ...filteredRentData.map(rent => {
+      const monthlyRent = Number(rent?.monthly_rent ?? 0);
+      const amountPaid = Number(rent?.amount_paid ?? 0);
+      const remainingDue = Number(rent?.remaining_due ?? 0);
+      const dueDate = rent?.due_date ? new Date(rent.due_date) : null;
+      const lastPaymentDate = rent?.last_payment_date ? new Date(rent.last_payment_date) : null;
+      
+      return {
+        tenant_name: rent?.tenant_name || 'N/A',
+        property_name: rent?.property_name || 'N/A',
+        unit_name: rent?.unit_name || 'N/A',
+        monthly_rent: Number.isFinite(monthlyRent) ? monthlyRent.toFixed(2) : '0.00',
+        amount_paid: Number.isFinite(amountPaid) ? amountPaid.toFixed(2) : '0.00',
+        remaining_due: Number.isFinite(remainingDue) ? remainingDue.toFixed(2) : '0.00',
+        due_date: dueDate && !isNaN(dueDate) ? dueDate.toLocaleDateString() : 'N/A',
+        last_payment_date: lastPaymentDate && !isNaN(lastPaymentDate) ? lastPaymentDate.toLocaleDateString() : 'N/A',
+        status: rent?.status || 'N/A',
+      };
+    })
+  ];
+
+  // Generate professional filename with current date and filters
+  const generateFilename = () => {
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '');
+    const monthLabel = monthOptions.find(m => m.value === currentMonth)?.label || currentMonth;
+    const statusSuffix = selectedStatus ? `-${selectedStatus}` : '';
+    const searchSuffix = searchTerm ? `-search` : '';
+    return `Brikli-RentTracker-${monthLabel}${currentYear}${statusSuffix}${searchSuffix}-${dateStr}-${timeStr}.csv`;
+  };
+
   // Format date for display
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -252,19 +330,19 @@ const RentTracker = ({ onDataLoaded }) => {
           
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <div className="text-sm text-gray-500 mb-2">Status Breakdown</div>
-            <div className="flex gap-2 mt-1">
-              <div className="flex-1 text-center">
-                <span className="inline-block w-full text-xs font-medium bg-green-100 text-green-800 px-2 py-2 rounded whitespace-nowrap">
+            <div className="flex gap-1 mt-1 min-w-0">
+              <div className="flex-1 text-center min-w-0">
+                <span className="inline-block w-full text-xs font-medium bg-green-100 text-green-800 px-1 py-2 rounded truncate">
                   {summary.units_paid} Paid
                 </span>
               </div>
-              <div className="flex-1 text-center">
-                <span className="inline-block w-full text-xs font-medium bg-yellow-100 text-yellow-800 px-2 py-2 rounded whitespace-nowrap">
+              <div className="flex-1 text-center min-w-0">
+                <span className="inline-block w-full text-xs font-medium bg-yellow-100 text-yellow-800 px-1 py-2 rounded truncate">
                   {summary.units_partial} Partial
                 </span>
               </div>
-              <div className="flex-1 text-center">
-                <span className="inline-block w-full text-xs font-medium bg-red-100 text-red-800 px-2 py-2 rounded whitespace-nowrap">
+              <div className="flex-1 text-center min-w-0">
+                <span className="inline-block w-full text-xs font-medium bg-red-100 text-red-800 px-1 py-2 rounded truncate">
                   {summary.units_overdue} Overdue
                 </span>
               </div>
@@ -285,13 +363,15 @@ const RentTracker = ({ onDataLoaded }) => {
           </button>
           
           <div className="space-x-3">
-            <button
-              onClick={() => toast.info("Export feature coming soon!")}
+            <CSVLink
+              data={csvData}
+              headers={csvHeaders}
+              filename={generateFilename()}
               className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <i className="fas fa-download mr-2"></i>
               Export CSV
-            </button>
+            </CSVLink>
             <button
               onClick={() => toast.info("PDF export coming soon!")}
               className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

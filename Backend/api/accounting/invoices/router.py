@@ -16,7 +16,7 @@ from Backend.models.accounting.common import PaymentStatus
 from Backend.models.user import User
 
 from . import service
-from .schemas import InvoiceCreate, InvoiceResponse, InvoiceUpdate
+from .schemas import InvoiceCreate, InvoiceResponse, InvoiceUpdate, CSVImportRequest, CSVImportResult
 
 
 logger = logging.getLogger(__name__)
@@ -159,3 +159,22 @@ async def mark_invoice_paid(
         The updated invoice.
     """
     return await service.mark_invoice_paid(invoice_id, session, current_user)
+
+
+# ===== CSV IMPORT =====
+@router.post("/import-csv", response_model=CSVImportResult)
+async def import_invoices_from_csv(
+    import_request: CSVImportRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+) -> CSVImportResult:
+    """
+    Import invoices from CSV data.
+
+    Args:
+        import_request: The CSV import request containing invoice data.
+
+    Returns:
+        The import results with success/failure counts and error details.
+    """
+    return await service.import_invoices_from_csv(import_request, session, current_user)

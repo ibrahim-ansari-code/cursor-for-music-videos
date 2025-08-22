@@ -146,3 +146,95 @@ class PaymentReceiptParseResponse(BaseModel):
     receipt_url: str
     parsed_details: PaymentReceiptParseDetails
     message: str | None = None
+
+
+# CSV Import schemas
+class CSVPaymentData(BaseModel):
+    """Schema for individual payment data from CSV"""
+    amount: Decimal
+    payment_date: str  # Will be parsed as datetime
+    payment_method: str | None = None
+    status: str | None = None
+    transaction_reference: str | None = None
+    description: str | None = None
+    tenant_name: str | None = None
+    property_name: str | None = None
+    reduction_amount: Decimal | None = None
+    reduction_reason: str | None = None
+    
+    @field_validator('transaction_reference')
+    @staticmethod
+    def validate_transaction_ref_length(v: str | None) -> str | None:
+        if v and len(v) > 255:
+            raise ValueError('Transaction reference must be 255 characters or less')
+        return v
+    
+    @field_validator('description', 'reduction_reason')
+    @staticmethod
+    def validate_description_length(v: str | None) -> str | None:
+        if v and len(v) > 500:
+            raise ValueError('Field must be 500 characters or less')
+        return v
+    
+    @field_validator('tenant_name', 'property_name')
+    @staticmethod
+    def validate_name_length(v: str | None) -> str | None:
+        if v and len(v) > 255:
+            raise ValueError('Name must be 255 characters or less')
+        return v
+    
+    @field_validator('amount')
+    @staticmethod
+    def amount_must_be_positive(v: Decimal) -> Decimal:
+        """Validate that amount is positive."""
+        if v <= 0:
+            raise ValueError("Amount must be positive")
+        return v
+    
+    @field_validator('reduction_amount')
+    @staticmethod
+    def reduction_must_be_positive_if_present(v: Decimal | None) -> Decimal | None:
+        """Validate that reduction amount is positive if provided."""
+        if v is not None and v < 0:
+            raise ValueError("Reduction amount must be zero or positive")
+        return v
+    
+    @field_validator('payment_date')
+    @staticmethod
+    def validate_date_format(v: str) -> str:
+        """Validate date string follows expected formats."""
+        if not v:
+            raise ValueError('Payment date is required')
+        
+        # Check for common date formats
+        import re
+        valid_patterns = [
+            r'^\d{4}-\d{2}-\d{2}$',  # YYYY-MM-DD
+            r'^\d{2}/\d{2}/\d{4}$',  # MM/DD/YYYY or DD/MM/YYYY
+            r'^\d{2}-\d{2}-\d{4}$',  # MM-DD-YYYY or DD-MM-YYYY
+        ]
+        
+        if not any(re.match(pattern, v) for pattern in valid_patterns):
+            raise ValueError(f'Date format not recognized. Expected formats: YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY')
+        
+        return v
+
+
+class CSVImportError(BaseModel):
+    """Schema for CSV import error details"""
+    row_number: int
+    error_message: str
+
+
+class CSVPaymentImportRequest(BaseModel):
+    """Schema for CSV payment import request"""
+    payments: list[CSVPaymentData]
+
+
+class CSVPaymentImportResult(BaseModel):
+    """Schema for CSV payment import response"""
+    total_rows: int
+    successful_imports: int
+    failed_imports: int
+    errors: list[CSVImportError]
+    created_payment_ids: list[int]

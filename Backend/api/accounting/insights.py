@@ -422,7 +422,7 @@ async def get_accounting_overview(
     occupancy_rate = await session.scalar(ocr_q, base_params) or Decimal('0.0')
 
     # Revenue Trends (last 12 months including current) - using same filter logic as main overview
-    trend_params_rt = {}
+    trend_params_rt: dict[str, Any] = {}
     
     # Use the same filter type as the main overview calculations
     trend_payment_filter_type = filter_type

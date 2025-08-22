@@ -6,18 +6,18 @@ separated from the FastAPI-specific endpoint handlers.
 """
 
 import logging
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, List, Dict, Optional
 
 from fastapi import HTTPException, status, UploadFile
-from sqlalchemy import and_
+from sqlalchemy import and_, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlmodel import col, select
 
 from Backend.models.accounting.expense import (
-    Expense, ExpenseCreate, ExpenseUpdate, ExpenseResponse
+    Expense, ExpenseCreate, ExpenseUpdate, ExpenseResponse, PaymentMethod
 )
 from Backend.models.enums import UserType
 from Backend.models.property import Property
@@ -27,6 +27,7 @@ from Backend.utils.datetime_utils import (
     create_audit_datetime, date_to_utc_range, validate_business_datetime
 )
 from Backend.llm import analyze_expense_receipt_content
+from Backend.config import Settings
 from Backend.utils.tax_utils import (
     quantize_2dp, finalize_parsed_receipt_data
 )
@@ -34,7 +35,7 @@ from Backend.utils.file_validation import validate_file_from_upload
 from Backend.utils.db_transaction import db_transaction
 from Backend.api.accounting.helpers import check_property_ownership
 
-from .schemas import ExpenseReceiptParseDetails, ExpenseReceiptParseResponse
+from .schemas import ExpenseReceiptParseDetails, ExpenseReceiptParseResponse, CSVExpenseImportRequest, CSVExpenseImportResult, CSVImportError
 from .helpers import (
     calculate_expense_taxes,
     create_expense_tax_orm_list,
@@ -42,8 +43,10 @@ from .helpers import (
     update_expense_taxes,
     delete_blob_with_error_handling
 )
+from .service_batch import bulk_create_expenses, prepare_expense_batch, check_duplicate_expenses
 
 logger = logging.getLogger(__name__)
+settings = Settings()
 
 
 async def parse_expense_receipt(
@@ -235,15 +238,13 @@ async def get_expenses(
 
     query = select(Expense).options(selectinload(
         getattr(Expense, "property")), selectinload(getattr(Expense, "taxes")))
-    filters = []
+    filters: list[Any] = []
     if category:
         filters.append(col(Expense.category).ilike(f"%{category}%"))
     if start_date:
-        filters.append(col(Expense.expense_date) >=
-                       date_to_utc_range(start_date, start_date)[0])
+        filters.append(col(Expense.expense_date) >= date_to_utc_range(start_date, start_date)[0])
     if end_date:
-        filters.append(col(Expense.expense_date) <=
-                       date_to_utc_range(end_date, end_date)[1])
+        filters.append(col(Expense.expense_date) <= date_to_utc_range(end_date, end_date)[1])
 
     # Add search filtering
     if search:
@@ -254,18 +255,18 @@ async def get_expenses(
         escaped_search = search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
         search_term = f"%{escaped_search}%"
         filters.append(
-            col(Expense.description).ilike(search_term) |
-            col(Expense.category).ilike(search_term)
+            (col(Expense.description).ilike(search_term) |
+             col(Expense.category).ilike(search_term))
         )
 
     if current_user.user_type == UserType.LANDLORD:
         query = query.join(Property, col(Expense.property_id)
                            == col(Property.id))  # Ensure join
-        filters.append(Property.user_id == current_user.id)
+        filters.append(col(Property.user_id) == current_user.id)
         if property_id:
-            filters.append(Expense.property_id == property_id)
+            filters.append(col(Expense.property_id) == property_id)
     elif current_user.user_type == UserType.ADMIN and property_id:
-        filters.append(Expense.property_id == property_id)
+        filters.append(col(Expense.property_id) == property_id)
 
     if filters:
         query = query.where(and_(*filters))
@@ -432,3 +433,103 @@ async def delete_expense(
         logger.exception("Error deleting expense %d", expense_id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail="Failed to delete expense") from e
+
+
+async def import_expenses_from_csv(
+    import_request,  # CSVExpenseImportRequest
+    session: AsyncSession,
+    current_user: User
+) -> Any:  # CSVExpenseImportResult
+    """
+    Import expenses from CSV data with batch processing and atomic transactions.
+    
+    Args:
+        import_request: The CSV import request containing expense data.
+        session: Database session.
+        current_user: The current user making the request.
+    
+    Returns:
+        Import results with success/failure counts and error details.
+    """
+    # Validate user permissions
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to import expenses"
+        )
+    
+    # Check row limit
+    total_rows = len(import_request.expenses)
+    if total_rows > settings.MAX_CSV_IMPORT_ROWS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"CSV exceeds maximum {settings.MAX_CSV_IMPORT_ROWS} rows. Found {total_rows} rows."
+        )
+    
+    if total_rows == 0:
+        return CSVExpenseImportResult(
+            total_rows=0,
+            successful_imports=0,
+            failed_imports=0,
+            errors=[],
+            created_expense_ids=[]
+        )
+    
+    # Get all properties for matching
+    properties_query = select(Property)
+    if current_user.user_type == UserType.LANDLORD:
+        properties_query = properties_query.where(col(Property.user_id) == current_user.id)
+    
+    properties_result = await session.execute(properties_query)
+    properties = {prop.name.lower(): prop for prop in properties_result.scalars().all()}
+    
+    # Prepare expenses in batch
+    valid_expenses, preparation_errors = prepare_expense_batch(
+        import_request.expenses,
+        properties,
+        str(current_user.id),
+        current_user.user_type.value
+    )
+    
+    # Check for duplicates
+    duplicate_indices = await check_duplicate_expenses(valid_expenses, session)
+    
+    # Remove duplicates from valid expenses and add to errors
+    if duplicate_indices:
+        for idx in sorted(duplicate_indices, reverse=True):
+            expense = valid_expenses.pop(idx)
+            preparation_errors.append({
+                "row_number": idx + 1,
+                "error_message": f"Duplicate expense found for property {expense['property_id']}, category {expense['category']}, amount {expense['subtotal_amount']}, date {expense['expense_date']}"
+            })
+    
+    # Process expenses in batches with atomic transaction
+    created_expense_ids = []
+    
+    try:
+        # Start nested transaction for atomicity
+        async with session.begin_nested():
+            # Process in batches
+            for i in range(0, len(valid_expenses), settings.CSV_IMPORT_BATCH_SIZE):
+                batch = valid_expenses[i:i + settings.CSV_IMPORT_BATCH_SIZE]
+                batch_ids = await bulk_create_expenses(batch, session)
+                created_expense_ids.extend(batch_ids)
+            
+            # Commit the nested transaction
+            await session.commit()
+            
+    except Exception as e:
+        # Rollback will happen automatically
+        logger.error(f"Failed to import expenses batch: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to import expenses: {str(e)}"
+        )
+    
+    return CSVExpenseImportResult(
+        total_rows=total_rows,
+        successful_imports=len(created_expense_ids),
+        failed_imports=len(preparation_errors),
+        errors=[CSVImportError(**error) for error in preparation_errors],
+        created_expense_ids=created_expense_ids
+    )

@@ -97,3 +97,84 @@ class InvoiceResponse(InvoiceBase):
     tenant: Optional[TenantInfo] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# === CSV Import Models ===
+class CSVInvoiceData(BaseModel):
+    """Schema for invoice data from CSV import"""
+    invoice_number: str
+    amount: Decimal
+    description: str
+    issue_date: str  # Will be parsed to datetime
+    due_date: str    # Will be parsed to datetime
+    status: str = PaymentStatus.PENDING.value
+    property_name: Optional[str] = None
+    tenant_name: Optional[str] = None
+
+    @field_validator('invoice_number')
+    @classmethod
+    def validate_invoice_number_length(cls, v):
+        if v and len(v) > 100:
+            raise ValueError('Invoice number must be 100 characters or less')
+        return v
+    
+    @field_validator('description')
+    @classmethod
+    def validate_description_length(cls, v):
+        if v and len(v) > 500:
+            raise ValueError('Description must be 500 characters or less')
+        return v
+    
+    @field_validator('property_name', 'tenant_name')
+    @classmethod
+    def validate_name_length(cls, v):
+        if v and len(v) > 255:
+            raise ValueError('Name must be 255 characters or less')
+        return v
+
+    @field_validator('amount')
+    @classmethod
+    def amount_must_be_positive(cls, v):
+        if v <= 0:
+            raise ValueError('Amount must be greater than 0')
+        return v
+    
+    @field_validator('issue_date', 'due_date')
+    @classmethod
+    def validate_date_format(cls, v):
+        """Validate date string follows expected formats."""
+        if not v:
+            raise ValueError('Date is required')
+        
+        # Check for common date formats
+        import re
+        valid_patterns = [
+            r'^\d{4}-\d{2}-\d{2}$',  # YYYY-MM-DD
+            r'^\d{2}/\d{2}/\d{4}$',  # MM/DD/YYYY or DD/MM/YYYY
+            r'^\d{2}-\d{2}-\d{4}$',  # MM-DD-YYYY or DD-MM-YYYY
+        ]
+        
+        if not any(re.match(pattern, v) for pattern in valid_patterns):
+            raise ValueError(f'Date format not recognized. Expected formats: YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY')
+        
+        return v
+
+
+class CSVImportError(BaseModel):
+    """Schema for CSV import error details"""
+    row_number: int
+    error_message: str
+
+
+class CSVImportRequest(BaseModel):
+    """Request schema for CSV import"""
+    invoices: list[CSVInvoiceData]
+
+
+class CSVImportResult(BaseModel):
+    """Result schema for CSV import"""
+    total_rows: int
+    successful_imports: int
+    failed_imports: int
+    errors: list[CSVImportError]
+    created_invoice_ids: list[int]

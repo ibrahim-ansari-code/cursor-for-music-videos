@@ -2,8 +2,7 @@
 import logging
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
-from uuid import UUID
+from typing import Any, Dict, List
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import and_, or_
@@ -50,7 +49,11 @@ from .schemas import (
     PaginatedPaymentsResponse,
     PaymentReceiptParseDetails,
     PaymentReceiptParseResponse,
+    CSVPaymentImportResult,
+    CSVImportError,
 )
+from .service_batch import prepare_payment_batch, bulk_create_payments, check_duplicate_payments
+from Backend.config import settings
 
 # Constants for commonly used payment status combinations
 OUTSTANDING_PAYMENT_STATUSES = (PaymentStatus.PENDING, PaymentStatus.OVERDUE)
@@ -598,3 +601,122 @@ async def run_orphaned_payments_check(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Integrity check failed due to internal error"
         ) from e
+
+
+async def import_payments_from_csv(
+    import_request,  # CSVPaymentImportRequest
+    session: AsyncSession,
+    current_user: User
+):  # -> CSVPaymentImportResult
+    """
+    Import payments from CSV data with batch processing.
+    
+    Args:
+        import_request: The CSV import request containing payment data.
+        session: Database session.
+        current_user: The current user making the request.
+    
+    Returns:
+        Import results with success/failure counts and error details.
+    """
+    
+    # Validate user permissions
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to import payments"
+        )
+    
+    total_rows = len(import_request.payments)
+    
+    # Validate row limit
+    if total_rows > settings.MAX_CSV_IMPORT_ROWS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"CSV contains {total_rows} rows, exceeding maximum of {settings.MAX_CSV_IMPORT_ROWS}"
+        )
+    
+    # Get all properties and active leases for matching
+    properties_query = select(Property)
+    if current_user.user_type == UserType.LANDLORD:
+        properties_query = properties_query.where(col(Property.user_id) == current_user.id)
+    
+    properties_result = await session.execute(properties_query)
+    properties = {prop.name.lower(): prop for prop in properties_result.scalars().all()}
+    
+    # Get active leases with tenant info
+    leases_query = select(Lease).options(
+        selectinload(getattr(Lease, "tenant")),
+        selectinload(getattr(Lease, "property"))
+    ).where(col(Lease.status) == LeaseStatus.ACTIVE)
+    
+    if current_user.user_type == UserType.LANDLORD:
+        property_ids = [prop.id for prop in properties.values()]
+        leases_query = leases_query.where(col(Lease.property_id).in_(property_ids))
+    
+    leases_result = await session.execute(leases_query)
+    leases = leases_result.scalars().all()
+    
+    # Create mappings for quick lookup
+    tenants: Dict[str, Tenant] = {}  # tenant_name -> tenant
+    active_leases: Dict[str, Any] = {}  # tenant_id -> lease_id for active leases
+    
+    for current_lease in leases:
+        if current_lease.tenant and current_lease.tenant.id is not None and current_lease.id is not None:
+            tenant_name = get_tenant_display_name(current_lease.tenant).lower()
+            tenants[tenant_name] = current_lease.tenant
+            if current_lease.status == LeaseStatus.ACTIVE:
+                active_leases[str(current_lease.tenant.id)] = current_lease.id
+    
+    # Prepare payments in batch
+    valid_payments, preparation_errors = prepare_payment_batch(
+        import_request.payments,
+        properties,
+        tenants,
+        active_leases,
+        str(current_user.id),
+        current_user.user_type.value
+    )
+    
+    # Check for duplicates
+    duplicate_indices = await check_duplicate_payments(valid_payments, session)
+    
+    # Remove duplicates from valid payments and add to errors
+    if duplicate_indices:
+        for idx in sorted(duplicate_indices, reverse=True):
+            payment = valid_payments.pop(idx)
+            preparation_errors.append({
+                "row_number": idx + 1,
+                "error_message": f"Duplicate payment found for lease {payment['lease_id']}, amount {payment['amount']}, date {payment['payment_date']}"
+            })
+    
+    # Process payments in batches with atomic transaction
+    created_payment_ids = []
+    
+    try:
+        # Start nested transaction for atomicity
+        async with session.begin_nested():
+            # Process in batches
+            for i in range(0, len(valid_payments), settings.CSV_IMPORT_BATCH_SIZE):
+                batch = valid_payments[i:i + settings.CSV_IMPORT_BATCH_SIZE]
+                batch_ids = await bulk_create_payments(batch, session)
+                created_payment_ids.extend(batch_ids)
+            
+            # Commit the nested transaction
+            await session.commit()
+            
+    except Exception as e:
+        # Rollback will happen automatically
+        logger.error(f"Failed to import payments batch: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to import payments: {str(e)}"
+        )
+    
+    return CSVPaymentImportResult(
+        total_rows=total_rows,
+        successful_imports=len(created_payment_ids),
+        failed_imports=len(preparation_errors),
+        errors=[CSVImportError(**error) for error in preparation_errors],
+        created_payment_ids=created_payment_ids
+    )

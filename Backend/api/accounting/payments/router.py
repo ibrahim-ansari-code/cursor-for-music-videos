@@ -19,6 +19,8 @@ from .schemas import (
     PaymentUpdate,
     PaginatedPaymentsResponse,
     PaymentReceiptParseResponse,
+    CSVPaymentImportRequest,
+    CSVPaymentImportResult,
 )
 
 
@@ -267,3 +269,18 @@ async def check_orphaned_payments(
         )
     
     return await service.run_orphaned_payments_check(session, current_user)
+
+
+@router.post("/import-csv", response_model=CSVPaymentImportResult)
+async def import_payments_from_csv(
+    import_request: CSVPaymentImportRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+) -> CSVPaymentImportResult:
+    """
+    Import payments from CSV data.
+    
+    Validates user permissions, processes CSV data, and creates payment records.
+    Returns import results with success/failure counts and error details.
+    """
+    return await service.import_payments_from_csv(import_request, session, current_user)

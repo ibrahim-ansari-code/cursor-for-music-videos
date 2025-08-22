@@ -98,7 +98,7 @@ def validate_and_process_tax_details(tax_details_list: list[dict[str, Any]]) -> 
     Returns:
         Tuple of (validated_tax_details, total_tax_from_details)
     """
-    validated_tax_details = []
+    validated_tax_details: list[dict[str, Any]] = []
     total_tax_from_details = Decimal('0.00')
 
     if not tax_details_list or not isinstance(tax_details_list, list):

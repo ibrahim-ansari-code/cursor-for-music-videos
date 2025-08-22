@@ -51,7 +51,8 @@ class RentTrackingEntry(BaseModel):
             raise ValueError('Monetary amount exceeds maximum allowed value')
         
         # Validate decimal precision (max 2 decimal places)
-        if v.as_tuple().exponent < -2:
+        exponent = v.as_tuple().exponent
+        if isinstance(exponent, int) and exponent < -2:
             raise ValueError('Monetary amounts cannot have more than 2 decimal places')
         
         return v

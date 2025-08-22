@@ -3,9 +3,11 @@ import { toast } from "react-toastify";
 import { CSVLink } from "react-csv";
 import NewPaymentModal from "../accounting/modals/NewPaymentModal";
 import EditPaymentModal from "../accounting/modals/EditPaymentModal";
+import CSVImportModal from "./modals/CSVImportModal";
 import { PaymentsTableSkeleton } from "../ui/skeletons";
 import { useAccounting } from "./AccountingContext";
 import { usePayments, useDeletePayment } from "../../hooks/useAccountingQueries";
+import { importPaymentsFromCSV } from "../../utils/api/accounting";
 
 const paymentTableColumns = [
   { key: "tenant", label: "Tenant", align: "left" },
@@ -89,6 +91,7 @@ const PaymentsTab = () => {
   // Modal states
   const [showNewPaymentModal, setShowNewPaymentModal] = useState(false);
   const [showEditPaymentModal, setShowEditPaymentModal] = useState(false);
+  const [showCSVImportModal, setShowCSVImportModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
   // Effect for handling filter changes - reset to first page
@@ -165,6 +168,12 @@ const PaymentsTab = () => {
     setSelectedItem(null);
   };
 
+  const handleCSVImportSuccess = () => {
+    // Refresh the payments data after successful import
+    refetch();
+    setShowCSVImportModal(false);
+  };
+
   // CSV Export configuration
   const csvHeaders = [
     { label: 'Tenant', key: 'tenant_name' },
@@ -228,6 +237,54 @@ const PaymentsTab = () => {
     const filterSuffix = paymentFilters.status !== 'all' ? `-${paymentFilters.status}` : '';
     const searchSuffix = paymentFilters.search ? `-search` : '';
     return `Brikli-Payments-Report${filterSuffix}${searchSuffix}-${dateStr}-${timeStr}.csv`;
+  };
+
+  // CSV Import configuration
+  const csvImportConfig = {
+    title: "Import Payments",
+    description: "Upload your payment data",
+    apiFunction: importPaymentsFromCSV,
+    expectedHeaders: [
+      { key: "amount", label: "Amount", required: true, type: "number", aliases: ["amount", "payment_amount", "total"] },
+      { key: "payment_date", label: "Payment Date", required: true, type: "date", aliases: ["date", "payment_date", "received_date"] },
+      { key: "tenant_name", label: "Tenant Name", required: false, aliases: ["tenant", "tenant_name", "payer"] },
+      { key: "property_name", label: "Property Name", required: false, aliases: ["property", "property_name", "address"] },
+      { key: "payment_method", label: "Payment Method", required: false, aliases: ["method", "payment_method", "payment_type"] },
+      { key: "status", label: "Status", required: false, aliases: ["status", "payment_status", "state"] },
+      { key: "transaction_reference", label: "Transaction Reference", required: false, aliases: ["reference", "transaction_reference", "confirmation"] },
+      { key: "description", label: "Description", required: false, aliases: ["description", "notes", "memo"] },
+      { key: "reduction_amount", label: "Reduction Amount", required: false, type: "number", aliases: ["reduction", "reduction_amount", "discount"] },
+      { key: "reduction_reason", label: "Reduction Reason", required: false, aliases: ["reduction_reason", "discount_reason", "adjustment_reason"] }
+    ],
+    sampleData: [
+      {
+        amount: 1500.00,
+        payment_date: "2024-01-15",
+        tenant_name: "John Smith",
+        property_name: "123 Main St",
+        payment_method: "Bank Transfer",
+        status: "Paid",
+        transaction_reference: "TXN123456",
+        description: "Monthly rent payment"
+      },
+      {
+        amount: 1200.00,
+        payment_date: "2024-01-20",
+        tenant_name: "Jane Doe",
+        property_name: "456 Oak Ave",
+        payment_method: "Credit Card",
+        status: "Pending",
+        description: "Rent payment"
+      }
+    ],
+    validationTips: [
+      "Amount is required and should be a positive number without currency symbols",
+      "Payment date is required in YYYY-MM-DD format or MM/DD/YYYY",
+      "Either tenant name or property name should be provided for proper matching",
+      "Payment methods: Credit Card, Debit Card, Bank Transfer, Cash, Check, PayPal, Other",
+      "Status options: Pending, Paid, Partial, Overdue, Cancelled, Refunded, Draft, Void",
+      "Tenant and property names should match exactly as they appear in your system"
+    ]
   };
 
   if (loading) {
@@ -327,6 +384,15 @@ const PaymentsTab = () => {
             </div>
           </div>
           
+          {/* Import CSV Button */}
+          <button
+            onClick={() => setShowCSVImportModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <i className="fas fa-upload mr-2"></i>
+            Import CSV
+          </button>
+
           {/* Export CSV Button */}
           <CSVLink
             data={csvData}
@@ -546,6 +612,15 @@ const PaymentsTab = () => {
             toast.success("Payment updated successfully");
           }}
           paymentData={selectedItem}
+        />
+      )}
+
+      {showCSVImportModal && (
+        <CSVImportModal
+          isOpen={showCSVImportModal}
+          onClose={() => setShowCSVImportModal(false)}
+          onSuccess={handleCSVImportSuccess}
+          config={csvImportConfig}
         />
       )}
     </div>
