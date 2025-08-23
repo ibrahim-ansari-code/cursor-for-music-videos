@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { toast } from "react-toastify";
 import * as Sentry from "@sentry/react";
-import ImportLeaseModal from "../components/ImportLeaseModal";
-import UpdateLeaseStatusModal from "../components/UpdateLeaseStatusModal";
+import ImportLeaseModal from "../components/leases/ImportLeaseModal";
+import UpdateLeaseStatusModal from "../components/leases/UpdateLeaseStatusModal";
 import FilePreviewModal from "../components/FilePreviewModal";
-import EditLeaseModal from "../components/EditLeaseModal";
+import EditLeaseModal from "../components/leases/EditLeaseModal";
 import { LeasesTableSkeleton } from "../components/ui/skeletons";
 import { 
   useLeasesWithDocuments, 

@@ -35,6 +35,18 @@ const Sidebar = () => {
       <NavLink
         key={item.path}
         to={item.path}
+        onMouseEnter={() => {
+          if (item.path.startsWith('/accounting') && typeof window !== 'undefined') {
+            Promise.resolve().then(() => {
+              import('../pages/Accounting');
+              import('../components/accounting/OverviewTab');
+              import('../components/accounting/PaymentsTab');
+              import('../components/accounting/ExpensesTab');
+              import('../components/accounting/InvoicesTab');
+              import('../components/accounting/RentTrackerTab');
+            });
+          }
+        }}
         className={({ isActive }) =>
           `${isActive
             ? "bg-teal-50 text-teal-700 border-r-2 border-teal-600"

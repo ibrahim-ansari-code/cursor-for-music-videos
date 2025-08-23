@@ -8,8 +8,8 @@ import {
   fetchPropertyUnits,
   fetchLeases,
   createLease,
-} from "../utils/api";
-import TenantModal from "./tenants/TenantModal";
+} from "../../utils/api";
+import TenantModal from "../tenants/TenantModal";
 import {
   Label,
   Input,
@@ -17,7 +17,7 @@ import {
   ErrorMessage,
   FormSection,
   Select,
-} from "./ui/SharedModalComponents";
+} from "../ui/SharedModalComponents";
 
 const ImportLeaseModal = ({
   isOpen,

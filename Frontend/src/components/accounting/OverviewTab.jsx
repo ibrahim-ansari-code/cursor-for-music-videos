@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import MonthlyMetricsCard from "../MonthlyMetricsCard";
-import YTDCard from "../YTDCard";
-import SnapshotCard from "../SnapshotCard";
+import MonthlyMetricsCard from "./cards/MonthlyMetricsCard";
+import YTDCard from "./cards/YTDCard";
+import SnapshotCard from "./cards/SnapshotCard";
 import RevenueChart from "../charts/RevenueChart";
 import ExpenseBreakdownChart from "../charts/ExpenseBreakdownChart";
 import IncomeByPropertyChart from "../charts/IncomeByPropertyChart";

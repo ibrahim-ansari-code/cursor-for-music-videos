@@ -110,7 +110,7 @@ class TestPreparePaymentBatch:
             "john doe": MagicMock(id=1, full_name="John Doe")
         }
         active_leases = {
-            1: 10  # tenant_id 1 -> lease_id 10
+            "1": 10  # tenant_id "1" -> lease_id 10
         }
         
         # Act
@@ -207,7 +207,7 @@ class TestPreparePaymentBatch:
         tenants = {
             "john doe": MagicMock(id=1)
         }
-        active_leases = {1: 10}
+        active_leases = {"1": 10}
         
         # Act
         valid_payments, errors = prepare_payment_batch(
@@ -240,7 +240,7 @@ class TestPreparePaymentBatch:
         tenants = {
             "john doe": MagicMock(id=1)
         }
-        active_leases = {1: 10}
+        active_leases = {"1": 10}
         
         # Act
         valid_payments, errors = prepare_payment_batch(

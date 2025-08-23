@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, Suspense, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -26,12 +26,13 @@ import ResetPassword from "./pages/ResetPassword";
 // Pages
 import Leases from "./pages/Leases";
 import Vendors from "./pages/Vendors";
-import Accounting from "./pages/Accounting";
-import OverviewTab from "./components/accounting/OverviewTab";
-import PaymentsTab from "./components/accounting/PaymentsTab";
-import ExpensesTab from "./components/accounting/ExpensesTab";
-import RentTrackerTab from "./components/accounting/RentTrackerTab";
-import InvoicesTab from "./components/accounting/InvoicesTab";
+// Accounting pages/tabs (lazy-loaded)
+const Accounting = React.lazy(() => import("./pages/Accounting"));
+const OverviewTab = React.lazy(() => import("./components/accounting/OverviewTab"));
+const PaymentsTab = React.lazy(() => import("./components/accounting/PaymentsTab"));
+const ExpensesTab = React.lazy(() => import("./components/accounting/ExpensesTab"));
+const RentTrackerTab = React.lazy(() => import("./components/accounting/RentTrackerTab"));
+const InvoicesTab = React.lazy(() => import("./components/accounting/InvoicesTab"));
 import Messages from "./pages/Messages";
 import Properties from "./pages/Properties";
 import PropertyDetail from "./pages/PropertyDetail";
@@ -55,6 +56,27 @@ const ProtectedRoute = ({ children }) => {
 const AppRoutes = () => {
   const { user } = useContext(AuthContext);
 
+  // Idle prefetch of accounting chunks to minimize first navigation latency
+  useEffect(() => {
+    const prefetch = () => {
+      import("./pages/Accounting");
+      import("./components/accounting/OverviewTab");
+      import("./components/accounting/PaymentsTab");
+      import("./components/accounting/ExpensesTab");
+      import("./components/accounting/InvoicesTab");
+      import("./components/accounting/RentTrackerTab");
+    };
+
+    if (typeof window !== "undefined") {
+      if ("requestIdleCallback" in window) {
+        // @ts-ignore
+        window.requestIdleCallback(prefetch);
+      } else {
+        setTimeout(prefetch, 0);
+      }
+    }
+  }, []);
+
   return (
     <Routes>
       <Route
@@ -67,13 +89,13 @@ const AppRoutes = () => {
         <Route path="properties/:id" element={<PropertyDetail />} />
         <Route path="leases" element={<Leases />} />
         <Route path="vendors" element={<Vendors />} />
-        <Route path="accounting/*" element={<Accounting />}>
+        <Route path="accounting/*" element={<Suspense fallback={<div>Loading...</div>}><Accounting /></Suspense>}>
           <Route index element={<Navigate to="overview" />} />
-          <Route path="overview" element={<OverviewTab />} />
-          <Route path="payments" element={<PaymentsTab />} />
-          <Route path="expenses" element={<ExpensesTab />} />
-          <Route path="invoices" element={<InvoicesTab />} />
-          <Route path="rent-tracker" element={<RentTrackerTab />} />
+          <Route path="overview" element={<Suspense fallback={<div>Loading...</div>}><OverviewTab /></Suspense>} />
+          <Route path="payments" element={<Suspense fallback={<div>Loading...</div>}><PaymentsTab /></Suspense>} />
+          <Route path="expenses" element={<Suspense fallback={<div>Loading...</div>}><ExpensesTab /></Suspense>} />
+          <Route path="invoices" element={<Suspense fallback={<div>Loading...</div>}><InvoicesTab /></Suspense>} />
+          <Route path="rent-tracker" element={<Suspense fallback={<div>Loading...</div>}><RentTrackerTab /></Suspense>} />
         </Route>
         <Route path="messages" element={<Messages />} />
         <Route path="tenants" element={<Tenants />} />

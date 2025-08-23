@@ -98,7 +98,11 @@ def prepare_payment_batch(
             
             # Validate tenant has active lease
             if tenant_id:
-                if tenant_id in active_leases:
+                # Support both string and int keys for robustness
+                key_str = str(tenant_id)
+                if key_str in active_leases:
+                    lease_id = active_leases[key_str]
+                elif tenant_id in active_leases:  # Fallback if mapping still uses ints
                     lease_id = active_leases[tenant_id]
                 else:
                     tenant_name = csv_payment.tenant_name or f"Tenant ID {tenant_id}"

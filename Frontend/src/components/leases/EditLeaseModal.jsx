@@ -6,14 +6,14 @@ import {
   fetchTenants,
   updateLease,
   fetchUnitById,
-} from "../utils/api";
+} from "../../utils/api";
 import {
   Label,
   Input,
   TextArea,
   Button,
   FormSection,
-} from "./ui/SharedModalComponents";
+} from "../ui/SharedModalComponents";
 
 const MIN_RENT_DUE_DAY = 1;
 const MAX_RENT_DUE_DAY = 28;

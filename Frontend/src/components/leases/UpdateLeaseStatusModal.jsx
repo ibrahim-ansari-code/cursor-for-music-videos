@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { updateLeaseStatus } from "../utils/api";
+import { updateLeaseStatus } from "../../utils/api";
 
 const UpdateLeaseStatusModal = ({ isOpen, onClose, lease, onUpdate }) => {
   const [error, setError] = useState(null);

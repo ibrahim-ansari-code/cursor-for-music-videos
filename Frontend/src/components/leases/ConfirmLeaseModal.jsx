@@ -4,7 +4,7 @@ import {
   fetchProperties,
   fetchPropertyUnits,
   fetchLeases,
-} from "../utils/api";
+} from "../../utils/api";
 import { motion, AnimatePresence } from "framer-motion"; // Add framer-motion for animations
 import {
   Label,
@@ -13,7 +13,7 @@ import {
   Button,
   ErrorMessage,
   FormSection,
-} from "./ui/SharedModalComponents"; // Import all required shared components
+} from "../ui/SharedModalComponents"; // Import all required shared components
 
 const ConfirmLeaseModal = ({
   isOpen,
