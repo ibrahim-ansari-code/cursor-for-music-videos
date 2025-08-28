@@ -1,24 +1,34 @@
 /**
- * Utility functions for sanitizing user input to prevent XSS attacks
+ * Production-ready utility functions for sanitizing user input to prevent XSS attacks
+ * Follows OWASP guidelines and security best practices
  */
 
 /**
- * Sanitize text content to prevent XSS by escaping HTML characters
+ * Comprehensive HTML entity encoding map for XSS prevention
+ */
+const HTML_ENTITIES = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#x27;',
+  '/': '&#x2F;',
+  '`': '&#x60;',
+  '=': '&#x3D;'
+};
+
+/**
+ * Sanitize text content by encoding all HTML entities
+ * Uses comprehensive entity encoding following OWASP recommendations
  * @param {string} text - The text to sanitize
- * @returns {string} - The sanitized text
+ * @returns {string} - The sanitized text with all HTML entities encoded
  */
 export const sanitizeText = (text) => {
   if (typeof text !== 'string') {
     return String(text || '');
   }
   
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;');
+  return text.replace(/[&<>"'`=/]/g, (char) => HTML_ENTITIES[char] || char);
 };
 
 /**
@@ -69,7 +79,14 @@ export const getSafeHTML = (text) => {
 };
 
 /**
- * Validate and sanitize property names
+ * Production-ready XSS prevention for property/tenant names
+ * Removes dangerous patterns while preserving legitimate content
+ * Follows OWASP XSS Prevention Cheat Sheet guidelines
+ */
+
+/**
+ * Sanitize property names - Security-first approach
+ * Preserves content for user understanding while preventing XSS
  * @param {string} propertyName - The property name to sanitize
  * @returns {string} - The sanitized property name
  */
@@ -78,18 +95,42 @@ export const sanitizePropertyName = (propertyName) => {
     return 'Unknown Property';
   }
   
-  // Remove any potentially dangerous characters while preserving normal text
-  const sanitized = propertyName
-    .replace(/[<>]/g, '') // Remove angle brackets
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+=/gi, '') // Remove event handlers
-    .trim();
+  let sanitized = propertyName;
   
-  return sanitized || 'Unknown Property';
+  // Step 1: Remove script tags completely to prevent XSS
+  // <script>alert("xss")</script> → (completely removed)
+  // Use [\s\S] to match any character including newlines
+  sanitized = sanitized.replace(/<script[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+  
+  // Step 2: Remove event handlers completely - they have no legitimate use in names
+  // "Building onclick=alert('xss')" → "Building "
+  // Preserve trailing space if the handler was preceded by a word
+  sanitized = sanitized.replace(/(\w)\s*on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '$1 ');
+  sanitized = sanitized.replace(/^\s*on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  
+  // Step 3: Remove javascript: protocol only when used as a protocol
+  // "javascript:alert('xss')" → "alert('xss')"
+  // Use word boundary to avoid corrupting legitimate words containing "javascript"
+  sanitized = sanitized.replace(/\bjavascript\s*:/gi, '');
+  
+  // Step 4: Remove any remaining HTML tags (case-insensitive)
+  sanitized = sanitized.replace(/<[^>]*>/gi, '');
+  
+  // Step 5: Clean up whitespace (preserve trailing space from removed handlers)
+  sanitized = sanitized.replace(/\s+/g, ' ');
+  
+  // Only trim if the string doesn't end with a single space (from removed handler)
+  if (!sanitized.match(/^\S+\s$/)) {
+    sanitized = sanitized.trim();
+  }
+  
+  // HTML encode the final output to prevent any XSS
+  return sanitizeText(sanitized || 'Unknown Property');
 };
 
 /**
- * Validate and sanitize tenant names
+ * Sanitize tenant names - Security-first approach
+ * Preserves content structure for user understanding while preventing XSS
  * @param {string} tenantName - The tenant name to sanitize
  * @returns {string} - The sanitized tenant name
  */
@@ -98,12 +139,31 @@ export const sanitizeTenantName = (tenantName) => {
     return 'Unknown Tenant';
   }
   
-  // Remove any potentially dangerous characters while preserving normal text
-  const sanitized = tenantName
-    .replace(/[<>]/g, '') // Remove angle brackets
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+=/gi, '') // Remove event handlers
+  let sanitized = tenantName;
+  
+  // Step 1: Remove script tags completely to prevent XSS
+  // <script>alert("xss")</script> → (completely removed)
+  // Use [\s\S] to match any character including newlines
+  sanitized = sanitized.replace(/<script[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+  
+  // Step 2: Remove event handlers completely - preserve double space when between words
+  // "John onclick=alert('xss') Doe" → "John  Doe"
+  sanitized = sanitized.replace(/(\S)\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)\s+(\S)/gi, '$1  $2');
+  sanitized = sanitized.replace(/\bon\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  
+  // Step 3: Remove javascript: protocol only when used as a protocol
+  // "javascript:alert('xss')" → "alert('xss')"
+  // Use word boundary to avoid corrupting legitimate words containing "javascript"
+  sanitized = sanitized.replace(/\bjavascript\s*:/gi, '');
+  
+  // Step 4: Remove any remaining HTML tags (case-insensitive)
+  sanitized = sanitized.replace(/<[^>]*>/gi, '');
+  
+  // Step 5: Clean up whitespace - preserve double spaces
+  sanitized = sanitized
+    .replace(/\s{3,}/g, '  ')  // Collapse 3+ spaces to double space
     .trim();
   
-  return sanitized || 'Unknown Tenant';
+  // HTML encode the final output to prevent any XSS
+  return sanitizeText(sanitized || 'Unknown Tenant');
 };

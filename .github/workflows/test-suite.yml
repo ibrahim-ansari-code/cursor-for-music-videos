@@ -149,7 +149,7 @@ jobs:
             Backend/tests/coverage.xml
             Backend/tests/htmlcov/
   
-  frontend-tests:
+  tenant-frontend-tests:
     name: "Frontend Tests (Tenant Portal)"
     runs-on: ubuntu-latest
     
@@ -185,10 +185,99 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: frontend-test-results
+          name: tenant-frontend-test-results
           path: |
             Tenant-Frontend/coverage/
             Tenant-Frontend/test-results.xml
       
       - name: Build Frontend
         run: npm run build
+
+  landlord-frontend-tests:
+    name: "Frontend Tests (Landlord Portal)"
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./Frontend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: Frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run Build
+        run: npm run build
+        env:
+          CI: true
+      
+      - name: Verify Build Chunks
+        run: |
+          echo "Checking build output for proper chunking..."
+          ls -la dist/assets/
+          
+          # Check for critical chunks (matching actual chunk names from vite.config.js)
+          if ! ls dist/assets/react-vendor-*.js 2>/dev/null; then
+            echo "ERROR: react-vendor chunk not found!"
+            exit 1
+          fi
+          
+          if ! ls dist/assets/charts-*.js 2>/dev/null; then
+            echo "ERROR: charts chunk not found!"
+            exit 1
+          fi
+          
+          if ! ls dist/assets/pdf-libs-*.js 2>/dev/null; then
+            echo "ERROR: pdf-libs chunk not found!"
+            exit 1
+          fi
+          
+          echo "✅ All critical chunks generated successfully"
+      
+      - name: Run Tests
+        run: npm test -- --run
+        env:
+          CI: true
+      
+      - name: Run Chunking Validation Tests
+        run: npm test -- --run tests/config/vite-chunking.test.ts
+      
+      - name: Run Build Verification Tests
+        run: npm test -- --run tests/config/build-verification.test.ts
+      
+      - name: Check for Security Issues
+        run: |
+          echo "Checking for global React exposure..."
+          if grep -r "window.React\s*=" dist/ 2>/dev/null; then
+            echo "ERROR: Found global React assignment!"
+            exit 1
+          fi
+          
+          if grep -r "global.React\s*=" dist/ 2>/dev/null; then
+            echo "ERROR: Found global.React assignment!"
+            exit 1
+          fi
+          
+          echo "✅ No global React exposure detected"
+      
+      - name: Generate Test Coverage
+        run: npm run test:coverage
+        continue-on-error: true
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: landlord-frontend-test-results
+          path: |
+            Frontend/coverage/
+            Frontend/dist/

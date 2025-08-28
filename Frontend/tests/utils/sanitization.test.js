@@ -7,7 +7,7 @@ import {
   sanitizeCurrency, 
   sanitizePropertyName, 
   sanitizeTenantName 
-} from '../sanitization';
+} from '../../src/utils/sanitization';
 
 describe('sanitization utilities', () => {
   describe('sanitizeText', () => {
@@ -30,7 +30,7 @@ describe('sanitization utilities', () => {
       const result = sanitizeAndTruncate(longText, 50);
       expect(result).toHaveLength(50);
       expect(result).toContain('&lt;script&gt;');
-      expect(result).toEndWith('...');
+      expect(result.endsWith('...')).toBe(true);
     });
   });
 
@@ -50,29 +50,32 @@ describe('sanitization utilities', () => {
 
   describe('sanitizePropertyName', () => {
     it('should sanitize property names', () => {
-      expect(sanitizePropertyName('Sunset <script>alert("xss")</script> Apartments')).toBe('Sunset alert("xss") Apartments');
-      expect(sanitizePropertyName('Oak & Pine Building')).toBe('Oak & Pine Building');
+      // Now removes script tags completely and HTML-encodes the final output
+      expect(sanitizePropertyName('Sunset <script>alert("xss")</script> Apartments')).toBe('Sunset Apartments');
+      expect(sanitizePropertyName('Oak & Pine Building')).toBe('Oak &amp; Pine Building');
       expect(sanitizePropertyName('')).toBe('Unknown Property');
       expect(sanitizePropertyName(null)).toBe('Unknown Property');
     });
 
     it('should remove dangerous patterns', () => {
       expect(sanitizePropertyName('Building onclick=alert("xss")')).toBe('Building ');
-      expect(sanitizePropertyName('javascript:alert("xss")')).toBe('alert("xss")');
+      expect(sanitizePropertyName('javascript:alert("xss")')).toBe('alert(&quot;xss&quot;)');
     });
   });
 
   describe('sanitizeTenantName', () => {
     it('should sanitize tenant names', () => {
-      expect(sanitizeTenantName('John <script>alert("xss")</script> Doe')).toBe('John alert("xss") Doe');
-      expect(sanitizeTenantName('Jane & Bob Smith')).toBe('Jane & Bob Smith');
+      // Now removes script tags completely and HTML-encodes the final output
+      // Double space preserved when script tag removed between words
+      expect(sanitizeTenantName('John <script>alert("xss")</script> Doe')).toBe('John  Doe');
+      expect(sanitizeTenantName('Jane & Bob Smith')).toBe('Jane &amp; Bob Smith');
       expect(sanitizeTenantName('')).toBe('Unknown Tenant');
       expect(sanitizeTenantName(null)).toBe('Unknown Tenant');
     });
 
     it('should remove dangerous patterns', () => {
       expect(sanitizeTenantName('John onclick=alert("xss") Doe')).toBe('John  Doe');
-      expect(sanitizeTenantName('javascript:alert("xss")')).toBe('alert("xss")');
+      expect(sanitizeTenantName('javascript:alert("xss")')).toBe('alert(&quot;xss&quot;)');
     });
   });
 });

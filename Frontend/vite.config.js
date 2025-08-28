@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import path from "path";
 
 export default defineConfig({
   plugins: [react()],
@@ -39,7 +40,9 @@ export default defineConfig({
     target: 'es2022',
     minify: 'esbuild',
     esbuildOptions: {
-      drop: ['console', 'debugger'],
+      // Only drop console.log in production, keep error and warn for debugging
+      drop: ['debugger'],
+      pure: ['console.log'],
     },
     rollupOptions: {
       output: {
@@ -48,10 +51,30 @@ export default defineConfig({
         assetFileNames: 'assets/[name]-[hash].[ext]',
         manualChunks(id) {
           if (id.includes('node_modules')) {
+            // React MUST be bundled together and load first
+            if (id.includes('react-dom') || id.includes('/react/') || id.includes('scheduler')) {
+              return 'react-vendor';
+            }
+            // React-dependent libraries in separate chunk
+            if (id.includes('react-router') || id.includes('react-is')) {
+              return 'react-libs';
+            }
             // Keep critical optimizations for largest dependencies
             if (id.includes('recharts')) return 'charts';
             if (id.includes('pdfjs-dist') || id.includes('react-pdf')) return 'pdf-libs';
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) return 'react-vendor';
+            
+            // Libraries that use React hooks/context
+            if (id.includes('@tanstack/react-query') || 
+                id.includes('react-toastify') || 
+                id.includes('framer-motion') ||
+                id.includes('@supabase/auth-ui')) {
+              return 'react-deps';
+            }
+            
+            // Non-React vendors
+            if (id.includes('@supabase') && !id.includes('auth-ui')) return 'supabase';
+            if (id.includes('lodash')) return 'lodash';
+            
             return 'vendor';
           }
         }
@@ -59,8 +82,14 @@ export default defineConfig({
     },
     chunkSizeWarningLimit: 600,
   },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   // ✅ Fix for Vite 7.x browser compatibility
   define: {
     global: 'globalThis',
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
   },
 });

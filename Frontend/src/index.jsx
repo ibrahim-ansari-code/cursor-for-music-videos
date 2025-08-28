@@ -1,12 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
+import ProductionErrorBoundary from "./components/ProductionErrorBoundary";
 import "./index.css";
-
-// Ensure React is loaded
-if (!React || !React.createElement) {
-  console.error("React is not properly loaded!");
-}
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -15,7 +11,9 @@ if (!rootElement) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <React.StrictMode>
-      <App />
+      <ProductionErrorBoundary>
+        <App />
+      </ProductionErrorBoundary>
     </React.StrictMode>
   );
 }
