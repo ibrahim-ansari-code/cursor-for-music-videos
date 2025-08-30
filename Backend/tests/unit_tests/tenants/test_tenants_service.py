@@ -35,7 +35,8 @@ from Backend.api.tenants.schemas import (
 from Backend.models.tenant import Tenant, TenantStatus
 from Backend.models.enums import TenantType, UserType
 from Backend.models.user import User
-from Backend.models.property import Property, PropertyUnit
+from Backend.models.property import Property
+from Backend.models.units import PropertyUnit
 from Backend.models.lease import Lease, LeaseStatus
 
 # Mark all tests in this module as unit tests

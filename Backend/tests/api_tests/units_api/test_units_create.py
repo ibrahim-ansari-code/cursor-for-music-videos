@@ -13,7 +13,8 @@ from fastapi import HTTPException
 
 from Backend.api.app import app
 from Backend.api.units.schemas import UnitCreateResponse, UnitCreate
-from Backend.models.property import Property, PropertyUnit, PropertyType
+from Backend.models.property import Property, PropertyType
+from Backend.models.units import PropertyUnit
 from Backend.models.user import User
 from Backend.models.enums import PropertyStatus
 from Backend.api.auth import get_current_user

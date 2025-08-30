@@ -9,7 +9,8 @@ from decimal import Decimal
 
 from Backend.api.properties.service import PropertyService
 from Backend.api.properties.schemas import PropertyDetailResponse_Standalone
-from Backend.models.property import Property, PropertyUnit, PropertyType
+from Backend.models.property import Property, PropertyType
+from Backend.models.units import PropertyUnit
 from Backend.models.user import User
 from Backend.models.enums import PropertyStatus
 

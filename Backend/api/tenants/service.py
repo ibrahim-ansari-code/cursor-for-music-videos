@@ -19,7 +19,8 @@ from Backend.api.tenants.schemas import (
 )
 from Backend.models.enums import UserType
 from Backend.models.lease import Lease, LeaseStatus
-from Backend.models.property import Property, PropertyUnit
+from Backend.models.property import Property
+from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant, TenantStatus
 from Backend.models.user import User
 from Backend.utils.datetime_utils import create_audit_datetime

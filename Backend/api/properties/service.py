@@ -11,7 +11,8 @@ from sqlmodel import col
 from Backend.api.units.schemas import TenantInfo
 from Backend.models.enums import PropertyStatus
 from Backend.models.lease import Lease, LeaseStatus
-from Backend.models.property import Property, PropertyUnit, PropertyType
+from Backend.models.property import Property, PropertyType
+from Backend.models.units import PropertyUnit
 from Backend.models.user import User
 from Backend.utils.datetime_utils import create_audit_datetime
 

@@ -15,7 +15,8 @@ from sqlmodel import col
 from Backend.models.accounting.payment import Payment
 from Backend.models.accounting.common import PaymentStatus
 from Backend.models.lease import Lease, LeaseStatus
-from Backend.models.property import Property, PropertyUnit
+from Backend.models.property import Property
+from Backend.models.units import PropertyUnit
 from Backend.models.user import User
 from Backend.models.enums import UserType
 

@@ -24,7 +24,8 @@ from Backend.api.units.schemas import (
     BulkAssignmentRequest, BulkAssignmentResponse, CSVAssignmentError
 )
 from Backend.api.leases.schemas import LeaseCreate
-from Backend.models.property import Property, PropertyUnit
+from Backend.models.property import Property
+from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
 from Backend.models.lease import Lease

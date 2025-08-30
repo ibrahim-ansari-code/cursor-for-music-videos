@@ -10,7 +10,8 @@ from sqlmodel import col, and_
 
 from Backend.models.enums import MaintenancePriority, MaintenanceStatus, UserType
 from Backend.models.maintenance import MaintenanceRequest
-from Backend.models.property import Property, PropertyUnit
+from Backend.models.property import Property
+from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
 from Backend.utils.azure_blob import upload_maintenance_photo_to_blob

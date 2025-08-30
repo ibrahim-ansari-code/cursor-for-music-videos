@@ -9,7 +9,8 @@ import json
 from decimal import Decimal
 
 from Backend.llm.tool_handlers import ToolHandlers
-from Backend.models.property import Property, PropertyUnit, PropertyType, PropertyStatus
+from Backend.models.property import Property, PropertyType, PropertyStatus
+from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant, TenantStatus
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.maintenance import MaintenanceRequest, MaintenanceStatus, MaintenancePriority

@@ -17,7 +17,8 @@ from Backend.api.units.schemas import (
     CSVBulkAssignRequest, CSVBulkAssignResponse, CSVAssignmentRow,
     BulkAssignmentRequest, BulkAssignmentResponse, CSVAssignmentError
 )
-from Backend.models.property import Property, PropertyUnit
+from Backend.models.property import Property
+from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
 from Backend.api.auth import get_current_user

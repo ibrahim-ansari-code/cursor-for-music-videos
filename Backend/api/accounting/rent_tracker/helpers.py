@@ -8,7 +8,7 @@ from typing import Optional
 
 from Backend.models.lease import Lease
 from Backend.models.tenant import Tenant
-from Backend.models.property import PropertyUnit
+from Backend.models.units import PropertyUnit
 
 from .schemas import RentStatus
 

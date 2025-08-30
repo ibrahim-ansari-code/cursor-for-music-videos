@@ -14,7 +14,8 @@ from sqlalchemy import select, and_, or_, func, desc
 from sqlalchemy.orm import selectinload
 from sqlmodel import col
 
-from Backend.models.property import Property, PropertyUnit
+from Backend.models.property import Property
+from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant, TenantUnitLink
 from Backend.models.lease import Lease
 from Backend.models.accounting.payment import Payment

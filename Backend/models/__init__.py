@@ -8,6 +8,7 @@ from . import accounting
 # Then import other models
 from . import user
 from . import property
+from . import units
 from . import tenant
 from . import lease
 from . import maintenance
@@ -33,7 +34,8 @@ def initialize_models():
 
 # SQLModel and Enum imports from local model files
 from .user import User
-from .property import Property, PropertyUnit, PropertyType # PropertyType is in property.py
+from .property import Property, PropertyType # PropertyType is in property.py
+from .units import PropertyUnit # PropertyUnit is now in units.py
 from .lease import Lease, LeaseDocument, LeaseStatus
 from .tenant import Tenant, TenantStatus # TenantStatus is in tenant.py
 from .maintenance import MaintenanceRequest, MaintenancePriority, MaintenanceStatus

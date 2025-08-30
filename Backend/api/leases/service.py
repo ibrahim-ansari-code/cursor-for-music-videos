@@ -20,7 +20,8 @@ from Backend.api.leases.schemas import LeaseAnalysisResponse, LeaseCreate, Lease
 from Backend.database import get_session
 from Backend.models.enums import UserType
 from Backend.models.lease import Lease, LeaseDocument, LeaseStatus
-from Backend.models.property import Property, PropertyUnit
+from Backend.models.property import Property
+from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
 from Backend.utils.azure_blob import upload_lease_to_blob

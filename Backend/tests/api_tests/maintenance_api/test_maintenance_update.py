@@ -19,7 +19,8 @@ from Backend.api.maintenance.schemas import (
     TenantInfo
 )
 from Backend.models.maintenance import MaintenanceRequest
-from Backend.models.property import Property, PropertyUnit
+from Backend.models.property import Property
+from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
 from Backend.models.enums import MaintenancePriority, MaintenanceStatus, UserType

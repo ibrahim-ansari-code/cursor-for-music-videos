@@ -11,7 +11,8 @@ from fastapi import HTTPException
 
 from Backend.api.dashboard.service import DashboardService
 from Backend.api.dashboard.schemas import DashboardSummary, OccupancyData, RevenueData, PaymentDue
-from Backend.models.property import Property, PropertyUnit
+from Backend.models.property import Property
+from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant
 from Backend.models.lease import Lease
 from Backend.models.accounting.payment import Payment

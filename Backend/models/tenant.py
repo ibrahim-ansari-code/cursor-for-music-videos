@@ -14,7 +14,8 @@ from Backend.utils.datetime_utils import create_audit_datetime
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from Backend.models.lease import Lease
-    from Backend.models.property import Property, PropertyUnit
+    from Backend.models.property import Property
+    from Backend.models.units import PropertyUnit
     from Backend.models.user import User
     from Backend.models.maintenance import MaintenanceRequest
     from Backend.models.accounting.payment import Payment

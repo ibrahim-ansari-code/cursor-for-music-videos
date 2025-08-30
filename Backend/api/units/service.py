@@ -12,7 +12,8 @@ from sqlmodel import col
 
 from Backend.api.leases.schemas import LeaseResponse
 from Backend.models.lease import Lease, LeaseStatus
-from Backend.models.property import Property, PropertyUnit
+from Backend.models.property import Property
+from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
 from Backend.api.leases.service import create_lease

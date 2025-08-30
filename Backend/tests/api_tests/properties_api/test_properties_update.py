@@ -11,7 +11,8 @@ from fastapi import HTTPException
 
 from Backend.api.app import app
 from Backend.api.properties.schemas import PropertyDetailResponse_Standalone, OwnerResponse, UnitResponse, PropertyStats
-from Backend.models.property import Property, PropertyType, PropertyUnit
+from Backend.models.property import Property, PropertyType
+from Backend.models.units import PropertyUnit
 from decimal import Decimal
 from Backend.models.user import User
 from Backend.models.enums import PropertyStatus

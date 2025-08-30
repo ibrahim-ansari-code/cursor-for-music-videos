@@ -4,19 +4,15 @@ Unit tests for the units search functionality using hybrid API testing pattern.
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from fastapi import HTTPException
 
 from Backend.api.app import app
-from Backend.api.units.schemas import UnitResponse, TenantInfo, UnitSearchFilters
-from Backend.models.property import Property, PropertyUnit, PropertyType
-from Backend.models.tenant import Tenant
+from Backend.api.units.schemas import UnitSearchFilters, UnitResponse
 from Backend.models.user import User
-from Backend.models.enums import PropertyStatus
 from Backend.api.auth import get_current_user
 from Backend.database import get_session
 
