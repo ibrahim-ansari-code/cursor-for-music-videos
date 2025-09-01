@@ -17,6 +17,8 @@ build:
     VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
     VITE_SITE_URL: ${VITE_SITE_URL}
     VITE_AZURE_MAPS_KEY: ${VITE_AZURE_MAPS_KEY}
+    VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY}
+    VITE_GOOGLE_MAP_ID: ${VITE_GOOGLE_MAP_ID}
 
 # ---------- Runtime service ----------
 # This section describes how your frontend service runs after being built.
