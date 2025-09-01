@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { Check, Info } from 'lucide-react';
 import { PropertyFormData } from '@/types/property';
 import GooglePlacesAutocomplete from '../components/GooglePlacesAutocomplete';
 import PropertyMap from '../components/PropertyMap';
 import { useGoogleMaps } from '../hooks/useGoogleMaps';
+import { validateGoogleMapsEnvironment } from '@/utils/googleMapsLoader';
 
 interface LocationStepProps {
   onNext: () => void;
@@ -32,6 +33,14 @@ const LocationStep: React.FC<LocationStepProps> = ({ onNext: _onNext }) => {
     latitude && 
     longitude
   );
+
+  // Debug Google Maps environment on component mount
+  useEffect(() => {
+    const diagnostics = validateGoogleMapsEnvironment();
+    if (!diagnostics.isValid) {
+      console.error('LocationStep - Google Maps configuration issues:', diagnostics);
+    }
+  }, []);
 
 
 

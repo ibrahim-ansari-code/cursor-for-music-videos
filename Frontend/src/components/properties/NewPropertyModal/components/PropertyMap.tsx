@@ -3,6 +3,7 @@ import { GoogleMap } from '@react-google-maps/api';
 import { useFormContext } from 'react-hook-form';
 import { PropertyFormData } from '@/types/property';
 import { reverseGeocode } from '../hooks/useGoogleMaps';
+import { validateGoogleMapsEnvironment } from '@/utils/googleMapsLoader';
 import MapSkeleton from './MapSkeleton';
 
 // Global cache for marker library to avoid repeated imports
@@ -93,6 +94,16 @@ const PropertyMap: React.FC<PropertyMapProps> = React.memo(({
 
   // Map ID must be constant - define outside of useMemo to ensure consistency
   const MAP_ID = import.meta.env.VITE_GOOGLE_MAP_ID || '235a15a8eb6db4dcd6108694';
+  
+  // Debug Google Maps configuration in production (runs once per component mount)
+  useEffect(() => {
+    const diagnostics = validateGoogleMapsEnvironment();
+    if (!diagnostics.isValid) {
+      console.error('Google Maps PropertyMap diagnostics:', diagnostics);
+    } else if (import.meta.env.DEV) {
+      console.info('Google Maps PropertyMap configuration valid:', diagnostics);
+    }
+  }, []);
   
   const mapOptions: google.maps.MapOptions = useMemo(() => ({
     mapId: MAP_ID, // Required for AdvancedMarkerElement

@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   // Configure esbuild (applies to dev and build). Use this (not build.esbuildOptions).
   esbuild: {
-    drop: ['console', 'debugger'],
+    drop: ['debugger'], // Keep console.error and console.warn for production debugging
   },
   resolve: {
     alias: {

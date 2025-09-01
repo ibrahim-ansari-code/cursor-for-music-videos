@@ -21,16 +21,44 @@ const performanceMetrics = {
 const GOOGLE_MAPS_LIBRARIES = ['places', 'marker'] as any;
 
 /**
+ * Validates Google Maps environment variables
+ */
+const validateGoogleMapsConfig = (): { isValid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const mapId = import.meta.env.VITE_GOOGLE_MAP_ID;
+  
+  if (!apiKey) {
+    errors.push('VITE_GOOGLE_MAPS_API_KEY environment variable is not set');
+  } else if (apiKey.length < 20) {
+    errors.push('VITE_GOOGLE_MAPS_API_KEY appears to be invalid (too short)');
+  }
+  
+  if (!mapId) {
+    console.warn('VITE_GOOGLE_MAP_ID not set, using fallback map ID');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
+/**
  * Creates or returns the singleton Google Maps loader instance
  * Uses dynamic library loading for optimal performance
  */
 export const getGoogleMapsLoader = (): Loader => {
   if (!loaderInstance) {
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    // Validate configuration first
+    const validation = validateGoogleMapsConfig();
     
-    if (!apiKey) {
-      console.warn('Google Maps API key not found. Maps functionality will be limited.');
+    if (!validation.isValid) {
+      console.error('Google Maps configuration errors:', validation.errors);
+      // Don't throw error - let the loader fail gracefully
     }
+    
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
     
     loaderInstance = new Loader({
       apiKey: apiKey || '',
@@ -53,6 +81,14 @@ export const loadGoogleMapsAPI = async (): Promise<void> => {
   // Return existing promise if already loading
   if (loadPromise) {
     return loadPromise;
+  }
+
+  // Validate configuration before attempting to load
+  const validation = validateGoogleMapsConfig();
+  if (!validation.isValid) {
+    const error = new Error(`Google Maps configuration invalid: ${validation.errors.join(', ')}`);
+    console.error('Google Maps load failed - configuration errors:', validation.errors);
+    throw error;
   }
 
   // Start performance tracking
@@ -78,6 +114,13 @@ export const loadGoogleMapsAPI = async (): Promise<void> => {
         event_category: 'JS Dependencies',
       });
     }
+    
+    console.info('Google Maps API successfully loaded');
+  }).catch((error) => {
+    console.error('Google Maps API load failed:', error);
+    // Reset loadPromise so it can be retried
+    loadPromise = null;
+    throw error;
   });
 
   return loadPromise;
@@ -110,6 +153,29 @@ export const getPerformanceMetrics = () => ({
   ...performanceMetrics,
   isLoaded: isGoogleMapsLoaded(),
 });
+
+/**
+ * Validates Google Maps configuration and returns detailed diagnostics
+ * Useful for debugging production issues
+ */
+export const validateGoogleMapsEnvironment = () => {
+  const validation = validateGoogleMapsConfig();
+  
+  return {
+    ...validation,
+    environment: {
+      apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? '***SET***' : 'NOT_SET',
+      mapId: import.meta.env.VITE_GOOGLE_MAP_ID ? '***SET***' : 'NOT_SET',
+      isDev: import.meta.env.DEV,
+      mode: import.meta.env.MODE,
+    },
+    runtime: {
+      googleObjectExists: !!(window as any).google,
+      mapsObjectExists: !!((window as any).google?.maps),
+      isLoaded: isGoogleMapsLoaded(),
+    }
+  };
+};
 
 /**
  * Cleans up the loader instance (useful for testing)
