@@ -1,12 +1,14 @@
 import logging
 import uuid
 import functools
+import ssl
 from uuid import UUID as PythonUUID
 
 from azure.core.exceptions import ResourceExistsError
 from azure.storage.blob.aio import BlobServiceClient
 from azure.storage.blob import ContentSettings
 from fastapi import UploadFile
+import aiohttp
 
 from Backend.config import settings
 
@@ -16,8 +18,10 @@ logger = logging.getLogger(__name__)
 blob_service_client = None
 if settings.AZURE_STORAGE_CONNECTION_STRING:
     try:
+        # Use proper SSL verification - Azure Storage provides valid certificates
         blob_service_client = BlobServiceClient.from_connection_string(
-            settings.AZURE_STORAGE_CONNECTION_STRING)
+            settings.AZURE_STORAGE_CONNECTION_STRING
+        )
         logger.info("Azure Blob Service Client initialized successfully.")
     except Exception as e:
         logger.error("Failed to initialize Azure Blob Service Client: %s", e)
@@ -64,16 +68,6 @@ async def _upload_to_blob(
     blob_name = f"user_{safe_user_id}/{uuid.uuid4()}_{safe_filename_suffix}"
 
     container_client = blob_service_client.get_container_client(container_name)
-    try:
-        await container_client.create_container()
-        logger.info("Container '%s' created or already exists.",
-                    container_name)
-    except ResourceExistsError:
-        logger.debug("Container '%s' already exists.", container_name)
-    except Exception as e:
-        logger.error("Failed to create or access container '%s': %s",
-                     container_name, e)
-        raise
 
     blob_client = container_client.get_blob_client(blob_name)
 
@@ -84,7 +78,7 @@ async def _upload_to_blob(
 
     try:
         # Reset the stream's pointer to the beginning before uploading
-        file.seek(0)  # type: ignore
+        await file.seek(0)
         # Pass the underlying file-like object (UploadFile.file) for streaming
         await blob_client.upload_blob(
             data=file.file,
@@ -98,8 +92,8 @@ async def _upload_to_blob(
                      blob_name, container_name, e)
         raise
     finally:
-        # FastAPI's UploadFile exposes a synchronous close()
-        file.close()  # type: ignore
+        # FastAPI's UploadFile close() method is async and must be awaited
+        await file.close()
 
     public_url = f"{settings.AZURE_BLOB_PUBLIC_URL.rstrip('/')}/{container_name}/{blob_name}"
     logger.info("%s public URL: %s",
@@ -274,6 +268,38 @@ setattr(upload_maintenance_photo_to_blob, '__doc__', """
         Exception: If container creation or file upload fails.
 """)
 setattr(upload_maintenance_photo_to_blob, '__annotations__', {
+    'file': UploadFile,
+    'user_id': PythonUUID,
+    'return': str
+})
+
+
+# Property image upload function - follows same pattern as working expense receipts
+upload_property_image_to_blob = functools.partial(
+    _upload_to_blob,
+    container_name="property-images",
+    default_filename_prefix="property_image",
+    safe_filename_suffix_limit=100
+)
+setattr(upload_property_image_to_blob, '__doc__', """
+    Asynchronously uploads a property image file to Azure Blob Storage and returns its public URL.
+
+    Uploads the provided file to the 'property-images' container, generating a
+    unique blob name using the user ID and a UUID to prevent collisions.
+    Returns the public URL of the uploaded file.
+
+    Args:
+        file (UploadFile): The property image file to upload.
+        user_id (PythonUUID): The user identifier used to namespace the uploaded file.
+
+    Returns:
+        str: The public URL of the uploaded property image file.
+
+    Raises:
+        ConnectionError: If the Azure Blob Storage client is not initialized.
+        Exception: If file upload fails.
+""")
+setattr(upload_property_image_to_blob, '__annotations__', {
     'file': UploadFile,
     'user_id': PythonUUID,
     'return': str

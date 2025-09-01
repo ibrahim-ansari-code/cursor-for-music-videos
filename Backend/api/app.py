@@ -165,6 +165,7 @@ try:
     from Backend.api.health import router as health_router
     from Backend.api.leases.router import router as leases_router
     from Backend.api.properties.router import router as properties_router
+    from Backend.api.properties.image_router import router as property_images_router
     from Backend.api.reports import router as reports_router
     from Backend.api.tenants.router import router as tenants_router
     from Backend.api.units.router import router as units_router
@@ -175,6 +176,7 @@ try:
     # Their internal prefixes (e.g., /auth, /properties) will apply
     api_main_router.include_router(auth_router)
     api_main_router.include_router(properties_router)
+    api_main_router.include_router(property_images_router)
     api_main_router.include_router(dashboard_router)
     api_main_router.include_router(leases_router)
     # Include the new accounting router with its own base prefix

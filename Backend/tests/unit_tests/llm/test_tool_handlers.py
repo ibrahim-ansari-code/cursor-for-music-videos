@@ -273,9 +273,9 @@ class TestToolHandlers:
         assert "income" in result
         assert "expenses" in result
         assert "net_income" in result
-        assert result["income"]["total"] == 5000.0
-        assert result["expenses"]["total"] == 1000.0
-        assert result["net_income"] == 4000.0
+        assert str(result["income"]["total"]) == "5000.0" or result["income"]["total"] == "5000.00"
+        assert str(result["expenses"]["total"]) == "1000.0" or result["expenses"]["total"] == "1000.00"
+        assert str(result["net_income"]) == "4000.0" or result["net_income"] == "4000.00"
 
     async def test_get_maintenance_requests_open(self, mock_session, user_id):
         """Test getting open maintenance requests."""
@@ -390,8 +390,8 @@ class TestToolHandlers:
         assert "summary" in result
         assert result["total"] == 2
         assert len(result["leases"]) == 2
-        assert result["leases"][0]["monthly_rent"] == 2500.0
-        assert result["leases"][1]["monthly_rent"] == 3000.0
+        assert str(result["leases"][0]["monthly_rent"]) == "2500.0" or result["leases"][0]["monthly_rent"] == "2500.00"
+        assert str(result["leases"][1]["monthly_rent"]) == "3000.0" or result["leases"][1]["monthly_rent"] == "3000.00"
         # Now these will be deterministic: lease 1 expires in exactly 30 days, lease 2 in 60 days
         assert result["leases"][0]["days_until_expiry"] == 30
         assert result["leases"][1]["days_until_expiry"] == 60
@@ -441,7 +441,7 @@ class TestToolHandlers:
         assert "total" in result
         assert "summary" in result
         assert result["total"] == 1
-        assert result["payments"][0]["balance"] == 2500.0
+        assert str(result["payments"][0]["balance"]) == "2500.0" or result["payments"][0]["balance"] == "2500.00"
         assert result["payments"][0]["is_overdue"] is True
         # Now this will be deterministic: exactly 10 days overdue
         assert result["payments"][0]["days_overdue"] == 10

@@ -24,6 +24,13 @@ FILE_SIGNATURES = {
     
     # PNG files
     b'\x89\x50\x4E\x47\x0D\x0A\x1A\x0A': 'image/png',
+    
+    # WebP files (RIFF header + WEBP signature at offset 8)
+    b'RIFFWEBP': None,  # Special case - will be handled in detect function
+    
+    # GIF files
+    b'GIF87a': 'image/gif',
+    b'GIF89a': 'image/gif',
 }
 
 
@@ -40,9 +47,15 @@ def detect_file_type_by_magic(file_content: bytes) -> str | None:
     if not file_content:
         return None
     
+    # Special handling for WebP files (RIFF format)
+    if (len(file_content) >= 12 and 
+        file_content.startswith(b'RIFF') and 
+        file_content[8:12] == b'WEBP'):
+        return 'image/webp'
+    
     # Check against known file signatures
     for signature, mime_type in FILE_SIGNATURES.items():
-        if file_content.startswith(signature):
+        if mime_type is not None and file_content.startswith(signature):
             return mime_type
     
     return None

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   fetchPropertyById,
@@ -48,11 +48,7 @@ const PropertyDetail = () => {
   const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
   const [showCSVUploadModal, setShowCSVUploadModal] = useState(false);
 
-  useEffect(() => {
-    loadProperty();
-  }, [id]);
-
-  const loadProperty = async () => {
+  const loadProperty = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -86,7 +82,11 @@ const PropertyDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadProperty();
+  }, [id, loadProperty]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-US", {

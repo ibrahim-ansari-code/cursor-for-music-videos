@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
@@ -44,7 +44,7 @@ class ProductionErrorBoundary extends Component<Props, State> {
         Sentry.captureException(error, {
           contexts: {
             react: {
-              componentStack: errorInfo.componentStack
+              componentStack: errorInfo.componentStack || undefined
             }
           }
         });

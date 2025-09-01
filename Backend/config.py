@@ -11,6 +11,9 @@ load_dotenv(dotenv_path=env_path)
 
 class Settings(BaseSettings):
     """Application settings"""
+    
+    # === Environment Settings ===
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")  # development or production
 
     # === Database Settings ===
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")

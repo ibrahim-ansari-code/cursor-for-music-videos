@@ -4,6 +4,20 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+  // Configure esbuild (applies to dev and build). Use this (not build.esbuildOptions).
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "@components": path.resolve(__dirname, "./src/components"),
+      "@utils": path.resolve(__dirname, "./src/utils"),
+      "@hooks": path.resolve(__dirname, "./src/hooks"),
+      "@contexts": path.resolve(__dirname, "./src/contexts"),
+      "@types": path.resolve(__dirname, "./src/types"),
+    },
+  },
   server: {
     port: 5173,
     open: true,
@@ -81,11 +95,6 @@ export default defineConfig({
       },
     },
     chunkSizeWarningLimit: 600,
-  },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
   },
   // ✅ Fix for Vite 7.x browser compatibility
   define: {

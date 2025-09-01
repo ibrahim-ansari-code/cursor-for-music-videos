@@ -82,7 +82,7 @@ describe('Vite Chunking Strategy', () => {
 
   describe('Module Resolution', () => {
     it('should have proper path alias configuration', () => {
-      expect(viteConfig).toContain("'@': path.resolve");
+      expect(viteConfig).toContain('"@": path.resolve');
       expect(viteConfig).toContain('./src');
     });
 

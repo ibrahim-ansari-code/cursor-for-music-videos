@@ -25,3 +25,4 @@ class IntegrationType(str, Enum):
     XERO = "Xero"
     SAGE = "Sage"
     NETSUITE = "NetSuite"
+

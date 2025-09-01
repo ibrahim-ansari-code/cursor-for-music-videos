@@ -128,7 +128,7 @@ export const UnitsTableSkeleton = ({ rowCount = 6 }) => (
             {/* Status */}
             <td className="px-6 py-4 text-center w-2/12">
               <div className="flex justify-center">
-                <SkeletonBlock width="4rem" height="1.5rem" rounded="full" />
+                <SkeletonBlock width="4rem" height="1.5rem" rounded="lg" />
               </div>
             </td>
             

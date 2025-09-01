@@ -8,7 +8,7 @@ const ThrowError: React.FC<{ shouldThrow: boolean }> = ({ shouldThrow }) => {
   if (shouldThrow) {
     throw new Error('Test error');
   }
-  return <div>No error</div>;
+  return <div>Test component</div>;
 };
 
 // Mock Sentry
@@ -124,15 +124,20 @@ describe('ProductionErrorBoundary', () => {
 
   it('recovers when error is resolved', () => {
     const { rerender } = render(
-      <ProductionErrorBoundary>
+      <ProductionErrorBoundary key="error">
         <ThrowError shouldThrow={true} />
       </ProductionErrorBoundary>
     );
     
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
     
-    // Click refresh to reload
-    fireEvent.click(screen.getByRole('button', { name: /Refresh Page/i }));
-    expect(window.location.reload).toHaveBeenCalled();
+    // Rerender with new key to force ErrorBoundary reset
+    rerender(
+      <ProductionErrorBoundary key="recovered">
+        <ThrowError shouldThrow={false} />
+      </ProductionErrorBoundary>
+    );
+    
+    expect(screen.getByText('Test component')).toBeInTheDocument();
   });
 });

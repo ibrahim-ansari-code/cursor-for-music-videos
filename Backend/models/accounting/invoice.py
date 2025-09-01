@@ -65,3 +65,4 @@ class Invoice(SQLModel, table=True):
 
     property: Optional["Property"] = Relationship(back_populates="invoices")
     tenant: Optional["Tenant"] = Relationship(back_populates="invoices")
+

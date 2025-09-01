@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Numeric, Index, Integer, String, Float, Boolean
+from sqlalchemy import DateTime, Numeric, Index, Integer
 from sqlalchemy import ForeignKey
 from sqlmodel import Column, Field, Relationship, SQLModel
 
@@ -81,3 +81,4 @@ class PropertyUnit(SQLModel, table=True):
         back_populates="unit",
         sa_relationship_kwargs={'cascade': 'all, delete-orphan'}
     )
+

@@ -379,7 +379,7 @@ async def get_outstanding_payments_for_month(
         )
 
         # Apply the status filter to include both PENDING and OVERDUE
-        query = query.filter(
+        query = query.where(
             col(Payment.status).in_(OUTSTANDING_PAYMENT_STATUSES)
         )
 
@@ -675,7 +675,7 @@ async def import_payments_from_csv(
         tenants,
         active_leases,
         str(current_user.id),
-        current_user.user_type.value
+        current_user.user_type.value  # Convert enum to string value
     )
     
     # Check for duplicates

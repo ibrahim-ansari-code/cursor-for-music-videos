@@ -256,3 +256,4 @@ class Expense(SQLModel, table=True):
         lambda cls: cast(cls.subtotal_amount +
                          cls.total_tax_amount, Numeric(12, 2))
     )
+

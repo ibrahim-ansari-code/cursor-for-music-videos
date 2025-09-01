@@ -137,3 +137,4 @@ class Payment(SQLModel, table=True):
         if self.reduction_amount is not None and self.reduction_amount > 0 and not self.reduction_reason:
             raise ValueError("Reduction reason is required when reduction amount is provided")
         return self
+

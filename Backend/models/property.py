@@ -1,12 +1,11 @@
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional, Dict, Any
 from uuid import UUID as PythonUUID
-from decimal import Decimal
 
-from sqlalchemy import DateTime, Numeric, Index
+from sqlalchemy import DateTime, Index, JSON
 from sqlalchemy import Enum as PgEnum
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, String, Float
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Column, Field, Relationship, SQLModel
 
@@ -61,6 +60,22 @@ class Property(SQLModel, table=True):
                          create_constraint=True), nullable=False, default=PropertyStatus.ACTIVE),
         description="Status of the property (enum: ACTIVE, INACTIVE, DRAFT, ARCHIVED)"
     )
+    
+    # Google Maps fields
+    latitude: Optional[float] = Field(default=None, sa_column=Column(
+        Float), description="Latitude coordinate for property location")
+    longitude: Optional[float] = Field(default=None, sa_column=Column(
+        Float), description="Longitude coordinate for property location")
+    place_id: Optional[str] = Field(default=None, sa_column=Column(
+        String(255)), description="Google Maps Place ID")
+    formatted_address: Optional[str] = Field(default=None, sa_column=Column(
+        String(500)), description="Google Maps formatted address")
+    google_maps_data: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(
+        JSON), description="Additional Google Maps metadata")
+    
+    # Property type-specific details (JSONB column for flexible storage)
+    property_details: Optional[Dict[str, Any]] = Field(default_factory=dict, sa_column=Column(
+        JSON), description="Type-specific property details stored as JSON")
 
     # Foreign keys
     user_id: PythonUUID = Field(
@@ -86,6 +101,12 @@ class Property(SQLModel, table=True):
 
     # Configure cascade delete for units
     units: list["PropertyUnit"] = Relationship(
+        back_populates="property",
+        sa_relationship_kwargs={'cascade': 'all, delete-orphan'}
+    )
+    
+    # Configure cascade delete for images
+    images: list["PropertyImage"] = Relationship(
         back_populates="property",
         sa_relationship_kwargs={'cascade': 'all, delete-orphan'}
     )
@@ -117,3 +138,34 @@ class Property(SQLModel, table=True):
     )
 
     __table_args__ = (Index("ix_properties_user_id", "user_id"),)
+
+class PropertyImage(SQLModel, table=True):
+    """Property image model for storing property photos and documents"""
+    
+    __tablename__ = "property_images"  # type: ignore
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    property_id: int = Field(foreign_key="properties.id", description="Property this image belongs to", ondelete="CASCADE")
+    image_url: str = Field(sa_column=Column(String(500)), description="URL to the image in storage")
+    image_type: str = Field(default="photo", sa_column=Column(String(50)), 
+                           description="Type of image: photo, floorplan, document")
+    is_primary: bool = Field(default=False, description="Is this the primary/featured image")
+    caption: Optional[str] = Field(default=None, sa_column=Column(String(255)), 
+                                  description="Optional caption for the image")
+    display_order: int = Field(default=0, description="Order for displaying images")
+    
+    # Timestamps
+    created_at: datetime = Field(
+        default_factory=create_audit_datetime,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+        description="Creation timestamp"
+    )
+    updated_at: datetime = Field(
+        default_factory=create_audit_datetime,
+        sa_column=Column(DateTime(timezone=True), nullable=False, onupdate=create_audit_datetime),
+        description="Last update timestamp"
+    )
+    
+    # Relationships
+    property: Optional["Property"] = Relationship(back_populates="images")
+

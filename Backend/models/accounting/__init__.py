@@ -30,4 +30,4 @@ __all__ = [
 # Update forward references for all models in this module
 for model in __all__:
     if hasattr(locals()[model], "model_rebuild"):
-        locals()[model].model_rebuild() 
+        locals()[model].model_rebuild()

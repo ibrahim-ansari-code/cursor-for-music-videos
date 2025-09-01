@@ -128,7 +128,7 @@ class TestPreparePaymentBatch:
         assert len(errors) == 0
         assert valid_payments[0]["lease_id"] == 10
         assert valid_payments[0]["tenant_id"] == 1
-        assert valid_payments[0]["amount"] == 1000.00
+        assert valid_payments[0]["amount"] == Decimal("1000.00")
 
     def test_prepare_payment_batch_tenant_not_found(self):
         """Test preparation with tenant not found."""

@@ -126,7 +126,7 @@ class TestPrepareInvoiceBatch:
         assert valid_invoices[0]["property_id"] == 1
         assert valid_invoices[0]["tenant_id"] == 1
         assert valid_invoices[0]["invoice_number"] == "INV-001"
-        assert valid_invoices[0]["amount"] == 1000.00
+        assert valid_invoices[0]["amount"] == Decimal("1000.00")
 
     def test_prepare_invoice_batch_property_not_found(self):
         """Test preparation with property not found."""

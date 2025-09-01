@@ -240,7 +240,8 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
         event.preventDefault();
         event.stopPropagation();
 
-        const file = event.target.files[0];
+        const files = event.target?.files;
+        const file = files && files.length > 0 ? files[0] : null;
         if (!file) return;
 
         // Validate file

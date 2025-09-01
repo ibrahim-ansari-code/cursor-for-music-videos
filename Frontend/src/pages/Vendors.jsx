@@ -77,7 +77,12 @@ const Vendors = () => {
   };
 
   const handleFileChange = (e) => {
-    setUploadFile(e.target.files[0]);
+    const files = e.target?.files;
+    if (files && files.length > 0) {
+      setUploadFile(files[0]);
+    } else {
+      setUploadFile(null);
+    }
   };
 
   const handleUploadDocument = async (e) => {

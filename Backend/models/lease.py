@@ -113,3 +113,4 @@ class LeaseDocument(SQLModel, table=True):
     # Relationships
     lease: "Lease" = Relationship(back_populates="documents")
     uploaded_by: "User" = Relationship()
+

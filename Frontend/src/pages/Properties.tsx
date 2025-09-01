@@ -1,29 +1,64 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { fetchPropertyById } from "../utils/api";
-import NewPropertyModal from "../components/NewPropertyModal";
-import { PropertiesTableSkeleton } from "../components/ui/skeletons";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import useProperties from "../hooks/useProperties";
-import { 
-  useCreateProperty, 
-  useUpdateProperty, 
-  useDeleteProperty 
-} from "../hooks/usePropertiesMutations";
+import React, { useState, useEffect, useRef, useMemo, MouseEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { fetchPropertyById } from '../utils/api';
+import NewPropertyModal from '../components/properties/NewPropertyModal';
+import { PropertiesTableSkeleton } from '../components/ui/skeletons';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import useProperties from '../hooks/useProperties';
+import { useDeleteProperty } from '../hooks/usePropertiesMutations';
+import { preloadGoogleMaps } from '../utils/googleMapsLoader';
+import { Property, PropertyStatus } from '../types/property';
 
 // Utility functions
-// Capitalize first letter of string
-const capitalize = (str) => {
-  if (!str) return "";
+const capitalize = (str: string): string => {
+  if (!str) return '';
   return str.charAt(0).toUpperCase() + str.slice(1);
 };
 
-const StatusCard = ({
+// Component Props Types
+interface StatusCardProps {
+  title: string;
+  count: number;
+  bgColor?: string;
+  textColor?: string;
+  onClick: () => void;
+  icon: React.ReactNode;
+  isLoading?: boolean;
+}
+
+interface StatusBadgeProps {
+  status: string;
+}
+
+interface PropertyTableProps {
+  properties: Property[];
+  loading: boolean;
+  error: string | null;
+  onDelete: (propertyId: number) => void;
+  onEdit: (propertyId: number) => void;
+}
+
+interface FilterOptions {
+  propertyType: string | null;
+  status: string | null;
+  dateAdded: string | null;
+}
+
+interface StatusCounts {
+  ACTIVE: number;
+  MAINTENANCE: number;
+  VACANT: number;
+  total: number;
+  [key: string]: number; // Index signature for dynamic access
+}
+
+// Status Card Component
+const StatusCard: React.FC<StatusCardProps> = ({
   title,
   count,
-  bgColor = "bg-white",
-  textColor = "text-gray-900",
+  bgColor = 'bg-white',
+  textColor = 'text-gray-900',
   onClick,
   icon,
   isLoading = false,
@@ -54,17 +89,18 @@ const StatusCard = ({
   </div>
 );
 
-const StatusBadge = ({ status }) => {
-  const statusStyles = {
-    ACTIVE: "bg-green-50 text-green-700",
-    MAINTENANCE: "bg-orange-50 text-orange-700",
-    VACANT: "bg-yellow-50 text-yellow-700",
+// Status Badge Component
+const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
+  const statusStyles: Record<string, string> = {
+    ACTIVE: 'bg-green-50 text-green-700',
+    MAINTENANCE: 'bg-orange-50 text-orange-700',
+    VACANT: 'bg-yellow-50 text-yellow-700',
   };
 
   return (
     <span
       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-        statusStyles[status.toUpperCase()] || "bg-gray-100 text-gray-800"
+        statusStyles[status.toUpperCase()] || 'bg-gray-100 text-gray-800'
       }`}
     >
       <span className="w-1.5 h-1.5 mr-1.5 rounded-full bg-current"></span>
@@ -73,7 +109,14 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
+// Property Table Component
+const PropertyTable: React.FC<PropertyTableProps> = ({ 
+  properties, 
+  loading, 
+  error, 
+  onDelete, 
+  onEdit 
+}) => {
   const navigate = useNavigate();
 
   if (loading) return <PropertiesTableSkeleton rowCount={8} />;
@@ -119,14 +162,14 @@ const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
   }
 
   // Generate image placeholder based on property name
-  const getImageInitial = (name) => {
-    if (!name) return "";
+  const getImageInitial = (name: string): string => {
+    if (!name) return '';
     return name.charAt(0).toUpperCase();
   };
 
-  const handleDelete = (e, propertyId) => {
+  const handleDelete = (e: MouseEvent<HTMLButtonElement>, propertyId: number) => {
     e.stopPropagation();
-    if (window.confirm("Are you sure you want to delete this property?")) {
+    if (window.confirm('Are you sure you want to delete this property?')) {
       onDelete(propertyId);
     }
   };
@@ -199,18 +242,18 @@ const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                 <div
                   className="max-w-xs truncate mx-auto"
-                  title={`${property.address}, ${property.city}, ${property.state}`}
+                  title={`${property.address}, ${property.city}, ${property.province}`}
                 >
-                  {property.address}, {property.city}, {property.state}
+                  {property.address}, {property.city}, {property.province}
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-center">
                 <div className="flex justify-center">
-                  <StatusBadge status={property.status || "ACTIVE"} />
+                  <StatusBadge status={property.status || PropertyStatus.ACTIVE} />
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                {new Date(property.created_at).toLocaleDateString()}
+                {property.created_at && new Date(property.created_at).toLocaleDateString()}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                 <div className="flex justify-center space-x-3">
@@ -226,14 +269,14 @@ const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEdit(property.id);
+                      property.id && onEdit(property.id);
                     }}
                     className="text-blue-600 hover:text-blue-900"
                   >
                     Edit
                   </button>
                   <button
-                    onClick={(e) => handleDelete(e, property.id)}
+                    onClick={(e) => property.id && handleDelete(e, property.id)}
                     className="text-red-600 hover:text-red-900"
                   >
                     Delete
@@ -248,28 +291,25 @@ const PropertyTable = ({ properties, loading, error, onDelete, onEdit }) => {
   );
 };
 
-const Properties = () => {
-  const navigate = useNavigate();
+// Main Properties Component
+const Properties: React.FC = () => {
   
   // Use standardized useProperties hook
   const { properties, loading, error } = useProperties();
   
   // Mutation hooks
-  const createPropertyMutation = useCreateProperty();
-  const updatePropertyMutation = useUpdateProperty();
   const deletePropertyMutation = useDeleteProperty();
   
   // Local UI state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentProperty, setCurrentProperty] = useState(null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentProperty, setCurrentProperty] = useState<Property | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [sortOption, setSortOption] = useState(null);
+  const [sortOption, setSortOption] = useState<string | null>(null);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [filterOptions, setFilterOptions] = useState({
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     propertyType: null,
     status: null,
     dateAdded: null,
@@ -285,7 +325,7 @@ const Properties = () => {
     if (statusFilter) {
       result = result.filter(
         (p) =>
-          (p.status || "ACTIVE").toUpperCase() === statusFilter.toUpperCase()
+          (p.status || PropertyStatus.ACTIVE).toUpperCase() === statusFilter.toUpperCase()
       );
     }
 
@@ -312,8 +352,8 @@ const Properties = () => {
     if (filterOptions.status) {
       result = result.filter(
         (p) =>
-          (p.status || "ACTIVE").toUpperCase() ===
-          filterOptions.status.toUpperCase()
+          (p.status || PropertyStatus.ACTIVE).toUpperCase() ===
+          filterOptions.status?.toUpperCase()
       );
     }
 
@@ -323,46 +363,50 @@ const Properties = () => {
       const cutoffDate = new Date();
 
       switch (filterOptions.dateAdded) {
-        case "last-week":
+        case 'last-week':
           cutoffDate.setDate(now.getDate() - 7);
           break;
-        case "last-month":
+        case 'last-month':
           cutoffDate.setMonth(now.getMonth() - 1);
           break;
-        case "last-year":
+        case 'last-year':
           cutoffDate.setFullYear(now.getFullYear() - 1);
           break;
         default:
           break;
       }
 
-      result = result.filter((p) => new Date(p.created_at) >= cutoffDate);
+      result = result.filter((p) => 
+        p.created_at && new Date(p.created_at) >= cutoffDate
+      );
     }
 
     // Apply sorting
     if (sortOption) {
       result.sort((a, b) => {
         switch (sortOption) {
-          case "name-asc":
+          case 'name-asc':
             return a.name.localeCompare(b.name);
-          case "name-desc":
+          case 'name-desc':
             return b.name.localeCompare(a.name);
-          case "type-asc":
+          case 'type-asc':
             return a.property_type.localeCompare(b.property_type);
-          case "type-desc":
+          case 'type-desc':
             return b.property_type.localeCompare(a.property_type);
-          case "status-asc":
-            return (a.status || "ACTIVE")
+          case 'status-asc':
+            return (a.status || PropertyStatus.ACTIVE)
               .toUpperCase()
-              .localeCompare((b.status || "ACTIVE").toUpperCase());
-          case "status-desc":
-            return (b.status || "ACTIVE")
+              .localeCompare((b.status || PropertyStatus.ACTIVE).toUpperCase());
+          case 'status-desc':
+            return (b.status || PropertyStatus.ACTIVE)
               .toUpperCase()
-              .localeCompare((a.status || "ACTIVE").toUpperCase());
-          case "date-asc":
-            return new Date(a.created_at) - new Date(b.created_at);
-          case "date-desc":
-            return new Date(b.created_at) - new Date(a.created_at);
+              .localeCompare((a.status || PropertyStatus.ACTIVE).toUpperCase());
+          case 'date-asc':
+            return (a.created_at ? new Date(a.created_at).getTime() : 0) - 
+                   (b.created_at ? new Date(b.created_at).getTime() : 0);
+          case 'date-desc':
+            return (b.created_at ? new Date(b.created_at).getTime() : 0) - 
+                   (a.created_at ? new Date(a.created_at).getTime() : 0);
           default:
             return 0;
         }
@@ -374,10 +418,10 @@ const Properties = () => {
 
   // Memoized status counts
   const statusCounts = useMemo(() => {
-    return filteredProperties.reduce(
+    return filteredProperties.reduce<StatusCounts>(
       (acc, property) => {
         acc.total++;
-        const status = (property.status || "ACTIVE").toUpperCase();
+        const status = (property.status || PropertyStatus.ACTIVE).toUpperCase();
         acc[status] = (acc[status] || 0) + 1;
         return acc;
       },
@@ -391,101 +435,50 @@ const Properties = () => {
   }, [filteredProperties]);
 
   // Refs for clicking outside filter/sort menus
-  const filterMenuRef = useRef(null);
-  const sortMenuRef = useRef(null);
-
-
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+  const sortMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Close menus when clicking outside
-    function handleClickOutside(event) {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
       if (
         filterMenuRef.current &&
-        !filterMenuRef.current.contains(event.target)
+        !filterMenuRef.current.contains(target)
       ) {
         setShowFilterMenu(false);
       }
-      if (sortMenuRef.current && !sortMenuRef.current.contains(event.target)) {
+      if (sortMenuRef.current && !sortMenuRef.current.contains(target)) {
         setShowSortMenu(false);
       }
     }
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside as any);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside as any);
     };
   }, []);
 
 
-
-  const handleCreateProperty = async (propertyData) => {
-    setIsSubmitting(true);
+  const handleEditProperty = async (propertyId: number) => {
     try {
-      let result;
-      let updatedProperties; // Declare here to be accessible for both branches
-
-      if (isEditing && currentProperty) {
-        console.log(
-          "[handleCreateProperty - Edit] Updating property:",
-          currentProperty.id,
-          "with data:",
-          propertyData
-        );
-        // Update existing property
-        result = await updatePropertyMutation.mutateAsync({ 
-          propertyId: currentProperty.id, 
-          propertyData 
-        });
-        console.log("[handleCreateProperty - Edit] API Response:", result);
-        toast.success("Property updated successfully");
-      } else {
-        console.log(
-          "[handleCreateProperty - Create] Creating property with data:",
-          propertyData
-        );
-        // Create new property
-        result = await createPropertyMutation.mutateAsync(propertyData);
-        console.log("[handleCreateProperty - Create] API Response:", result);
-        toast.success("Property created successfully");
-      }
-
-      // Reset state and close modal
-      setIsModalOpen(false);
-      setCurrentProperty(null);
-      setIsEditing(false);
-
-
-      return result;
-    } catch (error) {
-      console.error("Error saving property:", error);
-      throw error;
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleEditProperty = async (propertyId) => {
-    try {
-      setLoading(true);
       const property = await fetchPropertyById(propertyId);
       setCurrentProperty(property);
       setIsEditing(true);
       setIsModalOpen(true);
     } catch (error) {
-      console.error("Error fetching property details:", error);
-      toast.error("Failed to load property details");
-    } finally {
-      setLoading(false);
+      console.error('Error fetching property details:', error);
+      toast.error('Failed to load property details');
     }
   };
 
-  const handleStatusCardClick = (status) => {
+  const handleStatusCardClick = (status: string) => {
     setStatusFilter(
       status.toUpperCase() === statusFilter ? null : status.toUpperCase()
     );
   };
 
-  const handleSearch = (e) => {
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
 
@@ -496,18 +489,18 @@ const Properties = () => {
       dateAdded: null,
     });
     setStatusFilter(null);
-    setSearchTerm("");
+    setSearchTerm('');
     setSortOption(null);
   };
 
-  const handleDeleteProperty = async (propertyId) => {
+  const handleDeleteProperty = async (propertyId: number) => {
     try {
       console.log(`[handleDeleteProperty] Deleting property ID: ${propertyId}`);
       await deletePropertyMutation.mutateAsync(propertyId);
-      toast.success("Property was successfully deleted");
-    } catch (error) {
-      console.error("Error deleting property:", error);
-      toast.error(error.message || "Failed to delete property. Please try again.");
+      toast.success('Property was successfully deleted');
+    } catch (error: any) {
+      console.error('Error deleting property:', error);
+      toast.error(error.message || 'Failed to delete property. Please try again.');
     }
   };
 
@@ -521,14 +514,14 @@ const Properties = () => {
     setShowFilterMenu(false);
   };
 
-  const handleFilterSelect = (type, value) => {
+  const handleFilterSelect = (type: keyof FilterOptions, value: string) => {
     setFilterOptions((prev) => ({
       ...prev,
       [type]: value === prev[type] ? null : value,
     }));
   };
 
-  const handleSortSelect = (option) => {
+  const handleSortSelect = (option: string) => {
     setSortOption(option === sortOption ? null : option);
     setShowSortMenu(false);
   };
@@ -540,9 +533,9 @@ const Properties = () => {
         <StatusCard
           title="Active"
           count={statusCounts.ACTIVE}
-          bgColor={statusFilter === "ACTIVE" ? "bg-green-100" : "bg-green-50"}
+          bgColor={statusFilter === 'ACTIVE' ? 'bg-green-100' : 'bg-green-50'}
           textColor="text-green-600"
-          onClick={() => handleStatusCardClick("ACTIVE")}
+          onClick={() => handleStatusCardClick('ACTIVE')}
           isLoading={loading && properties.length === 0}
           icon={
             <svg
@@ -565,10 +558,10 @@ const Properties = () => {
           title="In-maintenance"
           count={statusCounts.MAINTENANCE}
           bgColor={
-            statusFilter === "MAINTENANCE" ? "bg-orange-100" : "bg-orange-50"
+            statusFilter === 'MAINTENANCE' ? 'bg-orange-100' : 'bg-orange-50'
           }
           textColor="text-orange-600"
-          onClick={() => handleStatusCardClick("MAINTENANCE")}
+          onClick={() => handleStatusCardClick('MAINTENANCE')}
           isLoading={loading && properties.length === 0}
           icon={
             <svg
@@ -590,9 +583,9 @@ const Properties = () => {
         <StatusCard
           title="Vacant"
           count={statusCounts.VACANT}
-          bgColor={statusFilter === "VACANT" ? "bg-yellow-100" : "bg-yellow-50"}
+          bgColor={statusFilter === 'VACANT' ? 'bg-yellow-100' : 'bg-yellow-50'}
           textColor="text-yellow-600"
-          onClick={() => handleStatusCardClick("VACANT")}
+          onClick={() => handleStatusCardClick('VACANT')}
           isLoading={loading && properties.length === 0}
           icon={
             <svg
@@ -635,7 +628,6 @@ const Properties = () => {
         />
       </div>
 
-
       {/* Properties Table */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="p-4 border-b border-gray-200">
@@ -670,12 +662,12 @@ const Properties = () => {
                   )}
                   {filterOptions.dateAdded && (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                      Date:{" "}
-                      {filterOptions.dateAdded === "last-week"
-                        ? "Last week"
-                        : filterOptions.dateAdded === "last-month"
-                        ? "Last month"
-                        : "Last year"}
+                      Date:{' '}
+                      {filterOptions.dateAdded === 'last-week'
+                        ? 'Last week'
+                        : filterOptions.dateAdded === 'last-month'
+                        ? 'Last month'
+                        : 'Last year'}
                     </span>
                   )}
                   <button
@@ -690,6 +682,8 @@ const Properties = () => {
               <button
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
                 onClick={() => setIsModalOpen(true)}
+                onMouseEnter={() => preloadGoogleMaps()}
+                onFocus={() => preloadGoogleMaps()}
               >
                 <i className="fas fa-plus"></i>
                 Add new property
@@ -701,8 +695,8 @@ const Properties = () => {
                   onClick={handleFilterToggle}
                   className={`inline-flex items-center px-4 py-2 border rounded-lg shadow-sm text-sm font-medium ${
                     Object.values(filterOptions).some((val) => val !== null)
-                      ? "bg-blue-50 text-blue-700 border-blue-300"
-                      : "text-gray-700 bg-white border-gray-300"
+                      ? 'bg-blue-50 text-blue-700 border-blue-300'
+                      : 'text-gray-700 bg-white border-gray-300'
                   } hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
                 >
                   <i className="fas fa-filter mr-2"></i>
@@ -717,24 +711,24 @@ const Properties = () => {
                       </h3>
                       <div className="space-y-1">
                         {[
-                          "Residential",
-                          "Commercial",
-                          "Industrial",
-                          "Mixed-Use",
-                          "Apartment Complex",
-                          "Land",
-                          "Special Purpose",
-                          "Other",
+                          'Residential',
+                          'Commercial',
+                          'Industrial',
+                          'Mixed-Use',
+                          'Apartment Complex',
+                          'Land',
+                          'Special Purpose',
+                          'Other',
                         ].map((type) => (
                           <button
                             key={type}
                             onClick={() =>
-                              handleFilterSelect("propertyType", type)
+                              handleFilterSelect('propertyType', type)
                             }
                             className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
                               filterOptions.propertyType === type
-                                ? "bg-blue-100 text-blue-800"
-                                : "text-gray-700 hover:bg-gray-100"
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'text-gray-700 hover:bg-gray-100'
                             }`}
                           >
                             {filterOptions.propertyType === type && (
@@ -761,14 +755,14 @@ const Properties = () => {
                         Status
                       </h3>
                       <div className="space-y-1">
-                        {["ACTIVE", "MAINTENANCE", "VACANT"].map((status) => (
+                        {['ACTIVE', 'MAINTENANCE', 'VACANT'].map((status) => (
                           <button
                             key={status}
-                            onClick={() => handleFilterSelect("status", status)}
+                            onClick={() => handleFilterSelect('status', status)}
                             className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
                               filterOptions.status === status
-                                ? "bg-blue-100 text-blue-800"
-                                : "text-gray-700 hover:bg-gray-100"
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'text-gray-700 hover:bg-gray-100'
                             }`}
                           >
                             {filterOptions.status === status && (
@@ -796,19 +790,19 @@ const Properties = () => {
                       </h3>
                       <div className="space-y-1">
                         {[
-                          { id: "last-week", label: "Last Week" },
-                          { id: "last-month", label: "Last Month" },
-                          { id: "last-year", label: "Last Year" },
+                          { id: 'last-week', label: 'Last Week' },
+                          { id: 'last-month', label: 'Last Month' },
+                          { id: 'last-year', label: 'Last Year' },
                         ].map((option) => (
                           <button
                             key={option.id}
                             onClick={() =>
-                              handleFilterSelect("dateAdded", option.id)
+                              handleFilterSelect('dateAdded', option.id)
                             }
                             className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
                               filterOptions.dateAdded === option.id
-                                ? "bg-blue-100 text-blue-800"
-                                : "text-gray-700 hover:bg-gray-100"
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'text-gray-700 hover:bg-gray-100'
                             }`}
                           >
                             {filterOptions.dateAdded === option.id && (
@@ -849,8 +843,8 @@ const Properties = () => {
                   onClick={handleSortToggle}
                   className={`inline-flex items-center px-4 py-2 border rounded-lg shadow-sm text-sm font-medium ${
                     sortOption
-                      ? "bg-blue-50 text-blue-700 border-blue-300"
-                      : "text-gray-700 bg-white border-gray-300"
+                      ? 'bg-blue-50 text-blue-700 border-blue-300'
+                      : 'text-gray-700 bg-white border-gray-300'
                   } hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
                 >
                   <i className="fas fa-sort mr-2"></i>
@@ -865,21 +859,21 @@ const Properties = () => {
                       </h3>
                       <div className="space-y-1">
                         <button
-                          onClick={() => handleSortSelect("name-asc")}
+                          onClick={() => handleSortSelect('name-asc')}
                           className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
-                            sortOption === "name-asc"
-                              ? "bg-blue-100 text-blue-800"
-                              : "text-gray-700 hover:bg-gray-100"
+                            sortOption === 'name-asc'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'text-gray-700 hover:bg-gray-100'
                           }`}
                         >
                           <i className="fas fa-sort-alpha-down mr-2"></i>A to Z
                         </button>
                         <button
-                          onClick={() => handleSortSelect("name-desc")}
+                          onClick={() => handleSortSelect('name-desc')}
                           className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
-                            sortOption === "name-desc"
-                              ? "bg-blue-100 text-blue-800"
-                              : "text-gray-700 hover:bg-gray-100"
+                            sortOption === 'name-desc'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'text-gray-700 hover:bg-gray-100'
                           }`}
                         >
                           <i className="fas fa-sort-alpha-down-alt mr-2"></i>Z
@@ -894,21 +888,21 @@ const Properties = () => {
                       </h3>
                       <div className="space-y-1">
                         <button
-                          onClick={() => handleSortSelect("type-asc")}
+                          onClick={() => handleSortSelect('type-asc')}
                           className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
-                            sortOption === "type-asc"
-                              ? "bg-blue-100 text-blue-800"
-                              : "text-gray-700 hover:bg-gray-100"
+                            sortOption === 'type-asc'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'text-gray-700 hover:bg-gray-100'
                           }`}
                         >
                           <i className="fas fa-sort-alpha-down mr-2"></i>A to Z
                         </button>
                         <button
-                          onClick={() => handleSortSelect("type-desc")}
+                          onClick={() => handleSortSelect('type-desc')}
                           className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
-                            sortOption === "type-desc"
-                              ? "bg-blue-100 text-blue-800"
-                              : "text-gray-700 hover:bg-gray-100"
+                            sortOption === 'type-desc'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'text-gray-700 hover:bg-gray-100'
                           }`}
                         >
                           <i className="fas fa-sort-alpha-down-alt mr-2"></i>Z
@@ -923,22 +917,22 @@ const Properties = () => {
                       </h3>
                       <div className="space-y-1">
                         <button
-                          onClick={() => handleSortSelect("date-desc")}
+                          onClick={() => handleSortSelect('date-desc')}
                           className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
-                            sortOption === "date-desc"
-                              ? "bg-blue-100 text-blue-800"
-                              : "text-gray-700 hover:bg-gray-100"
+                            sortOption === 'date-desc'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'text-gray-700 hover:bg-gray-100'
                           }`}
                         >
                           <i className="fas fa-sort-numeric-down-alt mr-2"></i>
                           Newest First
                         </button>
                         <button
-                          onClick={() => handleSortSelect("date-asc")}
+                          onClick={() => handleSortSelect('date-asc')}
                           className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
-                            sortOption === "date-asc"
-                              ? "bg-blue-100 text-blue-800"
-                              : "text-gray-700 hover:bg-gray-100"
+                            sortOption === 'date-asc'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'text-gray-700 hover:bg-gray-100'
                           }`}
                         >
                           <i className="fas fa-sort-numeric-down mr-2"></i>
@@ -969,9 +963,7 @@ const Properties = () => {
           setCurrentProperty(null);
           setIsEditing(false);
         }}
-        onSubmit={handleCreateProperty}
-        isLoading={isSubmitting}
-        propertyData={currentProperty}
+        propertyData={currentProperty as Record<string, unknown> | null}
         isEditing={isEditing}
       />
 

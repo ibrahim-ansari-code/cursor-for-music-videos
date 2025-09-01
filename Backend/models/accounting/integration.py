@@ -112,3 +112,4 @@ class Integration(SQLModel, table=True):
             return cls.MAX_ERROR_COUNT
         
         return max(0, v_int)  # Ensure non-negative
+

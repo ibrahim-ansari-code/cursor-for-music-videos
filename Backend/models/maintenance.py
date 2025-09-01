@@ -83,3 +83,4 @@ class MaintenanceRequest(SQLModel, table=True):
         back_populates="maintenance_requests")
     user: Optional["User"] = Relationship(
         back_populates="maintenance_requests")
+

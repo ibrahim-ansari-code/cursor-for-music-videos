@@ -41,3 +41,4 @@ class ReportResponse(BaseModel):
     summary: ReportSummary
     financial_table: list[FinancialTableRow]
     income_by_property: list[IncomeByProperty]
+

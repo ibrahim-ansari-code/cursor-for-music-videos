@@ -9,10 +9,9 @@ from Backend.api.auth import get_current_user
 from Backend.database import get_session
 from Backend.models.enums import PropertyStatus
 from Backend.models.user import User
-
 from .schemas import (
     PropertyCreate,
-    PropertyDetailResponse_Standalone,
+    PropertyDetailResponse,
     PropertyResponse,
     PropertyUpdate,
 )
@@ -26,7 +25,7 @@ router = APIRouter(
 )
 
 
-@router.get("/{property_id}", response_model=PropertyDetailResponse_Standalone)
+@router.get("/{property_id}", response_model=PropertyDetailResponse)
 async def get_property(
     property_id: int,
     current_user: User = Depends(get_current_user),
@@ -79,7 +78,7 @@ async def get_properties(
 
 @router.post(
     "/",
-    response_model=PropertyDetailResponse_Standalone,
+    response_model=PropertyDetailResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_property(
@@ -94,6 +93,10 @@ async def create_property(
         return await PropertyService.create_property(
             property_data, current_user, session
         )
+    except HTTPException:
+        # Let HTTPException pass through (for validation errors, etc.)
+        await session.rollback()
+        raise
     except Exception as e:
         await session.rollback()
         logger.exception("Error creating property")
@@ -103,7 +106,7 @@ async def create_property(
         )
 
 
-@router.put("/{property_id}", response_model=PropertyDetailResponse_Standalone)
+@router.put("/{property_id}", response_model=PropertyDetailResponse)
 async def update_property(
     property_id: int,
     property_data: PropertyUpdate,

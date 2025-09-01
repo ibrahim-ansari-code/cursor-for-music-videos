@@ -67,3 +67,4 @@ class UserAgentThread(SQLModel, table=True):
         sa_column=Column(JSON),
         description="Additional metadata about the conversation"
     )
+

@@ -21,7 +21,8 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
         event.preventDefault();
         event.stopPropagation();
 
-        const file = event.target.files[0];
+        const files = event.target?.files;
+        const file = files && files.length > 0 ? files[0] : null;
         if (!file) return;
 
         console.log("File selected:", file.name, file.size);

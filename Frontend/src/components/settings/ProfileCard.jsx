@@ -32,7 +32,8 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
   };
 
   const handleAvatarChange = (e) => {
-    const file = e.target.files[0];
+    const files = e.target?.files;
+    const file = files && files.length > 0 ? files[0] : null;
     setAvatarLoadError(false);
     
     if (file && ["image/jpeg", "image/png"].includes(file.type)) {

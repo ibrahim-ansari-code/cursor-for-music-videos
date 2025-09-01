@@ -2,6 +2,11 @@
 import { apiRequest } from './core';
 
 /**
+ * @typedef {import('../../types/property').PropertyCreatePayload} PropertyCreatePayload
+ * @typedef {import('../../types/property').PropertyUpdatePayload} PropertyUpdatePayload
+ */
+
+/**
  * Fetches properties from the API.
  * @param {object} params - Query parameters for filtering properties.
  * @param {object} [options={}] - Optional request options, e.g., for AbortController.
@@ -24,6 +29,9 @@ export const fetchPropertyById = async (propertyId) => {
   return apiRequest(`/properties/${propertyId}`);
 };
 
+/**
+ * @param {PropertyCreatePayload} propertyData
+ */
 export const createProperty = async (propertyData) => {
   return apiRequest("/properties/", {
     method: "POST",
@@ -31,6 +39,10 @@ export const createProperty = async (propertyData) => {
   });
 };
 
+/**
+ * @param {number} propertyId
+ * @param {PropertyUpdatePayload} propertyData
+ */
 export const updateProperty = async (propertyId, propertyData) => {
   return apiRequest(`/properties/${propertyId}`, {
     method: "PUT",

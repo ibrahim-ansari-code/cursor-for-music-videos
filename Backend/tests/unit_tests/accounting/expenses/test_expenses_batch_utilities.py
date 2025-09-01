@@ -119,7 +119,7 @@ class TestPrepareExpenseBatch:
         assert len(errors) == 0
         assert valid_expenses[0]["property_id"] == 1
         assert valid_expenses[0]["category"] == "Maintenance"
-        assert valid_expenses[0]["subtotal_amount"] == 100.00
+        assert valid_expenses[0]["subtotal_amount"] == Decimal("100.00")
 
     def test_prepare_expense_batch_property_not_found(self):
         """Test preparation with property not found."""

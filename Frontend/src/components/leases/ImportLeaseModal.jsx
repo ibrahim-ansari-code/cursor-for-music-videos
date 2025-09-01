@@ -726,7 +726,10 @@ const ImportLeaseModal = ({
                         id="lease-file"
                         type="file"
                         accept=".pdf"
-                        onChange={(e) => setFile(e.target.files[0])}
+                        onChange={(e) => {
+                          const files = e.target?.files;
+                          setFile(files && files.length > 0 ? files[0] : null);
+                        }}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm file:mr-4 file:py-1 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                       />
                       {file && (

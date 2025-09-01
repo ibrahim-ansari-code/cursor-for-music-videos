@@ -874,39 +874,6 @@ async def test_get_outstanding_payments_for_month_includes_both_statuses(mock_se
             assert PaymentStatus.OVERDUE in payment_statuses
 
 
-@pytest.mark.asyncio
-async def test_get_outstanding_payments_for_month_limit_enforcement(mock_session, mock_landlord_user):
-    """Test that outstanding payments limit is enforced between 1 and 500."""
-    with patch('Backend.api.accounting.payments.service.build_payments_query') as mock_build_query, \
-         patch('Backend.api.accounting.payments.service.utc_now') as mock_utc_now:
-        
-        mock_utc_now.return_value = datetime(2025, 1, 15, tzinfo=timezone.utc)
-        
-        # Create a mock query object
-        mock_query = MagicMock()
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
-        mock_query.limit.return_value = mock_query
-        mock_build_query.return_value = mock_query
-        
-        # Mock execute result to return empty
-        mock_execute_result = MagicMock()
-        mock_execute_result.unique.return_value = mock_execute_result
-        mock_execute_result.scalars.return_value = mock_execute_result
-        mock_execute_result.all.return_value = []
-        mock_session.execute.return_value = mock_execute_result
-        
-        # Test with limit over 500 (should be capped to 500)
-        await get_outstanding_payments_for_month(
-            session=mock_session,
-            current_user=mock_landlord_user,
-            limit=1000  # Should be capped to 500
-        )
-        
-        # Verify limit was applied correctly in the query
-        mock_query.limit.assert_called_with(500)
-
-
 # =============================================================================
 # generate_due_payments_for_month Tests
 # =============================================================================

@@ -31,7 +31,7 @@
 
 ### Database Migration Strategy
 
-**CRITICAL: Dual migration system**
+### CRITICAL: Dual migration system**
 
 - **Alembic migrations** (primary for production): Use for SQLModel changes
   - Generate: `poetry run alembic revision --autogenerate -m "description"`
@@ -98,7 +98,7 @@ cd Backend/tests && python run_all_api_tests_pytest.py
 
 ## Communication & Review Process
 
-**CRITICAL: Always explain before implementing**
+### CRITICAL: Always explain before implementing
 
 Before making ANY code changes or taking actions:
 
@@ -118,7 +118,7 @@ Before making ANY code changes or taking actions:
 **Required Format:**
 When proposing changes, use this structure:
 
-```
+```text
 ## Proposed Implementation
 **What:** [Brief description]
 **Why:** [Reasoning/justification]
