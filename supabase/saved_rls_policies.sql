@@ -967,4 +967,401 @@ ON users
 FOR ALL 
 TO authenticated 
 USING (id = ( SELECT auth.uid() AS uid))
-WITH CHECK (id = ( SELECT auth.uid() AS uid)); 
+WITH CHECK (id = ( SELECT auth.uid() AS uid));
+
+-- Property Type Tables RLS Policies (Added from property_type_split migration)
+
+-- Enable RLS on new property type tables
+ALTER TABLE properties_apartment_complex ENABLE ROW LEVEL SECURITY;
+ALTER TABLE properties_commercial ENABLE ROW LEVEL SECURITY;
+ALTER TABLE properties_residential ENABLE ROW LEVEL SECURITY;
+ALTER TABLE properties_industrial ENABLE ROW LEVEL SECURITY;
+ALTER TABLE properties_mixed_use ENABLE ROW LEVEL SECURITY;
+ALTER TABLE properties_land ENABLE ROW LEVEL SECURITY;
+ALTER TABLE properties_special_purpose ENABLE ROW LEVEL SECURITY;
+ALTER TABLE properties_other ENABLE ROW LEVEL SECURITY;
+
+-- Apartment Complex Policies
+CREATE POLICY "Users can view their own apartment complex details"
+  ON properties_apartment_complex FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_apartment_complex.property_id
+      AND (properties.user_id = (SELECT auth.uid()) OR EXISTS (
+        SELECT 1 FROM users WHERE users.id = (SELECT auth.uid()) AND users.is_admin = true
+      ))
+    )
+  );
+
+CREATE POLICY "Users can insert their own apartment complex details"
+  ON properties_apartment_complex FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_apartment_complex.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can update their own apartment complex details"
+  ON properties_apartment_complex FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_apartment_complex.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can delete their own apartment complex details"
+  ON properties_apartment_complex FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_apartment_complex.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+-- Commercial Properties Policies
+CREATE POLICY "Users can view their own commercial details"
+  ON properties_commercial FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_commercial.property_id
+      AND (properties.user_id = (SELECT auth.uid()) OR EXISTS (
+        SELECT 1 FROM users WHERE users.id = (SELECT auth.uid()) AND users.is_admin = true
+      ))
+    )
+  );
+
+CREATE POLICY "Users can insert their own commercial details"
+  ON properties_commercial FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_commercial.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can update their own commercial details"
+  ON properties_commercial FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_commercial.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can delete their own commercial details"
+  ON properties_commercial FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_commercial.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+-- Residential Properties Policies
+CREATE POLICY "Users can view their own residential details"
+  ON properties_residential FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_residential.property_id
+      AND (properties.user_id = (SELECT auth.uid()) OR EXISTS (
+        SELECT 1 FROM users WHERE users.id = (SELECT auth.uid()) AND users.is_admin = true
+      ))
+    )
+  );
+
+CREATE POLICY "Users can insert their own residential details"
+  ON properties_residential FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_residential.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can update their own residential details"
+  ON properties_residential FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_residential.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can delete their own residential details"
+  ON properties_residential FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_residential.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+-- Industrial Properties Policies
+CREATE POLICY "Users can view their own industrial details"
+  ON properties_industrial FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_industrial.property_id
+      AND (properties.user_id = (SELECT auth.uid()) OR EXISTS (
+        SELECT 1 FROM users WHERE users.id = (SELECT auth.uid()) AND users.is_admin = true
+      ))
+    )
+  );
+
+CREATE POLICY "Users can insert their own industrial details"
+  ON properties_industrial FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_industrial.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can update their own industrial details"
+  ON properties_industrial FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_industrial.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can delete their own industrial details"
+  ON properties_industrial FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_industrial.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+-- Mixed Use Properties Policies
+CREATE POLICY "Users can view their own mixed use details"
+  ON properties_mixed_use FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_mixed_use.property_id
+      AND (properties.user_id = (SELECT auth.uid()) OR EXISTS (
+        SELECT 1 FROM users WHERE users.id = (SELECT auth.uid()) AND users.is_admin = true
+      ))
+    )
+  );
+
+CREATE POLICY "Users can insert their own mixed use details"
+  ON properties_mixed_use FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_mixed_use.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can update their own mixed use details"
+  ON properties_mixed_use FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_mixed_use.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can delete their own mixed use details"
+  ON properties_mixed_use FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_mixed_use.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+-- Land Properties Policies
+CREATE POLICY "Users can view their own land details"
+  ON properties_land FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_land.property_id
+      AND (properties.user_id = (SELECT auth.uid()) OR EXISTS (
+        SELECT 1 FROM users WHERE users.id = (SELECT auth.uid()) AND users.is_admin = true
+      ))
+    )
+  );
+
+CREATE POLICY "Users can insert their own land details"
+  ON properties_land FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_land.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can update their own land details"
+  ON properties_land FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_land.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can delete their own land details"
+  ON properties_land FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_land.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+-- Special Purpose Properties Policies
+CREATE POLICY "Users can view their own special purpose details"
+  ON properties_special_purpose FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_special_purpose.property_id
+      AND (properties.user_id = (SELECT auth.uid()) OR EXISTS (
+        SELECT 1 FROM users WHERE users.id = (SELECT auth.uid()) AND users.is_admin = true
+      ))
+    )
+  );
+
+CREATE POLICY "Users can insert their own special purpose details"
+  ON properties_special_purpose FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_special_purpose.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can update their own special purpose details"
+  ON properties_special_purpose FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_special_purpose.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can delete their own special purpose details"
+  ON properties_special_purpose FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_special_purpose.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+-- Other Properties Policies
+CREATE POLICY "Users can view their own other property details"
+  ON properties_other FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_other.property_id
+      AND (properties.user_id = (SELECT auth.uid()) OR EXISTS (
+        SELECT 1 FROM users WHERE users.id = (SELECT auth.uid()) AND users.is_admin = true
+      ))
+    )
+  );
+
+CREATE POLICY "Users can insert their own other property details"
+  ON properties_other FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_other.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can update their own other property details"
+  ON properties_other FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_other.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can delete their own other property details"
+  ON properties_other FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM properties 
+      WHERE properties.id = properties_other.property_id
+      AND properties.user_id = (SELECT auth.uid())
+    )
+  );
+
+-- ============================================
+-- VIEWS AND FUNCTIONS (Security Fixes)
+-- ============================================
+
+-- Unified properties view with security invoker
+CREATE VIEW v_properties_full 
+WITH (security_invoker=on) AS
+SELECT 
+  p.*,
+  -- Include type-specific data as JSON
+  CASE 
+    WHEN p.property_type = 'Apartment Complex' THEN row_to_json(pac)
+    WHEN p.property_type = 'Commercial' THEN row_to_json(pc)
+    WHEN p.property_type = 'Residential' THEN row_to_json(pr)
+    WHEN p.property_type = 'Industrial' THEN row_to_json(pi)
+    WHEN p.property_type = 'Mixed-Use' THEN row_to_json(pmu)
+    WHEN p.property_type = 'Land' THEN row_to_json(pl)
+    WHEN p.property_type = 'Special Purpose' THEN row_to_json(psp)
+    WHEN p.property_type = 'Other' THEN row_to_json(po)
+    ELSE NULL
+  END AS type_specific_details
+FROM properties p
+LEFT JOIN properties_apartment_complex pac ON p.id = pac.property_id
+LEFT JOIN properties_commercial pc ON p.id = pc.property_id
+LEFT JOIN properties_residential pr ON p.id = pr.property_id
+LEFT JOIN properties_industrial pi ON p.id = pi.property_id
+LEFT JOIN properties_mixed_use pmu ON p.id = pmu.property_id
+LEFT JOIN properties_land pl ON p.id = pl.property_id
+LEFT JOIN properties_special_purpose psp ON p.id = psp.property_id
+LEFT JOIN properties_other po ON p.id = po.property_id;
+
+-- Update function with secure search_path
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ language 'plpgsql'
+SET search_path = ''; 
