@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { PropertyFormData, PropertyType, PropertyStatus } from '@/types/property';
 import { 
-  Building2, Home, Store, Factory, Building, CheckCircle, Shield, Wrench,
+  Building2, Home, Store, Factory, Building, CheckCircle, Shield,
   Info, FileText, Calendar, MapPin
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -101,7 +101,7 @@ const propertyTypes = [
 const statusOptions = [
   { value: PropertyStatus.ACTIVE, label: 'Active', icon: CheckCircle, color: 'green' },
   { value: PropertyStatus.INACTIVE, label: 'Inactive', icon: Shield, color: 'gray' },
-  { value: PropertyStatus.MAINTENANCE, label: 'Maintenance', icon: Wrench, color: 'orange' },
+  { value: PropertyStatus.RENTED, label: 'Rented', icon: CheckCircle, color: 'emerald' },
 ];
 
 const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, ref) => {
@@ -419,13 +419,13 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold
                           ${status === PropertyStatus.ACTIVE 
                             ? 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border border-green-200' 
-                            : status === PropertyStatus.MAINTENANCE 
-                            ? 'bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 border border-orange-200' 
+                            : status === PropertyStatus.RENTED 
+                            ? 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200' 
                             : 'bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200'
                           }`}>
                           <span className={`w-1.5 h-1.5 rounded-full mr-2 ${
                             status === PropertyStatus.ACTIVE ? 'bg-green-500' :
-                            status === PropertyStatus.MAINTENANCE ? 'bg-orange-500' : 'bg-gray-500'
+                            status === PropertyStatus.RENTED ? 'bg-emerald-500' : 'bg-gray-500'
                           }`} />
                           {statusOptions.find(s => s.value === status)?.label || 'Active'}
                         </span>

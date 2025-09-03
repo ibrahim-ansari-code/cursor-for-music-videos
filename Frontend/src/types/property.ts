@@ -12,11 +12,12 @@ export enum PropertyType {
 
 export enum PropertyStatus {
   ACTIVE = 'ACTIVE',
-  MAINTENANCE = 'MAINTENANCE',
-  VACANT = 'VACANT',
   INACTIVE = 'INACTIVE',
   DRAFT = 'DRAFT',
-  ARCHIVED = 'ARCHIVED'
+  ARCHIVED = 'ARCHIVED',
+  RENTED = 'RENTED',
+  VACANT = 'VACANT',
+  PARTIALLY_RENTED = 'PARTIALLY_RENTED'
 }
 
 export interface PropertyImage {

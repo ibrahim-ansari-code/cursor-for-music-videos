@@ -32,10 +32,11 @@ const ResidentialReview: React.FC = () => {
   const statusInfo = {
     [PropertyStatus.ACTIVE]: { label: 'Active' },
     [PropertyStatus.INACTIVE]: { label: 'Inactive' },
-    [PropertyStatus.MAINTENANCE]: { label: 'Maintenance' },
+    [PropertyStatus.RENTED]: { label: 'Rented' },
     [PropertyStatus.VACANT]: { label: 'Vacant' },
     [PropertyStatus.DRAFT]: { label: 'Draft' },
-    [PropertyStatus.ARCHIVED]: { label: 'Archived' }
+    [PropertyStatus.ARCHIVED]: { label: 'Archived' },
+    [PropertyStatus.PARTIALLY_RENTED]: { label: 'Partially Rented' }
   }[formData.status || PropertyStatus.ACTIVE];
   
   // Calculate totals from units
@@ -111,15 +112,15 @@ const ResidentialReview: React.FC = () => {
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold
               ${formData.status === PropertyStatus.ACTIVE 
                 ? 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border border-green-200' 
-                : formData.status === PropertyStatus.MAINTENANCE 
-                ? 'bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 border border-orange-200' 
+                : formData.status === PropertyStatus.RENTED 
+                ? 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200' 
                 : formData.status === PropertyStatus.VACANT
                 ? 'bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-700 border border-yellow-200'
                 : 'bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200'
               }`}>
               <span className={`w-1.5 h-1.5 rounded-full mr-2 ${
                 formData.status === PropertyStatus.ACTIVE ? 'bg-green-500' :
-                formData.status === PropertyStatus.MAINTENANCE ? 'bg-orange-500' : 
+                formData.status === PropertyStatus.RENTED ? 'bg-emerald-500' : 
                 formData.status === PropertyStatus.VACANT ? 'bg-yellow-500' : 'bg-gray-500'
               }`} />
                              {statusInfo.label}
