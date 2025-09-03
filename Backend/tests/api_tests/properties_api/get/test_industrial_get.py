@@ -101,6 +101,8 @@ class TestIndustrialPropertyGet(BasePropertyTest):
         
         property_id = 1
         type_details = {
+            "property_type": "Industrial",  # Discriminator field
+            "industrial_type": "warehouse",  # Required field
             "total_square_feet": 150000,
             "warehouse_square_feet": 140000,
             "office_square_feet": 10000,
@@ -162,6 +164,8 @@ class TestIndustrialPropertyGet(BasePropertyTest):
         mock_property.owner = self.mock_user
         
         type_details = {
+            "property_type": "Industrial",  # Discriminator field
+            "industrial_type": "manufacturing",  # Required field
             "total_square_feet": 80000,
             "warehouse_square_feet": 20000,
             "office_square_feet": 5000,
@@ -211,6 +215,8 @@ class TestIndustrialPropertyGet(BasePropertyTest):
         mock_property.owner = self.mock_user
         
         type_details = {
+            "property_type": "Industrial",  # Discriminator field
+            "industrial_type": "cold_storage",  # Required field
             "total_square_feet": 50000,
             "warehouse_square_feet": 45000,
             "office_square_feet": 2500,

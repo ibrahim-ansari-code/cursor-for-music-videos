@@ -2,7 +2,7 @@
 Commercial property schemas aligned with properties_commercial table.
 Handles retail, office, medical, restaurant, hotel/motel, and multi-tenant spaces.
 """
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from decimal import Decimal
 from pydantic import Field, field_validator, model_validator
 
@@ -14,6 +14,12 @@ class CommercialPropertyDetailsBase(PropertyTypeDetailsBase):
     Commercial property details base schema used for create/update.
     Excludes CAF because it is computed in the database as a generated column.
     """
+    
+    # ===== DISCRIMINATOR FIELD =====
+    property_type: Literal['Commercial'] = Field(
+        default='Commercial',
+        description="Property type discriminator for union validation"
+    )
     
     # ===== SPACE INFORMATION (Required) =====
     space_type: str = Field(

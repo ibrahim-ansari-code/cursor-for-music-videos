@@ -3,13 +3,13 @@ Base schemas and utilities for property type-specific data.
 Provides shared base classes and validators for all property types.
 Aligned with hierarchical database tables.
 """
-from typing import Optional, List
+from typing import Optional, List, Literal
 from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 class PropertyTypeDetailsBase(BaseModel):
-    """Base schema for all property type details"""
+    """Base schema for all property type details with discriminator support"""
     model_config = ConfigDict(
         from_attributes=True, 
         use_enum_values=True,

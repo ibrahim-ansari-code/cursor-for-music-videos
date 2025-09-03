@@ -62,6 +62,7 @@ class TestResidentialPropertyUpdate(BasePropertyTest):
             "name": "Updated Family Home",
             "description": "Beautifully renovated single-family home",
             "type_specific_details": {
+                "property_type": "Residential",  # Discriminator field
                 "bedrooms": 4,
                 "bathrooms": 3.5,
                 "square_feet": 2800,
@@ -78,6 +79,7 @@ class TestResidentialPropertyUpdate(BasePropertyTest):
         
         # Use helper function to create response
         type_details = {
+            "property_type": "Residential",  # Discriminator field
             "bedrooms": 4,
             "bathrooms": 3.5,
             "square_feet": 2800,
@@ -122,6 +124,9 @@ class TestResidentialPropertyUpdate(BasePropertyTest):
         # Update only type-specific details
         update_data = {
             "type_specific_details": {
+                "property_type": "Residential",  # Discriminator field
+                "bedrooms": 3,  # Required field
+                "bathrooms": 2.5,  # Required field
                 "roof_type": "metal",
                 "exterior_material": "stone",
                 "water_heater_type": "tankless",
@@ -131,6 +136,7 @@ class TestResidentialPropertyUpdate(BasePropertyTest):
         
         # Use helper function to create response
         type_details = {
+            "property_type": "Residential",  # Discriminator field
             "bedrooms": 3,
             "bathrooms": 2.5,
             "square_feet": 2000,
@@ -212,6 +218,7 @@ class TestResidentialPropertyUpdate(BasePropertyTest):
         # Invalid data - bathrooms not in 0.5 increments
         update_data = {
             "type_specific_details": {
+                "property_type": "Residential",  # Discriminator field
                 "bedrooms": 3,
                 "bathrooms": 2.3,  # Invalid - not in 0.5 increments
                 "square_feet": 2000
@@ -278,6 +285,7 @@ class TestResidentialPropertyUpdate(BasePropertyTest):
         update_data = {
             "name": "Admin Updated Home",
             "type_specific_details": {
+                "property_type": "Residential",  # Discriminator field
                 "bedrooms": 5,
                 "bathrooms": "4.0",
                 "square_feet": 3500,

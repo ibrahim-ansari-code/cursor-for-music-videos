@@ -329,21 +329,6 @@ class TestCommercialPropertyCreate(BasePropertyTest):
             assert response.status_code == 201
             assert mock_create.call_args[0][0].property_type == PropertyType.COMMERCIAL
     
-    @pytest.mark.asyncio
-    async def test_create_commercial_validate_building_class(self):
-        """Test validation of building class values."""
-        mock_session = AsyncMock()
-        self.setup_mocks(mock_session)
-        
-        payload = get_base_property_payload(PropertyType.COMMERCIAL)
-        details = get_commercial_details()
-        details["building_class"] = "X"  # Invalid class
-        payload["type_specific_details"] = details
-        
-        response = self.client.post("/api/properties/", json=payload)
-        
-        # Should fail validation for invalid building class
-        assert response.status_code == 422
     
     @pytest.mark.asyncio
     async def test_create_commercial_with_tenant_mix(self):

@@ -32,6 +32,8 @@ class TestApartmentComplexPropertyUpdate(BasePropertyTest):
             "name": "Updated Maple Ridge",
             "description": "Newly renovated apartment complex",
             "type_specific_details": {
+                "property_type": "Apartment Complex",  # Discriminator field
+                "complex_style": "garden",  # Required field
                 "total_units": 50,
                 "number_of_buildings": 3,
                 "parking_spaces_total": 75,
@@ -40,7 +42,9 @@ class TestApartmentComplexPropertyUpdate(BasePropertyTest):
         }
         
         # Create dict response for consistency - avoid Pydantic typing issues
-        type_details = {
+        type_details = {            
+            "property_type": "Apartment Complex",  # Discriminator field
+            "complex_style": "garden",  # Required field
             "total_units": 50,
             "number_of_buildings": 3,
             "parking_spaces_total": 75,
@@ -109,6 +113,9 @@ class TestApartmentComplexPropertyUpdate(BasePropertyTest):
         # Update only type-specific details
         update_data = {
             "type_specific_details": {
+                "property_type": "Apartment Complex",  # Discriminator field
+                "complex_style": "garden",  # Required field
+                "total_units": 50,  # Required field
                 "shared_amenities": ["gym", "pool", "sauna", "playground"],
                 "pet_policy": "cats_and_dogs",
                 "parking_ratio": 1.5,
@@ -123,6 +130,8 @@ class TestApartmentComplexPropertyUpdate(BasePropertyTest):
         
         # Create dict response for consistency - avoid Pydantic typing issues
         type_details = {
+            "property_type": "Apartment Complex",  # Discriminator field
+            "complex_style": "garden",  # Required field
             "total_units": 50,
             "shared_amenities": ["gym", "pool", "sauna", "playground"],
             "pet_policy": "cats_and_dogs",
@@ -231,6 +240,8 @@ class TestApartmentComplexPropertyUpdate(BasePropertyTest):
         # Invalid data - unit distribution exceeds total
         update_data = {
             "type_specific_details": {
+                "property_type": "Apartment Complex",  # Discriminator field
+                "complex_style": "garden",  # Required field
                 "total_units": 10,
                 "unit_mix": {
                     "studio": 5,

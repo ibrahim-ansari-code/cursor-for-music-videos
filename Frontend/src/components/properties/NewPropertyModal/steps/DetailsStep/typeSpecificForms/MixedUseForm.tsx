@@ -1,14 +1,14 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { PropertyFormData } from '@/types/property';
 import { 
   Home, Store, Car, 
   Users, Layers, AlertCircle,
-  Building2, MapPin, Briefcase
+  Building2, MapPin, Briefcase, Info
 } from 'lucide-react';
 
 const MixedUseForm: React.FC = () => {
-  const { register, watch, setValue, formState: { errors } } = useFormContext<PropertyFormData>();
+  const { register, watch, setValue, formState: { errors }, trigger } = useFormContext<PropertyFormData>();
   
   // Watch relevant fields - aligned with backend schema
   const typeDetails = watch('type_specific_details') || {};
@@ -26,6 +26,26 @@ const MixedUseForm: React.FC = () => {
   
   // Mixed-use type selection
   const mixedUseType = typeDetails.mixed_use_type;
+  
+  // Calculate residential unit mix total for real-time feedback - watch individual fields
+  const studioCount = watch('type_specific_details.residential_unit_types.studio') || 0;
+  const br1Count = watch('type_specific_details.residential_unit_types.1br') || 0;
+  const br2Count = watch('type_specific_details.residential_unit_types.2br') || 0;
+  const br3Count = watch('type_specific_details.residential_unit_types.3br') || 0;
+  const br4Count = watch('type_specific_details.residential_unit_types.4br') || 0;
+  const penthouseCount = watch('type_specific_details.residential_unit_types.penthouse') || 0;
+  
+  const residentialUnitMixTotal = useMemo(() => {
+    return Number(studioCount) + Number(br1Count) + Number(br2Count) + 
+           Number(br3Count) + Number(br4Count) + Number(penthouseCount);
+  }, [studioCount, br1Count, br2Count, br3Count, br4Count, penthouseCount]);
+
+  // Check if residential unit mix is valid for UI feedback
+  const isResidentialUnitMixValid = useMemo(() => {
+    if (residentialUnitsCount === 0) return true; // No validation needed if no total units
+    if (residentialUnitMixTotal === 0) return false; // Need to distribute units
+    return residentialUnitMixTotal === residentialUnitsCount; // Must equal total
+  }, [residentialUnitMixTotal, residentialUnitsCount]);
   
   // Boolean fields
   
@@ -111,7 +131,7 @@ const MixedUseForm: React.FC = () => {
             <label className="flex items-center justify-between mb-1.5">
               <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
                 <Home className="h-3.5 w-3.5 inline mr-1.5 text-green-500" />
-                Residential SF
+                Residential SF <span className="text-red-500">*</span>
               </span>
               {residentialSquareFeet > 0 && (
                 <span className="text-xs text-green-600 font-semibold">{residentialSquareFeet.toLocaleString()}</span>
@@ -119,11 +139,14 @@ const MixedUseForm: React.FC = () => {
             </label>
             <input
               {...register('type_specific_details.residential_square_feet', {
-                min: { value: 0, message: 'Cannot be negative' },
+                required: 'Residential square feet is required for mixed-use properties',
+                min: { value: 1, message: 'Must be at least 1 square foot' },
                 valueAsNumber: true
               })}
               type="number"
-              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+              className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all ${
+                getFieldError('residential_square_feet') ? 'border-red-300' : 'border-gray-200'
+              }`}
               placeholder="50000"
             />
             {getFieldError('residential_square_feet') && (
@@ -139,7 +162,7 @@ const MixedUseForm: React.FC = () => {
             <label className="flex items-center justify-between mb-1.5">
               <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
                 <Store className="h-3.5 w-3.5 inline mr-1.5 text-purple-500" />
-                Commercial SF
+                Commercial SF <span className="text-red-500">*</span>
               </span>
               {commercialSquareFeet > 0 && (
                 <span className="text-xs text-purple-600 font-semibold">{commercialSquareFeet.toLocaleString()}</span>
@@ -147,11 +170,14 @@ const MixedUseForm: React.FC = () => {
             </label>
             <input
               {...register('type_specific_details.commercial_square_feet', {
-                min: { value: 0, message: 'Cannot be negative' },
+                required: 'Commercial square feet is required for mixed-use properties',
+                min: { value: 1, message: 'Must be at least 1 square foot' },
                 valueAsNumber: true
               })}
               type="number"
-              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
+                getFieldError('commercial_square_feet') ? 'border-red-300' : 'border-gray-200'
+              }`}
               placeholder="15000"
             />
             {getFieldError('commercial_square_feet') && (
@@ -207,10 +233,29 @@ const MixedUseForm: React.FC = () => {
         </div>
         
         {/* Residential Unit Types */}
-        <div className="bg-white rounded-lg p-3 border border-gray-200 mb-3">
-          <label className="text-xs font-medium text-gray-700 mb-2 block">
-            Residential Unit Mix
+        <div className={`bg-white rounded-lg p-3 border mb-3 transition-all ${
+          !isResidentialUnitMixValid && residentialUnitsCount > 0 ? 'border-red-300 shadow-sm' : 'border-gray-200'
+        }`}>
+          <label className="text-xs font-medium text-gray-700 mb-2 block flex items-center justify-between">
+            <span>Residential Unit Mix</span>
+            {residentialUnitsCount > 0 && (
+              <span className={`text-xs font-medium ${
+                isResidentialUnitMixValid ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {residentialUnitMixTotal} / {residentialUnitsCount} units
+                {isResidentialUnitMixValid && ' ✓'}
+              </span>
+            )}
           </label>
+          
+          {residentialUnitsCount > 0 && residentialUnitMixTotal === 0 && (
+            <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-700 flex items-center">
+                <Info className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
+                Distribute your {residentialUnitsCount} residential units across bedroom types below
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-6 gap-2">
             {[
               { key: 'studio', label: 'Studio' },
@@ -220,22 +265,42 @@ const MixedUseForm: React.FC = () => {
               { key: '4br', label: '4BR+' },
               { key: 'penthouse', label: 'Penthouse' }
             ].map((unit) => (
-              <div key={unit.key} className="bg-gray-50 rounded-md p-2 border border-gray-200">
+              <div key={unit.key} className={`bg-gray-50 rounded-md p-2 border ${
+                !isResidentialUnitMixValid && residentialUnitsCount > 0 ? 'border-red-200' : 'border-gray-200'
+              }`}>
                 <label className="text-[10px] font-medium text-gray-600 block mb-1">
                   {unit.label}
                 </label>
                 <input
                   {...register(`type_specific_details.residential_unit_types.${unit.key}` as const, {
                     min: { value: 0, message: 'Min 0' },
-                    valueAsNumber: true
+                    valueAsNumber: true,
+                    onChange: () => {
+                      // Trigger validation after input change for real-time feedback
+                      setTimeout(() => {
+                        trigger('type_specific_details.residential_unit_types');
+                        trigger('type_specific_details.residential_units_count');
+                      }, 0);
+                    }
                   })}
                   type="number"
-                  className="w-full px-1.5 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-green-500"
+                  className={`w-full px-1.5 py-1 text-xs border rounded focus:ring-1 focus:ring-green-500 ${
+                    !isResidentialUnitMixValid && residentialUnitsCount > 0 ? 'border-red-200' : 'border-gray-200'
+                  }`}
                   placeholder="0"
                 />
               </div>
             ))}
           </div>
+          
+          {!isResidentialUnitMixValid && residentialUnitsCount > 0 && residentialUnitMixTotal > 0 && (
+            <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-xs text-red-600 flex items-center">
+                <AlertCircle className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
+                Residential unit distribution ({residentialUnitMixTotal}) must equal total residential units ({residentialUnitsCount})
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Commercial Space Types */}

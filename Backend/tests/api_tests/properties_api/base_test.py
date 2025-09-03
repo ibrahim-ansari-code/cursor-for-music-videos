@@ -140,6 +140,7 @@ def get_base_property_payload(property_type: PropertyType) -> Dict[str, Any]:
 def get_residential_details() -> Dict[str, Any]:
     """Get residential property type-specific details."""
     return {
+        "property_type": "Residential",  # Discriminator field
         "property_subtype": "single_family",
         "bedrooms": 3,
         "bathrooms": 2.5,
@@ -168,6 +169,8 @@ def get_residential_details() -> Dict[str, Any]:
 def get_apartment_complex_details() -> Dict[str, Any]:
     """Get apartment complex property type-specific details."""
     return {
+        "property_type": "Apartment Complex",  # Discriminator field
+        "complex_style": "garden",  # Required field
         "number_of_buildings": 2,
         "total_units": 48,
         "studio_units": 8,
@@ -202,6 +205,11 @@ def get_apartment_complex_details() -> Dict[str, Any]:
 def get_commercial_details() -> Dict[str, Any]:
     """Get commercial property type-specific details."""
     return {
+        "property_type": "Commercial",  # Discriminator field
+        "space_type": "office",  # Required field
+        "usable_square_feet": 45000,  # Required field
+        "rentable_square_feet": 50000,  # Required field
+        "lease_type": "triple_net",  # Required field
         "building_class": "A",
         "property_subtype": "office",
         "total_floors": 10,
@@ -232,14 +240,19 @@ def get_commercial_details() -> Dict[str, Any]:
 def get_industrial_details() -> Dict[str, Any]:
     """Get industrial property type-specific details."""
     return {
+        "property_type": "Industrial",  # Discriminator field
+        "industrial_type": "warehouse",  # Required field
+        "total_square_feet": 100000,  # Required field
         "property_subtype": "warehouse",
         "building_size": 100000,
         "land_area": 250000,
         "clear_height": 30,
         "loading_docks": 10,
+        "loading_docks_count": 10,  # Updated field name
+        "drive_in_doors_count": 1,  # Updated field name
         "grade_level_doors": 2,
-        "drive_in_doors": 1,
         "rail_access": True,
+        "has_crane": True,  # Required when crane_capacity is provided
         "crane_capacity": "20 tons",
         "power_capacity": "2000 amps",
         "column_spacing": 40,
@@ -265,6 +278,22 @@ def get_industrial_details() -> Dict[str, Any]:
 def get_mixed_use_details() -> Dict[str, Any]:
     """Get mixed-use property type-specific details."""
     return {
+        "property_type": "Mixed-Use",  # Discriminator field
+        "mixed_use_type": "live_work",  # Required field
+        "residential_square_feet": 80000,  # Required field
+        "commercial_square_feet": 20000,  # Required field
+        "residential_units_count": 100,
+        "commercial_units_count": 10,
+        "residential_unit_types": {"studio": 20, "1br": 40, "2br": 30, "3br": 10},
+        "commercial_space_types": ["retail", "office"],
+        "shared_amenities": ["gym", "pool", "rooftop_deck"],
+        "separate_entrances": True,
+        "shared_parking": False,
+        "parking_spaces_total": 200,
+        "single_management_company": True,
+        "management_structure": "Unified management for all components",
+        "zoning_designation": "MU-1",
+        # Legacy fields for backward compatibility
         "total_floors": 15,
         "residential_floors": 10,
         "commercial_floors": 2,
@@ -275,7 +304,6 @@ def get_mixed_use_details() -> Dict[str, Any]:
         "office_units": 10,
         "retail_space": 20000,
         "office_space": 30000,
-        "residential_types": {"studio": 20, "1br": 40, "2br": 30, "3br": 10},
         "parking_spaces": 200,
         "parking_residential": 150,
         "parking_commercial": 30,

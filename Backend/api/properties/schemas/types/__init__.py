@@ -2,7 +2,8 @@
 Property type-specific schemas for hierarchical table pattern.
 Each property type has its own table with type-specific fields.
 """
-from typing import Union
+from typing import Union, Annotated
+from pydantic import Field
 
 # Base utilities
 from .base import (
@@ -50,29 +51,38 @@ from .mixed_use import (
     MixedUsePropertyDetailsResponse,
 )
 
-# Union types for polymorphic handling
-PropertyTypeDetailsCreate = Union[
-    ResidentialPropertyDetailsCreate,
-    ApartmentComplexPropertyDetailsCreate,
-    CommercialPropertyDetailsCreate,
-    IndustrialPropertyDetailsCreate,
-    MixedUsePropertyDetailsCreate,
+# Discriminated union types for robust polymorphic handling
+PropertyTypeDetailsCreate = Annotated[
+    Union[
+        ApartmentComplexPropertyDetailsCreate,
+        CommercialPropertyDetailsCreate,
+        ResidentialPropertyDetailsCreate,
+        IndustrialPropertyDetailsCreate,
+        MixedUsePropertyDetailsCreate,
+    ],
+    Field(discriminator='property_type')
 ]
 
-PropertyTypeDetailsUpdate = Union[
-    ResidentialPropertyDetailsUpdate,
-    ApartmentComplexPropertyDetailsUpdate,
-    CommercialPropertyDetailsUpdate,
-    IndustrialPropertyDetailsUpdate,
-    MixedUsePropertyDetailsUpdate,
+PropertyTypeDetailsUpdate = Annotated[
+    Union[
+        ApartmentComplexPropertyDetailsUpdate,
+        CommercialPropertyDetailsUpdate,
+        ResidentialPropertyDetailsUpdate,
+        IndustrialPropertyDetailsUpdate,
+        MixedUsePropertyDetailsUpdate,
+    ],
+    Field(discriminator='property_type')
 ]
 
-PropertyTypeDetailsResponse = Union[
-    ResidentialPropertyDetailsResponse,
-    ApartmentComplexPropertyDetailsResponse,
-    CommercialPropertyDetailsResponse,
-    IndustrialPropertyDetailsResponse,
-    MixedUsePropertyDetailsResponse,
+PropertyTypeDetailsResponse = Annotated[
+    Union[
+        ApartmentComplexPropertyDetailsResponse,
+        CommercialPropertyDetailsResponse,
+        ResidentialPropertyDetailsResponse,
+        IndustrialPropertyDetailsResponse,
+        MixedUsePropertyDetailsResponse,
+    ],
+    Field(discriminator='property_type')
 ]
 
 __all__ = [

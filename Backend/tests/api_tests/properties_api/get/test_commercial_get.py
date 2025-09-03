@@ -84,6 +84,7 @@ class TestCommercialPropertyGet(BasePropertyTest):
         
         # Create dict response for consistency - avoid Pydantic typing issues
         type_details = {
+            "property_type": "Commercial",  # Discriminator field
             "space_type": "office",
             "usable_square_feet": 45000,
             "rentable_square_feet": 50000,
@@ -161,6 +162,7 @@ class TestCommercialPropertyGet(BasePropertyTest):
             property_id=property_id,
             name="Riverside Shopping Center",
             type_details={
+                "property_type": "Commercial",  # Discriminator field
                 "space_type": "retail",
                 "usable_square_feet": 25000,
                 "rentable_square_feet": 30000,
@@ -203,6 +205,7 @@ class TestCommercialPropertyGet(BasePropertyTest):
         
         # Create dict response for consistency - avoid Pydantic typing issues
         type_details = {
+            "property_type": "Commercial",  # Discriminator field
             "space_type": "office",
             "usable_square_feet": 20000,
             "rentable_square_feet": 25000,
@@ -267,6 +270,7 @@ class TestCommercialPropertyGet(BasePropertyTest):
         
         # Create dict response for consistency - avoid Pydantic typing issues
         type_details = {
+            "property_type": "Commercial",  # Discriminator field
             "space_type": "retail",
             "usable_square_feet": 400000,
             "rentable_square_feet": 450000,
@@ -372,6 +376,7 @@ class TestCommercialPropertyGet(BasePropertyTest):
 
         # Build a plain dict response using the existing helper to avoid strict typing conflicts
         type_details = {
+            "property_type": "Commercial",  # Discriminator field
             "space_type": "multi_tenant",
             "usable_square_feet": 20000,
             "rentable_square_feet": 22000,
@@ -406,6 +411,7 @@ class TestCommercialPropertyGet(BasePropertyTest):
         
         # Create type-specific details as dict to avoid Pydantic typing issues
         type_details = {
+            "property_type": "Commercial",  # Discriminator field
             "space_type": "office",
             "usable_square_feet": 65000,
             "rentable_square_feet": 75000,

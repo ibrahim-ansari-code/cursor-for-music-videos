@@ -94,6 +94,7 @@ class TestResidentialPropertyGet(BasePropertyTest):
         mock_property.owner = self.mock_user
         
         type_details = {
+            "property_type": "Residential",  # Discriminator field
             "property_subtype": "single_family",
             "bedrooms": 4,
             "bathrooms": Decimal("3.5"),
@@ -139,6 +140,7 @@ class TestResidentialPropertyGet(BasePropertyTest):
         mock_property.owner = self.mock_user
         
         type_details = {
+            "property_type": "Residential",  # Discriminator field
             "property_subtype": "condo",
             "bedrooms": 2,
             "bathrooms": Decimal("2.0"),
@@ -179,6 +181,7 @@ class TestResidentialPropertyGet(BasePropertyTest):
         mock_property.owner = self.mock_user
         
         type_details = {
+            "property_type": "Residential",  # Discriminator field
             "property_subtype": "townhouse",
             "bedrooms": 3,
             "bathrooms": Decimal("2.5"),

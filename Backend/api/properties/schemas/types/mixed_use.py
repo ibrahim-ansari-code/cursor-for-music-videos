@@ -2,7 +2,7 @@
 Mixed-use property schemas aligned with properties_mixed_use table.
 Handles properties combining residential and commercial spaces.
 """
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from pydantic import Field, field_validator, model_validator
 
 from .base import PropertyTypeDetailsBase
@@ -13,6 +13,18 @@ class MixedUsePropertyDetails(PropertyTypeDetailsBase):
     Mixed-use property details schema.
     Maps directly to properties_mixed_use table.
     """
+    
+    # ===== DISCRIMINATOR FIELD =====
+    property_type: Literal['Mixed-Use'] = Field(
+        default='Mixed-Use',
+        description="Property type discriminator for union validation"
+    )
+    
+    # ===== MIXED-USE TYPE (Required) =====
+    mixed_use_type: str = Field(
+        ...,
+        description="Type of mixed-use development: live_work, retail_residential, office_residential, hotel_retail, vertical_mixed, horizontal_mixed"
+    )
     
     # ===== SPACE DISTRIBUTION =====
     residential_square_feet: Optional[int] = Field(
@@ -83,6 +95,15 @@ class MixedUsePropertyDetails(PropertyTypeDetailsBase):
     )
     
     # ===== VALIDATORS =====
+    
+    @field_validator('mixed_use_type')
+    @classmethod
+    def validate_mixed_use_type(cls, v: str) -> str:
+        """Validate mixed-use development type"""
+        valid_types = {'live_work', 'retail_residential', 'office_residential', 'hotel_retail', 'vertical_mixed', 'horizontal_mixed'}
+        if v not in valid_types:
+            raise ValueError(f"Mixed-use type must be one of: {', '.join(valid_types)}")
+        return v
     
     @field_validator('commercial_space_types')
     @classmethod

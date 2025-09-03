@@ -649,3 +649,83 @@ async def test_get_type_specific_details_all_types():
         
         assert result is None  # No record found case
         session.execute.assert_called()
+
+
+def test_property_schema_validation_errors():
+    """Test property schema validation errors for discriminator fields and validators."""
+    from Backend.api.properties.schemas.types.apartment_complex import ApartmentComplexPropertyDetailsCreate
+    from Backend.api.properties.schemas.types.industrial import IndustrialPropertyDetailsCreate
+    from Backend.api.properties.schemas.types.mixed_use import MixedUsePropertyDetailsCreate
+    
+    # Test invalid complex_style validation
+    with pytest.raises(ValidationError) as exc_info:
+        ApartmentComplexPropertyDetailsCreate(
+            property_type="Apartment Complex",
+            complex_style="invalid_style",  # Should trigger validator error
+            total_units=10
+        )
+    assert "Complex style must be one of" in str(exc_info.value)
+    
+    # Test invalid industrial_type validation  
+    with pytest.raises(ValidationError) as exc_info:
+        IndustrialPropertyDetailsCreate(
+            property_type="Industrial", 
+            industrial_type="invalid_type",  # Should trigger validator error
+            total_square_feet=50000
+        )
+    assert "Industrial type must be one of" in str(exc_info.value)
+    
+    # Test invalid mixed_use_type validation
+    with pytest.raises(ValidationError) as exc_info:
+        MixedUsePropertyDetailsCreate(
+            property_type="Mixed-Use",
+            mixed_use_type="invalid_type",  # Should trigger validator error
+            residential_square_feet=10000,
+            commercial_square_feet=5000
+        )
+    assert "Mixed-use type must be one of" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_discriminator_validation_errors():
+    """Test discriminator validation in service methods."""
+    session = AsyncMock()
+    
+    # Test create with mismatched discriminator
+    property_id = 123
+    details = MagicMock(spec=ApartmentComplexPropertyDetailsCreate)
+    details.property_type = "Commercial"  # Wrong discriminator
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await PropertyService._create_type_specific_details(
+            property_id, PropertyType.APARTMENT_COMPLEX, details, session
+        )
+    assert exc_info.value.status_code == 422
+    assert "property_type does not match" in exc_info.value.detail
+    
+    # Test update with no details provided
+    with pytest.raises(HTTPException) as exc_info:
+        await PropertyService._update_type_specific_details(
+            property_id, PropertyType.APARTMENT_COMPLEX, None, session
+        )
+    assert exc_info.value.status_code == 422
+    assert "required for property updates" in exc_info.value.detail
+    
+    # Test update with unsupported property type - need details without property_type attribute
+    no_discriminator_details = MagicMock()
+    del no_discriminator_details.property_type  # Remove the attribute
+    with pytest.raises(HTTPException) as exc_info:
+        await PropertyService._update_type_specific_details(
+            property_id, PropertyType.LAND, no_discriminator_details, session  # Unsupported type
+        )
+    assert exc_info.value.status_code == 422
+    assert "Unsupported property type" in exc_info.value.detail
+    
+    # Test update with wrong schema type
+    with pytest.raises(HTTPException) as exc_info:
+        wrong_details = MagicMock(spec=CommercialPropertyDetailsUpdate)
+        await PropertyService._update_type_specific_details(
+            property_id, PropertyType.APARTMENT_COMPLEX, wrong_details, session
+        )
+    assert exc_info.value.status_code == 422
+    assert "Invalid schema type" in exc_info.value.detail

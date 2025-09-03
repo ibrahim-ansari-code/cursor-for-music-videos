@@ -2,7 +2,7 @@
 Industrial property schemas aligned with properties_industrial table.
 Handles warehouse, manufacturing, and distribution facilities.
 """
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from decimal import Decimal
 from pydantic import Field, field_validator, model_validator
 
@@ -14,6 +14,18 @@ class IndustrialPropertyDetails(PropertyTypeDetailsBase):
     Industrial property details schema.
     Maps directly to properties_industrial table.
     """
+    
+    # ===== DISCRIMINATOR FIELD =====
+    property_type: Literal['Industrial'] = Field(
+        default='Industrial',
+        description="Property type discriminator for union validation"
+    )
+    
+    # ===== FACILITY TYPE (Required) =====
+    industrial_type: str = Field(
+        ...,
+        description="Type of industrial facility: warehouse, distribution, manufacturing, flex, cold_storage, data_center, light_industrial, rd_tech"
+    )
     
     # ===== SPACE SPECIFICATIONS (Required) =====
     total_square_feet: int = Field(
@@ -115,6 +127,15 @@ class IndustrialPropertyDetails(PropertyTypeDetailsBase):
     )
     
     # ===== VALIDATORS =====
+    
+    @field_validator('industrial_type')
+    @classmethod
+    def validate_industrial_type(cls, v: str) -> str:
+        """Validate industrial facility type"""
+        valid_types = {'warehouse', 'distribution', 'manufacturing', 'flex', 'cold_storage', 'data_center', 'light_industrial', 'rd_tech'}
+        if v not in valid_types:
+            raise ValueError(f"Industrial type must be one of: {', '.join(valid_types)}")
+        return v
     
     @field_validator('sprinkler_system_type')
     @classmethod

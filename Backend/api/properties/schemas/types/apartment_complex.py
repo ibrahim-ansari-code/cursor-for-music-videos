@@ -2,7 +2,7 @@
 Apartment complex property schemas aligned with properties_apartment_complex table.
 Handles multi-unit residential properties with shared amenities.
 """
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from decimal import Decimal
 from pydantic import Field, field_validator, model_validator
 
@@ -14,6 +14,18 @@ class ApartmentComplexPropertyDetails(PropertyTypeDetailsBase):
     Apartment complex property details schema.
     Maps directly to properties_apartment_complex table.
     """
+    
+    # ===== DISCRIMINATOR FIELD =====
+    property_type: Literal['Apartment Complex'] = Field(
+        default='Apartment Complex',
+        description="Property type discriminator for union validation"
+    )
+    
+    # ===== COMPLEX STYLE (Required) =====
+    complex_style: str = Field(
+        ...,
+        description="Style of apartment complex: garden, highrise, midrise, townhome, luxury, student"
+    )
     
     # ===== BUILDING INFORMATION (Required) =====
     number_of_buildings: int = Field(
@@ -159,6 +171,15 @@ class ApartmentComplexPropertyDetails(PropertyTypeDetailsBase):
     )
     
     # ===== VALIDATORS =====
+    
+    @field_validator('complex_style')
+    @classmethod
+    def validate_complex_style(cls, v: str) -> str:
+        """Validate complex style"""
+        valid_styles = {'garden', 'highrise', 'midrise', 'townhome', 'luxury', 'student'}
+        if v not in valid_styles:
+            raise ValueError(f"Complex style must be one of: {', '.join(valid_styles)}")
+        return v
     
     @field_validator('management_contact_email')
     @classmethod

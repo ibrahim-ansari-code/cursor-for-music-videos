@@ -240,9 +240,35 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
     }
   }, [currentStep]);
 
+  // Watch only specific fields needed for step validation to optimize performance
+  const watchedPropertyType = methods.watch('property_type');
+  const watchedName = methods.watch('name');
+  const watchedStatus = methods.watch('status');
+  const watchedAddress = methods.watch('address');
+  const watchedCity = methods.watch('city');
+  const watchedProvince = methods.watch('province');
+  const watchedPostalCode = methods.watch('postal_code');
+  const watchedLatitude = methods.watch('latitude');
+  const watchedLongitude = methods.watch('longitude');
+  const watchedTypeSpecificDetails = methods.watch('type_specific_details');
+  
   // Check if current step is complete
   const isStepComplete = useCallback(() => {
-    const values = methods.getValues();
+    // Use specific watched values instead of watching everything
+    const values = {
+      property_type: watchedPropertyType,
+      name: watchedName,
+      status: watchedStatus,
+      address: watchedAddress,
+      city: watchedCity,
+      province: watchedProvince,
+      postal_code: watchedPostalCode,
+      latitude: watchedLatitude,
+      longitude: watchedLongitude,
+      type_specific_details: watchedTypeSpecificDetails
+    };
+    
+
     
     switch (currentStep) {
       case 0: // Location
@@ -341,13 +367,33 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
           }
           
           if (values.property_type === PropertyType.MIXED_USE) {
-            const totalSqft = Number(details.total_square_feet);
+            // Mixed-use validation - need both residential and commercial components
+            const residentialSF = Number(details.residential_square_feet) || 0;
+            const commercialSF = Number(details.commercial_square_feet) || 0;
+            const residentialUnits = Number(details.residential_units_count) || 0;
             
-            if (!details.mixed_use_type || !details.primary_use) {
+            // Check required mixed-use type
+            if (!details.mixed_use_type) {
               return false;
             }
-            if (!details.total_square_feet || isNaN(totalSqft) || totalSqft <= 0) {
+            
+            // Must have both residential and commercial space
+            if (residentialSF <= 0 || commercialSF <= 0) {
               return false;
+            }
+            
+            // If residential units are specified, check unit mix validation
+            if (residentialUnits > 0) {
+              const unitTypes = details.residential_unit_types || {};
+              const unitMixTotal = Object.values(unitTypes).reduce((sum: number, count: any) => {
+                const num = Number(count);
+                return sum + (isNaN(num) ? 0 : num);
+              }, 0);
+              
+              // Unit mix must match total residential units
+              if (unitMixTotal !== residentialUnits) {
+                return false;
+              }
             }
             
             return true;
@@ -364,7 +410,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
       default:
         return false;
     }
-  }, [currentStep, methods]);
+  }, [currentStep, watchedPropertyType, watchedName, watchedStatus, watchedAddress, watchedCity, watchedProvince, watchedPostalCode, watchedLatitude, watchedLongitude, watchedTypeSpecificDetails, detailsStepRef]);
 
   const handleSubmit = async (data: PropertyFormSchemaType) => {
     setIsSubmitting(true);
@@ -386,6 +432,11 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
     if (data.property_type === PropertyType.APARTMENT_COMPLEX) {
       const details = data.type_specific_details || {};
       
+      if (!details.complex_style) {
+        toast.error('Complex style is required for apartment complex');
+        setIsSubmitting(false);
+        return;
+      }
       if (!details.total_units || Number(details.total_units) <= 0) {
         toast.error('Total units is required for apartment complex');
         setIsSubmitting(false);
@@ -396,8 +447,61 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
         setIsSubmitting(false);
         return;
       }
-      if (!details.complex_style) {
-        toast.error('Complex style is required for apartment complex');
+    }
+    
+    // Industrial specific validation
+    if (data.property_type === PropertyType.INDUSTRIAL) {
+      const details = data.type_specific_details || {};
+      
+      if (!details.industrial_type) {
+        toast.error('Industrial facility type is required');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!details.total_square_feet || Number(details.total_square_feet) <= 0) {
+        toast.error('Total square feet is required for industrial properties');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+    
+    // Commercial specific validation
+    if (data.property_type === PropertyType.COMMERCIAL) {
+      const details = data.type_specific_details || {};
+      
+      if (!details.space_type) {
+        toast.error('Commercial space type is required');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!details.lease_type) {
+        toast.error('Lease type is required for commercial properties');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!details.usable_square_feet || Number(details.usable_square_feet) <= 0) {
+        toast.error('Usable square feet is required for commercial properties');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!details.rentable_square_feet || Number(details.rentable_square_feet) <= 0) {
+        toast.error('Rentable square feet is required for commercial properties');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+    
+    // Residential specific validation
+    if (data.property_type === PropertyType.RESIDENTIAL) {
+      const details = data.type_specific_details || {};
+      
+      if (!details.bedrooms || Number(details.bedrooms) < 0) {
+        toast.error('Number of bedrooms is required for residential properties');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!details.bathrooms || Number(details.bathrooms) <= 0) {
+        toast.error('Number of bathrooms is required for residential properties');
         setIsSubmitting(false);
         return;
       }
@@ -475,18 +579,108 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
         type_specific_details: data.type_specific_details && typeof data.type_specific_details === 'object'
           ? {
               ...data.type_specific_details,
+              // Add discriminator field for robust union validation (must match backend PropertyType enum values)
+              property_type: (() => {
+                // Map frontend enum to backend discriminator literals
+                const discriminatorMap: Record<PropertyType, string> = {
+                  [PropertyType.RESIDENTIAL]: 'Residential',
+                  [PropertyType.APARTMENT_COMPLEX]: 'Apartment Complex',
+                  [PropertyType.COMMERCIAL]: 'Commercial',
+                  [PropertyType.INDUSTRIAL]: 'Industrial',
+                  [PropertyType.MIXED_USE]: 'Mixed-Use',
+                  [PropertyType.LAND]: 'Land',
+                  [PropertyType.SPECIAL_PURPOSE]: 'Special Purpose',
+                  [PropertyType.OTHER]: 'Other'
+                };
+                return discriminatorMap[data.property_type as PropertyType];
+              })(),
               // Ensure required fields are properly typed for apartment complex
               ...(data.property_type === PropertyType.APARTMENT_COMPLEX && {
+                complex_style: data.type_specific_details?.complex_style,
                 number_of_buildings: Number(data.type_specific_details?.number_of_buildings),
                 total_units: Number(data.type_specific_details?.total_units),
-                unit_mix: data.type_specific_details?.unit_mix || {},
-                complex_style: data.type_specific_details?.complex_style
+                unit_mix: (() => {
+                  const rawUnitMix = data.type_specific_details?.unit_mix || {};
+                  const cleanUnitMix: Record<string, number> = {};
+                  // Only include unit types with positive values, convert null/undefined to 0 and filter out
+                  Object.entries(rawUnitMix).forEach(([key, value]) => {
+                    const numValue = Number(value);
+                    if (!isNaN(numValue) && numValue > 0) {
+                      cleanUnitMix[key] = numValue;
+                    }
+                  });
+                  return cleanUnitMix;
+                })()
+              }),
+              // Ensure required fields are properly typed for commercial
+              ...(data.property_type === PropertyType.COMMERCIAL && {
+                space_type: data.type_specific_details?.space_type,
+                usable_square_feet: Number(data.type_specific_details?.usable_square_feet),
+                rentable_square_feet: Number(data.type_specific_details?.rentable_square_feet),
+                lease_type: data.type_specific_details?.lease_type,
+                // Clean up optional numeric fields
+                ceiling_height: data.type_specific_details?.ceiling_height ? Number(data.type_specific_details.ceiling_height) : undefined,
+                loading_docks_count: data.type_specific_details?.loading_docks_count ? Number(data.type_specific_details.loading_docks_count) : undefined,
+                floor_count: data.type_specific_details?.floor_count ? Number(data.type_specific_details.floor_count) : 1,
+                common_area_maintenance_fee: data.type_specific_details?.common_area_maintenance_fee ? Number(data.type_specific_details.common_area_maintenance_fee) : undefined
+              }),
+              // Ensure required fields are properly typed for residential
+              ...(data.property_type === PropertyType.RESIDENTIAL && {
+                bedrooms: Number(data.type_specific_details?.bedrooms),
+                bathrooms: Number(data.type_specific_details?.bathrooms),
+                // Clean up optional numeric fields
+                square_feet: data.type_specific_details?.square_feet ? Number(data.type_specific_details.square_feet) : undefined,
+                lot_size: data.type_specific_details?.lot_size ? Number(data.type_specific_details.lot_size) : undefined,
+                stories: data.type_specific_details?.stories ? Number(data.type_specific_details.stories) : 1,
+                garage_spaces: data.type_specific_details?.garage_spaces ? Number(data.type_specific_details.garage_spaces) : 0
+              }),
+              // Ensure required fields are properly typed for industrial
+              ...(data.property_type === PropertyType.INDUSTRIAL && {
+                industrial_type: data.type_specific_details?.industrial_type,
+                total_square_feet: Number(data.type_specific_details?.total_square_feet),
+                // Clean up optional numeric fields - convert null/undefined to 0 or exclude
+                warehouse_square_feet: data.type_specific_details?.warehouse_square_feet ? Number(data.type_specific_details.warehouse_square_feet) : undefined,
+                office_square_feet: data.type_specific_details?.office_square_feet ? Number(data.type_specific_details.office_square_feet) : undefined,
+                manufacturing_square_feet: data.type_specific_details?.manufacturing_square_feet ? Number(data.type_specific_details.manufacturing_square_feet) : undefined,
+                clear_height: data.type_specific_details?.clear_height ? Number(data.type_specific_details.clear_height) : undefined,
+                loading_docks_count: data.type_specific_details?.loading_docks_count ? Number(data.type_specific_details.loading_docks_count) : undefined,
+                drive_in_doors_count: data.type_specific_details?.drive_in_doors_count ? Number(data.type_specific_details.drive_in_doors_count) : undefined,
+                truck_court_size: data.type_specific_details?.truck_court_size ? Number(data.type_specific_details.truck_court_size) : undefined
+              }),
+              // Ensure required fields are properly typed for mixed-use
+              ...(data.property_type === PropertyType.MIXED_USE && {
+                // Clean up required numeric fields
+                residential_square_feet: Number(data.type_specific_details?.residential_square_feet),
+                commercial_square_feet: Number(data.type_specific_details?.commercial_square_feet),
+                // Clean up optional numeric fields
+                residential_units_count: data.type_specific_details?.residential_units_count ? Number(data.type_specific_details.residential_units_count) : undefined,
+                commercial_units_count: data.type_specific_details?.commercial_units_count ? Number(data.type_specific_details.commercial_units_count) : undefined,
+                parking_spaces_total: data.type_specific_details?.parking_spaces_total ? Number(data.type_specific_details.parking_spaces_total) : undefined,
+                // Clean up residential unit types - filter out null values like apartment complex unit_mix
+                residential_unit_types: (() => {
+                  const rawUnitTypes = data.type_specific_details?.residential_unit_types || {};
+                  const cleanUnitTypes: Record<string, number> = {};
+                  // Only include unit types with positive values, filter out null/undefined
+                  Object.entries(rawUnitTypes).forEach(([key, value]) => {
+                    const numValue = Number(value);
+                    if (!isNaN(numValue) && numValue > 0) {
+                      cleanUnitTypes[key] = numValue;
+                    }
+                  });
+                  return cleanUnitTypes;
+                })(),
+                // Clean up commercial space types array - filter out empty values
+                commercial_space_types: (data.type_specific_details?.commercial_space_types || []).filter(Boolean),
+                // Clean up shared amenities array - filter out empty values  
+                shared_amenities: (data.type_specific_details?.shared_amenities || []).filter(Boolean)
               })
             }
           : undefined,
         detailed_units: detailedUnits,
         units: units,
       };
+
+
 
       // Submit property
       let propertyId: number;

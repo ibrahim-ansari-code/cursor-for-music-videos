@@ -58,6 +58,8 @@ class TestMixedUsePropertyUpdate(BasePropertyTest):
             "name": "Updated Urban Living Center",
             "description": "Modern mixed-use development with enhanced amenities",
             "type_specific_details": {
+                "property_type": "Mixed-Use",  # Discriminator field
+                "mixed_use_type": "retail_residential",  # Required field
                 "residential_square_feet": 60000,
                 "commercial_square_feet": 18000,
                 "residential_units_count": 48,
@@ -75,6 +77,8 @@ class TestMixedUsePropertyUpdate(BasePropertyTest):
         
         # Use helper function to create response
         type_details = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "retail_residential",  # Required field
             "residential_square_feet": 60000,
             "commercial_square_feet": 18000,
             "residential_units_count": 48,
@@ -122,6 +126,10 @@ class TestMixedUsePropertyUpdate(BasePropertyTest):
         # Update only type-specific details
         update_data = {
             "type_specific_details": {
+                "property_type": "Mixed-Use",  # Discriminator field
+                "mixed_use_type": "live_work",  # Required field
+                "residential_square_feet": 50000,  # Required field
+                "commercial_square_feet": 15000,  # Required field
                 "shared_amenities": ["gym", "pool", "business_center", "rooftop_deck", "concierge"],
                 "separate_entrances": False,
                 "shared_parking": False,
@@ -133,6 +141,8 @@ class TestMixedUsePropertyUpdate(BasePropertyTest):
         
         # Use helper function to create response
         type_details = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "live_work",  # Required field
             "residential_square_feet": 50000,
             "commercial_square_feet": 15000,
             "residential_units_count": 40,
@@ -213,6 +223,10 @@ class TestMixedUsePropertyUpdate(BasePropertyTest):
         # Invalid data - unit types exceed total count
         update_data = {
             "type_specific_details": {
+                "property_type": "Mixed-Use",  # Discriminator field
+                "mixed_use_type": "live_work",  # Required field
+                "residential_square_feet": 30000,  # Required field
+                "commercial_square_feet": 10000,  # Required field
                 "residential_units_count": 20,
                 "residential_unit_types": {
                     "studio": 10,
@@ -276,6 +290,8 @@ class TestMixedUsePropertyUpdate(BasePropertyTest):
         update_data = {
             "name": "Admin Updated Development",
             "type_specific_details": {
+                "property_type": "Mixed-Use",  # Discriminator field
+                "mixed_use_type": "vertical_mixed",  # Required field
                 "residential_square_feet": 80000,
                 "commercial_square_feet": 25000,
                 "residential_units_count": 65,
@@ -284,6 +300,8 @@ class TestMixedUsePropertyUpdate(BasePropertyTest):
         }
         
         type_details = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "vertical_mixed",  # Required field
             "residential_square_feet": 80000,
             "commercial_square_feet": 25000,
             "residential_units_count": 65,

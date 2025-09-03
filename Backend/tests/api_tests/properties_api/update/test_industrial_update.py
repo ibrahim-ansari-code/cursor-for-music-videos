@@ -59,6 +59,8 @@ class TestIndustrialPropertyUpdate(BasePropertyTest):
             "name": "Updated Distribution Center",
             "description": "Modern warehouse facility with expanded loading docks",
             "type_specific_details": {
+                "property_type": "Industrial",  # Discriminator field
+                "industrial_type": "distribution",  # Required field
                 "total_square_feet": 120000,
                 "warehouse_square_feet": 100000,
                 "office_square_feet": 15000,
@@ -73,6 +75,8 @@ class TestIndustrialPropertyUpdate(BasePropertyTest):
         
         # Use helper function to create response
         type_details = {
+            "property_type": "Industrial",  # Discriminator field
+            "industrial_type": "distribution",  # Required field
             "total_square_feet": 120000,
             "warehouse_square_feet": 100000,
             "office_square_feet": 15000,
@@ -158,6 +162,9 @@ class TestIndustrialPropertyUpdate(BasePropertyTest):
         # Update only type-specific details
         update_data = {
             "type_specific_details": {
+                "property_type": "Industrial",  # Discriminator field
+                "industrial_type": "warehouse",  # Required field
+                "total_square_feet": 100000,  # Required field
                 "power_capacity": "4000 amps",
                 "power_voltage": "480V 3-phase",
                 "has_crane": True,
@@ -175,6 +182,8 @@ class TestIndustrialPropertyUpdate(BasePropertyTest):
         
         # Use helper function to create response
         type_details = {
+            "property_type": "Industrial",  # Discriminator field
+            "industrial_type": "warehouse",  # Required field
             "total_square_feet": 100000,
             "warehouse_square_feet": 85000,
             "office_square_feet": 10000,
@@ -259,6 +268,8 @@ class TestIndustrialPropertyUpdate(BasePropertyTest):
         # Invalid data - space components exceed total
         update_data = {
             "type_specific_details": {
+                "property_type": "Industrial",  # Discriminator field
+                "industrial_type": "warehouse",  # Required field
                 "total_square_feet": 50000,
                 "warehouse_square_feet": 40000,
                 "office_square_feet": 15000,  # Combined would exceed total
@@ -321,6 +332,8 @@ class TestIndustrialPropertyUpdate(BasePropertyTest):
         update_data = {
             "name": "Admin Updated Facility",
             "type_specific_details": {
+                "property_type": "Industrial",  # Discriminator field
+                "industrial_type": "warehouse",  # Required field
                 "total_square_feet": 150000,
                 "warehouse_square_feet": 130000,
                 "office_square_feet": 20000,
@@ -329,6 +342,8 @@ class TestIndustrialPropertyUpdate(BasePropertyTest):
         }
         
         type_details = {
+            "property_type": "Industrial",  # Discriminator field
+            "industrial_type": "warehouse",  # Required field
             "total_square_feet": 150000,
             "warehouse_square_feet": 130000,
             "office_square_feet": 20000,

@@ -95,7 +95,7 @@ class TestResidentialPropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.RESIDENTIAL)
         details = get_residential_details()
-        details["property_subtype"] = "condominium"
+        details["property_subtype"] = "condo"
         details["bedrooms"] = 2
         details["bathrooms"] = 2
         details["square_footage"] = 1200

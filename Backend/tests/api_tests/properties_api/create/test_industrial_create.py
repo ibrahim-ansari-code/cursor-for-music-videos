@@ -62,6 +62,8 @@ class TestIndustrialPropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.INDUSTRIAL)
         details = {
+            "property_type": "Industrial",  # Discriminator field
+            "industrial_type": "warehouse",  # Required field
             "total_square_feet": 100000,
             "warehouse_square_feet": 90000,
             "office_square_feet": 5000,
@@ -104,6 +106,8 @@ class TestIndustrialPropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.INDUSTRIAL)
         details = {
+            "property_type": "Industrial",  # Discriminator field
+            "industrial_type": "manufacturing",  # Required field
             "total_square_feet": 150000,
             "manufacturing_square_feet": 100000,
             "warehouse_square_feet": 30000,
@@ -152,6 +156,8 @@ class TestIndustrialPropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.INDUSTRIAL)
         details = {
+            "property_type": "Industrial",  # Discriminator field
+            "industrial_type": "distribution",  # Required field
             "total_square_feet": 250000,
             "warehouse_square_feet": 230000,
             "office_square_feet": 10000,
@@ -193,6 +199,8 @@ class TestIndustrialPropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.INDUSTRIAL)
         details = {
+            "property_type": "Industrial",  # Discriminator field
+            "industrial_type": "flex",  # Required field
             "total_square_feet": 25000,
             "warehouse_square_feet": 15000,
             "office_square_feet": 10000,
@@ -234,6 +242,8 @@ class TestIndustrialPropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.INDUSTRIAL)
         details = {
+            "property_type": "Industrial",  # Discriminator field
+            "industrial_type": "cold_storage",  # Required field
             "total_square_feet": 50000,
             "warehouse_square_feet": 45000,
             "office_square_feet": 2500,
@@ -279,6 +289,8 @@ class TestIndustrialPropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.INDUSTRIAL)
         details = {
+            "property_type": "Industrial",  # Discriminator field
+            "industrial_type": "warehouse",  # Required field
             # Missing required total_square_feet
             "warehouse_square_feet": 50000,
             "loading_docks_count": 5
@@ -298,6 +310,8 @@ class TestIndustrialPropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.INDUSTRIAL)
         details = {
+            "property_type": "Industrial",  # Discriminator field
+            "industrial_type": "warehouse",  # Required field
             "total_square_feet": 75000,
             "warehouse_square_feet": 60000,
             "office_square_feet": 5000,

@@ -37,11 +37,12 @@ class TestCommercialPropertyUpdate(BasePropertyTest):
             "name": "Updated Tech Plaza",
             "description": "Renovated commercial building in tech district",
             "type_specific_details": {
+                "property_type": "Commercial",  # Discriminator field
                 "space_type": "office",
                 "usable_square_feet": 15000,
                 "rentable_square_feet": 16500,
-                "common_area_factor": 10.0,
                 "lease_type": "triple_net",
+                "common_area_factor": 10.0,
                 "zoning_code": "C-3",
                 "ceiling_height": 12.5,
                 "has_loading_area": True,
@@ -152,9 +153,10 @@ class TestCommercialPropertyUpdate(BasePropertyTest):
         # Invalid data - rentable square feet less than usable
         update_data = {
             "type_specific_details": {
+                "property_type": "Commercial",  # Discriminator field
+                "space_type": "office",
                 "usable_square_feet": 10000,
                 "rentable_square_feet": 8000,  # Less than usable - should be invalid
-                "space_type": "office",
                 "lease_type": "gross"
             }
         }
@@ -229,6 +231,7 @@ class TestCommercialPropertyUpdate(BasePropertyTest):
         update_data = {
             "name": "Admin Updated Plaza",
             "type_specific_details": {
+                "property_type": "Commercial",  # Discriminator field
                 "space_type": "retail",
                 "usable_square_feet": 8000,
                 "rentable_square_feet": 9000,
@@ -294,8 +297,11 @@ class TestCommercialPropertyUpdate(BasePropertyTest):
         property_id = 1
         update_data = {
             "type_specific_details": {
-                "lease_type": "other",
-                "space_type": "office"
+                "property_type": "Commercial",  # Discriminator field
+                "space_type": "office",
+                "usable_square_feet": 10000,  # Required field
+                "rentable_square_feet": 11000,  # Required field
+                "lease_type": "other"
             }
         }
         

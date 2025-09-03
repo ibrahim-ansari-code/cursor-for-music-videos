@@ -97,6 +97,8 @@ class TestApartmentComplexPropertyGet(BasePropertyTest):
         
         # Mock type-specific details
         type_details = {
+            "property_type": "Apartment Complex",  # Discriminator field
+            "complex_style": "garden",  # Required field
             "total_units": 48,
             "number_of_buildings": 2,
             "shared_amenities": ["gym", "pool", "parking_garage"],

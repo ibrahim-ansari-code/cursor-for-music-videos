@@ -341,28 +341,22 @@ export const detailsSchema = z.object({
     // Validation for mixed-use properties
     if (data.property_type === PropertyType.MIXED_USE) {
       const details = data.type_specific_details || {};
-      const totalSqft = Number(details.total_square_feet);
+      const residentialSF = Number(details.residential_square_feet) || 0;
+      const commercialSF = Number(details.commercial_square_feet) || 0;
       
-      // Check required fields for mixed-use
-      if (!details.mixed_use_type) {
+      // Check required fields for mixed-use (match actual form fields)
+      if (!details.residential_square_feet || residentialSF <= 0) {
         ctx.addIssue({
           code: "custom",
-          message: 'Mixed-use type is required',
-          path: ['type_specific_details', 'mixed_use_type']
+          message: 'Residential square feet is required for mixed-use properties',
+          path: ['type_specific_details', 'residential_square_feet']
         });
       }
-      if (!details.primary_use) {
+      if (!details.commercial_square_feet || commercialSF <= 0) {
         ctx.addIssue({
           code: "custom",
-          message: 'Primary use is required',
-          path: ['type_specific_details', 'primary_use']
-        });
-      }
-      if (!details.total_square_feet || isNaN(totalSqft) || totalSqft <= 0) {
-        ctx.addIssue({
-          code: "custom",
-          message: 'Total square feet is required',
-          path: ['type_specific_details', 'total_square_feet']
+          message: 'Commercial square feet is required for mixed-use properties',
+          path: ['type_specific_details', 'commercial_square_feet']
         });
       }
     }

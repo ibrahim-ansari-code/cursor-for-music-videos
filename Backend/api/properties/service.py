@@ -107,34 +107,53 @@ class PropertyService:
         session: AsyncSession
     ) -> None:
         """Create type-specific property details based on property type."""
+        
+        # Guard: ensure discriminator matches selected property type
+        discriminator_map = {
+            PropertyType.APARTMENT_COMPLEX: 'Apartment Complex',
+            PropertyType.COMMERCIAL: 'Commercial',
+            PropertyType.RESIDENTIAL: 'Residential',
+            PropertyType.INDUSTRIAL: 'Industrial',
+            PropertyType.MIXED_USE: 'Mixed-Use',
+            PropertyType.LAND: 'Land',
+            PropertyType.SPECIAL_PURPOSE: 'Special Purpose',
+            PropertyType.OTHER: 'Other',
+        }
+        expected = discriminator_map.get(property_type)
+        if hasattr(details, 'property_type'):
+            if details.property_type != expected:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"type_specific_details.property_type does not match property_type"
+                )
         if property_type == PropertyType.APARTMENT_COMPLEX and isinstance(details, ApartmentComplexPropertyDetailsCreate):
             apartment_complex = PropertyApartmentComplex(
                 property_id=property_id,
-                **details.model_dump(exclude_unset=True)
+                **details.model_dump(exclude_unset=True, exclude={'property_type'})
             )
             session.add(apartment_complex)
         elif property_type == PropertyType.COMMERCIAL and isinstance(details, CommercialPropertyDetailsCreate):
             commercial = PropertyCommercial(
                 property_id=property_id,
-                **details.model_dump(exclude_unset=True)
+                **details.model_dump(exclude_unset=True, exclude={'property_type'})
             )
             session.add(commercial)
         elif property_type == PropertyType.RESIDENTIAL and isinstance(details, ResidentialPropertyDetailsCreate):
             residential = PropertyResidential(
                 property_id=property_id,
-                **details.model_dump(exclude_unset=True)
+                **details.model_dump(exclude_unset=True, exclude={'property_type'})
             )
             session.add(residential)
         elif property_type == PropertyType.INDUSTRIAL and isinstance(details, IndustrialPropertyDetailsCreate):
             industrial = PropertyIndustrial(
                 property_id=property_id,
-                **details.model_dump(exclude_unset=True)
+                **details.model_dump(exclude_unset=True, exclude={'property_type'})
             )
             session.add(industrial)
         elif property_type == PropertyType.MIXED_USE and isinstance(details, MixedUsePropertyDetailsCreate):
             mixed_use = PropertyMixedUse(
                 property_id=property_id,
-                **details.model_dump(exclude_unset=True)
+                **details.model_dump(exclude_unset=True, exclude={'property_type'})
             )
             session.add(mixed_use)
     
@@ -206,8 +225,53 @@ class PropertyService:
         session: AsyncSession
     ) -> None:
         """Update type-specific property details based on property type."""
-        # Import from already imported modules
-        pass
+        
+        # Guard: ensure discriminator matches selected property type
+        discriminator_map = {
+            PropertyType.APARTMENT_COMPLEX: 'Apartment Complex',
+            PropertyType.COMMERCIAL: 'Commercial',
+            PropertyType.RESIDENTIAL: 'Residential',
+            PropertyType.INDUSTRIAL: 'Industrial',
+            PropertyType.MIXED_USE: 'Mixed-Use',
+            PropertyType.LAND: 'Land',
+            PropertyType.SPECIAL_PURPOSE: 'Special Purpose',
+            PropertyType.OTHER: 'Other',
+        }
+        expected = discriminator_map.get(property_type)
+        if hasattr(details, 'property_type'):
+            if details.property_type != expected:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"type_specific_details.property_type does not match property_type"
+                )
+        # Validate details object before type checking
+        if not details:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="type_specific_details is required for property updates"
+            )
+        
+        # Use a mapping to reduce repetition
+        model_mapping = {
+            PropertyType.APARTMENT_COMPLEX: (PropertyApartmentComplex, ApartmentComplexPropertyDetailsUpdate),
+            PropertyType.COMMERCIAL: (PropertyCommercial, CommercialPropertyDetailsUpdate),
+            PropertyType.RESIDENTIAL: (PropertyResidential, ResidentialPropertyDetailsUpdate),
+            PropertyType.INDUSTRIAL: (PropertyIndustrial, IndustrialPropertyDetailsUpdate),
+            PropertyType.MIXED_USE: (PropertyMixedUse, MixedUsePropertyDetailsUpdate),
+        }
+        
+        model_class, schema_class = model_mapping.get(property_type, (None, None))
+        if not model_class or not schema_class:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Unsupported property type: {property_type}"
+            )
+        
+        if not isinstance(details, schema_class):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid schema type for {property_type} property"
+            )
         
         if property_type == PropertyType.APARTMENT_COMPLEX and isinstance(details, ApartmentComplexPropertyDetailsUpdate):
             # Check if record exists
@@ -219,7 +283,7 @@ class PropertyService:
             
             if apt_existing:
                 # Update existing
-                update_data = details.model_dump(exclude_unset=True)
+                update_data = details.model_dump(exclude_unset=True, exclude={'property_type'})
                 for key, value in update_data.items():
                     setattr(apt_existing, key, value)
                 apt_existing.updated_at = create_audit_datetime()
@@ -227,7 +291,7 @@ class PropertyService:
                 # Create new
                 new_apt = PropertyApartmentComplex(
                     property_id=property_id,
-                    **details.model_dump(exclude_unset=True)
+                    **details.model_dump(exclude_unset=True, exclude={'property_type'})
                 )
                 session.add(new_apt)
                 
@@ -239,14 +303,14 @@ class PropertyService:
             com_existing = com_result.scalar_one_or_none()
             
             if com_existing:
-                update_data = details.model_dump(exclude_unset=True)
+                update_data = details.model_dump(exclude_unset=True, exclude={'property_type'})
                 for key, value in update_data.items():
                     setattr(com_existing, key, value)
                 com_existing.updated_at = create_audit_datetime()
             else:
                 new_com = PropertyCommercial(
                     property_id=property_id,
-                    **details.model_dump(exclude_unset=True)
+                    **details.model_dump(exclude_unset=True, exclude={'property_type'})
                 )
                 session.add(new_com)
                 
@@ -258,14 +322,14 @@ class PropertyService:
             res_existing = res_result.scalar_one_or_none()
             
             if res_existing:
-                update_data = details.model_dump(exclude_unset=True)
+                update_data = details.model_dump(exclude_unset=True, exclude={'property_type'})
                 for key, value in update_data.items():
                     setattr(res_existing, key, value)
                 res_existing.updated_at = create_audit_datetime()
             else:
                 new_res = PropertyResidential(
                     property_id=property_id,
-                    **details.model_dump(exclude_unset=True)
+                    **details.model_dump(exclude_unset=True, exclude={'property_type'})
                 )
                 session.add(new_res)
                 
@@ -277,14 +341,14 @@ class PropertyService:
             ind_existing = ind_result.scalar_one_or_none()
             
             if ind_existing:
-                update_data = details.model_dump(exclude_unset=True)
+                update_data = details.model_dump(exclude_unset=True, exclude={'property_type'})
                 for key, value in update_data.items():
                     setattr(ind_existing, key, value)
                 ind_existing.updated_at = create_audit_datetime()
             else:
                 new_ind = PropertyIndustrial(
                     property_id=property_id,
-                    **details.model_dump(exclude_unset=True)
+                    **details.model_dump(exclude_unset=True, exclude={'property_type'})
                 )
                 session.add(new_ind)
                 
@@ -296,14 +360,14 @@ class PropertyService:
             mix_existing = mix_result.scalar_one_or_none()
             
             if mix_existing:
-                update_data = details.model_dump(exclude_unset=True)
+                update_data = details.model_dump(exclude_unset=True, exclude={'property_type'})
                 for key, value in update_data.items():
                     setattr(mix_existing, key, value)
                 mix_existing.updated_at = create_audit_datetime()
             else:
                 new_mix = PropertyMixedUse(
                     property_id=property_id,
-                    **details.model_dump(exclude_unset=True)
+                    **details.model_dump(exclude_unset=True, exclude={'property_type'})
                 )
                 session.add(new_mix)
 

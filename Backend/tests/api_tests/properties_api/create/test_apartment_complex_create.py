@@ -307,8 +307,10 @@ class TestApartmentComplexPropertyCreate(BasePropertyTest):
         self.setup_mocks(mock_session)
         
         payload = get_base_property_payload(PropertyType.APARTMENT_COMPLEX)
-        # Only required field for apartment complex
+        # Only required fields for apartment complex
         payload["type_specific_details"] = {
+            "property_type": "Apartment Complex",  # Discriminator field
+            "complex_style": "garden",  # Required field
             "total_units": 24
         }
         

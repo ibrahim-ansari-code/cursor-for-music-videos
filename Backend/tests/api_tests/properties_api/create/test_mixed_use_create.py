@@ -63,6 +63,8 @@ class TestMixedUsePropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.MIXED_USE)
         details = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "retail_residential",  # Required field
             "residential_square_feet": 80000,
             "commercial_square_feet": 20000,
             "residential_units_count": 60,
@@ -108,6 +110,8 @@ class TestMixedUsePropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.MIXED_USE)
         details = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "office_residential",  # Required field
             "residential_square_feet": 120000,
             "commercial_square_feet": 80000,
             "residential_units_count": 100,
@@ -153,6 +157,8 @@ class TestMixedUsePropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.MIXED_USE)
         details = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "vertical_mixed",  # Required field
             "residential_square_feet": 200000,
             "commercial_square_feet": 100000,
             "residential_units_count": 150,
@@ -202,6 +208,8 @@ class TestMixedUsePropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.MIXED_USE)
         details = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "live_work",  # Required field
             "residential_square_feet": 30000,
             "commercial_square_feet": 10000,
             "residential_units_count": 20,
@@ -241,6 +249,8 @@ class TestMixedUsePropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.MIXED_USE)
         details = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "retail_residential",  # Required field
             "residential_square_feet": 50000,
             "commercial_square_feet": 15000,
             "residential_units_count": 40,
@@ -273,6 +283,8 @@ class TestMixedUsePropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.MIXED_USE)
         details = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "live_work",  # Required field
             "residential_square_feet": 60000,
             "commercial_square_feet": 20000,
             "residential_units_count": 50,
@@ -315,6 +327,8 @@ class TestMixedUsePropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.MIXED_USE)
         details = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "office_residential",  # Required field
             "residential_square_feet": 70000,
             "commercial_square_feet": 30000,
             "residential_units_count": 60,
@@ -357,6 +371,9 @@ class TestMixedUsePropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.MIXED_USE)
         details = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "retail_residential",  # Required field
+            "residential_square_feet": 1,  # Minimal residential component
             "commercial_square_feet": 50000,
             "commercial_units_count": 15,
             "commercial_space_types": ["retail", "office", "restaurant"],
@@ -391,6 +408,8 @@ class TestMixedUsePropertyCreate(BasePropertyTest):
         
         payload = get_base_property_payload(PropertyType.MIXED_USE)
         details = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "live_work",  # Required field
             "residential_square_feet": 90000,
             "commercial_square_feet": 40000,
             "residential_units_count": 75,
@@ -435,8 +454,13 @@ class TestMixedUsePropertyCreate(BasePropertyTest):
         self.setup_mocks(mock_session)
         
         payload = get_base_property_payload(PropertyType.MIXED_USE)
-        # Empty details - validators should handle gracefully
-        payload["type_specific_details"] = {}
+        # Minimal details with required fields
+        payload["type_specific_details"] = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "live_work",  # Required field
+            "residential_square_feet": 1,  # Minimal residential component
+            "commercial_square_feet": 1   # Minimal commercial component
+        }
         
         created_property = create_test_property(
             property_id=1,

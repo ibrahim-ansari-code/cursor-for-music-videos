@@ -57,6 +57,8 @@ class TestMixedUsePropertyGet(BasePropertyTest):
         
         # Create dict response for consistency - avoid Pydantic typing issues
         type_details = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "vertical_mixed",  # Required field
             "residential_square_feet": 120000,
             "commercial_square_feet": 30000,
             "residential_units_count": 120,
@@ -124,6 +126,8 @@ class TestMixedUsePropertyGet(BasePropertyTest):
         
         # Create dict response for consistency - avoid Pydantic typing issues
         type_details = {
+            "property_type": "Mixed-Use",  # Discriminator field
+            "mixed_use_type": "live_work",  # Required field
             "residential_units_count": 70,
             "commercial_units_count": 20,
             "residential_square_feet": 70000,

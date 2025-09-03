@@ -2,7 +2,7 @@
 Residential property schemas aligned with properties_residential table.
 Clean, focused implementation matching database model.
 """
-from typing import Optional, List
+from typing import Optional, List, Literal
 from decimal import Decimal
 from pydantic import Field, field_validator, model_validator
 
@@ -14,6 +14,12 @@ class ResidentialPropertyDetails(PropertyTypeDetailsBase):
     Residential property details schema.
     Maps directly to properties_residential table.
     """
+    
+    # ===== DISCRIMINATOR FIELD =====
+    property_type: Literal['Residential'] = Field(
+        default='Residential',
+        description="Property type discriminator for union validation"
+    )
     
     # ===== LIVING SPACES (Core Requirements) =====
     bedrooms: int = Field(
