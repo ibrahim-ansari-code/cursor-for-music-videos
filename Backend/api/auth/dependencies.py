@@ -282,6 +282,33 @@ async def get_current_verified_user(
         )
     return current_user
 
+
+async def get_current_landlord_or_admin(
+    current_user: User = Depends(get_current_verified_user)
+) -> User:
+    """
+    Ensures the current user is a landlord or admin (not a tenant).
+    
+    Used for features that require property management permissions,
+    such as tax preferences, property management, and financial reporting.
+    
+    Args:
+        current_user: The authenticated verified user.
+        
+    Returns:
+        The user if they are landlord or admin.
+        
+    Raises:
+        HTTPException: If the user is a tenant.
+    """
+    if current_user.user_type == UserType.TENANT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden for tenant users"
+        )
+    return current_user
+
+
 async def get_current_user_sse(
     request: Request,
     session: AsyncSession = Depends(get_session),

@@ -675,7 +675,7 @@ async def import_payments_from_csv(
         tenants,
         active_leases,
         str(current_user.id),
-        current_user.user_type.value  # Convert enum to string value
+        current_user.user_type
     )
     
     # Check for duplicates

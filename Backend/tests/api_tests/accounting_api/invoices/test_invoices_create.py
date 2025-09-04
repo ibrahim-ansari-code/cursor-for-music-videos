@@ -577,3 +577,388 @@ async def test_create_invoice_with_property_inference():
             assert data["property_id"] == 123  # Property was inferred
             assert data["property"]["name"] == "Inferred Property"
             assert data["tenant_id"] == 789
+
+
+# ===== TAX SUPPORT TESTS =====
+
+@pytest.mark.asyncio
+async def test_create_invoice_with_tax_support():
+    """Test invoice creation with tax details."""
+    # Arrange
+    fake_user = create_test_user()
+    
+    test_invoice_data = {
+        "invoice_number": "INV-2024-TAX-001",
+        "amount": "1000.00",
+        "subtotal_amount": "884.96", 
+        "total_tax_amount": "115.04",
+        "description": "Invoice with tax",
+        "issue_date": "2024-06-01T12:00:00Z",
+        "due_date": "2024-06-15T12:00:00Z",
+        "status": "Pending",
+        "property_id": 1,
+        "taxes": [
+            {
+                "tax_name": "HST",
+                "tax_rate": "13.00",
+                "tax_amount": "115.04"
+            }
+        ]
+    }
+    
+    # Mock response with tax details
+    fake_response = InvoiceResponse(
+        id=1,
+        invoice_number="INV-2024-TAX-001",
+        amount=Decimal("1000.00"),
+        subtotal_amount=Decimal("884.96"),
+        total_tax_amount=Decimal("115.04"),
+        description="Invoice with tax",
+        issue_date=FIXED_DATETIME,
+        due_date=datetime(2024, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
+        status=PaymentStatus.PENDING,
+        property_id=1,
+        tenant_id=None,
+        taxes=[{
+            "id": 1,
+            "tax_name": "HST",
+            "tax_rate": Decimal("13.00"),
+            "tax_amount": Decimal("115.04"),
+            "invoice_id": 1
+        }],
+        quickbooks_id=None,
+        last_synced_at=None,
+        created_at=FIXED_DATETIME,
+        updated_at=FIXED_DATETIME,
+        property=None,
+        tenant=None
+    )
+    
+    # Mock the service layer
+    with patch("Backend.api.accounting.invoices.router.service.create_invoice", new=AsyncMock(return_value=fake_response)):
+        # Override dependencies
+        app.dependency_overrides[get_current_user] = lambda: fake_user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+        
+        with TestClientWithHost(app) as client:
+            # Act
+            response = client.post("/api/accounting/invoices", json=test_invoice_data)
+    
+    # Assert
+            assert response.status_code == 201
+            data = response.json()
+            assert data["amount"] == "1000.00"
+            assert data["subtotal_amount"] == "884.96"
+            assert data["total_tax_amount"] == "115.04"
+            assert len(data["taxes"]) == 1
+            
+            tax_detail = data["taxes"][0]
+            assert tax_detail["tax_name"] == "HST"
+            assert tax_detail["tax_rate"] == "13.00"
+            assert tax_detail["tax_amount"] == "115.04"
+
+
+@pytest.mark.asyncio
+async def test_create_invoice_smart_tax_auto_population():
+    """Test invoice creation with smart tax auto-population when no taxes provided."""
+    # Arrange
+    fake_user = create_test_user()
+    
+    test_invoice_data = {
+        "invoice_number": "INV-2024-SMART-001",
+        "amount": "1000.00",
+        "description": "Invoice for smart tax test",
+        "issue_date": "2024-06-01T12:00:00Z",
+        "due_date": "2024-06-15T12:00:00Z",
+        "status": "Pending",
+        "property_id": 1,
+        "taxes": []  # Empty taxes should trigger smart population
+    }
+    
+    # Mock response with smart tax populated
+    fake_response = InvoiceResponse(
+        id=2,
+        invoice_number="INV-2024-SMART-001",
+        amount=Decimal("1000.00"),
+        subtotal_amount=Decimal("884.96"),
+        total_tax_amount=Decimal("115.04"),
+        description="Invoice for smart tax test",
+        issue_date=FIXED_DATETIME,
+        due_date=datetime(2024, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
+        status=PaymentStatus.PENDING,
+        property_id=1,
+        tenant_id=None,
+        taxes=[{
+            "id": 2,
+            "tax_name": "HST",
+            "tax_rate": Decimal("13.00"),
+            "tax_amount": Decimal("115.04"),
+            "invoice_id": 2
+        }],
+        quickbooks_id=None,
+        last_synced_at=None,
+        created_at=FIXED_DATETIME,
+        updated_at=FIXED_DATETIME,
+        property=None,
+        tenant=None
+    )
+    
+    # Mock the service layer
+    with patch("Backend.api.accounting.invoices.router.service.create_invoice", new=AsyncMock(return_value=fake_response)):
+        # Override dependencies
+        app.dependency_overrides[get_current_user] = lambda: fake_user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+        
+        with TestClientWithHost(app) as client:
+            # Act
+            response = client.post("/api/accounting/invoices", json=test_invoice_data)
+    
+    # Assert
+            assert response.status_code == 201
+            data = response.json()
+            # Verify smart tax was auto-populated
+            assert data["total_tax_amount"] == "115.04"
+            assert len(data["taxes"]) == 1
+            
+            smart_tax = data["taxes"][0]
+            assert smart_tax["tax_name"] == "HST"
+            assert smart_tax["tax_rate"] == "13.00"
+
+
+@pytest.mark.asyncio
+async def test_create_invoice_multiple_taxes():
+    """Test invoice creation with multiple tax types."""
+    # Arrange
+    fake_user = create_test_user()
+    
+    test_invoice_data = {
+        "invoice_number": "INV-2024-MULTI-001",
+        "amount": "1200.00",
+        "subtotal_amount": "1000.00",
+        "total_tax_amount": "200.00",
+        "description": "Invoice with multiple taxes",
+        "issue_date": "2024-06-01T12:00:00Z",
+        "due_date": "2024-06-15T12:00:00Z",
+        "status": "Pending",
+        "property_id": 1,
+        "taxes": [
+            {
+                "tax_name": "GST",
+                "tax_rate": "5.00",
+                "tax_amount": "50.00"
+            },
+            {
+                "tax_name": "PST",
+                "tax_rate": "15.00",
+                "tax_amount": "150.00"
+            }
+        ]
+    }
+    
+    # Mock response with multiple taxes
+    fake_response = InvoiceResponse(
+        id=3,
+        invoice_number="INV-2024-MULTI-001",
+        amount=Decimal("1200.00"),
+        subtotal_amount=Decimal("1000.00"),
+        total_tax_amount=Decimal("200.00"),
+        description="Invoice with multiple taxes",
+        issue_date=FIXED_DATETIME,
+        due_date=datetime(2024, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
+        status=PaymentStatus.PENDING,
+        property_id=1,
+        tenant_id=None,
+        taxes=[
+            {
+                "id": 3,
+                "tax_name": "GST",
+                "tax_rate": Decimal("5.00"),
+                "tax_amount": Decimal("50.00"),
+                "invoice_id": 3
+            },
+            {
+                "id": 4,
+                "tax_name": "PST",
+                "tax_rate": Decimal("15.00"),
+                "tax_amount": Decimal("150.00"),
+                "invoice_id": 3
+            }
+        ],
+        quickbooks_id=None,
+        last_synced_at=None,
+        created_at=FIXED_DATETIME,
+        updated_at=FIXED_DATETIME,
+        property=None,
+        tenant=None
+    )
+    
+    # Mock the service layer
+    with patch("Backend.api.accounting.invoices.router.service.create_invoice", new=AsyncMock(return_value=fake_response)):
+        # Override dependencies
+        app.dependency_overrides[get_current_user] = lambda: fake_user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+        
+        with TestClientWithHost(app) as client:
+            # Act
+            response = client.post("/api/accounting/invoices", json=test_invoice_data)
+    
+    # Assert
+            assert response.status_code == 201
+            data = response.json()
+            assert data["amount"] == "1200.00"
+            assert data["subtotal_amount"] == "1000.00" 
+            assert data["total_tax_amount"] == "200.00"
+            assert len(data["taxes"]) == 2
+            
+            # Verify both tax types
+            gst_tax = next(t for t in data["taxes"] if t["tax_name"] == "GST")
+            assert gst_tax["tax_rate"] == "5.00"
+            assert gst_tax["tax_amount"] == "50.00"
+            
+            pst_tax = next(t for t in data["taxes"] if t["tax_name"] == "PST")
+            assert pst_tax["tax_rate"] == "15.00"
+            assert pst_tax["tax_amount"] == "150.00"
+
+
+@pytest.mark.asyncio
+async def test_create_invoice_without_property_smart_tax():
+    """Test invoice creation without property context for smart tax."""
+    # Arrange
+    fake_user = create_test_user()
+    
+    test_invoice_data = {
+        "invoice_number": "INV-2024-NO-PROP-001",
+        "amount": "500.00",
+        "description": "Invoice without property context",
+        "issue_date": "2024-06-01T12:00:00Z",
+        "due_date": "2024-06-15T12:00:00Z",
+        "status": "Pending",
+        # No property_id - should use user default tax
+        "taxes": []
+    }
+    
+    # Mock response with user default tax
+    fake_response = InvoiceResponse(
+        id=4,
+        invoice_number="INV-2024-NO-PROP-001", 
+        amount=Decimal("500.00"),
+        subtotal_amount=Decimal("476.19"),
+        total_tax_amount=Decimal("23.81"),
+        description="Invoice without property context",
+        issue_date=FIXED_DATETIME,
+        due_date=datetime(2024, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
+        status=PaymentStatus.PENDING,
+        property_id=None,
+        tenant_id=None,
+        taxes=[{
+            "id": 5,
+            "tax_name": "GST",
+            "tax_rate": Decimal("5.00"),
+            "tax_amount": Decimal("23.81"),
+            "invoice_id": 4
+        }],
+        quickbooks_id=None,
+        last_synced_at=None,
+        created_at=FIXED_DATETIME,
+        updated_at=FIXED_DATETIME,
+        property=None,
+        tenant=None
+    )
+    
+    # Mock the service layer
+    with patch("Backend.api.accounting.invoices.router.service.create_invoice", new=AsyncMock(return_value=fake_response)):
+        # Override dependencies
+        app.dependency_overrides[get_current_user] = lambda: fake_user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+        
+        with TestClientWithHost(app) as client:
+            # Act
+            response = client.post("/api/accounting/invoices", json=test_invoice_data)
+    
+    # Assert
+            assert response.status_code == 201
+            data = response.json()
+            # Verify user default tax was applied
+            assert data["property_id"] is None
+            assert data["total_tax_amount"] == "23.81"
+            assert len(data["taxes"]) == 1
+            
+            user_tax = data["taxes"][0]
+            assert user_tax["tax_name"] == "GST"  # User default
+            assert user_tax["tax_rate"] == "5.00"
+
+
+@pytest.mark.asyncio
+async def test_create_invoice_zero_tax_rate():
+    """Test invoice creation with zero tax rate."""
+    # Arrange
+    fake_user = create_test_user()
+    
+    test_invoice_data = {
+        "invoice_number": "INV-2024-ZERO-001",
+        "amount": "1000.00",
+        "subtotal_amount": "1000.00",
+        "total_tax_amount": "0.00",
+        "description": "Invoice with zero tax",
+        "issue_date": "2024-06-01T12:00:00Z",
+        "due_date": "2024-06-15T12:00:00Z",
+        "status": "Pending",
+        "property_id": 1,
+        "taxes": [
+            {
+                "tax_name": "No Tax",
+                "tax_rate": "0.00",
+                "tax_amount": "0.00"
+            }
+        ]
+    }
+    
+    # Mock response with zero tax
+    fake_response = InvoiceResponse(
+        id=5,
+        invoice_number="INV-2024-ZERO-001",
+        amount=Decimal("1000.00"),
+        subtotal_amount=Decimal("1000.00"),
+        total_tax_amount=Decimal("0.00"),
+        description="Invoice with zero tax",
+        issue_date=FIXED_DATETIME,
+        due_date=datetime(2024, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
+        status=PaymentStatus.PENDING,
+        property_id=1,
+        tenant_id=None,
+        taxes=[{
+            "id": 6,
+            "tax_name": "No Tax",
+            "tax_rate": Decimal("0.00"),
+            "tax_amount": Decimal("0.00"),
+            "invoice_id": 5
+        }],
+        quickbooks_id=None,
+        last_synced_at=None,
+        created_at=FIXED_DATETIME,
+        updated_at=FIXED_DATETIME,
+        property=None,
+        tenant=None
+    )
+    
+    # Mock the service layer
+    with patch("Backend.api.accounting.invoices.router.service.create_invoice", new=AsyncMock(return_value=fake_response)):
+        # Override dependencies
+        app.dependency_overrides[get_current_user] = lambda: fake_user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+        
+        with TestClientWithHost(app) as client:
+            # Act
+            response = client.post("/api/accounting/invoices", json=test_invoice_data)
+    
+    # Assert
+            assert response.status_code == 201
+            data = response.json()
+            assert data["amount"] == "1000.00"
+            assert data["subtotal_amount"] == "1000.00"
+            assert data["total_tax_amount"] == "0.00"
+            
+            zero_tax = data["taxes"][0]
+            assert zero_tax["tax_name"] == "NO TAX"
+            assert zero_tax["tax_rate"] == "0.00"
+            assert zero_tax["tax_amount"] == "0.00"

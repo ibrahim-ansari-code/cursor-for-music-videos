@@ -3,10 +3,15 @@ Provincial tax rates utility for Canada
 
 This module provides tax rate constants and helper functions for
 determining appropriate tax rates based on provincial location.
+Includes caching for improved performance.
 """
 
+import logging
 from typing import Dict, Tuple, Optional, Any
 from decimal import Decimal
+from functools import lru_cache
+
+logger = logging.getLogger(__name__)
 
 # Provincial tax rates as of 2024
 # Format: Province Code -> (Tax Name, Tax Rate as Decimal)
@@ -51,9 +56,10 @@ PROVINCE_NAME_ALIASES: Dict[str, str] = {
 }
 
 
+@lru_cache(maxsize=256)
 def get_provincial_tax_rate(province: str) -> Optional[Tuple[str, Decimal]]:
     """
-    Get the tax rate for a given province.
+    Get the tax rate for a given province with LRU caching.
     
     Args:
         province: Province code (e.g., 'ON', 'BC') or full name (case-insensitive)

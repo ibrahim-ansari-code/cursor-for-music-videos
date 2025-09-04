@@ -1,13 +1,14 @@
 """InvoiceTaxDetail ORM model for invoice tax line items"""
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, DateTime, Index, Numeric, String
 from sqlmodel import Field, Relationship, SQLModel
 from pydantic import BaseModel, field_validator
 
 from Backend.utils.datetime_utils import create_audit_datetime
+from Backend.utils.tax_utils import validate_canadian_tax_name
 
 if TYPE_CHECKING:
     from Backend.models.accounting.invoice import Invoice
@@ -17,6 +18,12 @@ if TYPE_CHECKING:
 class InvoiceTaxDetailBase(BaseModel):
     tax_name: str
     tax_rate: Decimal
+    
+    @field_validator('tax_name')
+    @classmethod
+    def validate_tax_name_format(cls, v: str) -> str:
+        """Validate Canadian tax name format."""
+        return validate_canadian_tax_name(v)
     
     @field_validator('tax_rate')
     @classmethod

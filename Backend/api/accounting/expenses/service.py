@@ -49,6 +49,47 @@ logger = logging.getLogger(__name__)
 settings = Settings()
 
 
+async def get_smart_tax_for_expense_creation(
+    session: AsyncSession,
+    user_id: str,
+    property_id: int,
+    expense_data: ExpenseCreate
+) -> ExpenseCreate:
+    """
+    Auto-populate tax data for expense creation if none provided.
+    
+    Uses smart tax selection if expense has no tax details specified.
+    Returns the expense_data with tax details populated if applicable.
+    """
+    from Backend.api.accounting.tax_preferences.service import get_smart_tax_for_expense
+    
+    # If tax details are already provided, don't override
+    if expense_data.taxes:
+        return expense_data
+    
+    # Get smart tax recommendation
+    smart_tax = await get_smart_tax_for_expense(session, user_id, property_id)
+    if not smart_tax:
+        return expense_data  # No smart recommendation available
+    
+    tax_name, tax_rate = smart_tax
+    
+    # Create tax detail from smart recommendation
+    from Backend.models.accounting.expense import ExpenseTaxDetailCreate
+    smart_tax_detail = ExpenseTaxDetailCreate(
+        tax_name=tax_name,
+        tax_rate=tax_rate,
+        # tax_amount will be calculated by the existing tax calculation logic
+    )
+    
+    # Create new expense data with smart tax applied
+    expense_with_tax = expense_data.model_copy()
+    expense_with_tax.taxes = [smart_tax_detail]
+    
+    logger.info(f"Auto-populated smart tax for expense: {tax_name} {tax_rate}%")
+    return expense_with_tax
+
+
 async def parse_expense_receipt(
     file: UploadFile,
     current_user: User
@@ -134,8 +175,9 @@ async def create_expense(
     """
     Creates a new expense record with associated tax details.
 
-    Validates user authorization and property ownership, calculates taxes and totals,
-    and persists the expense and its tax details in the database.
+    Auto-populates smart tax data if none provided, validates user authorization 
+    and property ownership, calculates taxes and totals, and persists the expense 
+    and its tax details in the database.
 
     Args:
         expense_data: The expense creation data.
@@ -154,6 +196,15 @@ async def create_expense(
             status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
     await check_property_ownership(expense_data.property_id, session, current_user)
+
+    # Auto-populate smart tax if no tax details provided and property_id is present
+    if expense_data.property_id:
+        expense_data = await get_smart_tax_for_expense_creation(
+            session=session,
+            user_id=str(current_user.id),
+            property_id=expense_data.property_id,
+            expense_data=expense_data
+        )
 
     subtotal = quantize_2dp(Decimal(str(expense_data.subtotal_amount)))
 
@@ -488,7 +539,7 @@ async def import_expenses_from_csv(
         import_request.expenses,
         properties,
         str(current_user.id),
-        current_user.user_type.value
+        current_user.user_type
     )
     
     # Check for duplicates

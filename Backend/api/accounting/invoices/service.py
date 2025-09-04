@@ -7,6 +7,8 @@ handling property ownership validation, and applying role-based access control.
 
 import logging
 from datetime import date, datetime, UTC
+from typing import Optional
+from decimal import Decimal
 
 from fastapi import HTTPException, status
 from sqlalchemy import and_
@@ -34,9 +36,173 @@ from .helpers import (
     build_invoice_response
 )
 from .schemas import InvoiceCreate, InvoiceResponse, InvoiceUpdate, CSVImportRequest, CSVImportResult
+from Backend.models.accounting.invoice_tax_detail import InvoiceTaxDetail
+from Backend.utils.tax_utils import quantize_2dp
 
 
 logger = logging.getLogger(__name__)
+
+
+async def get_smart_tax_for_invoice_creation(
+    session: AsyncSession,
+    user_id: str,
+    property_id: Optional[int],
+    invoice_data: InvoiceCreate
+) -> InvoiceCreate:
+    """
+    Auto-populate tax data for invoice creation if none provided.
+    
+    Uses smart tax selection if invoice has no tax details specified.
+    Returns the invoice_data with tax details populated if applicable.
+    """
+    from Backend.api.accounting.tax_preferences.service import get_smart_tax_for_invoice
+    
+    # If tax details are already provided, don't override
+    if invoice_data.taxes and len(invoice_data.taxes) > 0:
+        return invoice_data
+    
+    # Get smart tax recommendation
+    smart_tax = await get_smart_tax_for_invoice(session, user_id, property_id)
+    if not smart_tax:
+        return invoice_data  # No smart recommendation available
+    
+    tax_name, tax_rate = smart_tax
+    
+    # Create tax detail from smart recommendation
+    from Backend.models.accounting.invoice_tax_detail import InvoiceTaxDetailCreate
+    smart_tax_detail = InvoiceTaxDetailCreate(
+        tax_name=tax_name,
+        tax_rate=tax_rate,
+        # tax_amount will be calculated by the tax calculation logic
+    )
+    
+    # Create new invoice data with smart tax applied
+    invoice_with_tax = invoice_data.model_copy()
+    invoice_with_tax.taxes = [smart_tax_detail]
+    
+    logger.info(f"Auto-populated smart tax for invoice: {tax_name} {tax_rate}%")
+    return invoice_with_tax
+
+
+def calculate_invoice_taxes(
+    invoice_data: InvoiceCreate,
+    subtotal: Decimal
+) -> tuple[list[InvoiceTaxDetail], Decimal]:
+    """
+    Calculate tax amounts for invoice tax details.
+    
+    Args:
+        invoice_data: Invoice creation data with tax details
+        subtotal: Subtotal amount for tax calculations
+    
+    Returns:
+        Tuple of (tax_orm_objects, total_tax_amount)
+    """
+    if not invoice_data.taxes:
+        return [], Decimal('0.00')
+    
+    tax_orm_objects = []
+    total_tax_amount = Decimal('0.00')
+    
+    for tax_detail in invoice_data.taxes:
+        # Calculate tax amount if not provided
+        if tax_detail.tax_amount is None:
+            tax_decimal = tax_detail.tax_rate / Decimal('100')
+            tax_amount = quantize_2dp(subtotal * tax_decimal)
+        else:
+            tax_amount = quantize_2dp(tax_detail.tax_amount)
+        
+        # Create ORM object
+        tax_orm = InvoiceTaxDetail(
+            tax_name=tax_detail.tax_name,
+            tax_rate=tax_detail.tax_rate,
+            tax_amount=tax_amount
+        )
+        
+        tax_orm_objects.append(tax_orm)
+        total_tax_amount += tax_amount
+    
+    return tax_orm_objects, quantize_2dp(total_tax_amount)
+
+
+def determine_invoice_amounts(invoice_data: InvoiceCreate) -> tuple[Decimal, Decimal, Decimal]:
+    """
+    Determine subtotal, tax, and total amounts for invoice.
+    
+    Handles different input scenarios:
+    - If subtotal provided: use subtotal, calculate taxes, derive total
+    - If only total provided: use total as-is, no tax breakdown
+    - If both provided: validate they are consistent
+    
+    Returns:
+        Tuple of (subtotal, total_tax_amount, final_total)
+    """
+    
+    # Scenario 1: Both subtotal and total provided
+    if invoice_data.subtotal_amount is not None and invoice_data.total_tax_amount is not None:
+        subtotal = quantize_2dp(invoice_data.subtotal_amount)
+        tax_amount = quantize_2dp(invoice_data.total_tax_amount) 
+        calculated_total = subtotal + tax_amount
+        
+        # Validate against provided total
+        provided_total = quantize_2dp(invoice_data.amount)
+        if abs(calculated_total - provided_total) > Decimal('0.01'):
+            raise ValueError(f"Inconsistent amounts: subtotal ({subtotal}) + tax ({tax_amount}) = {calculated_total} != total ({provided_total})")
+        
+        return subtotal, tax_amount, provided_total
+    
+    # Scenario 2: Subtotal provided, calculate taxes
+    if invoice_data.subtotal_amount is not None:
+        subtotal = quantize_2dp(invoice_data.subtotal_amount)
+        # Direct tax calculation without circular dependency
+        if not invoice_data.taxes:
+            return subtotal, Decimal('0.00'), subtotal
+            
+        total_tax_amount = Decimal('0.00')
+        for tax_detail in invoice_data.taxes:
+            if tax_detail.tax_amount is None:
+                tax_decimal = tax_detail.tax_rate / Decimal('100')
+                tax_amount = quantize_2dp(subtotal * tax_decimal)
+            else:
+                tax_amount = quantize_2dp(tax_detail.tax_amount)
+            total_tax_amount += tax_amount
+        
+        total_tax_amount = quantize_2dp(total_tax_amount)
+        final_total = subtotal + total_tax_amount
+        
+        return subtotal, total_tax_amount, final_total
+    
+    # Scenario 3: Only total provided (legacy mode)
+    total_amount = quantize_2dp(invoice_data.amount)
+    
+    # If taxes are specified, back-calculate subtotal using proper tax math
+    if invoice_data.taxes:
+        # Calculate total tax rate
+        total_tax_rate = sum(tax.tax_rate for tax in invoice_data.taxes) / Decimal('100')
+        
+        # Back-calculate subtotal: subtotal = total / (1 + tax_rate)
+        subtotal = quantize_2dp(total_amount / (Decimal('1') + total_tax_rate))
+        
+        # Calculate actual tax amount directly without circular call
+        actual_tax_amount = Decimal('0.00')
+        for tax_detail in invoice_data.taxes:
+            if tax_detail.tax_amount is None:
+                tax_decimal = tax_detail.tax_rate / Decimal('100')
+                tax_amount = quantize_2dp(subtotal * tax_decimal)
+            else:
+                tax_amount = quantize_2dp(tax_detail.tax_amount)
+            actual_tax_amount += tax_amount
+        
+        actual_tax_amount = quantize_2dp(actual_tax_amount)
+        
+        # Verify calculation is reasonable (allow small rounding differences)
+        if abs((subtotal + actual_tax_amount) - total_amount) > Decimal('0.01'):
+            raise ValueError("Cannot accurately back-calculate subtotal from total and tax rates")
+            
+        return subtotal, actual_tax_amount, total_amount
+    
+    # No tax details - treat total as subtotal with zero tax
+    return total_amount, Decimal('0.00'), total_amount
 
 
 async def create_invoice(
@@ -45,11 +211,11 @@ async def create_invoice(
     current_user: User
 ) -> InvoiceResponse:
     """
-    Creates a new invoice.
+    Creates a new invoice with tax support.
     
-    Allows admin and landlord users to create invoices. Invoices can be created
-    with or without tenant/property associations, supporting imports from external
-    systems like QuickBooks or Stripe.
+    Auto-populates smart tax data if none provided, allows admin and landlord users 
+    to create invoices. Invoices can be created with or without tenant/property 
+    associations, supporting imports from external systems like QuickBooks or Stripe.
 
     Args:
         invoice_data: The invoice creation data.
@@ -87,8 +253,26 @@ async def create_invoice(
     if final_property_id != invoice_data.property_id:
         invoice_data = invoice_data.model_copy(update={"property_id": final_property_id})
 
+    # Auto-populate smart tax if no tax details provided
+    invoice_data = await get_smart_tax_for_invoice_creation(
+        session=session,
+        user_id=str(current_user.id),
+        property_id=final_property_id,
+        invoice_data=invoice_data
+    )
+
     try:
-        invoice_data_dict = invoice_data.model_dump(mode='python')
+        # Calculate amounts and taxes
+        subtotal, total_tax_amount, final_total = determine_invoice_amounts(invoice_data)
+        tax_orm_objects, _ = calculate_invoice_taxes(invoice_data, subtotal)
+        
+        # Prepare invoice data
+        invoice_data_dict = invoice_data.model_dump(mode='python', exclude={'taxes'})
+        invoice_data_dict.update({
+            'amount': final_total,
+            'subtotal_amount': subtotal if subtotal != final_total else None,
+            'total_tax_amount': total_tax_amount if total_tax_amount > 0 else None,
+        })
         
         # Validate dates
         if invoice_data_dict.get('issue_date') and isinstance(invoice_data_dict['issue_date'], datetime):
@@ -104,20 +288,32 @@ async def create_invoice(
                 detail="Due date cannot be earlier than issue date."
             )
         
+        # Create invoice with tax details
         new_invoice = Invoice(**invoice_data_dict)
+        if tax_orm_objects:
+            new_invoice.taxes = tax_orm_objects
+        
         session.add(new_invoice)
         await session.commit()
         
         # Refresh with relationships loaded
-        await session.refresh(new_invoice)
+        await session.refresh(new_invoice, attribute_names=['taxes'])
         if new_invoice.property_id:
             await session.refresh(new_invoice, ["property"])
         if new_invoice.tenant_id:
             await session.refresh(new_invoice, ["tenant"])
         
         return InvoiceResponse(**build_invoice_response(new_invoice))
+        
+    except ValueError as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        ) from e
     except Exception as e:
         await session.rollback()
+        logger.exception("Error creating invoice with tax support")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail="Failed to create invoice."
@@ -466,7 +662,7 @@ async def import_invoices_from_csv(
         properties,
         tenants,
         str(current_user.id),
-        current_user.user_type.value
+        current_user.user_type
     )
     
     # Check for duplicates

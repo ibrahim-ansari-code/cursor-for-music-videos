@@ -21,11 +21,25 @@ class TaxDetailItem(BaseModel):
     tax_name: str
     tax_rate: Decimal  # Percentage as Decimal for precision
     tax_amount: Decimal  # Dollar amount as Decimal for precision
+    
+    @field_validator('tax_name')
+    @classmethod
+    def validate_tax_name_format(cls, v: str) -> str:
+        """Validate Canadian tax name format."""
+        from Backend.utils.tax_utils import validate_canadian_tax_name
+        return validate_canadian_tax_name(v)
 
 
 class ExpenseTaxDetailBase(BaseModel):
     tax_name: str
     tax_rate: Decimal
+    
+    @field_validator('tax_name')
+    @classmethod
+    def validate_tax_name_format(cls, v: str) -> str:
+        """Validate Canadian tax name format."""
+        from Backend.utils.tax_utils import validate_canadian_tax_name
+        return validate_canadian_tax_name(v)
     
     @field_validator('tax_rate')
     @classmethod

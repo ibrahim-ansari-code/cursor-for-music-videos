@@ -19,6 +19,76 @@ def quantize_2dp(value: Any) -> Decimal:
     return Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
+def validate_canadian_tax_name(tax_name: str) -> str:
+    """
+    Validates Canadian tax name formats.
+    
+    Supports valid Canadian tax combinations:
+    - HST (Harmonized Sales Tax)
+    - GST (Goods and Services Tax)
+    - GST+PST (GST + Provincial Sales Tax)
+    - GST+QST (GST + Quebec Sales Tax)
+    - PST (Provincial Sales Tax - standalone)
+    - QST (Quebec Sales Tax - standalone)
+    
+    Args:
+        tax_name: The tax name to validate
+        
+    Returns:
+        Validated and normalized tax name
+        
+    Raises:
+        ValueError: If tax name format is invalid
+    """
+    if not tax_name or not isinstance(tax_name, str):
+        raise ValueError("Tax name must be a non-empty string")
+    
+    # Normalize tax name
+    normalized_name = tax_name.strip().upper()
+    
+    if not normalized_name:
+        raise ValueError("Tax name cannot be empty or only whitespace")
+    
+    # Define valid Canadian tax formats
+    valid_single_taxes = {'HST', 'GST', 'PST', 'QST'}
+    valid_combined_taxes = {'GST+PST', 'GST+QST'}
+    
+    # Check if it's a valid single tax
+    if normalized_name in valid_single_taxes:
+        return normalized_name
+    
+    # Check if it's a valid combined tax
+    if normalized_name in valid_combined_taxes:
+        return normalized_name
+    
+    # Check for common variations and normalize them
+    variations = {
+        'GST/PST': 'GST+PST',
+        'GST & PST': 'GST+PST', 
+        'GST AND PST': 'GST+PST',
+        'GST_PST': 'GST+PST',
+        'GST/QST': 'GST+QST',
+        'GST & QST': 'GST+QST',
+        'GST AND QST': 'GST+QST',
+        'GST_QST': 'GST+QST'
+    }
+    
+    if normalized_name in variations:
+        return variations[normalized_name]
+    
+    # If it's a custom tax name, ensure it follows reasonable format rules
+    # Allow custom names but they should be alphanumeric with spaces/+/- only
+    import re
+    if not re.match(r'^[A-Z0-9\s\+\-]+$', normalized_name):
+        raise ValueError(f"Tax name contains invalid characters: '{tax_name}'. Use only letters, numbers, spaces, plus (+), and dash (-)")
+    
+    # Prevent excessively long tax names
+    if len(normalized_name) > 50:
+        raise ValueError(f"Tax name too long: '{tax_name}'. Maximum 50 characters")
+    
+    return normalized_name
+
+
 def validate_tax_rate(tax_rate: Any) -> Decimal:
     """
     Validates and converts a tax rate to Decimal.

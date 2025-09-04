@@ -4,10 +4,13 @@ request and response bodies.
 """
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, List
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, Field
 from Backend.models.accounting.common import PaymentStatus
+from Backend.models.accounting.invoice_tax_detail import (
+    InvoiceTaxDetailCreate, InvoiceTaxDetailResponse
+)
 
 # === API Models for Invoices ===
 class InvoiceBase(BaseModel):
@@ -21,12 +24,24 @@ class InvoiceBase(BaseModel):
     status: PaymentStatus = PaymentStatus.PENDING
     property_id: int | None = None
     tenant_id: int | None = None
+    
+    # Tax support fields
+    subtotal_amount: Optional[Decimal] = None
+    total_tax_amount: Optional[Decimal] = None
+    taxes: Optional[List[InvoiceTaxDetailCreate]] = None
 
     @field_validator('amount')
     @classmethod
     def amount_must_be_positive(cls, v):
         if v <= 0:
             raise ValueError('Amount must be greater than 0')
+        return v
+    
+    @field_validator('subtotal_amount')
+    @classmethod 
+    def subtotal_must_be_positive_if_provided(cls, v):
+        if v is not None and v <= 0:
+            raise ValueError('Subtotal must be greater than 0')
         return v
 
     @field_validator('due_date')
@@ -87,16 +102,31 @@ class TenantInfo(BaseModel):
     full_name: str
 
 
-class InvoiceResponse(InvoiceBase):
+class InvoiceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+    
     id: int
+    invoice_number: str
+    amount: Decimal
+    description: str
+    issue_date: datetime
+    due_date: datetime
+    status: PaymentStatus = PaymentStatus.PENDING
+    property_id: int | None = None
+    tenant_id: int | None = None
+    
+    # Tax details
+    subtotal_amount: Optional[Decimal] = None
+    total_tax_amount: Optional[Decimal] = None
+    taxes: List[InvoiceTaxDetailResponse] = Field(default_factory=list)
+    
+    # Metadata
     quickbooks_id: Optional[str] = None
     last_synced_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     property: Optional[PropertyInfo] = None
     tenant: Optional[TenantInfo] = None
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 # === CSV Import Models ===
