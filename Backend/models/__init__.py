@@ -44,6 +44,7 @@ from .maintenance import MaintenanceRequest, MaintenancePriority, MaintenanceSta
 from .accounting.common import PaymentStatus, IntegrationStatus, IntegrationType
 from .accounting.payment import Payment, PaymentMethod
 from .accounting.invoice import Invoice
+from .accounting.invoice_tax_detail import InvoiceTaxDetail
 from .accounting.expense import Expense, ExpenseTaxDetail
 from .accounting.integration import Integration
 
@@ -67,6 +68,7 @@ __all__ = [
     "IntegrationStatus",
     "IntegrationType",
     "Invoice",
+    "InvoiceTaxDetail",
     "Lease",
     "LeaseDocument",
     "LeaseStatus",

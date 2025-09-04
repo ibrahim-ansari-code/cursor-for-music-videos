@@ -1,9 +1,10 @@
 """Defines the User SQLModel, representing users within the application, including their attributes and relationships."""
 from datetime import datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID as PythonUUID
 
-from sqlalchemy import Column, String, DateTime
+from sqlalchemy import Column, String, DateTime, Numeric
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -36,6 +37,19 @@ class User(SQLModel, table=True):
     profile_image_url: str | None = None
     is_active: bool = Field(default=True)
     is_admin: bool = Field(default=False)
+    # Tax preference fields
+    default_tax_name: str | None = Field(
+        default=None,
+        sa_column=Column(String(100), nullable=True),
+        description="User's default tax name (e.g., 'HST', 'GST')"
+    )
+    default_tax_rate: Decimal | None = Field(
+        default=None,
+        sa_column=Column(Numeric(6, 3), nullable=True),
+        description="User's default tax rate as percentage (0-100)",
+        ge=0,
+        le=100
+    )
     created_at: datetime = Field(
         default_factory=create_audit_datetime,
         sa_column=Column(DateTime(timezone=True), nullable=False),

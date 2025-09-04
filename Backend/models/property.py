@@ -1,9 +1,10 @@
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING, Optional, Dict, Any
 from uuid import UUID as PythonUUID
 
-from sqlalchemy import DateTime, Index, JSON
+from sqlalchemy import DateTime, Index, JSON, Numeric
 from sqlalchemy import Enum as PgEnum
 from sqlalchemy import ForeignKey, String, Float
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -76,6 +77,20 @@ class Property(SQLModel, table=True):
     # Property type-specific details (JSONB column for flexible storage)
     property_details: Optional[Dict[str, Any]] = Field(default_factory=dict, sa_column=Column(
         JSON), description="Type-specific property details stored as JSON")
+    
+    # Tax preference fields
+    default_tax_name: str | None = Field(
+        default=None,
+        sa_column=Column(String(100), nullable=True),
+        description="Property's default tax name (e.g., 'HST', 'GST+PST')"
+    )
+    default_tax_rate: Decimal | None = Field(
+        default=None,
+        sa_column=Column(Numeric(6, 3), nullable=True),
+        description="Property's default tax rate as percentage (0-100)",
+        ge=0,
+        le=100
+    )
 
     # Foreign keys
     user_id: PythonUUID = Field(

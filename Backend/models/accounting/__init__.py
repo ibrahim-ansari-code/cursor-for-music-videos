@@ -12,6 +12,7 @@ This package contains models for:
 from .common import PaymentStatus, IntegrationStatus, IntegrationType
 from .payment import Payment, PaymentMethod
 from .invoice import Invoice
+from .invoice_tax_detail import InvoiceTaxDetail
 from .expense import Expense, ExpenseTaxDetail
 from .integration import Integration
 
@@ -22,6 +23,7 @@ __all__ = [
     "Payment",
     "PaymentMethod", 
     "Invoice",
+    "InvoiceTaxDetail",
     "Expense",
     "ExpenseTaxDetail",
     "Integration",
