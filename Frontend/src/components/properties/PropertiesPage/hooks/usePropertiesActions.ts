@@ -4,6 +4,26 @@ import { fetchPropertyById } from '../../../../utils/api';
 import { useDeleteProperty } from '../../../../hooks/usePropertiesMutations';
 import { Property } from '../../../../types/property';
 
+// Runtime validation for property data
+const validateProperty = (data: unknown): data is Property => {
+  if (!data || typeof data !== 'object') return false;
+  
+  const property = data as Record<string, unknown>;
+  
+  // Check required fields exist and have correct types
+  return (
+    typeof property.id === 'number' &&
+    typeof property.name === 'string' &&
+    typeof property.address === 'string' &&
+    typeof property.city === 'string' &&
+    typeof property.province === 'string' &&
+    typeof property.postal_code === 'string' &&
+    typeof property.property_type === 'string' &&
+    typeof property.status === 'string' &&
+    typeof property.created_at === 'string'
+  );
+};
+
 export const usePropertiesActions = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentProperty, setCurrentProperty] = useState<Property | null>(null);
@@ -13,6 +33,14 @@ export const usePropertiesActions = () => {
   const handleEditProperty = async (propertyId: number) => {
     try {
       const property = await fetchPropertyById(propertyId);
+      
+      // Runtime validation instead of type assertion
+      if (!validateProperty(property)) {
+        console.error('Invalid property data received from API. Property ID: ', propertyId);
+        toast.error('Invalid property data received. Please try again.');
+        return;
+      }
+      
       setCurrentProperty(property);
       setIsEditing(true);
       setIsModalOpen(true);

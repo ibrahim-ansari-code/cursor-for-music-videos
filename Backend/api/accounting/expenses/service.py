@@ -420,7 +420,7 @@ async def update_expense(
     subtotal_updated, blob_to_delete = await update_expense_basic_fields(db_expense, update_payload, session, current_user)
 
     # Update taxes
-    await update_expense_taxes(db_expense, expense_data, subtotal_updated)
+    await update_expense_taxes(db_expense, expense_data, subtotal_updated, session)
 
     # Update timestamp
     db_expense.updated_at = create_audit_datetime()

@@ -1,23 +1,66 @@
 // Receipt parsing utility functions for cleaner, more maintainable code
 
-import { PAYMENT_METHODS, EXPENSE_CATEGORIES } from './constants.js';
+import { PAYMENT_METHODS, EXPENSE_CATEGORIES, type PaymentMethod } from './constants';
+
+export interface ParsedReceiptDetails {
+  subtotal_amount?: number | null;
+  total_amount?: number | null;
+  total_tax_amount?: number | null;
+  expense_date?: string | null;
+  payment_date?: string | null;
+  description_notes?: string | null;
+  vendor_name?: string | null;
+  expense_category?: string | null;
+  payment_method?: string | null;
+  tax_details?: Array<{
+    tax_name: string | null;
+    tax_rate: number;
+  }> | null;
+  receipt_url?: string | null;
+}
+
+export interface FormData {
+  amount?: string | number;
+  expense_date?: string;
+  description?: string;
+  category?: string;
+  payment_method?: string;
+  vendor_name?: string;
+  receipt_url?: string | null;
+  payment_date?: string;
+  notes?: string;
+  transaction_reference?: string;
+}
+
+export interface TaxItem {
+  tax_name: string;
+  tax_rate: string;
+}
+
+export interface ExtractedExpenseData {
+  amount: string | number;
+  taxes: TaxItem[];
+  expense_date: string;
+  description: string;
+  category: string;
+  payment_method: string;
+  successMessage: string;
+}
 
 /**
  * Extracts and validates amount from parsed receipt details
- * @param {Object} parsedDetails - Parsed receipt data
- * @param {string|number} currentAmount - Current form amount as fallback
- * @returns {string|number} Extracted or fallback amount
  */
-export const extractReceiptAmount = (parsedDetails, currentAmount = "") => {
+export const extractReceiptAmount = (parsedDetails: ParsedReceiptDetails, currentAmount: string | number = ""): string | number => {
   // Priority: subtotal_amount > total_amount > current amount
   if (
     parsedDetails.subtotal_amount !== null &&
+    parsedDetails.subtotal_amount !== undefined &&
     parsedDetails.subtotal_amount > 0
   ) {
     return parsedDetails.subtotal_amount;
   }
 
-  if (parsedDetails.total_amount !== null && parsedDetails.total_amount > 0) {
+  if (parsedDetails.total_amount !== null && parsedDetails.total_amount !== undefined && parsedDetails.total_amount > 0) {
     return parsedDetails.total_amount;
   }
 
@@ -26,11 +69,8 @@ export const extractReceiptAmount = (parsedDetails, currentAmount = "") => {
 
 /**
  * Extracts and validates date from parsed receipt details
- * @param {Object} parsedDetails - Parsed receipt data
- * @param {string} currentDate - Current form date as fallback
- * @returns {string} Extracted or fallback date
  */
-export const extractReceiptDate = (parsedDetails, currentDate = "") => {
+export const extractReceiptDate = (parsedDetails: ParsedReceiptDetails, currentDate: string = ""): string => {
   const dateStr = parsedDetails.expense_date || parsedDetails.payment_date;
 
   if (!dateStr) return currentDate;
@@ -43,23 +83,18 @@ export const extractReceiptDate = (parsedDetails, currentDate = "") => {
 
 /**
  * Extracts description from parsed receipt details
- * @param {Object} parsedDetails - Parsed receipt data
- * @param {string} currentDescription - Current form description as fallback
- * @returns {string} Extracted or fallback description
  */
 export const extractReceiptDescription = (
-  parsedDetails,
-  currentDescription = ""
-) => {
+  parsedDetails: ParsedReceiptDetails,
+  currentDescription: string = ""
+): string => {
   return parsedDetails.description_notes || currentDescription;
 };
 
 /**
  * Determines tax name from description context
- * @param {string} description - Receipt description or notes
- * @returns {string} Most likely tax name
  */
-export const determineTaxName = (description = "") => {
+export const determineTaxName = (description: string = ""): string => {
   const desc = description.toLowerCase();
 
   // Canadian tax types (most common)
@@ -77,17 +112,26 @@ export const determineTaxName = (description = "") => {
 
 /**
  * Creates tax details from structured tax data
- * @param {Array} taxDetails - Array of tax detail objects
- * @returns {Array} Formatted tax array for form
  */
-export const processTaxDetails = (taxDetails) => {
+export const processTaxDetails = (taxDetails: Array<{ tax_name?: string | null; tax_rate?: number }>): TaxItem[] => {
   if (!Array.isArray(taxDetails) || taxDetails.length === 0) {
     return [{ tax_name: "", tax_rate: "" }];
   }
 
   const validTaxDetails = taxDetails
     .map((taxDetail) => {
-      const taxRate = parseFloat(taxDetail.tax_rate || 0);
+      const rawRate = taxDetail.tax_rate;
+      
+      
+      // Check for NaN before any conversion - use Number.isNaN for precise detection
+      if (rawRate !== undefined && rawRate !== null && Number.isNaN(rawRate)) {
+        console.warn(`Invalid tax rate "${taxDetail.tax_rate}" skipped. Valid range is 0-100%.`);
+        return null;
+      }
+      
+      // Use rawRate directly if it exists and is not null/undefined, otherwise default to 0
+      const valueToConvert = (rawRate !== undefined && rawRate !== null) ? rawRate : 0;
+      const taxRate = parseFloat(valueToConvert.toString());
       
       // Validate tax rate is numeric and within bounds
       if (isNaN(taxRate) || taxRate < 0 || taxRate > 100) {
@@ -100,7 +144,7 @@ export const processTaxDetails = (taxDetails) => {
         tax_rate: taxRate.toFixed(2),
       };
     })
-    .filter(Boolean); // Remove null entries
+    .filter((item): item is TaxItem => item !== null);
     
   // Ensure at least one entry if no valid tax details were found
   return validTaxDetails.length > 0 ? validTaxDetails : [{ tax_name: "", tax_rate: "" }];
@@ -108,20 +152,31 @@ export const processTaxDetails = (taxDetails) => {
 
 /**
  * Calculates tax rate from total tax amount and subtotal
- * @param {number} totalTaxAmount - Total tax amount
- * @param {number} subtotalAmount - Subtotal before tax
- * @returns {number} Tax rate as percentage
  */
-export const calculateTaxRate = (totalTaxAmount, subtotalAmount) => {
-  // Validate input parameters
-  const taxAmount = parseFloat(totalTaxAmount);
-  const subtotal = parseFloat(subtotalAmount);
+export const calculateTaxRate = (totalTaxAmount: number, subtotalAmount: number): number => {
+  // Check for invalid input types first
+  if (totalTaxAmount === Infinity || totalTaxAmount === -Infinity || 
+      subtotalAmount === Infinity || subtotalAmount === -Infinity ||
+      isNaN(totalTaxAmount) || isNaN(subtotalAmount) ||
+      subtotalAmount <= 0 || totalTaxAmount < 0) {
+    return 0;
+  }
   
-  if (isNaN(taxAmount) || isNaN(subtotal) || subtotal <= 0 || taxAmount < 0) {
+  // Convert to numbers
+  const taxAmount = parseFloat(totalTaxAmount.toString());
+  const subtotal = parseFloat(subtotalAmount.toString());
+  
+  // Double-check after conversion
+  if (isNaN(taxAmount) || isNaN(subtotal) || !isFinite(taxAmount) || !isFinite(subtotal)) {
     return 0;
   }
 
   const calculatedRate = (taxAmount / subtotal) * 100;
+  
+  // Check if calculated rate is finite before clamping
+  if (!isFinite(calculatedRate)) {
+    return 0;
+  }
   
   // Ensure the calculated rate is within reasonable bounds (0-100%) and round to 2 decimal places
   const clampedRate = Math.min(Math.max(calculatedRate, 0), 100);
@@ -130,11 +185,8 @@ export const calculateTaxRate = (totalTaxAmount, subtotalAmount) => {
 
 /**
  * Creates tax details from calculated tax rate
- * @param {number} taxRate - Tax rate as percentage
- * @param {string} description - Receipt description for tax name inference
- * @returns {Array} Tax array with calculated rate
  */
-export const createTaxFromRate = (taxRate, description = "") => {
+export const createTaxFromRate = (taxRate: number, description: string = ""): TaxItem[] => {
   if (taxRate <= 0) {
     return [{ tax_name: "", tax_rate: "" }];
   }
@@ -149,10 +201,8 @@ export const createTaxFromRate = (taxRate, description = "") => {
 
 /**
  * Main function to extract and process tax information from receipt
- * @param {Object} parsedDetails - Parsed receipt data
- * @returns {Array} Processed tax array for form
  */
-export const extractReceiptTaxes = (parsedDetails) => {
+export const extractReceiptTaxes = (parsedDetails: ParsedReceiptDetails): TaxItem[] => {
   // Strategy 1: Use structured tax details if available
   if (
     parsedDetails.tax_details &&
@@ -163,7 +213,7 @@ export const extractReceiptTaxes = (parsedDetails) => {
   }
 
   // Strategy 2: Calculate from total tax amount and subtotal
-  if (parsedDetails.total_tax_amount > 0 && parsedDetails.subtotal_amount > 0) {
+  if (parsedDetails.total_tax_amount && parsedDetails.total_tax_amount > 0 && parsedDetails.subtotal_amount && parsedDetails.subtotal_amount > 0) {
     const taxRate = calculateTaxRate(
       parsedDetails.total_tax_amount,
       parsedDetails.subtotal_amount
@@ -178,11 +228,8 @@ export const extractReceiptTaxes = (parsedDetails) => {
 
 /**
  * Generates success message based on extracted tax information
- * @param {Array} extractedTaxes - Processed tax array
- * @param {Object} parsedDetails - Original parsed details for context
- * @returns {string} User-friendly success message
  */
-export const generateTaxSuccessMessage = (extractedTaxes, parsedDetails) => {
+export const generateTaxSuccessMessage = (extractedTaxes: TaxItem[], _parsedDetails: ParsedReceiptDetails): string => {
   const baseMessage = "Receipt parsed successfully!";
 
   // Check if we have meaningful tax data
@@ -200,26 +247,21 @@ export const generateTaxSuccessMessage = (extractedTaxes, parsedDetails) => {
 
 /**
  * Extracts vendor name from parsed receipt details
- * @param {Object} parsedDetails - Parsed receipt data
- * @param {string} currentVendor - Current form vendor as fallback
- * @returns {string} Extracted or fallback vendor name
  */
-export const extractReceiptVendor = (parsedDetails, currentVendor = "") => {
+export const extractReceiptVendor = (parsedDetails: ParsedReceiptDetails, currentVendor: string = ""): string => {
   return parsedDetails.vendor_name || currentVendor;
 };
 
 /**
  * Extracts and validates expense category from parsed receipt details
- * @param {Object} parsedDetails - Parsed receipt data
- * @param {string} currentCategory - Current form category as fallback
- * @returns {string} Extracted or fallback category
  */
-export const extractReceiptCategory = (parsedDetails, currentCategory = "") => {
+export const extractReceiptCategory = (parsedDetails: ParsedReceiptDetails, currentCategory: string = ""): string => {
   const suggestedCategory = parsedDetails.expense_category;
   
   // Validate that the suggested category is in our allowed list
-  if (suggestedCategory && EXPENSE_CATEGORIES.includes(suggestedCategory.toLowerCase())) {
-    return suggestedCategory.toLowerCase();
+  const lowercased = suggestedCategory?.toLowerCase();
+  if (lowercased && (EXPENSE_CATEGORIES as readonly string[]).includes(lowercased)) {
+    return lowercased;
   }
   
   return currentCategory;
@@ -227,11 +269,8 @@ export const extractReceiptCategory = (parsedDetails, currentCategory = "") => {
 
 /**
  * Extracts payment method from parsed receipt details
- * @param {Object} parsedDetails - Parsed receipt data
- * @param {string} currentPaymentMethod - Current form payment method as fallback
- * @returns {string} Extracted or fallback payment method
  */
-export const extractReceiptPaymentMethod = (parsedDetails, currentPaymentMethod = "Other") => {
+export const extractReceiptPaymentMethod = (parsedDetails: ParsedReceiptDetails, currentPaymentMethod: string = "Other"): string => {
   const extractedMethod = parsedDetails.payment_method;
   
   if (!extractedMethod) {
@@ -239,7 +278,7 @@ export const extractReceiptPaymentMethod = (parsedDetails, currentPaymentMethod 
   }
   
   // First try exact match (case-sensitive)
-  if (PAYMENT_METHODS.includes(extractedMethod)) {
+  if (PAYMENT_METHODS.includes(extractedMethod as PaymentMethod)) {
     return extractedMethod;
   }
   
@@ -258,11 +297,8 @@ export const extractReceiptPaymentMethod = (parsedDetails, currentPaymentMethod 
 
 /**
  * Complete receipt data extraction for expenses
- * @param {Object} parsedDetails - Parsed receipt data
- * @param {Object} currentFormData - Current form state
- * @returns {Object} Extracted data for form update
  */
-export const extractExpenseReceiptData = (parsedDetails, currentFormData) => {
+export const extractExpenseReceiptData = (parsedDetails: ParsedReceiptDetails, currentFormData: FormData): ExtractedExpenseData => {
   const extractedAmount = extractReceiptAmount(
     parsedDetails,
     currentFormData.amount
@@ -270,19 +306,19 @@ export const extractExpenseReceiptData = (parsedDetails, currentFormData) => {
   const extractedTaxes = extractReceiptTaxes(parsedDetails);
   const extractedDate = extractReceiptDate(
     parsedDetails,
-    currentFormData.expense_date
+    currentFormData.expense_date || ""
   );
   const extractedDescription = extractReceiptDescription(
     parsedDetails,
-    currentFormData.description
+    currentFormData.description || ""
   );
   const extractedCategory = extractReceiptCategory(
     parsedDetails,
-    currentFormData.category
+    currentFormData.category || ""
   );
   const extractedPaymentMethod = extractReceiptPaymentMethod(
     parsedDetails,
-    currentFormData.payment_method
+    currentFormData.payment_method || "Other"
   );
   const extractedVendor = extractReceiptVendor(
     parsedDetails,
@@ -296,27 +332,22 @@ export const extractExpenseReceiptData = (parsedDetails, currentFormData) => {
   }
 
   return {
-    amount: extractedAmount || currentFormData.amount,
+    amount: extractedAmount || currentFormData.amount || "",
     taxes: extractedTaxes,
-    expense_date: extractedDate || currentFormData.expense_date,
-    description: enhancedDescription || currentFormData.description,
-    category: extractedCategory || currentFormData.category,
-    payment_method: extractedPaymentMethod || currentFormData.payment_method,
+    expense_date: extractedDate || currentFormData.expense_date || "",
+    description: enhancedDescription || currentFormData.description || "",
+    category: extractedCategory || currentFormData.category || "",
+    payment_method: extractedPaymentMethod || currentFormData.payment_method || "Other",
     successMessage: generateEnhancedTaxSuccessMessage(extractedTaxes, parsedDetails, extractedCategory, extractedVendor),
   };
 };
 
 /**
  * Generates enhanced success message based on extracted information
- * @param {Array} extractedTaxes - Processed tax array
- * @param {Object} parsedDetails - Original parsed details for context
- * @param {string} extractedCategory - Extracted expense category
- * @param {string} extractedVendor - Extracted vendor name
- * @returns {string} User-friendly success message
  */
-export const generateEnhancedTaxSuccessMessage = (extractedTaxes, parsedDetails, extractedCategory, extractedVendor) => {
+export const generateEnhancedTaxSuccessMessage = (extractedTaxes: TaxItem[], _parsedDetails: ParsedReceiptDetails, extractedCategory: string, extractedVendor: string): string => {
   const baseMessage = "Receipt parsed successfully!";
-  const details = [];
+  const details: string[] = [];
 
   // Add vendor information
   if (extractedVendor && extractedVendor.trim()) {
@@ -349,33 +380,24 @@ export const generateEnhancedTaxSuccessMessage = (extractedTaxes, parsedDetails,
 
 /**
  * Extracts payment-specific data from parsed receipt details
- * @param {Object} parsedDetails - Parsed receipt data
- * @param {Object} currentFormData - Current form state
- * @returns {Object} Extracted data for payment form update
  */
-export const extractPaymentReceiptData = (parsedDetails, currentFormData) => {
+export const extractPaymentReceiptData = (parsedDetails: ParsedReceiptDetails, currentFormData: FormData): Partial<FormData> => {
   return {
     amount: parsedDetails.total_amount || currentFormData.amount,
     payment_date: parsedDetails.payment_date || currentFormData.payment_date,
-    payment_method:
-      parsedDetails.payment_method || currentFormData.payment_method,
+    payment_method: parsedDetails.payment_method || currentFormData.payment_method,
     notes: parsedDetails.description_notes || currentFormData.notes,
-    transaction_reference:
-      parsedDetails.transaction_reference ||
-      currentFormData.transaction_reference,
+    transaction_reference: currentFormData.transaction_reference,
   };
 };
 
 /**
  * Extracts payment data for edit mode (conservative approach)
- * @param {Object} parsedDetails - Parsed receipt data
- * @param {Object} currentFormData - Current form state
- * @returns {Object} Extracted data for payment edit form
  */
 export const extractPaymentReceiptDataForEdit = (
-  parsedDetails,
-  currentFormData
-) => {
+  _parsedDetails: ParsedReceiptDetails,
+  _currentFormData: FormData
+): Partial<FormData> => {
   // In edit mode, only update receipt URL to avoid overwriting user's edits
   return {
     // Optionally update other fields if desired:
@@ -386,14 +408,11 @@ export const extractPaymentReceiptDataForEdit = (
 
 /**
  * Extracts expense data for edit mode (conservative approach)
- * @param {Object} parsedDetails - Parsed receipt data
- * @param {Object} currentFormData - Current form state
- * @returns {Object} Extracted data for expense edit form
  */
 export const extractExpenseReceiptDataForEdit = (
-  parsedDetails,
-  currentFormData
-) => {
+  parsedDetails: ParsedReceiptDetails,
+  currentFormData: FormData
+): Partial<FormData> => {
   // In edit mode, only update receipt URL to avoid overwriting user's edits
   // This maintains existing user data while allowing receipt replacement
   return {

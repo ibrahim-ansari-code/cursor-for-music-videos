@@ -5,7 +5,6 @@ import NewInvoiceModal from "./modals/NewInvoiceModal";
 import EditInvoiceModal from "./modals/EditInvoiceModal";
 import CSVImportModal from "./modals/CSVImportModal";
 import { InvoicesTableSkeleton } from "../ui/skeletons";
-import { useAccounting } from "./AccountingContext";
 import { INVOICE_STATUSES } from "../../utils/constants";
 import { 
   useInvoices, 
@@ -15,8 +14,15 @@ import {
 import { importInvoicesFromCSV } from "../../utils/api/accounting";
 import useProperties from "../../hooks/useProperties";
 import { fetchTenants } from "../../utils/api/tenants";
+import type { Invoice, InvoiceQueryParams, InvoicesResponse } from "../../types/accounting";
 
-const invoiceTableColumns = [
+interface TableColumn {
+  key: string;
+  label: string;
+  align: "left" | "center" | "right";
+}
+
+const invoiceTableColumns: TableColumn[] = [
   { key: "invoice_number", label: "Invoice #", align: "left" },
   { key: "property_tenant", label: "Property/Tenant", align: "left" },
   { key: "amount", label: "Amount", align: "center" },
@@ -28,70 +34,118 @@ const invoiceTableColumns = [
 ];
 
 
+interface PropertyUnit {
+  property_id: number;
+  unit_id?: number;
+}
 
-const InvoicesTab = () => {
-  const { } = useAccounting();
+interface Tenant {
+  id: number;
+  full_name: string;
+  property_units?: PropertyUnit[];
+}
+
+interface InvoiceFilters {
+  status: string;
+  dateRange: string;
+  property_id: string;
+  tenant_id: string;
+  search: string;
+}
+
+interface InvoicesPagination {
+  currentPage: number;
+  limit: number;
+  hasMore: boolean;
+}
+
+interface CSVHeader {
+  label: string;
+  key: string;
+}
+
+interface CSVDataRow {
+  invoice_number: string;
+  property_name: string;
+  tenant_name: string;
+  amount: string;
+  description: string;
+  issue_date: string;
+  due_date: string;
+  status: string;
+  source: string;
+}
+
+const InvoicesTab: React.FC = () => {
+  // Remove unused useAccounting hook
+  // const { } = useAccounting();
 
   // Local state for invoices tab
-  const [tenants, setTenants] = useState([]);
-  const [invoiceFilters, setInvoiceFilters] = useState({
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [invoiceFilters, setInvoiceFilters] = useState<InvoiceFilters>({
     status: "all",
     dateRange: "all_time",
     property_id: "all",
     tenant_id: "all",
     search: "",
   });
-  const [invoicesPagination, setInvoicesPagination] = useState({
+  const [invoicesPagination, setInvoicesPagination] = useState<InvoicesPagination>({
     currentPage: 0,
     limit: 15,
     hasMore: true,
   });
 
   // Build query parameters
-  const queryParams = useMemo(() => {
-    const params = {};
+  const queryParams = useMemo<InvoiceQueryParams>(() => {
+    const params: InvoiceQueryParams = {
+      limit: invoicesPagination.limit,
+      offset: invoicesPagination.currentPage * invoicesPagination.limit,
+    };
     
     if (invoiceFilters.status !== "all") {
       params.status = invoiceFilters.status;
     }
 
-    if (invoiceFilters.property_id !== "all") {
-      params.property_id = invoiceFilters.property_id;
+    if (invoiceFilters.property_id !== "all" && invoiceFilters.property_id.trim()) {
+      const propertyId = parseInt(invoiceFilters.property_id);
+      if (!isNaN(propertyId)) {
+        params.property_id = propertyId;
+      }
     }
 
-    if (invoiceFilters.tenant_id !== "all") {
-      params.tenant_id = invoiceFilters.tenant_id;
+    if (invoiceFilters.tenant_id !== "all" && invoiceFilters.tenant_id.trim()) {
+      const tenantId = parseInt(invoiceFilters.tenant_id);
+      if (!isNaN(tenantId)) {
+        params.tenant_id = tenantId;
+      }
     }
 
     if (invoiceFilters.search) {
       params.search = invoiceFilters.search;
     }
 
-    params.limit = invoicesPagination.limit;
-    params.offset = invoicesPagination.currentPage * invoicesPagination.limit;
-
     // Convert date range to actual date params based on issue_date
     const today = new Date();
     if (invoiceFilters.dateRange === "week") {
       const weekAgo = new Date();
       weekAgo.setDate(today.getDate() - 7);
-      params.start_date = weekAgo.toISOString().split("T")[0];
-      params.end_date = today.toISOString().split("T")[0];
+      params.start_date = weekAgo.toLocaleDateString('en-CA');
+      params.end_date = today.toLocaleDateString('en-CA');
     } else if (invoiceFilters.dateRange === "month") {
       const monthAgo = new Date();
       monthAgo.setMonth(today.getMonth() - 1);
-      params.start_date = monthAgo.toISOString().split("T")[0];
-      params.end_date = today.toISOString().split("T")[0];
+      params.start_date = monthAgo.toLocaleDateString('en-CA');
+      params.end_date = today.toLocaleDateString('en-CA');
     } else if (invoiceFilters.dateRange === "quarter") {
       const quarterAgo = new Date();
       quarterAgo.setMonth(today.getMonth() - 3);
-      params.start_date = quarterAgo.toISOString().split("T")[0];
-      params.end_date = today.toISOString().split("T")[0];
+      params.start_date = quarterAgo.toLocaleDateString('en-CA');
+      params.end_date = today.toLocaleDateString('en-CA');
     } else if (invoiceFilters.dateRange === "year") {
       const yearAgo = new Date();
       yearAgo.setFullYear(today.getFullYear() - 1);
-      params.start_date = yearAgo.toISOString().split("T")[0];
-      params.end_date = today.toISOString().split("T")[0];
+      params.start_date = yearAgo.toLocaleDateString('en-CA');
+      params.end_date = today.toLocaleDateString('en-CA');
     }
 
     return params;
@@ -104,29 +158,29 @@ const InvoicesTab = () => {
   const markInvoicePaidMutation = useMarkInvoicePaid();
 
   // Extract invoices and pagination info
-  const invoices = useMemo(() => {
+  const invoices = useMemo<Invoice[]>(() => {
     if (invoicesData && Array.isArray(invoicesData)) {
-      return invoicesData;
-    } else if (invoicesData && invoicesData.items) {
-      return invoicesData.items;
+      return invoicesData as Invoice[];
+    } else if (invoicesData && (invoicesData as InvoicesResponse).items) {
+      return (invoicesData as InvoicesResponse).items || [];
     }
     return [];
   }, [invoicesData]);
 
-  const hasMore = useMemo(() => {
+  const hasMore = useMemo<boolean>(() => {
     if (invoicesData && Array.isArray(invoicesData)) {
-      return invoicesData.length === invoicesPagination.limit;
-    } else if (invoicesData && invoicesData.has_more !== undefined) {
-      return invoicesData.has_more;
+      return (invoicesData as Invoice[]).length === invoicesPagination.limit;
+    } else if (invoicesData && (invoicesData as InvoicesResponse).has_more !== undefined) {
+      return (invoicesData as InvoicesResponse).has_more || false;
     }
     return false;
   }, [invoicesData, invoicesPagination.limit]);
 
   // Modal states
-  const [showNewInvoiceModal, setShowNewInvoiceModal] = useState(false);
-  const [showEditInvoiceModal, setShowEditInvoiceModal] = useState(false);
-  const [showCSVImportModal, setShowCSVImportModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [showNewInvoiceModal, setShowNewInvoiceModal] = useState<boolean>(false);
+  const [showEditInvoiceModal, setShowEditInvoiceModal] = useState<boolean>(false);
+  const [showCSVImportModal, setShowCSVImportModal] = useState<boolean>(false);
+  const [selectedItem, setSelectedItem] = useState<Invoice | null>(null);
 
   // Load tenants on mount (not using TanStack Query for this yet as it's a different domain)
   const loadTenants = useCallback(async () => {
@@ -155,7 +209,7 @@ const InvoicesTab = () => {
     loadTenants();
   }, [loadTenants]);
 
-  const getStatusBadgeClass = (status) => {
+  const getStatusBadgeClass = (status?: string): string => {
     switch (status?.toLowerCase()) {
       case "paid":
         return "badge-success";
@@ -175,7 +229,7 @@ const InvoicesTab = () => {
     }
   };
 
-  const getDueDateClass = (dueDate, status) => {
+  const getDueDateClass = (dueDate: string, status?: string): string => {
     if (status?.toLowerCase() === "paid") {
       return "text-gray-500";
     }
@@ -190,7 +244,7 @@ const InvoicesTab = () => {
     } else if (due.getTime() === today.getTime()) {
       return "text-yellow-600 font-medium"; // Due today
     } else {
-      const daysDiff = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+      const daysDiff = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       if (daysDiff <= 3) {
         return "text-orange-600 font-medium"; // Due soon
       }
@@ -198,12 +252,20 @@ const InvoicesTab = () => {
     }
   };
 
-  const handleEditInvoice = (invoice) => {
+  const convertInvoiceToInvoiceData = (invoice: Invoice): Invoice => {
+    return {
+      ...invoice,
+      // Keep amount as string to match Invoice interface
+      amount: invoice.amount,
+    };
+  };
+
+  const handleEditInvoice = (invoice: Invoice) => {
     setSelectedItem(invoice);
     setShowEditInvoiceModal(true);
   };
 
-  const handleDeleteInvoice = async (invoiceId) => {
+  const handleDeleteInvoice = async (invoiceId: number) => {
     const invoiceToDelete = invoices.find((inv) => inv.id === invoiceId);
     const invoiceDescription = invoiceToDelete
       ? `Invoice #${invoiceToDelete.invoice_number}`
@@ -217,13 +279,14 @@ const InvoicesTab = () => {
       try {
         await deleteInvoiceMutation.mutateAsync(invoiceId);
         toast.success(`${invoiceDescription} deleted successfully.`);
-      } catch (err) {
-        toast.error(err.message || "Failed to delete invoice.");
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to delete invoice.";
+        toast.error(errorMessage);
       }
     }
   };
 
-  const handleMarkPaid = async (invoiceId) => {
+  const handleMarkPaid = async (invoiceId: number) => {
     const invoiceToUpdate = invoices.find((inv) => inv.id === invoiceId);
     const invoiceDescription = invoiceToUpdate
       ? `Invoice #${invoiceToUpdate.invoice_number}`
@@ -237,8 +300,9 @@ const InvoicesTab = () => {
       try {
         await markInvoicePaidMutation.mutateAsync(invoiceId);
         toast.success(`${invoiceDescription} marked as paid.`);
-      } catch (err) {
-        toast.error(err.message || "Failed to mark invoice as paid.");
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to mark invoice as paid.";
+        toast.error(errorMessage);
       }
     }
   };
@@ -274,7 +338,7 @@ const InvoicesTab = () => {
     toast.success("Invoices imported successfully!");
   };
 
-  const filteredTenants = useMemo(() => {
+  const filteredTenants = useMemo<Tenant[]>(() => {
     return tenants.filter(tenant => {
       if (invoiceFilters.property_id === "all") return true;
       return tenant.property_units?.some(unit => 
@@ -284,7 +348,7 @@ const InvoicesTab = () => {
   }, [tenants, invoiceFilters.property_id]);
 
   // CSV Export configuration
-  const csvHeaders = [
+  const csvHeaders: CSVHeader[] = [
     { label: 'Invoice Number', key: 'invoice_number' },
     { label: 'Property', key: 'property_name' },
     { label: 'Tenant', key: 'tenant_name' },
@@ -297,8 +361,8 @@ const InvoicesTab = () => {
   ];
 
   // Format data for CSV export with clean headers
-  const getFilterDescription = () => {
-    const filters = [];
+  const getFilterDescription = (): string => {
+    const filters: string[] = [];
     if (invoiceFilters.status !== 'all') filters.push(`Status: ${invoiceFilters.status}`);
     if (invoiceFilters.dateRange !== 'all_time') filters.push(`Date Range: ${invoiceFilters.dateRange.replace('_', ' ')}`);
     if (invoiceFilters.property_id !== 'all') {
@@ -319,7 +383,7 @@ const InvoicesTab = () => {
     return filters.length > 0 ? filters.join(', ') : 'No filters applied';
   };
 
-  const csvData = [
+  const csvData: CSVDataRow[] = [
     // Clean header with metadata in a single row
     { 
       invoice_number: 'Brikli Invoices Report', 
@@ -345,8 +409,8 @@ const InvoicesTab = () => {
         tenant_name: invoice?.tenant?.full_name || 'N/A',
         amount: Number.isFinite(amount) ? amount.toFixed(2) : '0.00',
         description: invoice?.description || 'N/A',
-        issue_date: issueDate && !isNaN(issueDate) ? issueDate.toLocaleDateString() : 'N/A',
-        due_date: dueDate && !isNaN(dueDate) ? dueDate.toLocaleDateString() : 'N/A',
+        issue_date: issueDate && !isNaN(issueDate.getTime()) ? issueDate.toLocaleDateString() : 'N/A',
+        due_date: dueDate && !isNaN(dueDate.getTime()) ? dueDate.toLocaleDateString() : 'N/A',
         status: invoice?.status || 'N/A',
         source: invoice?.quickbooks_id ? 'QuickBooks' : 'Brikli',
       };
@@ -354,7 +418,7 @@ const InvoicesTab = () => {
   ];
 
   // Generate professional filename with current date and filters
-  const generateFilename = () => {
+  const generateFilename = (): string => {
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
     const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '');
@@ -417,17 +481,15 @@ const InvoicesTab = () => {
     <div>
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          <p>{error}</p>
+          <p>{String(error)}</p>
           <button
-            onClick={refetch}
+            onClick={() => refetch()}
             className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
           >
             Retry
           </button>
         </div>
       )}
-
-
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm">
@@ -452,7 +514,7 @@ const InvoicesTab = () => {
               }
             >
               <option value="all">All Statuses</option>
-              {INVOICE_STATUSES.map((status) => (
+              {INVOICE_STATUSES.map((status: string) => (
                 <option key={status} value={status}>
                   {status}
                 </option>
@@ -773,7 +835,6 @@ const InvoicesTab = () => {
           onSuccess={() => {
             setShowNewInvoiceModal(false);
             refetch();
-            toast.success("Invoice created successfully");
           }}
         />
       )}
@@ -789,9 +850,11 @@ const InvoicesTab = () => {
             setShowEditInvoiceModal(false);
             setSelectedItem(null);
             refetch();
-            toast.success("Invoice updated successfully");
           }}
-          invoiceData={selectedItem}
+          invoiceData={selectedItem ? {
+            ...convertInvoiceToInvoiceData(selectedItem),
+            quickbooks_id: selectedItem.quickbooks_id || undefined
+          } : undefined}
         />
       )}
       

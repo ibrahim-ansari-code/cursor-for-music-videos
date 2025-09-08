@@ -11,8 +11,15 @@ import { useExpenses, useDeleteExpense } from "../../hooks/useAccountingQueries"
 import { importExpensesFromCSV } from "../../utils/api/accounting";
 import useProperties from "../../hooks/useProperties";
 import useDebounce from "../../hooks/useDebounce";
+import type { Expense, ExpenseQueryParams } from "../../types/accounting";
 
-const expenseTableColumns = [
+interface TableColumn {
+  key: string;
+  label: string;
+  align: "left" | "center" | "right";
+}
+
+const expenseTableColumns: TableColumn[] = [
   { key: "property", label: "Property", align: "left" },
   { key: "category", label: "Category", align: "center" },
   { key: "amount", label: "Amount", align: "center" },
@@ -25,32 +32,61 @@ const expenseTableColumns = [
 
 
 
-const ExpensesTab = () => {
+interface ExpenseFilters {
+  category: string;
+  dateRange: string;
+}
+
+interface ExpensesPagination {
+  currentPage: number;
+  limit: number;
+  hasMore: boolean;
+}
+
+interface CSVHeader {
+  label: string;
+  key: string;
+}
+
+interface CSVDataRow {
+  property_name: string;
+  category: string;
+  total_amount: string;
+  expense_date: string;
+  payment_method: string;
+  description: string;
+  subtotal_amount: string;
+  tax_amount: string;
+  has_receipt: string;
+  source: string;
+}
+
+const ExpensesTab: React.FC = () => {
   const { handlePreviewReceipt } = useAccounting();
 
   // Local state for expenses tab
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
-  const [expensesPagination, setExpensesPagination] = useState({
+  const [expensesPagination, setExpensesPagination] = useState<ExpensesPagination>({
     currentPage: 0,
     limit: 15,
     hasMore: true,
   });
-  const [expenseFilters, setExpenseFilters] = useState({
+  const [expenseFilters, setExpenseFilters] = useState<ExpenseFilters>({
     category: "all",
     dateRange: "month",
   });
 
   // Build query parameters
-  const queryParams = useMemo(() => {
-    const params = {};
+  const queryParams = useMemo<ExpenseQueryParams>(() => {
+    const params: ExpenseQueryParams = {
+      limit: expensesPagination.limit,
+      offset: expensesPagination.currentPage * expensesPagination.limit,
+    };
 
     if (expenseFilters.category !== "all") {
       params.category = expenseFilters.category;
     }
-
-    params.limit = expensesPagination.limit;
-    params.offset = expensesPagination.currentPage * expensesPagination.limit;
 
     if (debouncedSearchQuery.trim()) {
       params.search = debouncedSearchQuery.trim();
@@ -71,13 +107,15 @@ const ExpensesTab = () => {
   const deleteExpenseMutation = useDeleteExpense();
 
   // Extract expenses from paginated response and enhance with property names
-  const expenses = useMemo(() => {
+  const expenses = useMemo<Expense[]>(() => {
     const expensesList = expensesData?.items || [];
     
     // Create property map for names - ensure properties is an array
     const safeProperties = Array.isArray(properties) ? properties : [];
-    const propertyMap = safeProperties.reduce((map, property) => {
-      map[property.id] = property.name;
+    const propertyMap = safeProperties.reduce<Record<number, string>>((map, property) => {
+      if (property?.id) {
+        map[property.id] = property.name;
+      }
       return map;
     }, {});
 
@@ -93,10 +131,10 @@ const ExpensesTab = () => {
   const hasMore = expensesData?.has_more || false;
 
   // Modal states
-  const [showNewExpenseModal, setShowNewExpenseModal] = useState(false);
-  const [showEditExpenseModal, setShowEditExpenseModal] = useState(false);
-  const [showCSVImportModal, setShowCSVImportModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [showNewExpenseModal, setShowNewExpenseModal] = useState<boolean>(false);
+  const [showEditExpenseModal, setShowEditExpenseModal] = useState<boolean>(false);
+  const [showCSVImportModal, setShowCSVImportModal] = useState<boolean>(false);
+  const [selectedItem, setSelectedItem] = useState<Expense | null>(null);
 
   // Effect for handling filter changes - reset to first page
   useEffect(() => {
@@ -110,14 +148,12 @@ const ExpensesTab = () => {
     }
   }, [expensesData]);
 
-
-
-  const handleEditExpense = (expense) => {
+  const handleEditExpense = (expense: Expense) => {
     setSelectedItem(expense);
     setShowEditExpenseModal(true);
   };
 
-  const handleDeleteExpense = async (expenseId) => {
+  const handleDeleteExpense = async (expenseId: number) => {
     // Find the expense to get its details for the toast message
     const expenseToDelete = expenses.find((exp) => exp.id === expenseId);
     const expenseDescription = expenseToDelete
@@ -134,10 +170,12 @@ const ExpensesTab = () => {
     ) {
       try {
         await deleteExpenseMutation.mutateAsync(expenseId);
+        await refetch();
         toast.success(`${expenseDescription} deleted successfully.`);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Failed to delete expense:", err);
-        toast.error(err.message || "Failed to delete expense.");
+        const errorMessage = err instanceof Error ? err.message : "Failed to delete expense.";
+        toast.error(errorMessage);
       }
     }
   };
@@ -178,7 +216,7 @@ const ExpensesTab = () => {
   }, [debouncedSearchQuery]);
 
   // CSV Export configuration
-  const csvHeaders = [
+  const csvHeaders: CSVHeader[] = [
     { label: 'Property', key: 'property_name' },
     { label: 'Category', key: 'category' },
     { label: 'Amount', key: 'total_amount' },
@@ -192,15 +230,15 @@ const ExpensesTab = () => {
   ];
 
   // Format data for CSV export with clean headers
-  const getFilterDescription = () => {
-    const filters = [];
+  const getFilterDescription = (): string => {
+    const filters: string[] = [];
     if (expenseFilters.category !== 'all') filters.push(`Category: ${expenseFilters.category}`);
     if (expenseFilters.dateRange !== 'all') filters.push(`Date Range: ${expenseFilters.dateRange.replace('_', ' ')}`);
     if (searchQuery) filters.push(`Search: "${searchQuery}"`);
     return filters.length > 0 ? filters.join(', ') : 'No filters applied';
   };
 
-  const csvData = [
+  const csvData: CSVDataRow[] = [
     // Clean header with metadata in a single row
     { 
       property_name: 'Brikli Expenses Report', 
@@ -226,7 +264,7 @@ const ExpensesTab = () => {
         property_name: expense?.property_name || 'N/A',
         category: expense?.category ? expense.category.charAt(0).toUpperCase() + expense.category.slice(1) : 'N/A',
         total_amount: Number.isFinite(totalAmt) ? totalAmt.toFixed(2) : '0.00',
-        expense_date: expenseDate && !isNaN(expenseDate) ? expenseDate.toLocaleDateString() : 'N/A',
+        expense_date: expenseDate && !isNaN(expenseDate.getTime()) ? expenseDate.toLocaleDateString() : 'N/A',
         payment_method: expense?.payment_method || 'Other',
         description: expense?.description || 'N/A',
         subtotal_amount: Number.isFinite(subtotalAmt) ? subtotalAmt.toFixed(2) : '0.00',
@@ -238,7 +276,7 @@ const ExpensesTab = () => {
   ];
 
   // Generate professional filename with current date and filters
-  const generateFilename = () => {
+  const generateFilename = (): string => {
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
     const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '');
@@ -298,17 +336,15 @@ const ExpensesTab = () => {
     <div>
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          <p>{error}</p>
+          <p>{String(error)}</p>
           <button
-            onClick={refetch}
+            onClick={() => refetch()}
             className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
           >
             Retry
           </button>
         </div>
       )}
-
-
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
@@ -455,7 +491,7 @@ const ExpensesTab = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="text-sm text-gray-900">
-                        ${parseFloat(expense.total_amount).toFixed(2)}
+                        ${parseFloat(String(expense.total_amount)).toFixed(2)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -473,19 +509,23 @@ const ExpensesTab = () => {
                         {expense.receipt_url ? (
                           <button
                             type="button"
-                            onClick={() =>
-                              handlePreviewReceipt(
-                                expense.receipt_url,
-                                `Receipt: ${expense.category} on ${
-                                  expense.property_name ||
-                                  "Property " + expense.property_id
-                                } - ${new Date(
-                                  expense.expense_date
-                                ).toLocaleDateString()}`
-                              )
-                            }
-                            className="text-blue-600 hover:text-blue-900 p-1"
-                            title="View Receipt"
+                            onClick={() => expense.receipt_url && handlePreviewReceipt(
+                              expense.receipt_url,
+                              `Receipt: ${expense.category} on ${
+                                expense.property_name ||
+                                "Property " + expense.property_id
+                              } - ${new Date(
+                                expense.expense_date
+                              ).toLocaleDateString()}`
+                            )}
+                            disabled={!expense.receipt_url}
+                            className={`font-medium ${
+                              expense.receipt_url
+                                ? "text-emerald-600 hover:text-emerald-800"
+                                : "text-gray-400 cursor-not-allowed"
+                            }`}
+                            aria-disabled={!expense.receipt_url}
+                            title={expense.receipt_url ? "View Receipt" : "No receipt available"}
                           >
                             <i className="fas fa-eye" />
                           </button>
@@ -574,7 +614,6 @@ const ExpensesTab = () => {
           onSuccess={() => {
             setShowNewExpenseModal(false);
             refetch();
-            toast.success("Expense created successfully");
           }}
         />
       )}
@@ -590,9 +629,11 @@ const ExpensesTab = () => {
             setShowEditExpenseModal(false);
             setSelectedItem(null);
             refetch();
-            toast.success("Expense updated successfully");
           }}
-          expenseData={selectedItem}
+          expenseData={selectedItem ? {
+            ...selectedItem,
+            receipt_url: selectedItem.receipt_url || undefined
+          } : undefined}
         />
       )}
 

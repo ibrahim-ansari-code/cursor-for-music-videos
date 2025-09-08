@@ -4,6 +4,7 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
+    "allowJs": true,
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -38,6 +39,7 @@
     "src", 
     "src/**/*.ts", 
     "src/**/*.tsx", 
+    "src/**/*.d.ts",
     "src/**/*.js", 
     "src/**/*.jsx",
     "tests/**/*.ts",

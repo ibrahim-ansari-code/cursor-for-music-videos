@@ -15,5 +15,11 @@ export { default as RentTrackerSkeleton } from './RentTrackerSkeleton';
 // Card skeletons  
 export { default as CardSkeleton, FinancialCardSkeleton, PortfolioCardSkeleton, DuePanelSkeleton, StatusCardSkeleton, ChartSkeleton } from './CardSkeleton';
 
+// Page skeletons
+export { default as MaintenanceSkeleton } from './MaintenanceSkeleton';
+export { default as PropertyDetailSkeleton } from './PropertyDetailSkeleton';
+export { default as IntegrationsSkeleton } from './IntegrationsSkeleton';
+export { default as SettingsSkeleton } from './SettingsSkeleton';
+
 // Theme
 export { SKELETON_THEME } from './themes';

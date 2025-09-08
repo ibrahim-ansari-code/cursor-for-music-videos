@@ -1,6 +1,6 @@
 # Brikli-V2
 
-Brikli is a property management platform rebuilt from the ground up for clarity, scalability, and AI augmentation. This repository contains the new version of the app with a clean separation between frontend and backend.
+Brikli is a property management platform built from the ground up for clarity, scalability, and AI augmentation.
 
 ---
 
@@ -8,23 +8,22 @@ Brikli is a property management platform rebuilt from the ground up for clarity,
 
 ```text
 Brikli-V2/
-├── Backend/      # FastAPI backend
-└── Frontend/     # React + Vite + Tailwind frontend
+├── Backend/         # FastAPI backend (unified for both frontends)
+├── Frontend/        # Property management frontend (React + Vite + Tailwind)
+└── Tenant-Frontend/ # Tenant portal frontend (React + Vite + Tailwind)
 ```
 
 ---
 
 ## ⚙️ Tech Stack
 
-- **Frontend**: React, Vite, Tailwind CSS
-- **Backend**: FastAPI (Python 3.11+)
-- **ORM**: SQLModel
-- **Database Migration**: Alembic
-- **Auth**: Supabase Auth (handles JWTs)
-- **DB**: Supabase PostgreSQL (primary), Azure PostgreSQL (legacy/phasing out)
-- **Integrations**: Apideck (for QuickBooks Online)
-- **AI**: Azure OpenAI (for lease parsing and future features)
-- **Storage**: Azure Blob Storage (for lease documents, avatars, etc.)
+- **Frontend**: React 18, Vite, Tailwind CSS, React Router v7
+- **Backend**: FastAPI (Python 3.11+), SQLModel, Async PostgreSQL with SQLAlchemy
+- **Database**: Supabase PostgreSQL (primary), Azure PostgreSQL (legacy/phasing out)
+- **Database Migrations**: Supabase CLI with database branching
+- **Auth**: Supabase JWT with user sync
+- **Integrations**: Apideck (QuickBooks), OpenAI (AI-powered receipt parsing)
+- **Storage**: Azure Blob Storage (receipts, documents, avatars)
 
 ---
 
@@ -45,7 +44,7 @@ cd Brikli-V2
 
 ### 2. Environment Variables
 
-Create a `.env` file in your root directory and one in your Frontend/ folder. Refer to the #private-keys channel on Slack for the contents of both, and shoot Zubin (<zubin.singh@brikli.com>) a message for the protected keys.
+Create a `.env` file in your Backend/, Frontend/, and Tenant-Frontend/ directories. Refer to the #private-keys channel on Slack for the contents and shoot Zubin (<zubin.singh@brikli.com>) a message for the protected keys.
 
 ### 3. Installing Backend Dependencies and Running Local Backend
 
@@ -59,10 +58,10 @@ poetry install # Installs dependencies from poetry.lock
 
 # Run the backend server
 # For Unix/Linux/macOS (bash):
-PYTHONPATH=.. poetry run uvicorn Backend.api.app:app --reload
+poetry run uvicorn api.app:app --reload
 
 # For Windows PowerShell:
-$env:PYTHONPATH=".." ; poetry run uvicorn Backend.api.app:app --reload
+poetry run uvicorn api.app:app --reload
 ```
 
 **Important:**
@@ -73,7 +72,9 @@ $env:PYTHONPATH=".." ; poetry run uvicorn Backend.api.app:app --reload
 Backend runs at `http://localhost:8000`.
 FastAPI docs available at `http://localhost:8000/docs`.
 
-### 4. Start up local Frontend
+### 4. Start up local Frontends
+
+**Property Management Frontend:**
 
 ```bash
 cd Frontend
@@ -81,41 +82,70 @@ npm install
 npm run dev
 ```
 
-Frontend runs at `http://localhost:5173` by default.
+**Tenant Portal Frontend:**
+
+```bash
+cd Tenant-Frontend
+npm install
+npm run dev
+```
+
+- Property Management Frontend runs at `http://localhost:5173`
+- Tenant Portal Frontend runs at `http://localhost:5174`
 
 ---
 
-## Database Migrations (Supabase MCP + Alembic)
+## Database Migrations (Supabase CLI + DB Branching)
 
-Database schema changes are made individually using Supabase MCP on a new DB Branch and are sync'd and managed using Alembic. This workflow ensures that direct schema changes in the Supabase UI can be captured and version-controlled as migration scripts.
+⚠️ **IMPORTANT: Alembic is decommissioned and should NOT be used.**
 
-- **Ensure `Backend/.env` `DATABASE_URL` is correct before running Alembic commands.**
-- Alembic's `env.py` is configured to use `DATABASE_URL`.
+All database schema changes are now managed exclusively through Supabase local development with Supabase CLI and database branching.
 
-To create a new migration:
+### Migration Workflow
+
+1. **Create a database branch** for your feature development
+2. **Make schema changes** using Supabase Studio or direct SQL
+3. **Generate migration file** to capture your changes
+4. **Commit the migration file** in your PR
+5. **Changes are automatically applied** to production when the PR is merged
+
+### Commands
 
 ```bash
-# From the Backend directory
-cd Backend
-poetry run alembic revision --autogenerate -m "your_migration_message"
+# Generate a migration file after making schema changes
+supabase db diff --use-migra -f migration_name
+
+# Apply migrations locally
+supabase db push
+
+# Reset your local database (if needed)
+supabase db reset
 ```
 
-Edit the generated script in `migrations/versions/`.
+**Migration files are located in `supabase/migrations/` and must be committed to version control.**
 
-To apply migrations:
+---
+
+## 🧪 Testing
+
+### Prerequisites for Testing
+
+- Backend server must be running at `http://localhost:8000`
+- Valid `.test_credentials.json` file in `Backend/tests/` directory
+- Environment variables configured in `.env` files
+
+### Running Tests
 
 ```bash
-# From the Backend directory  
-cd Backend
-poetry run alembic upgrade head
-```
+cd Backend/tests
 
-To downgrade:
+# Run all API tests
+python run_all_api_tests_pytest.py
 
-```bash
-# From the Backend directory
-cd Backend  
-poetry run alembic downgrade -1 # Downgrade one revision
+# Run specific test suites
+python -m pytest api_tests/ -v
+python -m pytest integration_tests/ -v
+python -m pytest unit_tests/ -v
 ```
 
 ---
@@ -124,20 +154,17 @@ poetry run alembic downgrade -1 # Downgrade one revision
 
 ### Branching Strategy & CI/CD
 
-The project follows a `feature -> dev -> main` branching strategy:
+The project follows a `feature -> main` branching strategy:
 
 1. **Feature Branches**: All new features and bug fixes are developed in `feature/*` branches.
-2. **Development Branch (`dev`)**: Completed features are merged into the `dev` branch for consolidation and integration testing.
-3. **Main Branch (`main`)**: After the `dev` branch is stable, it is merged into `main`, which represents the production-ready state.
+2. **Main Branch (`main`)**: Feature branches are merged directly into `main` via Pull Requests, which represents the production-ready state.
 
-### Porter Deployment (Backend & Frontend)
+### Porter Deployment (Backend & Frontends)
 
-Both the frontend and backend are deployed to the same cluster on **Porter**.
+The backend, property management frontend, and tenant portal frontend are all deployed to the same cluster on **Porter**.
 
-- **Production Deployment**: A push to the `main` branch automatically triggers the respective production deployment workflows on Porter for both the frontend and backend.
-- **Preview Environments**: When a Pull Request is opened against the `main` branch, Porter automatically spins up **preview environments** for both the frontend (`brikli-frontend-prod`) and backend (`brikli-backend-prod`). This allows for comprehensive, on-cluster testing of changes before they are merged into production.
-
-The backend deployment workflow includes a step to copy the root `pyproject.toml` and `poetry.lock` files into the `Backend/` directory to ensure the Docker build has the correct dependencies.
+- **Production Deployment**: A push to the `main` branch automatically triggers the respective production deployment workflows on Porter for the backend, property management frontend, and tenant portal frontend.
+- **Preview Environments**: When a Pull Request is opened against the `main` branch, Porter automatically spins up **preview environments** for all three applications (`brikli-backend-prod`, `brikli-frontend-prod`, `brikli-tenant-frontend-prod`). This allows for comprehensive, on-cluster testing of changes before they are merged into production.
 
 ---
 

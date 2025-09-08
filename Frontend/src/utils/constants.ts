@@ -13,7 +13,7 @@ export const PAYMENT_METHODS = [
   "PayPal",
   "Internal Transfer",
   "Other",
-];
+] as const;
 
 export const EXPENSE_CATEGORIES = [
   "maintenance",
@@ -22,7 +22,7 @@ export const EXPENSE_CATEGORIES = [
   "insurance",
   "administrative",
   "other"
-];
+] as const;
 
 export const PAYMENT_STATUSES = [
   "Pending",
@@ -31,16 +31,22 @@ export const PAYMENT_STATUSES = [
   "Overdue",
   "Cancelled",
   "Refunded",
-];
+] as const;
 
 export const INVOICE_STATUSES = [
-  "Pending",
+  "Draft",
+  "Pending", 
   "Paid",
   "Partial",
   "Overdue",
   "Cancelled",
   "Refunded",
-  "Draft",
   "Void",
-  "Uncollectible",
-];
+  "Uncollectible"
+] as const;
+
+// Type exports for better type safety
+export type PaymentMethod = typeof PAYMENT_METHODS[number];
+export type ExpenseCategory = typeof EXPENSE_CATEGORIES[number];
+export type PaymentStatus = typeof PAYMENT_STATUSES[number];
+export type InvoiceStatus = typeof INVOICE_STATUSES[number];

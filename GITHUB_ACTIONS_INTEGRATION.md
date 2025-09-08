@@ -77,17 +77,19 @@ The `test-suite-status` job provides a single status check that:
 ### Branch Protection
 
 This workflow supports branch protection rules on:
+
 - `main` branch
 - `dev` branch
 
 Required status checks:
+
 - **Test Suite Status Check** (combines both backend and frontend results)
 
 ## Artifacts and Reporting
 
 ### Generated Artifacts
 
-1. **Backend Test Results**: 
+1. **Backend Test Results**:
    - Unit test results (`unit-test-results.xml`)
    - API test results (`api-test-results.xml`)
    - Coverage reports (`coverage.xml`, HTML reports)
@@ -138,6 +140,7 @@ npm run lint              # Linting only
 ### Pre-commit Verification
 
 Before pushing code, ensure:
+
 1. All backend tests pass locally
 2. All frontend tests pass locally
 3. Linting passes without errors
@@ -145,15 +148,18 @@ Before pushing code, ensure:
 
 ## Performance Optimizations
 
-### Parallel Execution
+### Job Parallelization
+
 - Backend and frontend tests run simultaneously
 - Reduces total CI time from ~8 minutes to ~5 minutes
 
 ### Dependency Caching
+
 - Node.js dependencies cached based on `package-lock.json`
 - Poetry dependencies cached based on `poetry.lock`
 
 ### Test Optimization
+
 - Focused test execution (no unnecessary file scanning)
 - Efficient coverage collection
 - Minimal artifact generation

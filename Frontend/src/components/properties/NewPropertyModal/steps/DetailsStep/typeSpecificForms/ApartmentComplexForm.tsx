@@ -54,14 +54,14 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
         setValue('type_specific_details.floor_count', undefined);
         return;
       }
-      const numValue = parseInt(String(value));
+      const numValue = parseInt(String(value), 10);
       if (!isNaN(numValue) && numValue >= 4) {
         setValue('type_specific_details.floor_count', numValue);
       }
     }, [setValue]),
     300,
     // Conflict resolver: prefer the latest value
-    (_current, incoming) => incoming
+    (_current: number | string | undefined, incoming: number | string | undefined) => incoming
   );
 
   const elevatorCountDebouncer = useFormFieldDebounce(
@@ -71,13 +71,13 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
         setValue('type_specific_details.elevator_count', undefined);
         return;
       }
-      const numValue = parseInt(String(value));
+      const numValue = parseInt(String(value), 10);
       if (!isNaN(numValue) && numValue >= 5) {
         setValue('type_specific_details.elevator_count', numValue);
       }
     }, [setValue]),
     300,
-    (_current, incoming) => incoming
+    (_current: number | string | undefined, incoming: number | string | undefined) => incoming
   );
 
   // Sync form field changes with debounced updates

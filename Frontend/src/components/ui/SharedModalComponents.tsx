@@ -1,20 +1,181 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, ReactNode, RefObject } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+
+// Type definitions
+export interface LabelProps {
+  htmlFor?: string;
+  required?: boolean;
+  children: ReactNode;
+  className?: string;
+}
+
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  id?: string;
+  name?: string;
+  value?: string;
+  onChange?: React.ChangeEventHandler<HTMLInputElement>;
+  onBlur?: React.FocusEventHandler<HTMLInputElement>;
+  placeholder?: string;
+  required?: boolean;
+  type?: string;
+  className?: string;
+}
+
+export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  id?: string;
+  name?: string;
+  value?: string;
+  onChange?: React.ChangeEventHandler<HTMLSelectElement>;
+  onBlur?: React.FocusEventHandler<HTMLSelectElement>;
+  required?: boolean;
+  children: ReactNode;
+  className?: string;
+  disabled?: boolean;
+}
+
+export interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  id?: string;
+  name?: string;
+  value?: string;
+  onChange?: React.ChangeEventHandler<HTMLTextAreaElement>;
+  onBlur?: React.FocusEventHandler<HTMLTextAreaElement>;
+  placeholder?: string;
+  required?: boolean;
+  rows?: number;
+  className?: string;
+}
+
+export interface CheckboxProps {
+  id?: string;
+  name?: string;
+  checked?: boolean;
+  onChange?: React.ChangeEventHandler<HTMLInputElement>;
+  children?: ReactNode;
+  className?: string;
+}
+
+export interface ErrorMessageProps {
+  message: string;
+}
+
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  type?: "button" | "submit" | "reset";
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  variant?: "primary" | "secondary" | "danger";
+  disabled?: boolean;
+  children: ReactNode;
+  className?: string;
+  isLoading?: boolean;
+  loadingText?: string;
+}
+
+export interface FormSectionProps {
+  title?: string;
+  children: ReactNode;
+  containerClass?: string;
+  titleClass?: string;
+}
+
+export interface ModalShellProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  footerContent?: ReactNode;
+  maxWidth?: string;
+  error?: string;
+}
+
+export interface ReceiptUploadAndPreviewProps {
+  isParsingReceipt: boolean;
+  receiptParseError: string | null;
+  currentReceiptUrl: string | null;
+  showReceiptPreview: boolean;
+  setShowReceiptPreview: (show: boolean) => void;
+  onReceiptFileChange: React.ChangeEventHandler<HTMLInputElement>;
+  disabled?: boolean;
+  title?: string;
+  subtitle?: string;
+  acceptedFileTypes?: string;
+  className?: string;
+}
+
+export interface ReceiptPreviewProps {
+  show: boolean;
+  receiptUrl: string | null;
+  height?: string;
+  className?: string;
+}
+
+export interface ReceiptUploadState {
+  receiptFile: File | null;
+  isParsingReceipt: boolean;
+  receiptParseError: string | null;
+  currentReceiptUrl: string | null;
+  showReceiptPreview: boolean;
+  receiptParseAbortControllerRef: RefObject<AbortController | null>;
+  setReceiptFile: (file: File | null) => void;
+  setIsParsingReceipt: (parsing: boolean) => void;
+  setReceiptParseError: (error: string | null) => void;
+  setCurrentReceiptUrl: (url: string | null) => void;
+  setShowReceiptPreview: (show: boolean) => void;
+  resetReceiptState: () => void;
+}
+
+export type ParseReceiptFunction = (formData: FormData, options?: { signal?: AbortSignal }) => Promise<{
+  success: boolean;
+  parsed_details?: {
+    subtotal_amount?: number;
+    total_amount?: number;
+    total_tax_amount?: number;
+    expense_date?: string;
+    payment_date?: string;
+    description_notes?: string;
+    vendor_name?: string;
+    expense_category?: string;
+    payment_method?: string;
+    tax_details?: Array<{
+      tax_name: string;
+      tax_rate: number;
+    }>;
+  };
+  receipt_url?: string;
+  error?: string;
+}>;
+
+export type OnDataExtractedCallback = (
+  parsedDetails: {
+    subtotal_amount?: number;
+    total_amount?: number;
+    total_tax_amount?: number;
+    expense_date?: string;
+    payment_date?: string;
+    description_notes?: string;
+    vendor_name?: string;
+    expense_category?: string;
+    payment_method?: string;
+    tax_details?: Array<{
+      tax_name: string;
+      tax_rate: number;
+    }>;
+  }, 
+  receiptUrl: string
+) => void;
 
 // UI Components from TenantModal
 
-export const Label = ({ htmlFor, required, children }) => (
+export const Label: React.FC<LabelProps> = ({ htmlFor, required, children, className = "" }) => (
   <label
     htmlFor={htmlFor}
     className={`block text-sm font-medium text-gray-700 mb-1.5 ${
       required ? 'after:content-["*"] after:ml-0.5 after:text-red-500' : ""
-    }`}
+    } ${className}`}
   >
     {children}
   </label>
 );
 
-export const Input = ({
+export const Input: React.FC<InputProps> = ({
   id,
   name,
   value,
@@ -40,7 +201,7 @@ export const Input = ({
   />
 );
 
-export const Select = ({
+export const Select: React.FC<SelectProps> = ({
   id,
   name,
   value,
@@ -88,7 +249,7 @@ export const Select = ({
   </div>
 );
 
-export const TextArea = ({
+export const TextArea: React.FC<TextAreaProps> = ({
   id,
   name,
   value,
@@ -114,7 +275,7 @@ export const TextArea = ({
   />
 );
 
-export const Checkbox = ({
+export const Checkbox: React.FC<CheckboxProps> = ({
   id,
   name,
   checked,
@@ -142,7 +303,7 @@ export const Checkbox = ({
   </div>
 );
 
-export const ErrorMessage = ({ message }) => (
+export const ErrorMessage: React.FC<ErrorMessageProps> = ({ message }) => (
   <motion.div
     initial={{ opacity: 0, y: -10 }}
     animate={{ opacity: 1, y: 0 }}
@@ -165,7 +326,7 @@ export const ErrorMessage = ({ message }) => (
   </motion.div>
 );
 
-export const Button = ({
+export const Button: React.FC<ButtonProps> = ({
   type = "button",
   onClick,
   variant = "primary",
@@ -230,7 +391,7 @@ export const Button = ({
 };
 
 // FormSection Component (from EditLeaseModal)
-export const FormSection = ({
+export const FormSection: React.FC<FormSectionProps> = ({
   title,
   children,
   containerClass = "pt-6", // Default container style
@@ -244,7 +405,7 @@ export const FormSection = ({
 );
 
 // Modal Shell Component
-export const ModalShell = ({
+export const ModalShell: React.FC<ModalShellProps> = ({
   isOpen,
   onClose,
   title,
@@ -253,11 +414,11 @@ export const ModalShell = ({
   maxWidth = "max-w-md", // Default max-width, can be overridden (e.g., max-w-xl, max-w-3xl)
   error, // Optional general error message for the top of the modal
 }) => {
-  const modalRef = useRef(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   // Handle Escape key to close modal
   useEffect(() => {
-    const handleEscapeKey = (e) => {
+    const handleEscapeKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
       }
@@ -272,8 +433,8 @@ export const ModalShell = ({
 
   // Click outside modal to close it
   useEffect(() => {
-    function handleClickOutsideModal(event) {
-      if (modalRef.current && !modalRef.current.contains(event.target)) {
+    function handleClickOutsideModal(event: MouseEvent) {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
         onClose();
       }
     }
@@ -355,80 +516,8 @@ export const ModalShell = ({
   );
 };
 
-// === Receipt Upload and Preview Components ===
-//
-// These components provide reusable receipt upload, parsing, and preview functionality
-// that can be used across different modals (expenses, payments, invoices, etc.).
-//
-// Usage Example for Expenses:
-//
-// import {
-//   ReceiptUploadAndPreview,
-//   useReceiptUpload,
-//   createReceiptFileChangeHandler
-// } from './ui/SharedModalComponents';
-// import { parseExpenseReceipt } from '../api/expenses';
-//
-// function MyExpenseModal() {
-//   const receiptState = useReceiptUpload(existingReceiptUrl);
-//
-//   const handleReceiptFileChange = createReceiptFileChangeHandler(
-//     parseExpenseReceipt,
-//     receiptState,
-//     (parsedDetails, receiptUrl) => {
-//       // Handle extracted data for expenses
-//       setFormData(prev => ({
-//         ...prev,
-//         amount: parsedDetails.subtotal_amount,
-//         description: parsedDetails.description_notes,
-//         // ... other expense fields
-//       }));
-//     }
-//   );
-//
-//   return (
-//     <ReceiptUploadAndPreview
-//       {...receiptState}
-//       onReceiptFileChange={handleReceiptFileChange}
-//       title="Upload and Parse Receipt (Optional)"
-//       subtitle="Auto-extracts tax, amount, date & description"
-//     />
-//   );
-// }
-//
-// Usage Example for Payments:
-//
-// import { parsePaymentReceipt } from '../api/payments';
-//
-// function MyPaymentModal() {
-//   const receiptState = useReceiptUpload(existingReceiptUrl);
-//
-//   const handleReceiptFileChange = createReceiptFileChangeHandler(
-//     parsePaymentReceipt,
-//     receiptState,
-//     (parsedDetails, receiptUrl) => {
-//       // Handle extracted data for payments
-//       setFormData(prev => ({
-//         ...prev,
-//         amount: parsedDetails.total_amount,
-//         payment_method: parsedDetails.payment_method,
-//         // ... other payment fields
-//       }));
-//     }
-//   );
-//
-//   return (
-//     <ReceiptUploadAndPreview
-//       {...receiptState}
-//       onReceiptFileChange={handleReceiptFileChange}
-//       title="Upload and Parse Receipt (Optional)"
-//       subtitle="Auto-extracts amount, date & payment method"
-//     />
-//   );
-// }
-
 // Receipt Upload and Preview Component
-export const ReceiptUploadAndPreview = ({
+export const ReceiptUploadAndPreview: React.FC<ReceiptUploadAndPreviewProps> = ({
   // State props
   isParsingReceipt,
   receiptParseError,
@@ -530,7 +619,7 @@ export const ReceiptUploadAndPreview = ({
 };
 
 // Receipt Preview Component (can be used standalone or within ReceiptUploadAndPreview)
-export const ReceiptPreview = ({
+export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
   show,
   receiptUrl,
   height = "24rem",
@@ -595,13 +684,13 @@ export const ReceiptPreview = ({
 };
 
 // Custom Hook for Receipt Upload State Management
-export const useReceiptUpload = (initialReceiptUrl = null) => {
-  const [receiptFile, setReceiptFile] = useState(null);
-  const [isParsingReceipt, setIsParsingReceipt] = useState(false);
-  const [receiptParseError, setReceiptParseError] = useState(null);
-  const [currentReceiptUrl, setCurrentReceiptUrl] = useState(initialReceiptUrl);
-  const [showReceiptPreview, setShowReceiptPreview] = useState(false);
-  const receiptParseAbortControllerRef = useRef(null);
+export const useReceiptUpload = (initialReceiptUrl: string | null = null): ReceiptUploadState => {
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [isParsingReceipt, setIsParsingReceipt] = useState<boolean>(false);
+  const [receiptParseError, setReceiptParseError] = useState<string | null>(null);
+  const [currentReceiptUrl, setCurrentReceiptUrl] = useState<string | null>(initialReceiptUrl);
+  const [showReceiptPreview, setShowReceiptPreview] = useState<boolean>(false);
+  const receiptParseAbortControllerRef = useRef<AbortController | null>(null);
 
   // Reset all receipt-related state
   const resetReceiptState = () => {
@@ -648,10 +737,10 @@ export const useReceiptUpload = (initialReceiptUrl = null) => {
 
 // Helper function to create a receipt file change handler
 export const createReceiptFileChangeHandler = (
-  parseReceiptAPI,
-  receiptState,
-  onDataExtracted = null // Optional callback when data is successfully extracted
-) => {
+  parseReceiptAPI: ParseReceiptFunction,
+  receiptState: ReceiptUploadState,
+  onDataExtracted: OnDataExtractedCallback | null = null // Optional callback when data is successfully extracted
+): React.ChangeEventHandler<HTMLInputElement> => {
   const {
     setReceiptFile,
     setIsParsingReceipt,
@@ -661,8 +750,9 @@ export const createReceiptFileChangeHandler = (
     receiptParseAbortControllerRef,
   } = receiptState;
 
-  return async (event) => {
-    const file = event.target.files?.[0];
+  return async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const inputEl = event.target;
+    const file = inputEl.files?.[0];
     if (!file) return;
 
     // Validate file type and size
@@ -678,6 +768,9 @@ export const createReceiptFileChangeHandler = (
       setReceiptParseError('File size must be less than 10MB.');
       return;
     }
+
+    // Clear input value so selecting the same file again triggers change
+    inputEl.value = "";
 
     // Reset previous state
     setReceiptFile(file);
@@ -709,17 +802,23 @@ export const createReceiptFileChangeHandler = (
       if (response && response.parsed_details) {
         const { parsed_details, receipt_url: parsedReceiptUrl } = response;
 
-        setCurrentReceiptUrl(parsedReceiptUrl);
+        setCurrentReceiptUrl(parsedReceiptUrl || null);
         setIsParsingReceipt(false);
 
         // Call the callback with extracted data if provided
         if (onDataExtracted && typeof onDataExtracted === "function") {
-          onDataExtracted(parsed_details, parsedReceiptUrl);
+          // Only call the callback if we have a valid receipt URL
+          // If no URL is available, the callback might not be able to handle operations that depend on it
+          if (parsedReceiptUrl) {
+            onDataExtracted(parsed_details, parsedReceiptUrl);
+          } else {
+            console.warn('Receipt parsed successfully but no receipt URL available. Skipping onDataExtracted callback.');
+          }
         }
       } else {
         throw new Error("No parsed details received from API");
       }
-    } catch (error) {
+    } catch (error: any) {
       if (abortController.signal.aborted) {
         return;
       }

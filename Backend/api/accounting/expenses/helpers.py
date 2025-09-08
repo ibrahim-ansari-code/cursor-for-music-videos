@@ -188,7 +188,8 @@ async def update_expense_basic_fields(
 async def update_expense_taxes(
     db_expense: Expense,
     expense_data: ExpenseUpdate,
-    subtotal_updated: bool
+    subtotal_updated: bool,
+    session: AsyncSession
 ) -> None:
     """
     Updates the tax details and total amounts for an expense based on new tax data or a changed subtotal.
@@ -203,13 +204,19 @@ async def update_expense_taxes(
             tax_details_dto, current_subtotal)
         db_expense.taxes = new_tax_details_orm
         db_expense.total_tax_amount = calculated_total_tax_amount
-        # Update total amount (subtotal + tax)
-        db_expense.total_amount = quantize_2dp(current_subtotal + calculated_total_tax_amount)
+        # Note: total_amount is computed as subtotal_amount + total_tax_amount (hybrid property)
+        # Ensure consumers see the updated computed value (if needed):
+        await session.flush()
+        await session.refresh(db_expense, attribute_names=["total_tax_amount", "subtotal_amount"])
+        # Accessing db_expense.total_amount now should reflect the hybrid computation
     elif subtotal_updated:
         db_expense.total_tax_amount = recalculate_orm_taxes(
             db_expense.taxes, current_subtotal)
-        # Update total amount when subtotal changes
-        db_expense.total_amount = quantize_2dp(current_subtotal + db_expense.total_tax_amount)
+        # Note: total_amount is computed as subtotal_amount + total_tax_amount (hybrid property)
+        # Ensure consumers see the updated computed value (if needed):
+        await session.flush()
+        await session.refresh(db_expense, attribute_names=["total_tax_amount", "subtotal_amount"])
+        # Accessing db_expense.total_amount now should reflect the hybrid computation
 
 
 async def delete_blob_with_error_handling(blob_url: str) -> None:

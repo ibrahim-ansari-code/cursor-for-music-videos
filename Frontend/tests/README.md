@@ -4,7 +4,7 @@
 
 Our tests are organized in a centralized `tests/` directory that mirrors the source code structure:
 
-```
+```text
 tests/
 ├── components/     # Component tests
 ├── utils/          # Utility function tests
@@ -36,15 +36,18 @@ npm run test:ui
 ## Test Categories
 
 ### Component Tests (`tests/components/`)
+
 - Tests for React components
 - Includes rendering, user interaction, and error boundary tests
 - Uses React Testing Library
 
 ### Utility Tests (`tests/utils/`)
+
 - Tests for utility functions and helpers
 - Focus on pure functions and data transformations
 
 ### Config Tests (`tests/config/`)
+
 - **vite-chunking.test.ts**: Validates Vite bundling strategy
 - **build-verification.test.ts**: Verifies build outputs and security
 
@@ -59,6 +62,7 @@ These tests are run in CI/CD to prevent production issues:
 ## Writing Tests
 
 ### Component Test Example
+
 ```tsx
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
@@ -73,6 +77,7 @@ describe('MyComponent', () => {
 ```
 
 ### Utility Test Example
+
 ```js
 import { describe, it, expect } from 'vitest';
 import { myUtility } from '@/utils/myUtility';
@@ -94,6 +99,7 @@ describe('myUtility', () => {
 ## CI/CD Integration
 
 Tests are automatically run in GitHub Actions:
+
 - On every pull request
 - Before deployment to production
 - Includes build verification and security checks
