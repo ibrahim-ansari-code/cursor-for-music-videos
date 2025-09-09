@@ -13,6 +13,7 @@ import CommercialForm from './typeSpecificForms/CommercialForm';
 import ApartmentComplexForm from './typeSpecificForms/ApartmentComplexForm';
 import IndustrialForm from './typeSpecificForms/IndustrialForm';
 import MixedUseForm from './typeSpecificForms/MixedUseForm';
+import SectionErrorBoundary from '../../components/SectionErrorBoundary';
 
 export interface DetailsStepRef {
   switchToSpecificTab: () => void;
@@ -142,15 +143,40 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
 
     switch (propertyType) {
       case PropertyType.RESIDENTIAL:
-        return <ResidentialForm />;
+        return (
+          <SectionErrorBoundary sectionName="ResidentialForm">
+            <ResidentialForm />
+          </SectionErrorBoundary>
+        );
       case PropertyType.APARTMENT_COMPLEX:
-        return <ApartmentComplexForm />;
+        return (
+          <SectionErrorBoundary 
+            sectionName="ApartmentComplexForm"
+            onSectionError={(section, error) => {
+              console.warn(`Section ${section} failed:`, error);
+            }}
+          >
+            <ApartmentComplexForm />
+          </SectionErrorBoundary>
+        );
       case PropertyType.COMMERCIAL:
-        return <CommercialForm />;
+        return (
+          <SectionErrorBoundary sectionName="CommercialForm">
+            <CommercialForm />
+          </SectionErrorBoundary>
+        );
       case PropertyType.INDUSTRIAL:
-        return <IndustrialForm />;
+        return (
+          <SectionErrorBoundary sectionName="IndustrialForm">
+            <IndustrialForm />
+          </SectionErrorBoundary>
+        );
       case PropertyType.MIXED_USE:
-        return <MixedUseForm />;
+        return (
+          <SectionErrorBoundary sectionName="MixedUseForm">
+            <MixedUseForm />
+          </SectionErrorBoundary>
+        );
       default:
         return null;
     }

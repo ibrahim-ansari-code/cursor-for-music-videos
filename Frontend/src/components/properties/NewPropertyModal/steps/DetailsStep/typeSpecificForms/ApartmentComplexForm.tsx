@@ -6,7 +6,6 @@ import {
   ComplexStyle, 
   SharedAmenity
 } from '@/types/apartmentComplex';
-import { useFormFieldDebounce } from '@/hooks/useDebounce.ts';
 import { 
   Building, Users, Car, Shield, Trash2,
   Phone, Mail, MapPin, AlertCircle,
@@ -39,63 +38,46 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
     elevator_count = 0,
     floor_count,
     floor_count_custom,
-    elevator_count_custom,
     on_site_management,
     trash_system_type,
     security_system_type,
     shared_amenities = []
   } = typedDetails;
 
-  // Optimized debounced field updates with conflict resolution
-  const floorCountDebouncer = useFormFieldDebounce(
-    floor_count_custom,
-    useCallback((value: number | string | undefined) => {
-      if (!value || value === '') {
-        setValue('type_specific_details.floor_count', undefined);
-        return;
-      }
-      const numValue = parseInt(String(value), 10);
-      if (!isNaN(numValue) && numValue >= 4) {
+  // Custom input change handlers for floor and elevator counts
+  const handleFloorCountCustomChange = useCallback((value: string | number) => {
+    if (!value || value === '') {
+      setValue('type_specific_details.floor_count', undefined);
+      setValue('type_specific_details.floor_count_custom', undefined);
+      return;
+    }
+    const numValue = parseInt(String(value), 10);
+    if (!isNaN(numValue)) {
+      if (numValue >= 4) {
         setValue('type_specific_details.floor_count', numValue);
+        setValue('type_specific_details.floor_count_custom', numValue);
+      } else {
+        // Clear invalid values to prevent inconsistent state
+        setValue('type_specific_details.floor_count', undefined);
+        setValue('type_specific_details.floor_count_custom', undefined);
+        // Could show a validation message here
       }
-    }, [setValue]),
-    300,
-    // Conflict resolver: prefer the latest value
-    (_current: number | string | undefined, incoming: number | string | undefined) => incoming
-  );
+    }
+  }, [setValue]);
 
-  const elevatorCountDebouncer = useFormFieldDebounce(
-    elevator_count_custom,
-    useCallback((value: number | string | undefined) => {
-      if (!value || value === '') {
-        setValue('type_specific_details.elevator_count', undefined);
-        return;
-      }
-      const numValue = parseInt(String(value), 10);
-      if (!isNaN(numValue) && numValue >= 5) {
-        setValue('type_specific_details.elevator_count', numValue);
-      }
-    }, [setValue]),
-    300,
-    (_current: number | string | undefined, incoming: number | string | undefined) => incoming
-  );
+  const handleElevatorCountCustomChange = useCallback((value: string | number) => {
+    if (!value || value === '') {
+      setValue('type_specific_details.elevator_count', undefined);
+      setValue('type_specific_details.elevator_count_custom', undefined);
+      return;
+    }
+    const numValue = parseInt(String(value), 10);
+    if (!isNaN(numValue) && numValue >= 5) {
+      setValue('type_specific_details.elevator_count', numValue);
+      setValue('type_specific_details.elevator_count_custom', numValue);
+    }
+  }, [setValue]);
 
-  // Sync form field changes with debounced updates
-  useEffect(() => {
-    floorCountDebouncer.updateValue(floor_count_custom);
-  }, [floor_count_custom, floorCountDebouncer]);
-
-  useEffect(() => {
-    elevatorCountDebouncer.updateValue(elevator_count_custom);
-  }, [elevator_count_custom, elevatorCountDebouncer]);
-
-  // Cleanup debounced operations on unmount
-  useEffect(() => {
-    return () => {
-      floorCountDebouncer.cancel();
-      elevatorCountDebouncer.cancel();
-    };
-  }, [floorCountDebouncer, elevatorCountDebouncer]);
 
   // Helper to safely access nested errors with proper typing
   const getFieldError = useCallback((fieldName: keyof ApartmentComplexDetails): string | undefined => {
@@ -106,7 +88,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
     return error?.message || undefined;
   }, [errors.type_specific_details]);
 
-  // Optimized array checkbox handler with proper typing
+  // Array checkbox handler
   const handleArrayCheckbox = useCallback((
     fieldName: 'shared_amenities', 
     value: SharedAmenity, 
@@ -118,11 +100,10 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
       : currentValues.filter((v: SharedAmenity) => v !== value);
     
     setValue(`type_specific_details.${fieldName}`, newValues);
-    // Trigger validation for this field
     trigger(`type_specific_details.${fieldName}`);
   }, [setValue, typedDetails, trigger]);
 
-  // Calculate unit mix total for real-time feedback - watch individual fields for better reactivity
+  // Calculate unit mix total for real-time feedback
   const studioCount = watch('type_specific_details.unit_mix.studio') || 0;
   const br1Count = watch('type_specific_details.unit_mix.1br') || 0;
   const br2Count = watch('type_specific_details.unit_mix.2br') || 0;
@@ -460,7 +441,11 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
             </button>
           ))}
           <input
-            {...register('type_specific_details.floor_count_custom')}
+            {...register('type_specific_details.floor_count_custom', {
+              onChange: (e) => handleFloorCountCustomChange(e.target.value),
+              min: { value: 4, message: 'Custom floor count must be 4 or more' },
+              max: { value: 100, message: 'Maximum 100 floors' }
+            })}
             type="number"
             min="4"
             max="100"
@@ -496,7 +481,11 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
             </button>
           ))}
           <input
-            {...register('type_specific_details.elevator_count_custom')}
+            {...register('type_specific_details.elevator_count_custom', {
+              onChange: (e) => handleElevatorCountCustomChange(e.target.value),
+              min: { value: 5, message: 'Custom elevator count must be 5 or more' },
+              max: { value: 20, message: 'Maximum 20 elevators' }
+            })}
             type="number"
             min="5"
             max="20"

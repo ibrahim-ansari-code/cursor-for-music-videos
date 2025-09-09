@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useForm, FormProvider } from 'react-hook-form';
@@ -10,8 +10,10 @@ import { PropertyType, PropertyStatus, PropertyFormData, GeneratedUnit } from '@
 
 import { usePropertyMutation } from './hooks/usePropertyMutation';
 import { useImageUpload } from './hooks/useImageUpload';
+import { useFormRecovery } from './hooks/useFormRecovery';
 import { propertyFormSchema, validateLocationStep, validateDetailsStep, validateMediaStep, PropertyFormSchemaType } from './validation/schemas';
 import PropertyModalErrorBoundary from './components/ErrorBoundary';
+import FormRecoveryNotification from './components/FormRecoveryNotification';
 import { LoadingOverlay } from './components/LoadingStates';
 
 // Import steps
@@ -68,6 +70,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [stepErrors, setStepErrors] = useState<Record<number, boolean>>({});
+  const [showRecoveryNotification, setShowRecoveryNotification] = useState(false);
   const detailsStepRef = useRef<DetailsStepRef>(null);
   const { createProperty, updateProperty } = usePropertyMutation();
   const { uploadMultipleImages, isUploading, uploadProgress } = useImageUpload();
@@ -101,6 +104,40 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
       type_specific_details: propertyData?.type_specific_details || {},
     },
   });
+
+  // Initialize form recovery
+  const formRecovery = useFormRecovery(methods as any, {
+    formId: isEditing ? `edit-property-${propertyData?.id}` : 'new-property',
+    autoSaveInterval: 30000, // 30 seconds
+    enableAutoSave: true,
+    onRecover: (_data) => {
+      toast.success('Form data recovered successfully!', {
+        position: 'top-center',
+        autoClose: 3000,
+      });
+    },
+    onSave: (_data) => {
+      if (import.meta.env.DEV) {
+        console.log('Form auto-saved');
+      }
+    },
+  });
+
+  // Check for saved data on modal open
+  // Extract stable reference to avoid re-render issues
+  const hasSavedDataFn = formRecovery.hasSavedData;
+  
+  useEffect(() => {
+    if (isOpen && !isEditing && hasSavedDataFn()) {
+      setShowRecoveryNotification(true);
+    }
+  }, [isOpen, isEditing, hasSavedDataFn]);
+
+  // Clear saved data on successful submit
+  const handleSuccessfulSubmit = useCallback(() => {
+    formRecovery.clearSavedData();
+    setShowRecoveryNotification(false);
+  }, [formRecovery.clearSavedData]);
 
   // Validate current step before proceeding
   const validateCurrentStep = useCallback(async () => {
@@ -755,6 +792,9 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
         );
       }
 
+      // Clear saved form data on successful submit
+      handleSuccessfulSubmit();
+      
       onClose();
       setCurrentStep(0);
       methods.reset();
@@ -1051,6 +1091,21 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
           </motion.div>
           </PropertyModalErrorBoundary>
         </Dialog.Content>
+        
+        {/* Form Recovery Notification */}
+        <FormRecoveryNotification
+          isVisible={showRecoveryNotification}
+          onRestore={() => {
+            formRecovery.restoreFormData();
+            setShowRecoveryNotification(false);
+          }}
+          onDismiss={() => {
+            formRecovery.clearSavedData();
+            setShowRecoveryNotification(false);
+          }}
+          lastSavedAt={formRecovery.lastSavedAt}
+          formType="property form"
+        />
       </Dialog.Portal>
     </Dialog.Root>
   );
