@@ -15,6 +15,18 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import status
+import sentry_sdk
+import os
+
+# Initialize Sentry if DSN is provided
+sentry_dsn = os.getenv("SENTRY_DSN")
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        # Add data like request headers and IP for users,
+        # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+        send_default_pii=False,
+    )
 
 # Configure clean logging
 def setup_logging():
@@ -48,6 +60,9 @@ def setup_logging():
 setup_logging()
 logger = logging.getLogger(__name__)
 logger.info("🚀 Booting FastAPI app...")
+
+
+
 
 app = FastAPI()
 api_main_router = APIRouter()
@@ -115,9 +130,7 @@ app.add_middleware(
     ]
 )
 
-# Add the RequestValidationError handler here
-
-
+#RequestValidationError handler
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """
