@@ -1,6 +1,7 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home, CheckCircle, ChevronDown, ChevronRight, Bug, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import * as Sentry from '@sentry/react';
 
 interface Props {
   children: ReactNode;
@@ -65,16 +66,23 @@ class PropertyModalErrorBoundary extends Component<Props, State> {
       errorInfo,
     });
     
-    // Log to error reporting service (e.g., Sentry)
-    if (typeof window !== 'undefined' && (window as any).Sentry) {
-      (window as any).Sentry.captureException(error, {
-        contexts: {
-          react: {
-            componentStack: errorInfo.componentStack,
-          },
+    // Report to Sentry with property modal context
+    Sentry.captureException(error, {
+      tags: {
+        errorBoundary: 'PropertyModalErrorBoundary',
+        level: this.props.level || 'modal',
+        retryCount: this.retryCount,
+      },
+      contexts: {
+        react: {
+          componentStack: errorInfo.componentStack,
         },
-      });
-    }
+        property: {
+          modalLevel: this.props.level || 'modal',
+          retryAttempts: this.retryCount,
+        }
+      },
+    });
   }
 
   componentDidUpdate(_prevProps: Props, prevState: State) {
@@ -247,13 +255,16 @@ class PropertyModalErrorBoundary extends Component<Props, State> {
       // Store for user to copy if needed
       this.setState({ reportedErrorId: errorId });
       
-      // Try to send to error tracking service if available
-      if (typeof window !== 'undefined' && (window as any).Sentry) {
-        (window as any).Sentry.captureException(this.state.error, {
-          tags: { errorId },
-          extra: errorData,
-        });
-      }
+      // Send to Sentry with detailed error context
+      Sentry.captureException(this.state.error, {
+        tags: { 
+          errorId,
+          errorBoundary: 'PropertyModalErrorBoundary',
+          level: this.props.level || 'modal',
+          userReported: true,
+        },
+        extra: errorData,
+      });
     } else {
       // Development: Full error details
       console.error('Error details:', errorData);

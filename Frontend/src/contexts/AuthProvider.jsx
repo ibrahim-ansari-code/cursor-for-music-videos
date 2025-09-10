@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect } from "react";
+import * as Sentry from "@sentry/react";
 import { supabase } from "../supabaseClient";
 import { getCurrentUser } from "../utils/api";
 import AuthLoadingSkeleton from "../components/auth/AuthLoadingSkeleton";
@@ -18,8 +19,22 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const currentUserIdRef = React.useRef(null);
 
+  // Set user context in Sentry when user changes
   React.useEffect(() => {
     currentUserIdRef.current = user?.id || null;
+    
+    // Update Sentry user context
+    if (user) {
+      Sentry.setUser({
+        id: user.id,
+        email: user.email,
+        username: user.name || user.email,
+        userType: user.user_type,
+      });
+    } else {
+      // Clear user context on logout
+      Sentry.setUser(null);
+    }
   }, [user]);
 
   // Sign in function to be provided by context

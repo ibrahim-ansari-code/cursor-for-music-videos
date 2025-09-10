@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import PropertyModalErrorBoundary from '../../../src/components/properties/NewPropertyModal/components/ErrorBoundary';
+import * as Sentry from '@sentry/react';
 
 // Mock component that throws an error
 const ThrowError: React.FC<{ shouldThrow?: boolean; errorMessage?: string }> = ({ 
@@ -23,10 +24,12 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
 
-// Mock Sentry
-const mockSentry = {
+// Mock @sentry/react module
+vi.mock('@sentry/react', () => ({
   captureException: vi.fn(),
-};
+}));
+
+// Mock Sentry object for test assertions
 
 describe('PropertyModalErrorBoundary', () => {
   const originalConsoleError = console.error;
@@ -285,15 +288,13 @@ describe('PropertyModalErrorBoundary', () => {
     });
 
     it('reports error to Sentry when available', () => {
-      (window as any).Sentry = mockSentry;
-      
       render(
         <PropertyModalErrorBoundary>
           <ThrowError errorMessage="Sentry test error" />
         </PropertyModalErrorBoundary>
       );
       
-      expect(mockSentry.captureException).toHaveBeenCalledWith(
+      expect(Sentry.captureException).toHaveBeenCalledWith(
         expect.any(Error),
         expect.objectContaining({
           contexts: expect.objectContaining({

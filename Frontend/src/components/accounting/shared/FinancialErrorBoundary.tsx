@@ -1,5 +1,6 @@
 import { Component, ReactNode, ErrorInfo } from 'react';
 import { toast } from 'react-toastify';
+import * as Sentry from '@sentry/react';
 
 interface Props {
   children: ReactNode;
@@ -38,12 +39,15 @@ class FinancialErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const { componentName = 'Financial Component', onError } = this.props;
     
+    // Ensure we have an errorId (fallback if getDerivedStateFromError hasn't run yet)
+    const errorId = this.state.errorId || `err_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    
     // Log error with context
     console.error(`Error in ${componentName}:`, {
       error: error.message,
       stack: error.stack,
       componentStack: errorInfo.componentStack,
-      errorId: this.state.errorId,
+      errorId,
       timestamp: new Date().toISOString(),
     });
 
@@ -51,7 +55,7 @@ class FinancialErrorBoundary extends Component<Props, State> {
     toast.error(
       'A financial calculation error occurred. Your data is safe. Please refresh and try again.',
       {
-        toastId: this.state.errorId || undefined, // Prevent duplicate toasts
+        toastId: errorId, // Prevent duplicate toasts
         autoClose: 10000,
       }
     );
@@ -59,43 +63,24 @@ class FinancialErrorBoundary extends Component<Props, State> {
     // Call custom error handler if provided
     onError?.(error, errorInfo);
 
-    // In production, you might want to send this to an error reporting service
-    if (process.env.NODE_ENV === 'production') {
-      this.reportErrorToService(error, errorInfo);
-    }
-  }
-
-  private reportErrorToService(error: Error, errorInfo: ErrorInfo) {
-    // This would integrate with your error reporting service (e.g., Sentry, LogRocket)
-    try {
-      // Example error reporting
-      const errorReport = {
-        message: error.message,
-        stack: error.stack,
-        componentStack: errorInfo.componentStack,
-        userAgent: navigator.userAgent,
-        url: window.location.href,
-        timestamp: new Date().toISOString(),
-        errorId: this.state.errorId,
-        component: this.props.componentName,
-        userId: 'current-user-id', // Replace with actual user ID
-      };
-
-      // Send to your error reporting endpoint
-      const errorReportingUrl = import.meta.env.VITE_ERROR_REPORTING_URL || '/api/errors';
-      fetch(errorReportingUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+    // Report to Sentry with financial context
+    Sentry.captureException(error, {
+      tags: {
+        errorBoundary: 'FinancialErrorBoundary',
+        component: componentName,
+        errorId,
+        financial: true,
+      },
+      contexts: {
+        react: {
+          componentStack: errorInfo.componentStack,
         },
-        body: JSON.stringify(errorReport),
-      }).catch(() => {
-        // Silently fail if error reporting fails
-        console.warn('Failed to report error to service');
-      });
-    } catch (reportingError) {
-      console.warn('Error reporting failed:', reportingError);
-    }
+        financial: {
+          componentName,
+          timestamp: new Date().toISOString(),
+        }
+      },
+    });
   }
 
   private handleRetry = () => {

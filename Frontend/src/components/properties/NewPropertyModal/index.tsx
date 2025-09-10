@@ -5,8 +5,9 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import * as Sentry from '@sentry/react';
 
-import { PropertyType, PropertyStatus, PropertyFormData, GeneratedUnit } from '@/types/property';
+import { PropertyType, PropertyStatus, PropertyFormData, GeneratedUnit } from '../../../types/property';
 
 import { usePropertyMutation } from './hooks/usePropertyMutation';
 import { useImageUpload } from './hooks/useImageUpload';
@@ -544,10 +545,11 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
       }
     }
     
+    // Handle units for creation (from generated_units or legacy method)
+    let units: string[] | undefined;
+    let detailedUnits: GeneratedUnit[] | undefined;
+    
     try {
-      // Handle units for creation (from generated_units or legacy method)
-      let units: string[] | undefined;
-      let detailedUnits: GeneratedUnit[] | undefined;
       
       if (!isEditing) {
         try {
@@ -800,6 +802,34 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
       methods.reset();
     } catch (error: Error | unknown) {
       console.error('Error submitting property:', error);
+      
+      // Report to Sentry with enhanced property context
+      const errorToReport = error instanceof Error ? error : new Error(String(error));
+      Sentry.captureException(errorToReport, {
+        tags: {
+          action: isEditing ? 'update_property' : 'create_property',
+          component: 'NewPropertyModal',
+          propertyType: watchedPropertyType,
+          currentStep: STEPS[currentStep]?.id,
+        },
+        contexts: {
+          property: {
+            isEditing,
+            propertyType: watchedPropertyType,
+            hasPropertyData: !!propertyData,
+            currentStep: STEPS[currentStep]?.id,
+            stepTitle: STEPS[currentStep]?.title,
+            hasImages: !!(data.images_to_upload && data.images_to_upload.length > 0),
+            hasUnits: !!(detailedUnits && detailedUnits.length > 0) || !!(units && units.length > 0),
+          },
+          form: {
+            hasTypeSpecificDetails: !!(data.type_specific_details && Object.keys(data.type_specific_details).length > 0),
+            autoGenerateUnits: data.auto_generate_units,
+            hasLocation: !!(data.latitude && data.longitude),
+            formMode: isEditing ? 'edit' : 'create',
+          }
+        },
+      });
       
       let errorMessage = 'An unexpected error occurred';
       

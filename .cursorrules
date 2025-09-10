@@ -8,6 +8,7 @@
 - Auth: Supabase JWT with user sync
 - Storage: Azure Blob Storage
 - AI: OpenAI for receipt parsing
+- Monitoring: Sentry for error tracking, performance monitoring, and logging
 
 ## Code Patterns & Conventions
 
@@ -26,8 +27,9 @@
 - Use shared receipt upload pattern from `Frontend/src/components/ui/SharedModalComponents.jsx`
 - Implement functional setState to avoid stale closures
 - Use domain-specific API modules in `src/utils/api/`
-- Handle loading states and error boundaries consistently
+- Handle loading states and error boundaries consistently with Sentry integration
 - Follow modal pattern with shared components
+- All error boundaries should report to Sentry with contextual tags
 
 ### Database Migration Strategy
 
@@ -82,6 +84,7 @@ cd Backend/tests && python run_all_api_tests_pytest.py
 - QuickBooks: Via Apideck for accounting
 - Azure Blob Storage: File storage for receipts
 - OpenAI: AI-powered receipt parsing
+- Sentry: Error tracking, performance monitoring, and structured logging
 
 ## Environment Setup
 
@@ -128,3 +131,109 @@ When proposing changes, use this structure:
 ```
 
 Always ask: "Does this plan look correct? Should I proceed with the implementation?"
+
+## Sentry Integration Rules
+
+### Error / Exception Tracking
+
+- Use `Sentry.captureException(error)` to capture exceptions in try-catch blocks
+- All error boundaries must import and use `import * as Sentry from "@sentry/react"`
+- Include contextual tags for better error categorization:
+  ```javascript
+  Sentry.captureException(error, {
+    tags: {
+      component: 'FinancialErrorBoundary',
+      action: 'property_creation',
+      financial: true,
+    },
+    contexts: {
+      user: { propertyCount: 5 },
+      business: { feature: 'accounting' }
+    }
+  });
+  ```
+
+### Performance Tracing
+
+- Create custom spans for meaningful user actions and API calls
+- Use `Sentry.startSpan` with descriptive operations and names
+
+#### UI Component Tracing
+```javascript
+const handleButtonClick = () => {
+  Sentry.startSpan(
+    {
+      op: "ui.click",
+      name: "Property Creation Button",
+    },
+    (span) => {
+      span.setAttribute("propertyType", "apartment");
+      span.setAttribute("stepNumber", currentStep);
+      
+      // Perform action
+      createProperty();
+    },
+  );
+};
+```
+
+#### API Call Tracing  
+```javascript
+async function fetchPropertyData(propertyId) {
+  return Sentry.startSpan(
+    {
+      op: "http.client",
+      name: `GET /api/properties/${propertyId}`,
+    },
+    async () => {
+      const response = await fetch(`/api/properties/${propertyId}`);
+      return response.json();
+    },
+  );
+}
+```
+
+### Logging Configuration
+
+- Enable structured logging: `Sentry.init({ enableLogs: true })`
+- Use console logging integration for automatic error capture:
+  ```javascript
+  Sentry.init({
+    dsn: import.meta.env.VITE_SENTRY_DSN,
+    enableLogs: true,
+    integrations: [
+      Sentry.consoleLoggingIntegration({ 
+        levels: ["log", "error", "warn"] 
+      }),
+    ],
+  });
+  ```
+
+#### Structured Logging Examples
+```javascript
+const { logger } = Sentry;
+
+logger.trace("Starting property creation", { propertyType: "apartment" });
+logger.debug(logger.fmt`Property loaded for user: ${userId}`);
+logger.info("Invoice generated", { invoiceId: "inv_123", amount: 1200 });
+logger.warn("Payment delayed", { 
+  tenantId: "tenant_456", 
+  daysPastDue: 15 
+});
+logger.error("Property creation failed", {
+  error: error.message,
+  propertyType: "complex",
+  userId: currentUser.id
+});
+logger.fatal("Database connection lost", {
+  database: "properties",
+  activeConnections: 0
+});
+```
+
+### Integration Requirements
+
+- Sentry initialization must be first import in `Frontend/src/index.jsx`
+- All error boundaries should include Sentry reporting with contextual data
+- Performance tracing for critical user flows (property creation, payment processing)
+- Structured logging for business-critical operations

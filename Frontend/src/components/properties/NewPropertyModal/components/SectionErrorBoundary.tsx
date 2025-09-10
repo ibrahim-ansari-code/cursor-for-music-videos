@@ -2,6 +2,7 @@ import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ComplexStyle } from '@/types/apartmentComplex';
+import * as Sentry from '@sentry/react';
 
 interface Props {
   children: ReactNode;
@@ -50,9 +51,9 @@ class SectionErrorBoundary extends Component<Props, State> {
       console.error(`Section Error (${this.props.sectionName}):`, error, errorInfo);
     }
 
-    // Report error to Sentry if available
-    if (typeof window !== 'undefined' && (window as any).Sentry) {
-      (window as any).Sentry.captureException(error, {
+    // Report to Sentry with section context (with safety wrapper)
+    try {
+      Sentry.captureException(error, {
         tags: {
           section: this.props.sectionName,
           errorBoundary: 'SectionErrorBoundary',
@@ -61,8 +62,17 @@ class SectionErrorBoundary extends Component<Props, State> {
           react: {
             componentStack: errorInfo.componentStack,
           },
+          section: {
+            name: this.props.sectionName,
+            hasValidationErrors: Object.keys(this.state.validationErrors).length > 0,
+          }
         },
       });
+    } catch (sentryError) {
+      // Prevent error boundary from failing if Sentry is not available
+      if (import.meta.env.DEV) {
+        console.warn('Failed to report error to Sentry:', sentryError);
+      }
     }
 
     // Notify parent about section error

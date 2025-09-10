@@ -1,9 +1,13 @@
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), sentryVitePlugin({
+    org: "brikli",
+    project: "landlord-frontend"
+  })],
   // Configure esbuild (applies to dev and build). Use this (not build.esbuildOptions).
   esbuild: {
     drop: ['debugger'], // Keep console.error and console.warn for production debugging
@@ -50,7 +54,7 @@ export default defineConfig({
     }
   },
   build: {
-    sourcemap: false,
+    sourcemap: 'hidden',
     target: 'es2022',
     minify: 'esbuild',
     esbuildOptions: {

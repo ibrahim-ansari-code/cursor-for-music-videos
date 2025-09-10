@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { UseFormReturn } from 'react-hook-form';
-import { PropertyFormData } from '@/types/property';
+import { PropertyFormData } from '../../../../types/property';
 
 interface FormRecoveryOptions {
   formId: string;

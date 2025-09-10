@@ -61,6 +61,7 @@ npm run build
 - **State**: Context for auth, local state for components
 - **API**: Domain-separated modules in `src/utils/api/`
 - **Patterns**: Shared receipt upload system, modal patterns, controlled forms
+- **Monitoring**: Sentry for error tracking, performance monitoring, and logging
 
 ### Key Integrations
 
@@ -68,6 +69,7 @@ npm run build
 - **QuickBooks**: Accounting integration via Apideck
 - **Azure Blob Storage**: File storage for receipts and documents
 - **OpenAI**: AI-powered receipt parsing
+- **Sentry**: Error tracking, performance monitoring, and structured logging
 
 ## Development Patterns
 
@@ -85,7 +87,8 @@ npm run build
 - Implement functional setState to avoid stale closures
 - Follow the modal pattern with shared components from `ui/SharedModalComponents.jsx`
 - Use domain-specific API modules for backend communication
-- Handle loading states and error boundaries consistently
+- Handle loading states and error boundaries consistently with Sentry integration
+- All error boundaries should report to Sentry with contextual tags and business context
 
 ### Database Patterns
 
@@ -103,57 +106,9 @@ npm run build
 - **Local Development**: Synced via Supabase migrations (`supabase/migrations/`)
 - **Baseline**: `supabase/migrations/20250622235642_baseline_sync_from_remote.sql` contains full production schema
 
-#### Migration Types & When to Use
+```text
 
-1. **Alembic Migrations (Primary for Production)**
-
-   - **Use for**: Changes to SQLModel classes in `Backend/models/`
-   - **Generate**: `poetry run alembic revision --autogenerate -m "description"`
-   - **Apply locally**: `poetry run alembic upgrade head`
-   - **Deploy**: Automatic via production deployment
-
-   ##### Alembic Use Cases
-
-   - Adding/removing model classes (e.g., `class Vendor(SQLModel, table=True)`)
-   - Adding/removing fields to models (e.g., `email: str | None = None`)
-   - Changing field types or constraints (e.g., `Field(max_length=255)`)
-   - Adding/removing indexes defined in SQLModel
-   - Modifying foreign key relationships
-
-2. **Supabase Migrations (Local Development + DB-specific features)**
-   - **Use for**: Database features not representable in SQLModel
-   - **Generate**: `supabase db diff --use-migra -f migration_name`
-   - **Apply locally**: `supabase db push`
-   - **Deploy**: Manual coordination with Alembic
-
-   ##### Supabase Use Cases
-
-   - Row Level Security (RLS) policies
-   - Database functions and triggers
-   - Custom SQL types or enums beyond SQLModel support
-   - Database views or materialized views
-   - Specialized indexes (GIN for text search, GiST for spatial data)
-   - Data migration scripts or bulk updates
-
-#### Recommended Workflows
-
-#### Scenario A: SQLModel Changes (Most Common)
-
-```bash
-# 1. Modify SQLModel classes in Backend/models/
-# 2. Generate Alembic migration
-cd Backend
-poetry run alembic revision --autogenerate -m "add new feature table"
-
-# 3. Apply locally
-poetry run alembic upgrade head
-
-# 4. Commit and deploy - Alembic runs automatically in production
-git add Backend/migrations/versions/
-git commit -m "feat: add new feature table"
-```
-
-#### Scenario B: Database-Specific Changes
+#### Database-Specific Changes
 
 ```bash
 # 1. Make changes via Supabase Studio or direct SQL
@@ -161,10 +116,9 @@ git commit -m "feat: add new feature table"
 supabase db diff --use-migra -f add_rls_policies
 
 # 3. Apply locally
-supabase db push
+supabase db reset
 
-# 4. Manually apply to production (coordinate with DevOps)
-# 5. Create matching Alembic migration if needed for model sync
+# 4. PR will automatically apply to production when closed
 ```
 
 #### Team Onboarding
@@ -213,3 +167,152 @@ supabase db push
 - **Platform**: Porter for both frontend and backend
 - **Environments**: Production (`main` branch) + preview environments (PRs)
 - **Build**: Docker containers with Poetry for backend, npm for frontend
+
+## Sentry Integration Patterns
+
+### Error / Exception Tracking
+
+- Use `Sentry.captureException(error)` to capture exceptions in try-catch blocks
+- All error boundaries must import and use `import * as Sentry from "@sentry/react"`
+- Include contextual tags for better error categorization and business context
+
+#### Error Boundary Integration Example
+
+```javascript
+import * as Sentry from '@sentry/react';
+
+componentDidCatch(error, errorInfo) {
+  Sentry.captureException(error, {
+    tags: {
+      component: 'FinancialErrorBoundary',
+      action: 'invoice_generation',
+      financial: true,
+    },
+    contexts: {
+      react: {
+        componentStack: errorInfo.componentStack,
+      },
+      business: {
+        feature: 'accounting',
+        userType: 'landlord',
+      }
+    }
+  });
+}
+```
+
+### Performance Tracing
+
+Create custom spans for meaningful user actions and API calls using `Sentry.startSpan`:
+
+#### UI Component Tracing
+
+```javascript
+const handlePropertyCreation = () => {
+  Sentry.startSpan(
+    {
+      op: "ui.click",
+      name: "Property Creation Flow",
+    },
+    (span) => {
+      span.setAttribute("propertyType", "apartment");
+      span.setAttribute("stepNumber", currentStep);
+      span.setAttribute("unitsCount", formData.totalUnits);
+      
+      // Perform property creation
+      createProperty();
+    },
+  );
+};
+```
+
+#### API Call Tracing  
+
+```javascript
+async function fetchAccountingData(propertyId) {
+  return Sentry.startSpan(
+    {
+      op: "http.client",
+      name: `GET /api/accounting/property/${propertyId}`,
+    },
+    async () => {
+      const response = await fetch(`/api/accounting/property/${propertyId}`);
+      return response.json();
+    },
+  );
+}
+```
+
+### Structured Logging
+
+Enable structured logging in Sentry initialization and use throughout the application:
+
+#### Configuration
+
+```javascript
+import * as Sentry from "@sentry/react";
+
+Sentry.init({
+  dsn: import.meta.env.VITE_SENTRY_DSN,
+  enableLogs: true,
+  integrations: [
+    Sentry.consoleLoggingIntegration({ 
+      levels: ["log", "error", "warn"] 
+    }),
+    Sentry.browserTracingIntegration(),
+    Sentry.replayIntegration(),
+  ],
+});
+```
+
+#### Business Context Logging Examples
+
+```javascript
+const { logger } = Sentry;
+
+// Property Management
+logger.trace("Starting property creation", { 
+  propertyType: "apartment", 
+  userId: currentUser.id 
+});
+logger.info("Property created successfully", { 
+  propertyId: "prop_123", 
+  unitCount: 24,
+  landlordId: "user_456"
+});
+
+// Financial Operations
+logger.info("Invoice generated", { 
+  invoiceId: "inv_789", 
+  amount: 1200,
+  tenantId: "tenant_101",
+  propertyId: "prop_123"
+});
+logger.warn("Payment overdue", { 
+  tenantId: "tenant_202", 
+  daysPastDue: 15,
+  amountOwed: 1800,
+  propertyAddress: "123 Main St"
+});
+
+// Error Scenarios
+logger.error("QuickBooks sync failed", {
+  error: error.message,
+  propertyId: "prop_123",
+  syncType: "invoice_export",
+  retryCount: 3
+});
+logger.fatal("Database connection pool exhausted", {
+  database: "properties",
+  activeConnections: 100,
+  maxConnections: 100
+});
+```
+
+### Integration Requirements
+
+- **Initialization**: Sentry must be first import in `Frontend/src/index.jsx`
+- **Error Boundaries**: All error boundaries include Sentry reporting with business context
+- **Performance Monitoring**: Critical user flows (property creation, payment processing, QuickBooks sync)
+- **Structured Logging**: Business-critical operations with relevant context
+- **Environment Variables**: `VITE_SENTRY_DSN` and `SENTRY_AUTH_TOKEN` properly configured

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PropertyType, PropertyStatus } from '@/types/property';
+import { PropertyType, PropertyStatus } from '../../../../types/property';
 
 // Canadian postal code regex (e.g., M5V 3A8 or M5V3A8)
 const CANADIAN_POSTAL_CODE = /^[A-Z]\d[A-Z][\s]?\d[A-Z]\d$/i;
@@ -64,7 +64,7 @@ export const detailsSchema = z.object({
       if (val === null || val === undefined || val === '') return null;
       
       // Convert to number if it's a string
-      const numVal = typeof val === 'string' ? Number(val) : val;
+      const numVal = typeof val === 'string' ? Number(val) : (val as number);
       
       // Return null if not a valid number
       if (isNaN(numVal)) return null;
@@ -149,7 +149,7 @@ export const detailsSchema = z.object({
       // Check unit mix validation is now required - only validate if we have total units
       if (numUnits > 0) {
         const unitMix: Record<string, number | string> = details.unit_mix || {};
-        const unitMixSum: number = Object.values(unitMix).reduce((sum: number, count: number | string) => {
+        const unitMixSum: number = Object.values(unitMix).reduce((sum: number, count: number | string): number => {
           const num = Number(count);
           return sum + (isNaN(num) ? 0 : num);
         }, 0);
@@ -439,7 +439,7 @@ export const basicDetailsSchema = z.object({
       if (val === null || val === undefined || val === '') return null;
       
       // Convert to number if it's a string
-      const numVal = typeof val === 'string' ? Number(val) : val;
+      const numVal = typeof val === 'string' ? Number(val) : (val as number);
       
       // Return null if not a valid number
       if (isNaN(numVal)) return null;
@@ -501,7 +501,7 @@ export const validateDetailsStep = (data: unknown, tabName?: 'basic' | 'specific
       // Check unit mix validation - only validate if we have total units
       if (numUnits > 0) {
         const unitMix: Record<string, number | string> = details.unit_mix || {};
-        const unitMixSum: number = Object.values(unitMix).reduce((sum: number, count: number | string) => {
+        const unitMixSum: number = Object.values(unitMix).reduce((sum: number, count: number | string): number => {
           const num = Number(count);
           return sum + (isNaN(num) ? 0 : num);
         }, 0);
