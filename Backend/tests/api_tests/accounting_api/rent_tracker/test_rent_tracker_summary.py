@@ -612,3 +612,190 @@ async def test_get_rent_tracker_summary_partial_collection_rate():
         assert data["total_collected"] == "7200.00"
         assert data["total_outstanding"] == "4800.00"
         assert data["units_partial"] == 2
+
+
+# =============================================================================
+# OVERPAYMENT SCENARIO API TESTS (NEW)
+# =============================================================================
+
+@pytest.mark.asyncio
+async def test_get_rent_tracker_summary_overpayment_scenario():
+    """Test rent tracker summary API with overpayment scenarios (negative outstanding, >100% collection)."""
+    # Arrange - simulate real production data with massive overpayments
+    mock_user = create_test_user(user_type=UserType.LANDLORD)
+    mock_session = AsyncMock()
+    
+    # Create summary with negative outstanding and high collection rate
+    mock_summary = create_mock_rent_tracker_summary(
+        total_units=3,
+        total_expected=Decimal("4500.00"),     # $1500 * 3 units expected
+        total_collected=Decimal("67999.87"),   # Massive overpayment (real production data)
+        total_outstanding=Decimal("-63499.87"), # Credit balance
+        units_paid=3,
+        units_partial=0,
+        units_due=0,
+        units_overdue=0,
+        collection_rate=Decimal("1511.11")    # 1,511% collection rate
+    )
+
+    # Mock dependencies
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[get_session] = lambda: mock_session
+
+    # Mock service call
+    with patch('Backend.api.accounting.rent_tracker.router.RentTrackerService.get_rent_tracker_summary', new_callable=AsyncMock) as mock_service:
+        mock_service.return_value = mock_summary
+        
+        client = TestClientWithHost(app)
+        
+        # Act
+        response = client.get("/api/accounting/rent-tracker/summary")
+        
+        # Assert
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Verify negative outstanding is properly returned
+        assert data["total_outstanding"] == "-63499.87"
+        
+        # Verify high collection rate is properly returned
+        assert data["collection_rate"] == "1511.11"
+        
+        # Verify other fields
+        assert data["total_units"] == 3
+        assert data["total_expected"] == "4500.00"
+        assert data["total_collected"] == "67999.87"
+        assert data["units_paid"] == 3
+        assert data["units_partial"] == 0
+
+
+@pytest.mark.asyncio
+async def test_get_rent_tracker_summary_extreme_overpayment():
+    """Test rent tracker summary API with extreme overpayment (127.5 months scenario)."""
+    # Arrange - simulate the actual production case
+    mock_user = create_test_user(user_type=UserType.LANDLORD)
+    mock_session = AsyncMock()
+    
+    # Tenant paid 127.5 months of $1000 rent = $127,500
+    mock_summary = create_mock_rent_tracker_summary(
+        total_units=1,
+        total_expected=Decimal("1000.00"),      # $1000 expected for current month
+        total_collected=Decimal("127500.00"),   # $127,500 total collected
+        total_outstanding=Decimal("-126500.00"), # Huge credit balance
+        units_paid=1,
+        units_partial=0,
+        units_due=0,
+        units_overdue=0,
+        collection_rate=Decimal("12750.00")     # 12,750% collection rate
+    )
+
+    # Mock dependencies
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[get_session] = lambda: mock_session
+
+    # Mock service call
+    with patch('Backend.api.accounting.rent_tracker.router.RentTrackerService.get_rent_tracker_summary', new_callable=AsyncMock) as mock_service:
+        mock_service.return_value = mock_summary
+        
+        client = TestClientWithHost(app)
+        
+        # Act
+        response = client.get("/api/accounting/rent-tracker/summary")
+        
+        # Assert
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Verify extreme values are handled correctly
+        assert data["total_outstanding"] == "-126500.00"
+        assert data["collection_rate"] == "12750.00"
+        assert data["total_collected"] == "127500.00"
+        assert data["units_paid"] == 1
+
+
+@pytest.mark.asyncio
+async def test_get_rent_tracker_summary_mixed_overpayment_underpayment():
+    """Test rent tracker summary API with mixed overpayment and underpayment scenarios."""
+    # Arrange
+    mock_user = create_test_user(user_type=UserType.ADMIN, is_admin=True)
+    mock_session = AsyncMock()
+    
+    # Some tenants overpaid, some underpaid, net result is credit balance
+    mock_summary = create_mock_rent_tracker_summary(
+        total_units=10,
+        total_expected=Decimal("15000.00"),    # 10 units * $1500 average
+        total_collected=Decimal("20000.00"),   # Total overpayment across all units
+        total_outstanding=Decimal("-5000.00"), # Net credit balance
+        units_paid=8,  # Most units fully paid
+        units_partial=1,
+        units_due=0,
+        units_overdue=1,
+        collection_rate=Decimal("133.33")      # 133.33% collection rate
+    )
+
+    # Mock dependencies
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[get_session] = lambda: mock_session
+
+    # Mock service call
+    with patch('Backend.api.accounting.rent_tracker.router.RentTrackerService.get_rent_tracker_summary', new_callable=AsyncMock) as mock_service:
+        mock_service.return_value = mock_summary
+        
+        client = TestClientWithHost(app)
+        
+        # Act
+        response = client.get("/api/accounting/rent-tracker/summary")
+        
+        # Assert
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Verify mixed scenario handling
+        assert data["total_outstanding"] == "-5000.00"
+        assert data["collection_rate"] == "133.33"
+        assert data["units_paid"] == 8
+        assert data["units_overdue"] == 1
+
+
+@pytest.mark.asyncio
+async def test_get_rent_tracker_summary_advance_payment_scenario():
+    """Test rent tracker summary API with advance payment scenarios."""
+    # Arrange - tenant paid multiple months in advance
+    mock_user = create_test_user(user_type=UserType.LANDLORD)
+    mock_session = AsyncMock()
+    
+    mock_summary = create_mock_rent_tracker_summary(
+        total_units=2,
+        total_expected=Decimal("3000.00"),     # 2 units * $1500
+        total_collected=Decimal("36000.00"),   # 12 months advance payment
+        total_outstanding=Decimal("-33000.00"), # Major advance payment credit
+        units_paid=2,
+        units_partial=0,
+        units_due=0,
+        units_overdue=0,
+        collection_rate=Decimal("1200.00")     # 1200% collection rate (12 months)
+    )
+
+    # Mock dependencies
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[get_session] = lambda: mock_session
+
+    # Mock service call
+    with patch('Backend.api.accounting.rent_tracker.router.RentTrackerService.get_rent_tracker_summary', new_callable=AsyncMock) as mock_service:
+        mock_service.return_value = mock_summary
+        
+        client = TestClientWithHost(app)
+        
+        # Act
+        response = client.get("/api/accounting/rent-tracker/summary")
+        
+        # Assert
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Verify advance payment scenario
+        assert data["total_outstanding"] == "-33000.00"
+        assert data["collection_rate"] == "1200.00"
+        assert data["units_paid"] == 2
+        assert data["units_partial"] == 0
+        assert data["units_due"] == 0

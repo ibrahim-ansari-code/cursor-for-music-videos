@@ -131,8 +131,8 @@ async def test_rent_tracker_summary_valid():
 
 
 @pytest.mark.asyncio
-async def test_rent_tracker_summary_negative_amounts():
-    """Test RentTrackerSummary validation with negative amounts."""
+async def test_rent_tracker_summary_negative_expected_collected():
+    """Test RentTrackerSummary validation with negative expected/collected amounts."""
     with pytest.raises(ValidationError) as exc_info:
         RentTrackerSummary(
             total_units=10,
@@ -147,7 +147,7 @@ async def test_rent_tracker_summary_negative_amounts():
         )
     
     errors = exc_info.value.errors()
-    assert any("Monetary amounts must be non-negative" in str(error["msg"]) for error in errors)
+    assert any("Expected and collected amounts must be non-negative" in str(error["msg"]) for error in errors)
 
 
 @pytest.mark.asyncio
@@ -173,24 +173,7 @@ async def test_rent_tracker_summary_negative_units():
 @pytest.mark.asyncio
 async def test_rent_tracker_summary_invalid_collection_rate():
     """Test RentTrackerSummary validation with invalid collection rate."""
-    # Test rate > 100
-    with pytest.raises(ValidationError) as exc_info:
-        RentTrackerSummary(
-            total_units=1,
-            total_expected=Decimal("1000.00"),
-            total_collected=Decimal("1000.00"),
-            total_outstanding=Decimal("0.00"),
-            units_paid=1,
-            units_partial=0,
-            units_due=0,
-            units_overdue=0,
-            collection_rate=Decimal("150.00")  # > 100%
-        )
-    
-    errors = exc_info.value.errors()
-    assert any("Collection rate must be between 0 and 100" in str(error["msg"]) for error in errors)
-    
-    # Test rate < 0
+    # Test negative rate
     with pytest.raises(ValidationError) as exc_info:
         RentTrackerSummary(
             total_units=1,
@@ -205,7 +188,24 @@ async def test_rent_tracker_summary_invalid_collection_rate():
         )
     
     errors = exc_info.value.errors()
-    assert any("Collection rate must be between 0 and 100" in str(error["msg"]) for error in errors)
+    assert any("Collection rate cannot be negative" in str(error["msg"]) for error in errors)
+    
+    # Test extremely high rate (data error detection)
+    with pytest.raises(ValidationError) as exc_info:
+        RentTrackerSummary(
+            total_units=1,
+            total_expected=Decimal("1000.00"),
+            total_collected=Decimal("1000.00"),
+            total_outstanding=Decimal("0.00"),
+            units_paid=1,
+            units_partial=0,
+            units_due=0,
+            units_overdue=0,
+            collection_rate=Decimal("200000.00")  # Exceeds 100,000% limit
+        )
+    
+    errors = exc_info.value.errors()
+    assert any("Collection rate exceeds reasonable limit" in str(error["msg"]) for error in errors)
 
 
 @pytest.mark.asyncio
@@ -310,3 +310,156 @@ async def test_rent_status_in_schema():
             remaining_due=Decimal("1500.00"),
             status="INVALID_STATUS"  # Invalid status
         )
+
+
+# =============================================================================
+# OVERPAYMENT SCENARIO TESTS (NEW)
+# =============================================================================
+
+@pytest.mark.asyncio
+async def test_rent_tracker_summary_overpayment_scenarios():
+    """Test RentTrackerSummary with overpayment scenarios (negative outstanding, >100% collection)."""
+    # Test negative outstanding (credit balance scenario)
+    summary = RentTrackerSummary(
+        total_units=1,
+        total_expected=Decimal("1000.00"),
+        total_collected=Decimal("2000.00"),  # Overpayment
+        total_outstanding=Decimal("-1000.00"),  # Credit balance
+        units_paid=1,
+        units_partial=0,
+        units_due=0,
+        units_overdue=0,
+        collection_rate=Decimal("200.00")  # 200% collection rate
+    )
+    
+    assert summary.total_outstanding == Decimal("-1000.00")
+    assert summary.collection_rate == Decimal("200.00")
+    
+    # Test advance payments scenario (multiple months paid)
+    summary = RentTrackerSummary(
+        total_units=3,
+        total_expected=Decimal("4500.00"),  # 3 units * $1500
+        total_collected=Decimal("18000.00"),  # 4 months advance payment
+        total_outstanding=Decimal("-13500.00"),  # Major credit balance  
+        units_paid=3,
+        units_partial=0,
+        units_due=0,
+        units_overdue=0,
+        collection_rate=Decimal("400.00")  # 400% collection rate
+    )
+    
+    assert summary.total_outstanding == Decimal("-13500.00")
+    assert summary.collection_rate == Decimal("400.00")
+
+
+@pytest.mark.asyncio
+async def test_rent_tracker_summary_extreme_overpayment_limits():
+    """Test extreme overpayment scenarios are allowed within reasonable limits."""
+    # Test very large credit balance (but within limits)
+    summary = RentTrackerSummary(
+        total_units=1,
+        total_expected=Decimal("1000.00"),
+        total_collected=Decimal("100000.00"),  # $100k overpayment
+        total_outstanding=Decimal("-99000.00"),  # Large credit
+        units_paid=1,
+        units_partial=0,
+        units_due=0,
+        units_overdue=0,
+        collection_rate=Decimal("10000.00")  # 10,000% collection rate (within limit)
+    )
+    
+    assert summary.total_outstanding == Decimal("-99000.00")
+    assert summary.collection_rate == Decimal("10000.00")
+    
+    # Test that excessive credit limit is rejected
+    with pytest.raises(ValidationError) as exc_info:
+        RentTrackerSummary(
+            total_units=1,
+            total_expected=Decimal("1000.00"),
+            total_collected=Decimal("1000.00"),
+            total_outstanding=Decimal("-1000000000.00"),  # Exceeds reasonable limit
+            units_paid=1,
+            units_partial=0,
+            units_due=0,
+            units_overdue=0,
+            collection_rate=Decimal("100.00")
+        )
+    
+    errors = exc_info.value.errors()
+    assert any("Outstanding amount exceeds reasonable credit limit" in str(error["msg"]) for error in errors)
+
+
+@pytest.mark.asyncio
+async def test_rent_tracker_summary_realistic_overpayment():
+    """Test realistic overpayment scenarios based on production data patterns."""
+    # Scenario: Tenant pays 127.5 months of rent (real production case)
+    monthly_rent = Decimal("1000.00")
+    months_paid = Decimal("127.5")
+    total_paid = monthly_rent * months_paid  # $127,500
+    
+    summary = RentTrackerSummary(
+        total_units=1,
+        total_expected=monthly_rent,  # $1,000 for current month
+        total_collected=total_paid,   # $127,500 total paid
+        total_outstanding=monthly_rent - total_paid,  # -$126,500 credit
+        units_paid=1,
+        units_partial=0,
+        units_due=0,
+        units_overdue=0,
+        collection_rate=Decimal("12750.00")  # 12,750% collection rate
+    )
+    
+    assert summary.total_outstanding == Decimal("-126500.00")
+    assert summary.collection_rate == Decimal("12750.00")
+    
+    # Scenario: Multiple overpaying tenants
+    summary = RentTrackerSummary(
+        total_units=5,
+        total_expected=Decimal("10000.00"),   # 5 units * $2,000 expected
+        total_collected=Decimal("200000.00"), # Massive overpayments
+        total_outstanding=Decimal("-190000.00"), # Large credit balance
+        units_paid=5,
+        units_partial=0,
+        units_due=0,
+        units_overdue=0,
+        collection_rate=Decimal("2000.00")    # 2,000% collection rate
+    )
+    
+    assert summary.total_outstanding == Decimal("-190000.00")
+    assert summary.collection_rate == Decimal("2000.00")
+
+
+@pytest.mark.asyncio
+async def test_rent_tracker_summary_mixed_scenarios():
+    """Test mixed scenarios with some overpayments and some underpayments."""
+    # Scenario: Some units overpaid, some underpaid, net positive outstanding
+    summary = RentTrackerSummary(
+        total_units=10,
+        total_expected=Decimal("15000.00"),   # 10 units * $1,500 average
+        total_collected=Decimal("12000.00"),  # Some collected less, some more
+        total_outstanding=Decimal("3000.00"), # Net amount still owed
+        units_paid=6,
+        units_partial=2,
+        units_due=1,
+        units_overdue=1,
+        collection_rate=Decimal("80.00")      # 80% collection rate
+    )
+    
+    assert summary.total_outstanding == Decimal("3000.00")
+    assert summary.collection_rate == Decimal("80.00")
+    
+    # Scenario: Mixed with net overpayment
+    summary = RentTrackerSummary(
+        total_units=8,
+        total_expected=Decimal("12000.00"),
+        total_collected=Decimal("15000.00"),  # Net overpayment
+        total_outstanding=Decimal("-3000.00"), # Credit balance
+        units_paid=8,
+        units_partial=0,
+        units_due=0,
+        units_overdue=0,
+        collection_rate=Decimal("125.00")     # 125% collection rate
+    )
+    
+    assert summary.total_outstanding == Decimal("-3000.00")
+    assert summary.collection_rate == Decimal("125.00")

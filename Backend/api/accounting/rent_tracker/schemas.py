@@ -73,7 +73,7 @@ class RentTrackerSummary(BaseModel):
     total_units: int = Field(..., description="Total number of units being tracked")
     total_expected: Decimal = Field(..., description="Total expected rent for the period")
     total_collected: Decimal = Field(..., description="Total amount collected for the period")
-    total_outstanding: Decimal = Field(..., description="Total amount outstanding for the period")
+    total_outstanding: Decimal = Field(..., description="Total amount outstanding for the period (negative indicates overpayment/credit balance)")
     
     # Status breakdown
     units_paid: int = Field(..., description="Number of units with rent fully paid")
@@ -82,16 +82,44 @@ class RentTrackerSummary(BaseModel):
     units_overdue: int = Field(..., description="Number of units with overdue rent")
     
     # Collection rate
-    collection_rate: Decimal = Field(..., description="Percentage of rent collected")
+    collection_rate: Decimal = Field(..., description="Percentage of rent collected (can exceed 100% for advance payments)")
     
     model_config = ConfigDict(from_attributes=True)
     
-    @field_validator('total_expected', 'total_collected', 'total_outstanding')
+    @field_validator('total_expected', 'total_collected')
     @classmethod
     def validate_positive_amounts(cls, v: Decimal) -> Decimal:
-        """Ensure monetary amounts are non-negative."""
+        """Ensure expected and collected amounts are non-negative."""
         if v < 0:
-            raise ValueError('Monetary amounts must be non-negative')
+            raise ValueError('Expected and collected amounts must be non-negative')
+        return v
+    
+    @field_validator('total_outstanding', mode='after')
+    @classmethod
+    def validate_outstanding_amount(cls, v: Decimal, info) -> Decimal:
+        """
+        Validate outstanding amount.
+        
+        Note: Outstanding amount can be negative when tenants have made advance payments
+        or overpayments (representing a credit balance).
+        """
+        # Allow reasonable negative values for overpayment scenarios
+        if v < Decimal('-999999999.99'):
+            raise ValueError('Outstanding amount exceeds reasonable credit limit')
+        
+        # Also guard against unreasonably large positive outstanding values
+        if v > Decimal('999999999.99'):
+            raise ValueError('Outstanding amount exceeds reasonable limit')
+        
+        # Cross-field consistency: expected - collected ~= outstanding (within 1 cent)
+        data = getattr(info, 'data', {}) or {}
+        expected = data.get('total_expected')
+        collected = data.get('total_collected')
+        if expected is not None and collected is not None:
+            computed = expected - collected
+            if (computed - v).copy_abs() > Decimal('0.01'):
+                raise ValueError('Outstanding amount inconsistent with expected and collected')
+        
         return v
     
     @field_validator('units_paid', 'units_partial', 'units_due', 'units_overdue', 'total_units')
@@ -102,12 +130,33 @@ class RentTrackerSummary(BaseModel):
             raise ValueError('Unit counts must be non-negative')
         return v
     
-    @field_validator('collection_rate')
+    @field_validator('collection_rate', mode='after')
     @classmethod
-    def validate_collection_rate(cls, v: Decimal) -> Decimal:
-        """Ensure collection rate is between 0 and 100."""
-        if v < 0 or v > 100:
-            raise ValueError('Collection rate must be between 0 and 100')
+    def validate_collection_rate(cls, v: Decimal, info) -> Decimal:
+        """
+        Validate collection rate.
+        
+        Note: Collection rate can exceed 100% when tenants make advance payments
+        or pay more than the expected rent amount for the period.
+        """
+        if v < 0:
+            raise ValueError('Collection rate cannot be negative')
+        
+        # Set a reasonable upper limit to catch potential data errors
+        # while allowing legitimate overpayment scenarios
+        # Based on production data, some tenants pay 127+ months in advance
+        if v > Decimal('100000'):  # 100,000% allows for extreme but possible scenarios
+            raise ValueError('Collection rate exceeds reasonable limit')
+        
+        # Cross-field consistency: when expected > 0, rate ~= collected/expected * 100 (within 0.01)
+        data = getattr(info, 'data', {}) or {}
+        expected = data.get('total_expected')
+        collected = data.get('total_collected')
+        if expected is not None and collected is not None and expected > 0:
+            computed_rate = (collected / expected) * Decimal('100')
+            if (computed_rate - v).copy_abs() > Decimal('0.01'):
+                raise ValueError('Collection rate inconsistent with expected and collected')
+        
         return v
 
 
