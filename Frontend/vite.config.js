@@ -47,7 +47,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'pdfjs-dist', 'recharts'],
+    include: ['react', 'react-dom', 'react-router-dom', 'pdfjs-dist', 'recharts', '@sentry/react'],
     exclude: [],
     esbuildOptions: {
       target: 'es2022'
@@ -61,14 +61,26 @@ export default defineConfig({
       // Only drop console.log in production, keep error and warn for debugging
       drop: ['debugger'],
       pure: ['console.log'],
+      // Prevent variable hoisting issues in production
+      keepNames: true,
     },
     rollupOptions: {
       output: {
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
+        // Ensure proper chunk loading order
+        globals: {
+          'react': 'React',
+          'react-dom': 'ReactDOM'
+        },
         manualChunks(id) {
           if (id.includes('node_modules')) {
+            // Sentry MUST be in the main vendor chunk to avoid initialization issues
+            if (id.includes('@sentry/')) {
+              return 'vendor';
+            }
+            
             // React MUST be bundled together and load first
             if (id.includes('react-dom') || id.includes('/react/') || id.includes('scheduler')) {
               return 'react-vendor';
