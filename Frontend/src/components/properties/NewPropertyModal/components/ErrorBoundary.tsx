@@ -1,5 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home, CheckCircle, ChevronDown, ChevronRight, Bug, MessageCircle } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Home, CheckCircle, ChevronDown, ChevronRight, Bug } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Sentry from '@sentry/react';
 
@@ -449,20 +449,9 @@ class PropertyModalErrorBoundary extends Component<Props, State> {
                         className="inline-flex items-center px-4 py-2 bg-white text-gray-600 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
                       >
                         <Home className="h-4 w-4 mr-2" />
-                        Back to Properties
+                        Close
                       </motion.button>
                     )}
-
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={this.reportError}
-                      className="inline-flex items-center px-3 py-2 bg-white text-gray-600 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
-                      title={import.meta.env.DEV ? "Copy error details to clipboard" : "Generate error ID for support"}
-                    >
-                      <MessageCircle className="h-4 w-4 mr-1" />
-                      Report Issue
-                    </motion.button>
 
                     {this.retryCount >= this.maxRetries && (
                       <motion.button
@@ -489,10 +478,7 @@ class PropertyModalErrorBoundary extends Component<Props, State> {
                         <div className="text-sm text-amber-700">
                           <p className="font-medium">Need additional help?</p>
                           <p className="mt-1">
-                            {import.meta.env.DEV 
-                              ? 'Error details are available via the "Report Issue" button. You can continue using other parts of the form or try a "Force Reset".'
-                              : 'Use the "Report Issue" button to get an error ID, then try "Force Reset" or contact support.'
-                            }
+                            You can continue using other parts of the form or try a "Force Reset" to clear all error state.
                           </p>
                           {this.state.reportedErrorId && (
                             <p className="mt-2 p-2 bg-amber-100 border border-amber-300 rounded font-mono text-xs">

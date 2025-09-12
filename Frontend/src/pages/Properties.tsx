@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import useProperties from '../hooks/useProperties';
+import { preloadGoogleMaps } from '../utils/googleMapsLoader';
 import NewPropertyModal from '../components/properties/NewPropertyModal';
 
 import { StatusCardsGrid } from '../components/properties/PropertiesPage/components/StatusCards/StatusCardsGrid';
@@ -45,6 +46,18 @@ const Properties: React.FC = () => {
   const statusCounts = useMemo(() => {
     return calculateStatusCounts(filteredProperties);
   }, [filteredProperties]);
+
+  // Preload Google Maps when Properties page mounts for optimal UX
+  useEffect(() => {
+    try {
+      preloadGoogleMaps();
+    } catch (err) {
+      // Guard against any synchronous errors in preload function
+      if (import.meta.env.DEV) {
+        console.warn('Failed to preload Google Maps', err);
+      }
+    }
+  }, []);
 
   const clearAllFiltersAndSorting = () => {
     filtersState.clearFilters();

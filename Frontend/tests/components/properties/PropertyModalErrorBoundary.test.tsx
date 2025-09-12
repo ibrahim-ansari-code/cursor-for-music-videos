@@ -92,7 +92,7 @@ describe('PropertyModalErrorBoundary', () => {
       expect(screen.getByText('Property form encountered an issue')).toBeInTheDocument();
       expect(screen.getByText(/Try refreshing the form or contact support/)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Try Again/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Back to Properties/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Close/i })).toBeInTheDocument();
     });
 
     it('shows specific error message for useformfielddebounce errors', () => {
@@ -119,7 +119,7 @@ describe('PropertyModalErrorBoundary', () => {
       
       expect(screen.getByText('Custom Section Error')).toBeInTheDocument();
       expect(screen.getByText('Custom error description')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /Back to Properties/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Close/i })).not.toBeInTheDocument();
     });
 
     it('shows specific error suggestions based on error type', () => {
@@ -234,7 +234,7 @@ describe('PropertyModalErrorBoundary', () => {
   });
 
   describe('Navigation', () => {
-    it('calls navigation callback when Back to Properties is clicked', () => {
+    it('calls navigation callback when Close is clicked', () => {
       const onNavigateMock = vi.fn();
       
       render(
@@ -243,8 +243,8 @@ describe('PropertyModalErrorBoundary', () => {
         </PropertyModalErrorBoundary>
       );
       
-      const backButton = screen.getByRole('button', { name: /Back to Properties/i });
-      fireEvent.click(backButton);
+      const closeButton = screen.getByRole('button', { name: /Close/i });
+      fireEvent.click(closeButton);
       
       expect(onNavigateMock).toHaveBeenCalledTimes(1);
     });
@@ -256,35 +256,10 @@ describe('PropertyModalErrorBoundary', () => {
         </PropertyModalErrorBoundary>
       );
       
-      const backButton = screen.getByRole('button', { name: /Back to Properties/i });
-      fireEvent.click(backButton);
+      const closeButton = screen.getByRole('button', { name: /Close/i });
+      fireEvent.click(closeButton);
       
       expect(console.warn).toHaveBeenCalledWith('No navigation callback provided to ErrorBoundary');
-    });
-  });
-
-  describe('Error Reporting', () => {
-    it('copies error details to clipboard when Report Issue is clicked', async () => {
-      render(
-        <PropertyModalErrorBoundary>
-          <ThrowError errorMessage="Test error for reporting" />
-        </PropertyModalErrorBoundary>
-      );
-      
-      const reportButton = screen.getByRole('button', { name: /Report Issue/i });
-      fireEvent.click(reportButton);
-      
-      await waitFor(() => {
-        expect(navigator.clipboard.writeText).toHaveBeenCalled();
-      });
-      
-      const clipboardCall = (navigator.clipboard.writeText as any).mock.calls[0][0];
-      const errorData = JSON.parse(clipboardCall);
-      
-      expect(errorData).toHaveProperty('error', 'Test error for reporting');
-      expect(errorData).toHaveProperty('timestamp');
-      expect(errorData).toHaveProperty('userAgent');
-      expect(errorData).toHaveProperty('url');
     });
 
     it('reports error to Sentry when available', () => {
@@ -304,10 +279,9 @@ describe('PropertyModalErrorBoundary', () => {
           })
         })
       );
-      
-      delete (window as any).Sentry;
     });
   });
+
 
   describe('Development vs Production', () => {
     let originalEnv: any;
@@ -360,10 +334,10 @@ describe('PropertyModalErrorBoundary', () => {
       );
       
       const tryAgainButton = screen.getByRole('button', { name: /Try Again/i });
-      const reportButton = screen.getByRole('button', { name: /Report Issue/i });
+      const closeButton = screen.getByRole('button', { name: /Close/i });
       
       expect(tryAgainButton).toBeInTheDocument();
-      expect(reportButton).toHaveAttribute('title', 'Copy error details to clipboard');
+      expect(closeButton).toBeInTheDocument();
     });
 
     it('maintains focus management during error recovery', async () => {

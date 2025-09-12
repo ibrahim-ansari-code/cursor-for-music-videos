@@ -17,12 +17,15 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import status
 import sentry_sdk
 import os
+from Backend.config import settings
 
-# Initialize Sentry if DSN is provided
+# Initialize Sentry only for production environment
 sentry_dsn = os.getenv("SENTRY_DSN")
-if sentry_dsn:
+current_env = settings.ENVIRONMENT
+if sentry_dsn and current_env == "production":
     sentry_sdk.init(
         dsn=sentry_dsn,
+        environment=current_env,
         # Add data like request headers and IP for users,
         # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
         send_default_pii=False,

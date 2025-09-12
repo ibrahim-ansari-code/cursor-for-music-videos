@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { loadGoogleMapsAPI, isGoogleMapsLoaded, getPerformanceMetrics } from '@/utils/googleMapsLoader';
 
 // Modern Places API utilities
@@ -52,24 +52,84 @@ const geocodeLimiter = createRateLimiter(5, 1000); // 5 requests per second
 
 export const useGoogleMaps = () => {
   const [isMapReady, setIsMapReady] = useState(false);
+  const [isMapConstructorReady, setIsMapConstructorReady] = useState(false);
   const [userLocation, _setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [loadMetrics, setLoadMetrics] = useState<ReturnType<typeof getPerformanceMetrics> | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+    
+    const checkMapConstructor = () => {
+      const hasMapConstructor = !!(window.google?.maps?.Map);
+      if (isMounted) {
+        setIsMapConstructorReady(hasMapConstructor);
+      }
+      return hasMapConstructor;
+    };
+
+    const startPollingForConstructor = () => {
+      // Clear any existing polling interval
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+
+      // Short polling to check for constructor availability
+      // This prevents the map from being stuck in loading skeleton
+      pollingIntervalRef.current = setInterval(() => {
+        const constructorReady = checkMapConstructor();
+        
+        if (constructorReady) {
+          // Constructor is ready, stop polling
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+        }
+      }, 100); // Check every 100ms
+
+      // Safety timeout to prevent infinite polling
+      setTimeout(() => {
+        if (isMounted && pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+          // Final check after timeout
+          checkMapConstructor();
+        }
+      }, 5000); // Stop polling after 5 seconds
+    };
+
     // Check if already loaded
     if (isGoogleMapsLoaded()) {
       setIsMapReady(true);
       setLoadMetrics(getPerformanceMetrics());
+      
+      const constructorReady = checkMapConstructor();
+      if (!constructorReady) {
+        // API is loaded but constructor not ready yet, start polling
+        startPollingForConstructor();
+      }
       return;
     }
 
     // Load Google Maps API using the singleton loader
     loadGoogleMapsAPI()
       .then(() => {
+        if (!isMounted) return;
+        
         setIsMapReady(true);
         const metrics = getPerformanceMetrics();
         setLoadMetrics(metrics);
+        
+        // Check if Map constructor is available after loading
+        const constructorReady = checkMapConstructor();
+        
+        if (!constructorReady) {
+          // API loaded but constructor not immediately ready, start polling
+          startPollingForConstructor();
+        }
         
         // Log performance metrics in development
         if (import.meta.env.DEV) {
@@ -77,13 +137,25 @@ export const useGoogleMaps = () => {
         }
       })
       .catch((error) => {
-        console.error('Failed to load Google Maps:', error);
-        setLoadError(error);
+        if (isMounted) {
+          console.error('Failed to load Google Maps:', error);
+          setLoadError(error);
+        }
       });
+
+    // Cleanup function to prevent memory leaks
+    return () => {
+      isMounted = false;
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
   }, []);
 
   return {
     isLoaded: isMapReady,
+    isMapConstructorReady,
     loadError,
     userLocation,
     loadMetrics, // Expose metrics for monitoring

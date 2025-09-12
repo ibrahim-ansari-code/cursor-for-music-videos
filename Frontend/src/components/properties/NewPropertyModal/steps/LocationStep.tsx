@@ -15,7 +15,7 @@ const LocationStep: React.FC<LocationStepProps> = ({ onNext: _onNext }) => {
   const { watch, formState: { errors } } = useFormContext<PropertyFormData>();
   
   // Single Google Maps hook call for the entire LocationStep
-  const { isLoaded: isGoogleMapsLoaded, userLocation, loadError } = useGoogleMaps();
+  const { isLoaded: isGoogleMapsLoaded, isMapConstructorReady, userLocation, loadError } = useGoogleMaps();
   
   const latitude = watch('latitude');
   const longitude = watch('longitude');
@@ -222,6 +222,7 @@ const LocationStep: React.FC<LocationStepProps> = ({ onNext: _onNext }) => {
             height="384px" 
             showEmptyState={!isLocationComplete}
             isGoogleMapsLoaded={isGoogleMapsLoaded}
+            isMapConstructorReady={isMapConstructorReady}
             userLocation={userLocation}
           />
         </div>

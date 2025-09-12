@@ -45,6 +45,7 @@ interface PropertyMapProps {
   height?: string;
   showEmptyState?: boolean;
   isGoogleMapsLoaded: boolean;
+  isMapConstructorReady?: boolean;
   userLocation: { lat: number; lng: number } | null;
 }
 
@@ -53,6 +54,7 @@ const PropertyMap: React.FC<PropertyMapProps> = React.memo(({
   height = '400px',
   showEmptyState = false,
   isGoogleMapsLoaded,
+  isMapConstructorReady = false,
   userLocation
 }) => {
   const { watch, setValue } = useFormContext<PropertyFormData>();
@@ -390,7 +392,10 @@ const PropertyMap: React.FC<PropertyMapProps> = React.memo(({
     }
   }, [handleLocationUpdate]);
 
-  if (!isGoogleMapsLoaded) {
+  // Show loading skeleton if Google Maps isn't loaded or Map constructor isn't ready
+  // Add defensive inline fallback check for timing race conditions
+  const mapCtorReady = isMapConstructorReady || !!(window.google?.maps?.Map);
+  if (!isGoogleMapsLoaded || !mapCtorReady) {
     return <MapSkeleton className={className} style={{ height }} />;
   }
 
