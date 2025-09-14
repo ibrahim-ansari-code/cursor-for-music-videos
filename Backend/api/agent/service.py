@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select, desc
 
 from Backend.models.agent import UserAgentThread
-from Backend.llm.agent_service import BrikliAgentService
+from Backend.llm.brikli_agent import BrikliAgentService
 from Backend.api.agent.schemas import ChatMessage, MessageRole
 
 logger = logging.getLogger(__name__)
@@ -20,15 +20,15 @@ class AgentService:
     
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.agent_client = None
+        self.agent_client: Optional[BrikliAgentService] = None
         self._agent_client_lock = asyncio.Lock()
         
     async def _get_agent_client(self) -> BrikliAgentService:
         """Lazy initialization of agent client with thread-safe access"""
-        if not self.agent_client:
+        if self.agent_client is None:
             async with self._agent_client_lock:
                 # Double-check pattern to avoid unnecessary locking
-                if not self.agent_client:
+                if self.agent_client is None:
                     self.agent_client = BrikliAgentService()
         return self.agent_client
     

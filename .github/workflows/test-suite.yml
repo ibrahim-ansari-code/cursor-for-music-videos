@@ -20,6 +20,7 @@ env:
   SUPABASE_WEBHOOK_SECRET: "test-webhook-secret"
   SUPABASE_URL: "https://test.supabase.co"
   SUPABASE_ANON_KEY: "test-anon-key"
+  SUPABASE_SERVICE_KEY: "test-service-key"
   API_BASE_URL: "http://localhost:8000"
   TESTING: "true"
 
@@ -104,7 +105,7 @@ jobs:
           echo '{
             "SUPABASE_URL": "https://test.supabase.co",
             "SUPABASE_ANON_KEY": "test-anon-key",
-            "SUPABASE_SERVICE_ROLE_KEY": "test-service-key",
+            "SUPABASE_SERVICE_KEY": "test-service-key",
             "TEST_USER_EMAIL": "test@example.com",
             "TEST_USER_PASSWORD": "test-password"
           }' > .test_credentials.json
@@ -138,6 +139,7 @@ jobs:
             --tb=short \
             -n auto \
             --cov=Backend \
+            --cov-branch \
             --cov-append \
             --cov-report=term-missing \
             --junit-xml=tests/api-test-results.xml

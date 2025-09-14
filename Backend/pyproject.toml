@@ -57,6 +57,11 @@ dependencies = [
 [tool.mypy]
 plugins = ["sqlalchemy.ext.mypy.plugin"]
 
+# Handle third-party libraries without type stubs
+[[tool.mypy.overrides]]
+module = "fitz.*"
+ignore_missing_imports = true
+
 [tool.poetry]
 # Poetry-specific configuration
 package-mode = false

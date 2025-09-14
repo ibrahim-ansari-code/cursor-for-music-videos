@@ -10,7 +10,7 @@ from typing import Any
 def get_tool_definitions() -> list[dict[str, Any]]:
     """
     Return tool definitions for the Azure AI Assistant
-    
+
     These tools enable the assistant to:
     - Search and filter properties
     - Get tenant information

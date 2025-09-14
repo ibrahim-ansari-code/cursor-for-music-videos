@@ -19,7 +19,7 @@ from Backend.api.agent.schemas import (
     ConversationListResponse
 )
 from Backend.api.agent.service import AgentService
-from Backend.llm.agent_service import BrikliAgentService
+from Backend.llm.brikli_agent import BrikliAgentService
 
 # Configure logging
 logger = logging.getLogger(__name__)

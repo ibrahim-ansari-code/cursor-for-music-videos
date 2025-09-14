@@ -1,6 +1,7 @@
 import logging
 import sys
 import json
+import time
 from pathlib import Path
 
 # Add project root to Python path for proper module imports
@@ -19,6 +20,9 @@ from fastapi import status
 import sentry_sdk
 import os
 from Backend.config import settings
+from Backend.utils.datetime_utils import create_audit_datetime
+from Backend.database import engine, async_session
+from sqlalchemy import text
 
 # Initialize Sentry only for production environment
 sentry_dsn = os.getenv("SENTRY_DSN")
@@ -97,15 +101,20 @@ async def startup_event():
     logger.info(f"  - Checked in: {engine.pool.checkedin()}")
     logger.info(f"  - Pool status: {engine.pool.status()}")
     
-    # Verify Supabase configuration
+    # Verify Supabase configuration (optional in CI/test environments)
     from Backend.utils.supabase import get_supabase_client
     try:
         # Test client creation (will validate environment variables)
         client = get_supabase_client()
         logger.info("✅ Supabase client configuration verified")
     except Exception as e:
-        logger.error(f"❌ Supabase configuration failed: {str(e)}")
-        raise
+        # Only fail in production - allow startup in test/CI environments
+        if not settings.TESTING:
+            logger.error(f"❌ Supabase configuration failed: {str(e)}")
+            raise
+        else:
+            logger.warning(f"⚠️ Supabase configuration incomplete in test environment: {str(e)}")
+            logger.info("🧪 Continuing startup in test mode without Supabase")
     
     logger.info("🚀 FastAPI application startup complete")
 
@@ -174,20 +183,21 @@ logger.info("🔒 Adding security middleware for HTTPS enforcement...")
 # Make FastAPI respect the X-Forwarded-Proto header from Azure's proxy
 app.add_middleware(ProxyHeadersMiddleware)
 
-# Optional: Validate Host headers for security
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=[
-        "app.brikli.com",
-        "brikli.com",
-        "api.brikli.com",
-        "brikli.azurewebsites.net",
-        "localhost",
-        "brikli-api-8919-7953fd68-fofj7ysk.onporter.run",
-        "brikli-api-8919-151e4fdf-aa5gqdc5.onporter.run",
-        "*.onporter.run",  # Allow all Porter preview environments
-    ]
-)
+# Optional: Validate Host headers for security (skip in test environments)
+if not settings.TESTING:
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=[
+            "app.brikli.com",
+            "brikli.com",
+            "api.brikli.com",
+            "brikli.azurewebsites.net",
+            "localhost",
+            "brikli-api-8919-7953fd68-fofj7ysk.onporter.run",
+            "brikli-api-8919-151e4fdf-aa5gqdc5.onporter.run",
+            "*.onporter.run",  # Allow all Porter preview environments
+        ]
+    )
 
 #RequestValidationError handler
 @app.exception_handler(RequestValidationError)
@@ -278,10 +288,6 @@ try:
         Comprehensive health check with database connectivity.
         Used for monitoring dashboards and alerting systems.
         """
-        from Backend.database import engine, async_session
-        from Backend.utils.datetime_utils import create_audit_datetime
-        from sqlalchemy import text
-        import time
         
         # Test database connectivity
         start_time = time.time()

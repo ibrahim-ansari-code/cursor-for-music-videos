@@ -6,7 +6,7 @@ This follows the Microsoft documentation pattern for updating an existing agent.
 """
 import asyncio
 import logging
-from Backend.llm.agent_service import BrikliAgentService
+from Backend.llm.brikli_agent import BrikliAgentService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

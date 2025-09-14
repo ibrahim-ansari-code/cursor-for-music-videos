@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     
     # === Environment Settings ===
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")  # development or production
+    TESTING: bool = os.getenv("TESTING", "false").lower() in ("true", "1", "yes")
 
     # === Database Settings ===
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
