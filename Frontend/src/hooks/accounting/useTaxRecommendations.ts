@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
+import { reportError } from '../../utils/error-reporting';
 import { 
   getSmartTaxRecommendation, 
   setUserTaxDefault, 
@@ -57,6 +58,22 @@ export const useTaxRecommendations = ({
       }
     } catch (error) {
       console.error('Error loading smart tax recommendations:', error);
+      
+      // Report tax recommendation loading errors with financial context
+      reportError(error instanceof Error ? error : new Error(String(error)), {
+        component: 'useTaxRecommendations',
+        action: 'load_smart_tax_recommendations',
+        tags: {
+          financial: true,
+        },
+        extra: {
+          taxRecommendation: {
+            propertyId: finalPropertyId,
+            category: finalCategory,
+          }
+        },
+      }, 'warning');
+      
       setSmartTaxError(error instanceof Error ? error.message : 'Failed to load tax recommendations');
       // Don't show toast for failed recommendations as it's not critical
     } finally {

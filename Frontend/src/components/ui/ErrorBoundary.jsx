@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { reportError } from '../../utils/error-reporting';
 
 /**
  * Error Boundary component for graceful error handling
@@ -34,15 +35,25 @@ class ErrorBoundary extends React.Component {
       errorCount: prevState.errorCount + 1
     }));
 
-    // Report to error tracking service (e.g., Sentry)
-    if (window.Sentry && process.env.NODE_ENV === 'production') {
-      window.Sentry.captureException(error, {
-        contexts: {
+    // Report to centralized error tracking service
+    try {
+      reportError(error, {
+        component: 'ErrorBoundary',
+        action: 'error_boundary_catch',
+        tags: {
+          errorBoundaryType: 'legacy',
+        },
+        extra: {
           react: {
-            componentStack: errorInfo.componentStack
-          }
-        }
-      });
+            componentStack: errorInfo.componentStack,
+          },
+          errorCount: this.state.errorCount + 1,
+        },
+      }, 'error');
+    } catch (reportingError) {
+      // Fallback to console if error reporting fails - error boundary must never throw
+      console.error('Error reporting failed in ErrorBoundary:', reportingError);
+      console.error('Original error that could not be reported:', error, errorInfo);
     }
 
     // Call optional error callback

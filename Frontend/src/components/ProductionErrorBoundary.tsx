@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { reportFatalError } from '../utils/error-reporting';
 
 interface Props {
   children: ReactNode;
@@ -27,30 +28,28 @@ class ProductionErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('Production Error Boundary caught:', error, errorInfo);
     
-    // Report to error tracking service (e.g., Sentry) if available
-    interface SentryInterface {
-      captureException: (error: Error, options?: {
-        contexts?: { 
-          react?: { 
-            componentStack?: string 
-          } 
-        }
-      }) => void;
-    }
-
-    if (typeof window !== 'undefined' && (window as any).Sentry) {
-      try {
-        const Sentry = (window as any).Sentry as SentryInterface;
-        Sentry.captureException(error, {
-          contexts: {
-            react: {
-              componentStack: errorInfo.componentStack || undefined
-            }
+    // Report critical error with defensive handling - error boundary must never throw
+    try {
+      reportFatalError(error, {
+        component: 'ProductionErrorBoundary',
+        action: 'error_boundary_catch',
+        tags: {
+          level: 'root',
+          critical: true,
+        },
+        extra: {
+          react: {
+            componentStack: errorInfo.componentStack,
+          },
+          application: {
+            errorBoundaryLevel: 'root',
           }
-        });
-      } catch (sentryError) {
-        console.warn('Failed to report error to Sentry:', sentryError);
-      }
+        },
+      });
+    } catch (reportingError) {
+      // If error reporting fails, log to console as absolute fallback
+      console.error('Error reporting failed in ProductionErrorBoundary:', reportingError);
+      console.error('Original error that could not be reported:', error);
     }
     
     this.setState({

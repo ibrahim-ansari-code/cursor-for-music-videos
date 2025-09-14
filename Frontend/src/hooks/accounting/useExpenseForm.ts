@@ -7,6 +7,7 @@ import type {
   CreateExpenseRequest, 
   UpdateExpenseRequest,
   TaxDetail} from '../../types/accounting';
+import { reportError } from '../../utils/error-reporting';
 
 interface UseExpenseFormProps {
   initialData?: Partial<ExpenseFormData>;
@@ -267,6 +268,27 @@ export const useExpenseForm = ({
       }
     } catch (error) {
       console.error(`Error ${mode === 'create' ? 'creating' : 'updating'} expense:`, error);
+      
+      // Report expense form submission errors with financial tagging
+      const errorToReport = error instanceof Error ? error : new Error(String(error));
+      reportError(errorToReport, {
+        component: 'useExpenseForm',
+        action: mode === 'create' ? 'create_expense' : 'update_expense',
+        tags: {
+          financial: true,
+        },
+        extra: {
+          expense: {
+            mode,
+            propertyId: formData.property_id,
+            category: formData.category,
+            amount: formData.amount,
+            hasReceipt: !!formData.receipt_url,
+            taxesCount: formData.taxes?.length || 0,
+          }
+        },
+      }, 'error');
+      
       toast.error(error instanceof Error ? error.message : `Failed to ${mode} expense`);
       return false;
     } finally {
@@ -286,6 +308,16 @@ export const useExpenseForm = ({
       toast.success('Tax default removed');
     } catch (error) {
       console.error('Error clearing user tax default:', error);
+      
+      // Report tax default clearing errors with financial context
+      reportError(error instanceof Error ? error : new Error(String(error)), {
+        component: 'useExpenseForm',
+        action: 'clear_tax_default',
+        tags: {
+          financial: true,
+        },
+      }, 'warning');
+      
       toast.error('Failed to clear tax default');
     }
   }, []);

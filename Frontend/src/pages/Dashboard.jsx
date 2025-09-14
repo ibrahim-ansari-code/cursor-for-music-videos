@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { reportError } from '../utils/error-reporting';
 import ControlsBar from "../components/dashboard/ControlsBar";
 import FinancialSummary from "../components/dashboard/FinancialSummary";
 import DuePanel from "../components/dashboard/DuePanel";
@@ -92,14 +93,34 @@ const DashboardPage = () => {
   useEffect(() => {
     setLoading(hookDashboardLoading);
     if (hookDashboardData) setDashboardData(hookDashboardData);
-    if (hookDashboardError) setError(hookDashboardError.message || String(hookDashboardError));
+    if (hookDashboardError) {
+      const errorMessage = hookDashboardError.message || String(hookDashboardError);
+      setError(errorMessage);
+      
+      // Report dashboard data loading failures
+      reportError(hookDashboardError, {
+        component: 'Dashboard',
+        action: 'data_loading',
+        tags: {
+          dataType: 'dashboard_summary',
+        },
+        extra: {
+          dashboard: {
+            selectedProperty,
+            timePeriod,
+            dateRange: activeRange,
+            error: errorMessage,
+          }
+        },
+      }, 'error');
+    }
 
     setRentLoading(hookRentLoading);
     if (hookRentData) setRentData(hookRentData);
 
     // Update previous period data from hook
     if (hookPrevData) setPrevPeriodData(hookPrevData);
-  }, [selectedProperty, timePeriod, hookDashboardLoading, hookDashboardData, hookDashboardError, hookRentLoading, hookRentData, hookPrevData]);
+  }, [selectedProperty, timePeriod, hookDashboardLoading, hookDashboardData, hookDashboardError, hookRentLoading, hookRentData, hookPrevData, activeRange]);
 
   const getRevenueChange = () => {
     if (!dashboardData?.summary || !prevPeriodData?.summary) return 0;

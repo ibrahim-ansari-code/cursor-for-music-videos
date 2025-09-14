@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
+import { reportError } from '../../../../utils/error-reporting';
 import { fetchPropertyById } from '../../../../utils/api';
 import { useDeleteProperty } from '../../../../hooks/usePropertiesMutations';
 import { Property } from '../../../../types/property';
@@ -36,7 +37,24 @@ export const usePropertiesActions = () => {
       
       // Runtime validation instead of type assertion
       if (!validateProperty(property)) {
+        const error = new Error('Invalid property data received from API');
         console.error('Invalid property data received from API. Property ID: ', propertyId);
+        
+        // Report property data validation errors with data sanitization
+        reportError(error, {
+          component: 'usePropertiesActions',
+          action: 'edit_property',
+          tags: {
+            dataValidation: true,
+          },
+          extra: {
+            property: {
+              propertyId,
+              receivedData: property, // Will be sanitized automatically
+            }
+          },
+        }, 'error');
+        
         toast.error('Invalid property data received. Please try again.');
         return;
       }
@@ -46,6 +64,18 @@ export const usePropertiesActions = () => {
       setIsModalOpen(true);
     } catch (error) {
       console.error('Error fetching property details:', error);
+      
+      // Report property fetch errors with proper error handling
+      reportError(error instanceof Error ? error : new Error(String(error)), {
+        component: 'usePropertiesActions',
+        action: 'fetch_property_details',
+        extra: {
+          property: {
+            propertyId,
+          }
+        },
+      }, 'error');
+      
       toast.error('Failed to load property details');
     }
   };
@@ -56,6 +86,18 @@ export const usePropertiesActions = () => {
       toast.success('Property was successfully deleted');
     } catch (error) {
       console.error('Error deleting property:', error);
+      
+      // Report property deletion errors with proper error handling  
+      reportError(error instanceof Error ? error : new Error(String(error)), {
+        component: 'usePropertiesActions',
+        action: 'delete_property',
+        extra: {
+          property: {
+            propertyId,
+          }
+        },
+      }, 'error');
+      
       toast.error(error instanceof Error ? error.message : 'Failed to delete property. Please try again.');
     }
   };

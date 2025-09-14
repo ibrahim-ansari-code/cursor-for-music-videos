@@ -9,6 +9,7 @@ import type {
   TaxDetail,
   InvoiceStatus 
 } from '../../types/accounting';
+import { reportError, reportWarning } from '../../utils/error-reporting';
 
 interface UseInvoiceFormProps {
   initialData?: Partial<InvoiceFormData>;
@@ -290,6 +291,26 @@ export const useInvoiceForm = ({
       }
     } catch (error) {
       console.error(`Error ${mode === 'create' ? 'creating' : 'updating'} invoice:`, error);
+      
+      // Report invoice form submission errors with financial tagging
+      const errorToReport = error instanceof Error ? error : new Error(String(error));
+      reportError(errorToReport, {
+        component: 'useInvoiceForm',
+        action: mode === 'create' ? 'create_invoice' : 'update_invoice',
+        tags: {
+          financial: true,
+        },
+        extra: {
+          invoice: {
+            mode,
+            propertyId: formData.property_id,
+            tenantId: formData.tenant_id,
+            amount: formData.amount,
+            taxesCount: formData.taxes?.length || 0,
+          }
+        },
+      }, 'error');
+      
       toast.error(error instanceof Error ? error.message : `Failed to ${mode} invoice`);
       return false;
     } finally {
@@ -309,6 +330,16 @@ export const useInvoiceForm = ({
       toast.success('Tax default removed');
     } catch (error) {
       console.error('Error clearing user tax default:', error);
+      
+      // Report tax default clearing errors with financial context
+      reportWarning(error instanceof Error ? error : new Error(String(error)), {
+        component: 'useInvoiceForm',
+        action: 'clear_tax_default',
+        tags: {
+          financial: true,
+        },
+      });
+      
       toast.error('Failed to clear tax default');
     }
   }, []);

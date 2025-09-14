@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, ReactNode, RefObject } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { reportError } from '../../utils/error-reporting';
 
 // Type definitions
 export interface LabelProps {
@@ -824,6 +825,23 @@ export const createReceiptFileChangeHandler = (
       }
 
       console.error("Receipt parsing error:", error);
+      
+      // Report receipt parsing errors with appropriate severity
+      reportError(error, {
+        component: 'SharedModalComponents',
+        action: 'receipt_parsing',
+        tags: {
+          fileType: file?.type || 'unknown',
+        },
+        extra: {
+          receipt: {
+            fileName: file?.name,
+            fileSize: file?.size,
+            hasFile: !!file,
+          }
+        },
+      }, 'error');
+      
       setReceiptParseError(
         error.message || "Failed to parse receipt. Please try again."
       );

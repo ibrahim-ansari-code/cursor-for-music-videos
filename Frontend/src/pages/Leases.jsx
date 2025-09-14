@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { toast } from "react-toastify";
-import * as Sentry from "@sentry/react";
+import { reportError } from "../utils/error-reporting";
 import ImportLeaseModal from "../components/leases/ImportLeaseModal";
 import UpdateLeaseStatusModal from "../components/leases/UpdateLeaseStatusModal";
 import FilePreviewModal from "../components/FilePreviewModal";
@@ -282,10 +282,15 @@ const Leases = () => {
         err.message ||
         "Failed to delete lease. Please try again.";
       toast.error(errorMessage);
-      Sentry.captureException(err, {
-        tags: { feature: "leases", operation: "delete" },
+      reportError(err, {
+        component: 'Leases',
+        action: 'delete_lease',
+        tags: { 
+          feature: "leases", 
+          operation: "delete" 
+        },
         extra: { leaseId },
-      });
+      }, 'error');
     }
   };
 

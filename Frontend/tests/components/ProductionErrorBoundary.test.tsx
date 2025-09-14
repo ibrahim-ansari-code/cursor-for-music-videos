@@ -3,6 +3,14 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import ProductionErrorBoundary from '../../src/components/ProductionErrorBoundary';
 
+// Mock the error reporting utility
+vi.mock('../../src/utils/error-reporting', () => ({
+  reportFatalError: vi.fn(),
+  reportError: vi.fn(),
+}));
+
+import { reportFatalError } from '../../src/utils/error-reporting';
+
 // Mock component that throws an error
 const ThrowError: React.FC<{ shouldThrow: boolean }> = ({ shouldThrow }) => {
   if (shouldThrow) {
@@ -11,10 +19,7 @@ const ThrowError: React.FC<{ shouldThrow: boolean }> = ({ shouldThrow }) => {
   return <div>Test component</div>;
 };
 
-// Mock Sentry
-const mockSentry = {
-  captureException: vi.fn(),
-};
+// Mock Sentry (for legacy test compatibility)
 
 describe('ProductionErrorBoundary', () => {
   const originalConsoleError = console.error;
@@ -33,6 +38,8 @@ describe('ProductionErrorBoundary', () => {
     console.error = originalConsoleError;
     (window as any).location = originalLocation;
     vi.clearAllMocks();
+    // Clear mocks for error reporting utility
+    vi.mocked(reportFatalError).mockClear();
   });
 
   it('renders children when there is no error', () => {
@@ -71,31 +78,39 @@ describe('ProductionErrorBoundary', () => {
     expect(window.location.reload).toHaveBeenCalledTimes(1);
   });
 
-  it('reports error to Sentry when available', () => {
-    (window as any).Sentry = mockSentry;
-    
+  it('reports error to centralized error reporting utility', () => {
     render(
       <ProductionErrorBoundary>
         <ThrowError shouldThrow={true} />
       </ProductionErrorBoundary>
     );
     
-    expect(mockSentry.captureException).toHaveBeenCalledWith(
+    expect(reportFatalError).toHaveBeenCalledWith(
       expect.any(Error),
       expect.objectContaining({
-        contexts: expect.objectContaining({
+        component: 'ProductionErrorBoundary',
+        action: 'error_boundary_catch',
+        tags: expect.objectContaining({
+          level: 'root',
+          critical: true,
+        }),
+        extra: expect.objectContaining({
           react: expect.objectContaining({
             componentStack: expect.any(String)
+          }),
+          application: expect.objectContaining({
+            errorBoundaryLevel: 'root',
           })
         })
       })
     );
-    
-    delete (window as any).Sentry;
   });
 
-  it('handles errors gracefully when Sentry is not available', () => {
-    delete (window as any).Sentry;
+  it('handles errors gracefully even when error reporting fails', () => {
+    // Mock error reporting to throw an error
+    vi.mocked(reportFatalError).mockImplementationOnce(() => {
+      throw new Error('Error reporting failed');
+    });
     
     expect(() => {
       render(
@@ -106,6 +121,17 @@ describe('ProductionErrorBoundary', () => {
     }).not.toThrow();
     
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    expect(reportFatalError).toHaveBeenCalledTimes(1);
+    
+    // Should fall back to console.error when error reporting fails
+    expect(console.error).toHaveBeenCalledWith(
+      'Error reporting failed in ProductionErrorBoundary:',
+      expect.any(Error)
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      'Original error that could not be reported:',
+      expect.any(Error)
+    );
   });
 
   it('logs error to console in all environments', () => {
