@@ -122,14 +122,37 @@ engine = create_async_engine(
     db_url_to_use,
     echo=sql_echo,  # Only log SQL when SQL_DEBUG is set
     future=True,
-    connect_args=ssl_connect_args  # Pass SSL context here
+    connect_args={
+        **ssl_connect_args,
+        # asyncpg-specific connection settings - CRITICAL: These must be in connect_args for asyncpg
+        "timeout": 10,  # Connection timeout in seconds (asyncpg parameter)
+        "command_timeout": 60,  # Command execution timeout
+        "server_settings": {
+            "application_name": "brikli_backend",
+            "jit": "off",  # Disable JIT for predictable performance
+            "statement_timeout": "300000",  # 5 minutes in milliseconds
+            "lock_timeout": "30000",  # 30 seconds for lock waits
+            "idle_in_transaction_session_timeout": "600000",  # 10 minutes
+        },
+        # Performance optimizations for production scale
+        "prepared_statement_cache_size": 100,  # Enable prepared statement cache for performance
+        "prepared_statement_name_func": None,  # Use default naming for prepared statements
+    },
+    # Connection pool settings for better concurrency
+    pool_size=20,  # Number of connections to maintain in the pool
+    max_overflow=10,  # Maximum overflow connections above pool_size
+    pool_timeout=30,  # Seconds to wait before timing out
+    pool_recycle=3600,  # Recycle connections after 1 hour
+    pool_pre_ping=True  # Test connections before using them
 )
 
-# Create async session
+# Create async session with production settings
 async_session = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
-    expire_on_commit=False,
+    expire_on_commit=False,  # Don't expire objects after commit for better performance
+    autoflush=True,  # Automatically flush before queries
+    autocommit=False,  # Use transactions (industry standard)
 )
 
 
@@ -137,12 +160,17 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Get an async database session.
     This is a FastAPI dependency that can be used in route handlers.
+    
+    Ensures proper cleanup of database connections even on errors.
     """
     async with async_session() as session:
         try:
             yield session
         except Exception as e:
+            # Rollback any pending transaction on error
+            await session.rollback()
             logger.error(f"Database session error: {str(e)}")
             raise
         finally:
+            # Always close the session to return connection to pool
             await session.close()

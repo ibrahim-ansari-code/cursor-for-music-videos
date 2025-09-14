@@ -6,6 +6,11 @@ on:
   push:
     branches: [dev, main]
 
+# Cancel in-progress runs when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # Need to set these test environment variables for the api tests to run
 env:
   DATABASE_URL: "postgresql://test:test@localhost:5432/test_db"
@@ -22,7 +27,22 @@ jobs:
   backend-tests:
     name: "Backend Tests (Unit → API → Coverage)"
     runs-on: ubuntu-latest
-    
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - name: Checkout code with full history
         uses: actions/checkout@v4
@@ -30,9 +50,10 @@ jobs:
           fetch-depth: 0  # Need full history for diff coverage
       
       - name: Set up Python 3.11
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
       
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -41,12 +62,14 @@ jobs:
           virtualenvs-in-project: true
       
       - name: Cache Poetry dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: poetry-${{ hashFiles('Backend/poetry.lock') }}
+          path: |
+            ~/.cache/pypoetry
+            Backend/.venv
+          key: poetry-${{ runner.os }}-${{ hashFiles('Backend/poetry.lock') }}
           restore-keys: |
-            poetry-
+            poetry-${{ runner.os }}-
       
       - name: Install dependencies
         run: |
@@ -54,13 +77,16 @@ jobs:
           poetry install --with test --no-root
       
       # STEP 1: Run Unit Tests (must pass to continue)
-      - name: "Step 1: Run Unit Tests (100% Required)"
+      - name: "Step 1: Run Unit Tests with Coverage (100% Required)"
         run: |
           cd Backend
           poetry run pytest tests/unit_tests/ \
             -v \
             --tb=short \
             -n auto \
+            --cov=Backend \
+            --cov-branch \
+            --cov-report=term-missing \
             --junit-xml=tests/unit-test-results.xml
       
       - name: Upload unit test results
@@ -89,18 +115,31 @@ jobs:
           # Start server in background and save PID
           poetry run uvicorn api.app:app --host 127.0.0.1 --port 8000 &
           echo $! > server.pid
-          sleep 10
-          
-          # Health check to ensure server is ready
-          curl -f http://localhost:8000/api/health || exit 1
+
+          # Wait for server to be ready with proper health check polling
+          echo "Waiting for server to start..."
+          for i in {1..30}; do
+            if curl -f http://localhost:8000/api/health 2>/dev/null; then
+              echo "✅ Server is ready after ${i} attempts!"
+              break
+            fi
+            echo "⏳ Waiting for server... (attempt $i/30)"
+            sleep 2
+          done
+
+          # Final verification
+          curl -f http://localhost:8000/api/health || (echo "❌ Server failed to start" && exit 1)
       
-      - name: "Step 2: Run API Tests (100% Required)"
+      - name: "Step 2: Run API Tests with Coverage (100% Required)"
         run: |
           cd Backend
           poetry run pytest tests/api_tests/ \
             -v \
             --tb=short \
             -n auto \
+            --cov=Backend \
+            --cov-append \
+            --cov-report=term-missing \
             --junit-xml=tests/api-test-results.xml
       
       - name: "Step 2: Stop Test Server"
@@ -118,15 +157,14 @@ jobs:
           name: api-test-results
           path: Backend/tests/api-test-results.xml
       
-      # STEP 3: Run Coverage Check (only if API tests passed)
-      - name: "Step 3: Run Tests with Coverage Collection"
+      # STEP 3: Generate Coverage Reports (using existing coverage data)
+      - name: "Step 3: Generate Coverage Reports"
         run: |
           cd Backend
-          poetry run pytest tests/unit_tests/ tests/api_tests/ \
-            --cov=Backend \
-            --cov-report=xml:tests/coverage.xml \
-            --cov-report=html:tests/htmlcov \
-            -q
+          # Generate XML and HTML coverage reports from collected data
+          poetry run coverage xml -o tests/coverage.xml
+          poetry run coverage html -d tests/htmlcov
+          poetry run coverage report
       
       - name: "Step 3: Check Diff Coverage (80%+ on New Code)"
         run: |

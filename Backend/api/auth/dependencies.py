@@ -7,6 +7,7 @@ endpoints, primarily for user authentication and authorization.
 
 import logging
 import traceback
+import sentry_sdk
 from uuid import UUID as PythonUUID
 
 from fastapi import Depends, HTTPException, status, Query, Request
@@ -14,6 +15,13 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.exc import (
+    InterfaceError,
+    OperationalError, 
+    DisconnectionError,
+    TimeoutError as SQLTimeoutError,
+    DatabaseError
+)
 from sqlmodel import col
 
 from Backend.database import get_session
@@ -26,6 +34,151 @@ logger = logging.getLogger(__name__)
 
 # Set up security scheme
 security = HTTPBearer()
+
+
+async def _handle_auth_exception(
+    exception: Exception, 
+    context: str,
+    user_response = None
+) -> None:
+    """
+    Handle authentication exceptions with proper type checking and observability.
+    
+    This function provides robust, production-grade exception handling that:
+    - Uses isinstance() checks instead of fragile string matching
+    - Provides proper HTTP status codes for different error types
+    - Integrates with Sentry for comprehensive error tracking
+    - Includes contextual information for debugging
+    - Follows enterprise patterns for error resilience
+    
+    Args:
+        exception: The caught exception to handle
+        context: String identifier for where the exception occurred
+        user_response: Optional user response from Supabase for context
+        
+    Returns:
+        HTTPException with appropriate status code and details
+        
+    Raises:
+        HTTPException: Always raises an appropriate HTTP exception
+    """
+    exception_type = type(exception).__name__
+    
+    # Capture comprehensive context for Sentry
+    with sentry_sdk.push_scope() as scope:
+        scope.set_tag("component", "authentication")
+        scope.set_tag("function", context)
+        scope.set_tag("exception_type", exception_type)
+        
+        # Add user context if available
+        if user_response and hasattr(user_response, 'user') and user_response.user:
+            scope.set_user({
+                "id": getattr(user_response.user, 'id', 'unknown'),
+                "email": getattr(user_response.user, 'email', 'unknown')
+            })
+        
+        scope.set_context("auth_context", {
+            "user_response_available": user_response is not None,
+            "user_response_type": type(user_response).__name__ if user_response else None,
+            "exception_message": str(exception),
+            "has_supabase_user": (
+                user_response and 
+                hasattr(user_response, 'user') and 
+                user_response.user is not None
+            ) if user_response else False
+        })
+        
+        # Handle database connection errors with proper isinstance checks
+        if isinstance(exception, (InterfaceError, DisconnectionError, OperationalError)):
+            logger.error(
+                "Database connection error in %s: %s - %s", 
+                context, exception_type, str(exception)
+            )
+            
+            # Capture database connectivity issue
+            sentry_sdk.capture_exception(exception)
+            
+            # Return user-friendly error with retry guidance
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database connection temporarily unavailable. Please try again in a few seconds.",
+                headers={
+                    "WWW-Authenticate": "Bearer", 
+                    "Retry-After": "5",
+                    "X-Error-Type": "database_connection"
+                },
+            )
+        
+        # Handle database timeout errors
+        elif isinstance(exception, SQLTimeoutError):
+            logger.error(
+                "Database timeout error in %s: %s", 
+                context, str(exception)
+            )
+            
+            sentry_sdk.capture_exception(exception)
+            
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                detail="Request timeout. Please try again.",
+                headers={
+                    "WWW-Authenticate": "Bearer",
+                    "Retry-After": "3",
+                    "X-Error-Type": "database_timeout"
+                },
+            )
+        
+        # Handle general database errors
+        elif isinstance(exception, DatabaseError):
+            logger.error(
+                "Database error in %s: %s - %s", 
+                context, exception_type, str(exception)
+            )
+            
+            sentry_sdk.capture_exception(exception)
+            
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database service temporarily unavailable.",
+                headers={
+                    "WWW-Authenticate": "Bearer",
+                    "X-Error-Type": "database_error"
+                },
+            )
+        
+        # Handle all other exceptions
+        else:
+            logger.error(
+                "Authentication error in %s. Exception type: %s, Exception: %s", 
+                context, exception_type, repr(exception)
+            )
+            logger.error("Traceback: %s", traceback.format_exc())
+            
+            # Log user response state for debugging if available
+            if user_response is not None:
+                logger.error(
+                    "State of user_response when error occurred: type=%s, repr=%s, attributes: %s", 
+                    type(user_response), 
+                    repr(user_response), 
+                    dir(user_response)
+                )
+            else:
+                logger.error(
+                    "user_response was not successfully assigned or was None prior to the error."
+                )
+            
+            # Capture the unexpected exception in Sentry
+            sentry_sdk.capture_exception(exception)
+            
+            # Return generic server error without exposing internals
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Authentication service temporarily unavailable. Please try again.",
+                headers={
+                    "WWW-Authenticate": "Bearer",
+                    "X-Error-Type": "internal_server_error"
+                },
+            )
 
 
 def parse_user_name(user_metadata: dict) -> tuple[Optional[str], Optional[str]]:
@@ -196,21 +349,15 @@ async def get_current_user(
     except HTTPException as http_exc:  # Re-raise HTTPException to preserve status code and details
         raise http_exc
     except Exception as e:
-        logger.error(
-            "Authentication error in get_current_user. Exception type: %s, Exception: %s", type(e), repr(e))
-        logger.error("Traceback: %s", traceback.format_exc())
-        # Log the state of user_response_from_supabase if it was assigned
-        if 'user_response_from_supabase' in locals() and user_response_from_supabase is not None:
-            logger.error("State of user_response_from_supabase when error occurred: type=%s, repr=%s, attributes: %s", type(
-                user_response_from_supabase), repr(user_response_from_supabase), dir(user_response_from_supabase))
-        else:
-            logger.error(
-                "user_response_from_supabase was not successfully assigned or was None prior to the error.")
+        await _handle_auth_exception(
+            e, 
+            context="get_current_user",
+            user_response=user_response_from_supabase if 'user_response_from_supabase' in locals() else None
+        )
+        # This line should never be reached due to HTTPException being raised in _handle_auth_exception
         raise HTTPException(
-            # Changed from 401 to 500 for unexpected errors
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Could not validate credentials due to an unexpected server error: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Authentication failed"
         )
 
 
@@ -428,9 +575,13 @@ async def get_current_user_sse(
         # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
-        logger.exception("Unexpected error during SSE authentication: %s", e)
+        await _handle_auth_exception(
+            e,
+            context="get_current_user_sse",
+            user_response=user_response_from_supabase if 'user_response_from_supabase' in locals() else None
+        )
+        # This line should never be reached due to HTTPException being raised in _handle_auth_exception
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Could not validate credentials due to an unexpected server error: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Authentication failed"
         )

@@ -201,7 +201,7 @@ class TestAuthDependencies:
             await get_current_user(credentials, mock_session)
         
         assert exc_info.value.status_code == 500  # It's 500 because we caught a generic Exception
-        assert "Could not validate credentials due to an unexpected server error" in str(exc_info.value.detail)
+        assert "Authentication service temporarily unavailable. Please try again." in str(exc_info.value.detail)
 
     @patch('Backend.api.auth.dependencies.get_supabase_client')
     async def test_get_current_user_supabase_error(self, mock_get_supabase_client, mock_session):
@@ -236,7 +236,7 @@ class TestAuthDependencies:
             await get_current_user(credentials, mock_session)
         
         assert exc_info.value.status_code == 500
-        assert "Could not validate credentials due to an unexpected server error" in str(exc_info.value.detail)
+        assert "Authentication service temporarily unavailable. Please try again." in str(exc_info.value.detail)
 
     @patch('Backend.api.auth.dependencies.get_token_from_request')
     async def test_get_current_user_sse_no_auth_header(self, mock_get_token, mock_session, mock_request):

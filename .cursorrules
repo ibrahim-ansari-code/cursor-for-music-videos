@@ -139,6 +139,7 @@ Always ask: "Does this plan look correct? Should I proceed with the implementati
 - Use `Sentry.captureException(error)` to capture exceptions in try-catch blocks
 - All error boundaries must import and use `import * as Sentry from "@sentry/react"`
 - Include contextual tags for better error categorization:
+
   ```javascript
   Sentry.captureException(error, {
     tags: {
@@ -159,6 +160,7 @@ Always ask: "Does this plan look correct? Should I proceed with the implementati
 - Use `Sentry.startSpan` with descriptive operations and names
 
 #### UI Component Tracing
+
 ```javascript
 const handleButtonClick = () => {
   Sentry.startSpan(
@@ -178,6 +180,7 @@ const handleButtonClick = () => {
 ```
 
 #### API Call Tracing  
+
 ```javascript
 async function fetchPropertyData(propertyId) {
   return Sentry.startSpan(
@@ -197,6 +200,7 @@ async function fetchPropertyData(propertyId) {
 
 - Enable structured logging: `Sentry.init({ enableLogs: true })`
 - Use console logging integration for automatic error capture:
+
   ```javascript
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -210,6 +214,7 @@ async function fetchPropertyData(propertyId) {
   ```
 
 #### Structured Logging Examples
+
 ```javascript
 const { logger } = Sentry;
 

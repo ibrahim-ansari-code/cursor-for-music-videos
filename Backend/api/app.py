@@ -1,5 +1,6 @@
 import logging
 import sys
+import json
 from pathlib import Path
 
 # Add project root to Python path for proper module imports
@@ -8,7 +9,7 @@ project_root = Path(__file__).resolve().parents[2]  # Go up from api/app.py to p
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))  # pragma: no cover
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -69,6 +70,61 @@ logger.info("🚀 Booting FastAPI app...")
 
 app = FastAPI()
 api_main_router = APIRouter()
+
+# Add database connection pool monitoring and health checks
+@app.on_event("startup")
+async def startup_event():
+    """Initialize application and verify all systems are operational."""
+    logger.info("🚀 Starting FastAPI application...")
+    
+    # Verify database connectivity
+    from Backend.database import engine, async_session
+    from sqlalchemy import text
+    try:
+        async with async_session() as session:
+            result = await session.execute(text("SELECT 1"))
+            result.scalar()
+        logger.info("✅ Database connection verified")
+    except Exception as e:
+        logger.error(f"❌ Database connection failed: {str(e)}")
+        raise
+    
+    # Log connection pool configuration
+    from Backend.database import engine
+    logger.info("📊 Database pool configuration:")
+    logger.info(f"  - Pool size: {engine.pool.size()}")
+    logger.info(f"  - Checked out: {engine.pool.checkedout()}")
+    logger.info(f"  - Checked in: {engine.pool.checkedin()}")
+    logger.info(f"  - Pool status: {engine.pool.status()}")
+    
+    # Verify Supabase configuration
+    from Backend.utils.supabase import get_supabase_client
+    try:
+        # Test client creation (will validate environment variables)
+        client = get_supabase_client()
+        logger.info("✅ Supabase client configuration verified")
+    except Exception as e:
+        logger.error(f"❌ Supabase configuration failed: {str(e)}")
+        raise
+    
+    logger.info("🚀 FastAPI application startup complete")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Gracefully shutdown and clean up all resources."""
+    logger.info("🛑 FastAPI application shutting down...")
+    
+    # Close database connections
+    from Backend.database import engine
+    try:
+        await engine.dispose()
+        logger.info("✅ Database connections closed successfully")
+    except Exception as e:
+        logger.error(f"⚠️ Error closing database connections: {str(e)}")
+    
+    logger.info("✅ Resources cleaned up successfully")
+    
+    logger.info("🛑 FastAPI application shutdown complete")
 
 # CORS Configuration with regex support for dynamic preview URLs
 app.add_middleware(
@@ -205,15 +261,72 @@ try:
     api_main_router.include_router(maintenance_router)
     api_main_router.include_router(quickbooks_router, prefix="/quickbooks", tags=["QuickBooks"])
 
-    # Define the /api/health endpoint on the api_main_router
+    # Define comprehensive health check endpoints
     @api_main_router.get("/health")
     async def api_health_check():
-        """Health check endpoint for the API, available at /api/health"""
+        """Basic health check endpoint for load balancers and uptime monitoring"""
         logger.info("✅ Health check - API is healthy")
         return {
             "status": "ok",
-            "message": "API is healthy"
+            "message": "API is healthy",
+            "timestamp": create_audit_datetime().isoformat()
         }
+    
+    @api_main_router.get("/health/detailed")
+    async def detailed_health_check():
+        """
+        Comprehensive health check with database connectivity.
+        Used for monitoring dashboards and alerting systems.
+        """
+        from Backend.database import engine, async_session
+        from Backend.utils.datetime_utils import create_audit_datetime
+        from sqlalchemy import text
+        import time
+        
+        # Test database connectivity
+        start_time = time.time()
+        db_healthy = True
+        db_error = None
+        
+        try:
+            async with async_session() as session:
+                await session.execute(text("SELECT 1"))
+            response_time_ms = round((time.time() - start_time) * 1000, 2)
+        except Exception as e:
+            db_healthy = False
+            db_error = str(e)
+            response_time_ms = round((time.time() - start_time) * 1000, 2)
+        
+        # Compile overall health status
+        overall_health = {
+            "status": "healthy" if db_healthy else "unhealthy",
+            "timestamp": create_audit_datetime().isoformat(),
+            "services": {
+                "api": {
+                    "status": "healthy",
+                    "message": "API service operational"
+                },
+                "database": {
+                    "status": "healthy" if db_healthy else "unhealthy",
+                    "response_time_ms": response_time_ms,
+                    "pool_size": engine.pool.size(),
+                    "checked_out": engine.pool.checkedout(),
+                    "error": db_error
+                }
+            }
+        }
+        
+        # Set appropriate HTTP status code if unhealthy
+        if not db_healthy:
+            from fastapi import Response
+            return Response(
+                content=json.dumps(overall_health),
+                status_code=503,  # Service Unavailable
+                media_type="application/json"
+            )
+        
+        logger.info("✅ Detailed health check completed successfully")
+        return overall_health
 
     # Mount the central API router to the app with /api prefix
     app.include_router(api_main_router, prefix="/api")

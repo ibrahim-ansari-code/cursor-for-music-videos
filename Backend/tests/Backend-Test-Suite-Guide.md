@@ -102,6 +102,7 @@ Backend/tests/
 ### 1. Unit Tests (`/unit_tests/`)
 
 **Purpose**: Test business logic in isolation
+
 - **Speed**: Milliseconds per test
 - **Dependencies**: All external dependencies mocked
 - **Database**: In-memory SQLite or mocked
@@ -109,6 +110,7 @@ Backend/tests/
 - **Run frequently**: After every code change
 
 **Example**:
+
 ```python
 @pytest.mark.unit
 async def test_calculate_payment_with_reduction(mock_payment):
@@ -124,12 +126,14 @@ async def test_calculate_payment_with_reduction(mock_payment):
 ### 2. API Tests (`/api_tests/`)
 
 **Purpose**: Test HTTP endpoints with mocked external services
+
 - **Speed**: Tens of milliseconds per test  
 - **Dependencies**: Real FastAPI app, mocked database/services
 - **Focus**: HTTP behavior, request/response validation, authentication
 - **Run frequently**: Before commits
 
 **Example**:
+
 ```python
 @pytest.mark.asyncio
 async def test_create_property_success(api_client):
@@ -146,12 +150,14 @@ async def test_create_property_success(api_client):
 ### 3. Integration Tests (`/integration_tests/`)
 
 **Purpose**: Test complete workflows with real dependencies
+
 - **Speed**: Seconds per test
 - **Dependencies**: Real database, real authentication, external services
 - **Focus**: End-to-end scenarios, data persistence, system integration
 - **Run**: Before merges, in CI/CD pipeline
 
 **Example**:
+
 ```python
 @pytest.mark.integration
 async def test_complete_lease_lifecycle(api_client, created_property):
@@ -179,6 +185,7 @@ async def test_complete_lease_lifecycle(api_client, created_property):
 For integration and authenticated API tests, create these files:
 
 1. **`.test_credentials.json`** in `Backend/tests/`:
+
 ```json
 {
   "SUPABASE_URL": "your_supabase_url",
@@ -189,13 +196,14 @@ For integration and authenticated API tests, create these files:
 }
 ```
 
-2. **`.test_jwt_token`** - Auto-created when tests run successfully
+1. **`.test_jwt_token`** - Auto-created when tests run successfully
 
 **Note**: These files are in `.gitignore`. Contact your team for credentials.
 
 ### Environment Variables
 
 Ensure your `.env` file contains necessary configuration:
+
 ```env
 DATABASE_URL=postgresql://...
 SUPABASE_URL=https://...
@@ -290,6 +298,7 @@ class TestYourFeature:
    - Clean up test data
 
 3. **Assertions**: Be specific and test one thing
+
    ```python
    # Good
    assert response.status_code == 201
@@ -381,6 +390,7 @@ poetry run pytest tests/ --cov=Backend --cov-report=xml
 ### Available Fixtures
 
 **Unit Test Fixtures** (`unit_tests/conftest.py`):
+
 - `mock_db_session` - Async mock database session
 - `mock_user` - Mock user objects (landlord, admin, tenant)
 - `mock_property` - Mock property object
@@ -389,11 +399,13 @@ poetry run pytest tests/ --cov=Backend --cov-report=xml
 - `mock_openai_service` - Mock AI service
 
 **API Test Fixtures** (`api_tests/conftest.py`):
+
 - `api_client` - Authenticated HTTP client
 - `shared_auth_token` - Session-scoped JWT token
 - `current_user_id` - Authenticated user's ID
 
 **Shared Utilities** (`shared_fixtures.py`):
+
 - `assert_api_success()` - Validate successful responses
 - `assert_api_error()` - Validate error responses
 - `assert_valid_json_response()` - Validate JSON responses
@@ -405,6 +417,7 @@ poetry run pytest tests/ --cov=Backend --cov-report=xml
 ### Common Issues
 
 1. **Import Errors**
+
    ```bash
    # Ensure you're in the Backend directory
    cd Backend
@@ -426,6 +439,7 @@ poetry run pytest tests/ --cov=Backend --cov-report=xml
    - Ensure `asyncio_mode = auto` in pytest.ini
 
 5. **Missing Dependencies**
+
    ```bash
    poetry install
    poetry update

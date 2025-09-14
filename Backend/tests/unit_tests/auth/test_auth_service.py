@@ -24,18 +24,39 @@ from Backend.models.user import User
 from Backend.models.enums import UserType
 
 
-def create_gotrue_api_error(message, status=None):
-    """Create a mock GoTrueApiError that matches the service's expectations."""
-    # Create a class that will have the right __name__ when checked
-    class GoTrueApiError(Exception):
-        def __init__(self, msg, status_code=None):
-            super().__init__(msg)
-            self.message = msg
-            if status_code:
-                self.status = status_code
+def create_auth_api_error(message, status=None):
+    """Create a mock AuthApiError that matches the service's expectations."""
+    # Import the actual exception class from supabase_auth
+    from supabase_auth.errors import AuthApiError, AuthWeakPasswordError
     
-    # Create and return an instance
-    return GoTrueApiError(message, status)
+    # Return AuthWeakPasswordError for weak password messages
+    if "weak" in message.lower() or ("password" in message.lower() and ("requirements" in message.lower() or "too weak" in message.lower())):
+        class MockAuthWeakPasswordError(AuthWeakPasswordError):
+            def __init__(self, msg, status_code=None, reasons=None):
+                super().__init__(msg, status_code or 400, reasons or ["Password is too weak"])
+                self.message = msg
+                self.status = status_code or 400
+                self.reasons = reasons or ["Password is too weak"]
+        return MockAuthWeakPasswordError(message, status)
+    
+    # Return regular AuthApiError for other cases
+    class MockAuthApiError(AuthApiError):
+        def __init__(self, msg, status_code=None):
+            # Map message to appropriate error code
+            if "not found" in msg.lower() or "user not found" in msg.lower():
+                error_code = "user_not_found"
+            elif "invalid" in msg.lower() or "credentials" in msg.lower():
+                error_code = "invalid_credentials"
+            elif "too many" in msg.lower() or "rate" in msg.lower():
+                error_code = "over_request_rate_limit"
+            else:
+                error_code = "unexpected_failure"
+                
+            super().__init__(msg, status_code or 400, error_code)
+            self.message = msg
+            self.status = status_code or 400
+    
+    return MockAuthApiError(message, status)
 
 
 @pytest.fixture
@@ -111,7 +132,28 @@ async def test_create_user_from_supabase_success(mock_session):
         "phone": "9876543210",
         "is_email_verified": True
     }
-    mock_session.get.return_value = None  # User doesn't exist
+    
+    # Mock the nested transaction and SELECT FOR UPDATE
+    mock_nested_transaction = AsyncMock()
+    mock_session.begin_nested.return_value.__aenter__ = AsyncMock(return_value=mock_nested_transaction)
+    mock_session.begin_nested.return_value.__aexit__ = AsyncMock(return_value=None)
+    
+    # Mock the SELECT FOR UPDATE query result (no existing user)
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_session.execute.return_value = mock_result
+    
+    # Create a user object for the result
+    from uuid import UUID as PythonUUID
+    created_user = User(
+        id=PythonUUID(supabase_user_id),
+        email=email,
+        first_name=metadata["first_name"],
+        last_name=metadata["last_name"],
+        phone=metadata["phone"],
+        user_type=UserType.LANDLORD,
+        is_email_verified=metadata["is_email_verified"]
+    )
     
     # Act
     result = await AuthService.create_user_from_supabase(
@@ -126,7 +168,7 @@ async def test_create_user_from_supabase_success(mock_session):
     assert result.is_email_verified == metadata["is_email_verified"]
     assert result.user_type == UserType.LANDLORD
     mock_session.add.assert_called_once()
-    mock_session.commit.assert_called_once()
+    mock_session.flush.assert_called_once()  # Uses flush instead of commit in nested transaction
     mock_session.refresh.assert_called_once()
 
 
@@ -137,7 +179,16 @@ async def test_create_user_from_supabase_already_exists(mock_session, sample_use
     supabase_user_id = str(sample_user.id)
     email = sample_user.email
     metadata = {}
-    mock_session.get.return_value = sample_user  # User exists
+    
+    # Mock the nested transaction
+    mock_nested_transaction = AsyncMock()
+    mock_session.begin_nested.return_value.__aenter__ = AsyncMock(return_value=mock_nested_transaction)
+    mock_session.begin_nested.return_value.__aexit__ = AsyncMock(return_value=None)
+    
+    # Mock the SELECT FOR UPDATE query result (user exists)
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = sample_user
+    mock_session.execute.return_value = mock_result
     
     # Act
     result = await AuthService.create_user_from_supabase(
@@ -147,7 +198,7 @@ async def test_create_user_from_supabase_already_exists(mock_session, sample_use
     # Assert
     assert result == sample_user
     mock_session.add.assert_not_called()
-    mock_session.commit.assert_not_called()
+    mock_session.flush.assert_not_called()  # No flush since user already exists
 
 
 @pytest.mark.asyncio
@@ -175,8 +226,19 @@ async def test_create_user_from_supabase_database_error(mock_session):
     supabase_user_id = str(uuid4())
     email = "test@example.com"
     metadata = {}
-    mock_session.get.return_value = None
-    mock_session.commit.side_effect = Exception("Database error")
+    
+    # Mock the nested transaction
+    mock_nested_transaction = AsyncMock()
+    mock_session.begin_nested.return_value.__aenter__ = AsyncMock(return_value=mock_nested_transaction)
+    mock_session.begin_nested.return_value.__aexit__ = AsyncMock(return_value=None)
+    
+    # Mock the SELECT FOR UPDATE query result (no existing user)
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_session.execute.return_value = mock_result
+    
+    # Make session.flush() raise an exception
+    mock_session.flush.side_effect = Exception("Database error")
     
     # Act & Assert
     with pytest.raises(HTTPException) as exc_info:
@@ -186,7 +248,7 @@ async def test_create_user_from_supabase_database_error(mock_session):
     
     assert exc_info.value.status_code == 500
     assert "Failed to create user" in exc_info.value.detail
-    mock_session.rollback.assert_called_once()
+    # Note: Nested transactions automatically rollback on exception, so no explicit rollback call
 
 
 @pytest.mark.asyncio
@@ -228,7 +290,7 @@ async def test_verify_user_password_incorrect(mock_get_supabase):
     mock_auth = MagicMock()
     
     # Create a mock exception that looks like GoTrueApiError
-    mock_error = create_gotrue_api_error("Invalid login credentials")
+    mock_error = create_auth_api_error("Invalid login credentials")
     
     mock_supabase.auth = mock_auth
     mock_auth.sign_in_with_password.side_effect = mock_error
@@ -339,7 +401,7 @@ async def test_change_user_password_weak_new_password(mock_get_supabase, mock_ve
     mock_auth_response.session = mock_session
     
     # Create a mock exception for weak password
-    mock_error = create_gotrue_api_error("Password is too weak")
+    mock_error = create_auth_api_error("Password is too weak")
     
     mock_supabase.auth = mock_auth
     mock_auth.sign_in_with_password.return_value = mock_auth_response
@@ -434,7 +496,7 @@ async def test_resend_verification_email_rate_limit(mock_get_supabase):
     mock_auth = MagicMock()
     
     # Create a mock exception that looks like GoTrueApiError
-    mock_error = create_gotrue_api_error("Too many requests", status=429)
+    mock_error = create_auth_api_error("Too many requests", status=429)
     
     mock_supabase.auth = mock_auth
     mock_auth.resend.side_effect = mock_error
@@ -458,7 +520,7 @@ async def test_resend_verification_email_user_not_found(mock_get_supabase):
     mock_auth = MagicMock()
     
     # Create user not found error
-    mock_error = create_gotrue_api_error("User not found", status=404)
+    mock_error = create_auth_api_error("User not found", status=404)
     
     mock_supabase.auth = mock_auth
     mock_auth.resend.side_effect = mock_error

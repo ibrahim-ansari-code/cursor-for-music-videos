@@ -7,10 +7,14 @@ separated from the API route handlers for better organization and testing.
 
 import json
 import logging
+import sentry_sdk
 from uuid import UUID as PythonUUID
 
 from fastapi import HTTPException, UploadFile, status
+from supabase_auth.errors import AuthApiError, AuthError, AuthInvalidCredentialsError, AuthWeakPasswordError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from Backend.models.enums import UserType
 from Backend.models.user import User
@@ -78,46 +82,59 @@ class AuthService:
                 detail="Invalid user ID format"
             )
         
-        # Check if user already exists
-        existing_user = await session.get(User, uuid_obj)
-        if existing_user:
-            logger.info("User %s already exists in local DB", uuid_obj)
-            return existing_user
+        # Use a transaction with SELECT FOR UPDATE to prevent race conditions
+        user_to_return = None
         
-        # Create new user data
-        new_user_data = {
-            "id": uuid_obj,
-            "email": email,
-            "first_name": metadata.get("first_name"),
-            "last_name": metadata.get("last_name"),
-            "phone": metadata.get("phone"),
-            "user_type": UserType.LANDLORD,  # Default for this portal
-            "is_active": True,
-            "is_admin": False,
-            "is_email_verified": metadata.get("is_email_verified", False),
-            "created_at": create_audit_datetime(),
-            "updated_at": create_audit_datetime(),
-            "address": None,
-            "city": None,
-            "province": None,
-            "postal_code": None,
-            "profile_image_url": None
-        }
-        
-        try:
-            db_user = User.model_validate(new_user_data)
-            session.add(db_user)
-            await session.commit()
-            await session.refresh(db_user)
-            logger.info("Successfully created user %s from Supabase data", uuid_obj)
-            return db_user
-        except Exception as e:
-            await session.rollback()
-            logger.error("Error creating user %s: %s", uuid_obj, str(e))
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create user: {str(e)}"
+        async with session.begin_nested():
+            # Try to get the user with a lock
+            result = await session.execute(
+                select(User).where(col(User.id) == uuid_obj).with_for_update(skip_locked=False)
             )
+            existing_user = result.scalar_one_or_none()
+            
+            if existing_user:
+                logger.info("User %s already exists (found with lock), returning existing user", uuid_obj)
+                user_to_return = existing_user
+            else:
+                # Create new user data within the locked transaction
+                new_user_data = {
+                    "id": uuid_obj,
+                    "email": email,
+                    "first_name": metadata.get("first_name"),
+                    "last_name": metadata.get("last_name"),
+                    "phone": metadata.get("phone"),
+                    "user_type": UserType.LANDLORD,  # Default for this portal
+                    "is_active": True,
+                    "is_admin": False,
+                    "is_email_verified": metadata.get("is_email_verified", False),
+                    "created_at": create_audit_datetime(),
+                    "updated_at": create_audit_datetime(),
+                    "address": None,
+                    "city": None,
+                    "province": None,
+                    "postal_code": None,
+                    "profile_image_url": None
+                }
+                
+                try:
+                    db_user = User.model_validate(new_user_data)
+                    session.add(db_user)
+                    await session.flush()  # Flush within the nested transaction
+                    logger.info("Successfully created user %s from Supabase data", uuid_obj)
+                    user_to_return = db_user
+                    # The nested transaction will commit to a savepoint
+                except Exception as e:
+                    logger.error("Error creating user %s: %s", uuid_obj, str(e))
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Failed to create user: {str(e)}"
+                    ) from e
+        
+        # Refresh the user after the nested transaction commits if it was newly created
+        if user_to_return and hasattr(user_to_return, '_sa_instance_state'):
+            await session.refresh(user_to_return)
+        
+        return user_to_return
     
     @staticmethod
     async def get_user_profile(user: User) -> UserResponse:
@@ -373,14 +390,24 @@ class AuthService:
             logger.info(f"Password verified successfully for user {email}")
             return True
             
+        except (AuthApiError, AuthError, AuthInvalidCredentialsError) as auth_error:
+            # Expected authentication failure - password is incorrect  
+            logger.info(f"Password verification failed for user {email}: {str(auth_error)}")
+            return False
         except Exception as e:
-            # Check for authentication errors by examining the exception class name
-            if hasattr(e, '__class__') and e.__class__.__name__ == 'GoTrueApiError':
-                logger.info(f"Password verification failed for user {email}: {str(e)}")
-                return False
-            
             # Log unexpected errors but still return False
             logger.error(f"Unexpected error during password verification for {email}: {str(e)}")
+            
+            # Report unexpected errors to Sentry for investigation
+            with sentry_sdk.push_scope() as scope:
+                scope.set_tag("component", "authentication")
+                scope.set_tag("function", "verify_user_password")
+                scope.set_context("auth_context", {
+                    "email": email,
+                    "exception_type": type(e).__name__
+                })
+                sentry_sdk.capture_exception(e)
+            
             return False
     
     @staticmethod
@@ -445,26 +472,46 @@ class AuthService:
         except HTTPException:
             # Re-raise HTTP exceptions
             raise
-        except Exception as e:
-            # Check for specific Supabase errors
-            if hasattr(e, '__class__') and e.__class__.__name__ == 'GoTrueApiError':
-                error_msg = str(e)
-                
-                # Check for weak password error
-                if "password" in error_msg.lower() and "weak" in error_msg.lower():
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="New password does not meet security requirements"
-                    )
-                
-                logger.error(f"Supabase error during password change for {email}: {error_msg}")
+        except (AuthApiError, AuthWeakPasswordError, AuthError) as auth_error:
+            # Handle specific Supabase authentication errors
+            error_msg = str(auth_error).lower()
+            
+            # Check for weak password error (or direct AuthWeakPasswordError)
+            if isinstance(auth_error, AuthWeakPasswordError) or ("password" in error_msg and "weak" in error_msg):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Password change failed: {error_msg}"
+                    detail="New password does not meet security requirements. Please choose a stronger password."
                 )
             
-            # Log unexpected errors
+            # Log and report the auth error for analysis
+            logger.warning(f"Password change failed for {email}: {auth_error}")
+            with sentry_sdk.push_scope() as scope:
+                scope.set_tag("component", "authentication")
+                scope.set_tag("function", "change_user_password")
+                scope.set_context("auth_context", {
+                    "email": email,
+                    "error_message": str(auth_error)
+                })
+                sentry_sdk.capture_exception(auth_error)
+            
+            # Generic Supabase auth error
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Password change failed: {str(auth_error)}"
+            )
+        except Exception as e:
+            # Log unexpected errors and report to Sentry
             logger.error(f"Unexpected error during password change for {email}: {str(e)}")
+            
+            with sentry_sdk.push_scope() as scope:
+                scope.set_tag("component", "authentication")
+                scope.set_tag("function", "change_user_password")
+                scope.set_context("auth_context", {
+                    "email": email,
+                    "exception_type": type(e).__name__
+                })
+                sentry_sdk.capture_exception(e)
+            
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="An unexpected error occurred during password change"
@@ -502,37 +549,57 @@ class AuthService:
                 "success": True,
                 "message": "If an account exists with this email, a verification email has been sent."
             }
-        except Exception as e:
-            # Re-raise if it's an HTTPException that we've already processed
-            if isinstance(e, HTTPException):
-                raise
-
-            # Workaround for potential linter issue with GoTrueApiError import
-            if e.__class__.__name__ == 'GoTrueApiError':
-                logger.warning(f"Failed to resend verification email to {email}: {e}")
-                
-                status_code = getattr(e, 'status', 500)
-                message = getattr(e, 'message', str(e))
-
-                if status_code == 429:
-                    raise HTTPException(
-                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                        detail="Too many requests. Please wait before trying again."
-                    )
-                elif "user not found" in message.lower():
-                    logger.info(f"Resend verification requested for non-existent email, returning generic message.")
-                    return {
-                        "success": True,
-                        "message": "If an account exists with this email, a verification email has been sent."
-                    }
-                else:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Failed to resend verification email: {message}"
-                    )
+        except HTTPException:
+            # Re-raise HTTP exceptions as-is
+            raise
+        except (AuthApiError, AuthError) as auth_error:
+            # Handle Supabase authentication errors
+            logger.warning(f"Failed to resend verification email to {email}: {auth_error}")
             
+            status_code = getattr(auth_error, 'status', 500)
+            message = str(auth_error)
+
+            # Report auth error to Sentry for monitoring
+            with sentry_sdk.push_scope() as scope:
+                scope.set_tag("component", "authentication")
+                scope.set_tag("function", "resend_verification_email")
+                scope.set_context("auth_context", {
+                    "email": email,
+                    "status_code": status_code,
+                    "error_message": message
+                })
+                sentry_sdk.capture_exception(auth_error)
+
+            if status_code == 429:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Too many requests. Please wait before trying again."
+                )
+            elif "user not found" in message.lower():
+                logger.info(f"Resend verification requested for non-existent email, returning generic message.")
+                return {
+                    "success": True,
+                    "message": "If an account exists with this email, a verification email has been sent."
+                }
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Failed to resend verification email: {message}"
+                )
+        except Exception as e:
             # Handle other unexpected exceptions
             logger.error(f"Unexpected error resending verification email for {email}: {str(e)}")
+            
+            # Report unexpected errors to Sentry for investigation
+            with sentry_sdk.push_scope() as scope:
+                scope.set_tag("component", "authentication")
+                scope.set_tag("function", "resend_verification_email")
+                scope.set_context("auth_context", {
+                    "email": email,
+                    "exception_type": type(e).__name__
+                })
+                sentry_sdk.capture_exception(e)
+            
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="An unexpected error occurred. Please try again later."
