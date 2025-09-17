@@ -17,6 +17,7 @@ from Backend.models.user import User
 
 from . import service
 from .schemas import InvoiceCreate, InvoiceResponse, InvoiceUpdate, CSVImportRequest, CSVImportResult
+from Backend.utils.recaptcha import require_recaptcha
 
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,8 @@ router = APIRouter()
 async def create_invoice(
     invoice_data: InvoiceCreate,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    _recaptcha: None = Depends(require_recaptcha("invoice_create"))
 ) -> InvoiceResponse:
     """
     Creates a new invoice.
@@ -166,7 +168,8 @@ async def mark_invoice_paid(
 async def import_invoices_from_csv(
     import_request: CSVImportRequest,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    _recaptcha: None = Depends(require_recaptcha("invoice_import_csv"))
 ) -> CSVImportResult:
     """
     Import invoices from CSV data.

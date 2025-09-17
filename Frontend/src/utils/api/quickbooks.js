@@ -2,8 +2,10 @@
 import { apiRequest } from './core';
 
 export const connectToQuickBooks = async () => {
+  // Backend currently exposes GET; use GET here for compatibility
   return apiRequest("/quickbooks/connect", {
-    method: "POST",
+    method: "GET",
+    recaptchaAction: 'quickbooks_connect',
   });
 };
 

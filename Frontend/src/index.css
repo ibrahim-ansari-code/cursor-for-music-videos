@@ -37,6 +37,33 @@ body {
   }
 }
 
+/* Hide the reCAPTCHA v3 badge while showing a minimal notice elsewhere */
+.grecaptcha-badge { visibility: hidden; }
+
+.recaptcha-notice {
+  position: fixed;
+  right: 12px;
+  bottom: 8px;
+  z-index: 9999;
+  font-size: 11px;
+  color: #64748b; /* slate-500 */
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: saturate(180%) blur(4px);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.recaptcha-notice a { color: #0ea5e9; text-decoration: none; }
+.recaptcha-notice a:hover { text-decoration: underline; }
+
+@media (max-width: 640px) {
+  .recaptcha-notice {
+    position: static;
+    display: block;
+    text-align: center;
+    margin: 8px;
+  }
+}
+
 /* Dashboard Card Styles */
 .dashboard-card {
   @apply bg-white rounded-lg shadow-sm p-5 border border-gray-100 transition-shadow duration-200;

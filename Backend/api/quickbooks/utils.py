@@ -232,8 +232,21 @@ async def get_or_create_integration(
             status=IntegrationStatus.DISCONNECTED
         )
         session.add(integration)
-        await session.commit()
+        await session.flush()
         await session.refresh(integration)
+    else:
+        # Backfill missing consumer_id/service_id for legacy rows
+        needs_update = False
+        if integration.apideck_consumer_id is None or integration.apideck_consumer_id == "":
+            integration.apideck_consumer_id = f"brikli-{user.id}-{integration_type.value.lower()}-{uuid4().hex}"
+            needs_update = True
+        if integration.apideck_service_id is None or integration.apideck_service_id == "":
+            integration.apideck_service_id = service_id
+            needs_update = True
+        if needs_update:
+            session.add(integration)
+            await session.flush()
+            await session.refresh(integration)
     
     return integration
 

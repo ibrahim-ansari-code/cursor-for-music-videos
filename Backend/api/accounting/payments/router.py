@@ -22,6 +22,7 @@ from .schemas import (
     CSVPaymentImportRequest,
     CSVPaymentImportResult,
 )
+from Backend.utils.recaptcha import require_recaptcha
 
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,8 @@ router = APIRouter()
 async def create_payment(
     payment: PaymentCreate,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    _recaptcha: None = Depends(require_recaptcha("payment_create"))
 ) -> PaymentResponse:
     """
     Create a new payment record.
@@ -221,7 +223,8 @@ async def generate_monthly_rent_payments(
 @router.post("/receipts/parse", response_model=PaymentReceiptParseResponse)
 async def parse_payment_receipt(
     file: Annotated[UploadFile, File()],
-    current_user: Annotated[User, Depends(get_current_user)]
+    current_user: Annotated[User, Depends(get_current_user)],
+    _recaptcha: None = Depends(require_recaptcha("payment_parse_receipt"))
 ) -> PaymentReceiptParseResponse:
     """
     Parse a payment receipt file and extract payment details.
@@ -275,7 +278,8 @@ async def check_orphaned_payments(
 async def import_payments_from_csv(
     import_request: CSVPaymentImportRequest,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    _recaptcha: None = Depends(require_recaptcha("payment_import_csv"))
 ) -> CSVPaymentImportResult:
     """
     Import payments from CSV data.

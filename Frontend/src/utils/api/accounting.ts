@@ -182,6 +182,7 @@ export const createPayment = async (paymentData: CreatePaymentRequest): Promise<
   return apiRequest("/accounting/payments", {
     method: "POST",
     body: JSON.stringify(paymentData),
+    recaptchaAction: 'payment_create',
   });
 };
 
@@ -217,6 +218,7 @@ export const parsePaymentReceipt = async (fileFormData: FormData): Promise<Recei
   return apiRequest("/accounting/payments/receipts/parse", {
     method: "POST",
     body: fileFormData,
+    recaptchaAction: 'payment_parse_receipt',
   });
 };
 
@@ -241,6 +243,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceRequest): Promise<
   return apiRequest("/accounting/invoices", {
     method: "POST",
     body: JSON.stringify(invoiceData),
+    recaptchaAction: 'invoice_create',
   });
 };
 
@@ -269,28 +272,28 @@ export const markInvoicePaid = async (invoiceId: number): Promise<Invoice> => {
 
 export const importInvoicesFromCSV = async (csvData: Record<string, unknown>[]): Promise<CSVImportResponse> => {
   const payload = { invoices: csvData };
-  
   return apiRequest("/accounting/invoices/import-csv", {
     method: "POST",
     body: JSON.stringify(payload),
+    recaptchaAction: 'invoice_import_csv',
   });
 };
 
 export const importExpensesFromCSV = async (csvData: Record<string, unknown>[]): Promise<CSVImportResponse> => {
   const payload = { expenses: csvData };
-  
   return apiRequest("/accounting/expenses/import-csv", {
     method: "POST",
     body: JSON.stringify(payload),
+    recaptchaAction: 'expense_import_csv',
   });
 };
 
 export const importPaymentsFromCSV = async (csvData: Record<string, unknown>[]): Promise<CSVImportResponse> => {
   const payload = { payments: csvData };
-  
   return apiRequest("/accounting/payments/import-csv", {
     method: "POST",
     body: JSON.stringify(payload),
+    recaptchaAction: 'payment_import_csv',
   });
 };
 
@@ -314,6 +317,7 @@ export const createExpense = async (expenseData: CreateExpenseRequest): Promise<
   return apiRequest("/accounting/expenses", {
     method: "POST",
     body: JSON.stringify(expenseData),
+    recaptchaAction: 'expense_create',
   });
 };
 
@@ -326,6 +330,7 @@ export const parseExpenseReceipt = async (
     method: "POST",
     body: fileFormData,
     signal,
+    recaptchaAction: 'expense_parse_receipt',
   });
 };
 

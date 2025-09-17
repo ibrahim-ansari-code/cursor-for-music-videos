@@ -25,6 +25,7 @@ from .schemas import (
     CSVExpenseImportRequest, CSVExpenseImportResult
 )
 from .helpers import delete_blob_with_error_handling
+from Backend.utils.recaptcha import require_recaptcha
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -33,7 +34,8 @@ router = APIRouter()
 @router.post("/parse-receipt", response_model=ExpenseReceiptParseResponse)
 async def parse_expense_receipt(
     file: Annotated[UploadFile, File()],
-    current_user: Annotated[User, Depends(get_current_user)]
+    current_user: Annotated[User, Depends(get_current_user)],
+    _recaptcha: None = Depends(require_recaptcha("expense_parse_receipt"))
 ) -> ExpenseReceiptParseResponse:
     """
     Parses an uploaded expense receipt file and extracts structured expense details.
@@ -50,7 +52,8 @@ async def parse_expense_receipt(
 async def create_expense(
     expense_data: ExpenseCreate,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    _recaptcha: None = Depends(require_recaptcha("expense_create"))
 ) -> ExpenseResponse:
     """
     Creates a new expense record with associated tax details.
@@ -183,7 +186,8 @@ async def delete_expense(
 async def import_expenses_from_csv(
     import_request: CSVExpenseImportRequest,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    _recaptcha: None = Depends(require_recaptcha("expense_import_csv"))
 ) -> CSVExpenseImportResult:
     """
     Import expenses from CSV data.

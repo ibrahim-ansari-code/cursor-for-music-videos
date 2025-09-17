@@ -9,6 +9,7 @@ import os
 import pytest
 import httpx
 from typing import AsyncGenerator
+from unittest.mock import patch, AsyncMock
 
 # Import shared utilities
 from tests.shared_fixtures import (
@@ -20,11 +21,13 @@ from tests.shared_fixtures import (
 # Re-export for backward compatibility
 __all__ = [
     'assert_api_success',
-    'assert_api_error', 
+    'assert_api_error',
     'assert_valid_json_response',
     'api_client',
     'shared_auth_token',
     'current_user_id',
+    'mock_recaptcha_success',
+    'mock_recaptcha_bypass',
 ]
 
 # Test configuration
@@ -87,6 +90,52 @@ async def api_client(shared_auth_token: str) -> AsyncGenerator[httpx.AsyncClient
         follow_redirects=True
     ) as client:
         yield client
+
+
+@pytest.fixture
+def mock_recaptcha_success():
+    """
+    Mock reCAPTCHA verification to always succeed with high score.
+
+    Use this fixture when you want reCAPTCHA protection enabled but
+    always passing verification for testing protected endpoints.
+    """
+    mock_response = {
+        "success": True,
+        "score": 0.9,
+        "action": None,  # Will be set by the verification function
+        "challenge_ts": "2024-01-01T12:00:00Z",
+        "hostname": "localhost"
+    }
+
+    with patch('Backend.utils.recaptcha._verify_recaptcha', new_callable=AsyncMock) as mock_verify:
+        mock_verify.return_value = mock_response
+        yield mock_verify
+
+
+@pytest.fixture
+def mock_recaptcha_bypass():
+    """
+    Mock reCAPTCHA to be bypassed by setting RECAPTCHA_SECRET_KEY to empty.
+
+    Use this fixture when you want to completely bypass reCAPTCHA
+    verification for testing endpoints.
+    """
+    with patch('Backend.utils.recaptcha.settings') as mock_settings:
+        mock_settings.TESTING = False
+        mock_settings.RECAPTCHA_SECRET_KEY = ""  # This will cause bypass
+        yield mock_settings
+
+
+@pytest.fixture(autouse=True)
+def auto_mock_recaptcha_for_api_tests(mock_recaptcha_success):
+    """
+    Automatically mock reCAPTCHA for all API tests.
+
+    This ensures API tests can run even when reCAPTCHA is enabled,
+    by automatically mocking successful verification.
+    """
+    pass
 
 
 # API test specific markers

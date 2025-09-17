@@ -144,6 +144,12 @@ function App() {
           <AuthProvider>
             <ToastContainer position="top-right" autoClose={5000} />
             <AppRoutes />
+            <div className="recaptcha-notice">
+              Protected by reCAPTCHA v3 —
+              <a href="https://policies.google.com/privacy" rel="noopener noreferrer" target="_blank"> Privacy</a>
+              {" • "}
+              <a href="https://policies.google.com/terms" rel="noopener noreferrer" target="_blank"> Terms</a>
+            </div>
           </AuthProvider>
         </SkeletonTheme>
       </Router>

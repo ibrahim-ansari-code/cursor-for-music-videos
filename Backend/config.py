@@ -73,6 +73,27 @@ class Settings(BaseSettings):
     # Please use Service Principal, Managed Identity, or Azure CLI authentication instead
     AZURE_AGENT_API_KEY: str = os.getenv("AZURE_AGENT_API_KEY", "")
 
+    # === reCAPTCHA (Google) ===
+    # Secret key from Google reCAPTCHA admin (v3 recommended)
+    # When set, reCAPTCHA verification is automatically enabled
+    RECAPTCHA_SECRET_KEY: str = os.getenv("RECAPTCHA_SECRET_KEY", "")
+    # Minimum acceptable score for v3 (0.0 - 1.0). Typical defaults: 0.5
+    RECAPTCHA_MIN_SCORE: float = float(os.getenv("RECAPTCHA_MIN_SCORE", 0.5))
+    # Verification endpoint (override only for testing)
+    RECAPTCHA_VERIFY_URL: str = os.getenv("RECAPTCHA_VERIFY_URL", "https://www.google.com/recaptcha/api/siteverify")
+
+    @field_validator('RECAPTCHA_MIN_SCORE')
+    @classmethod
+    def validate_recaptcha_min_score(cls, v: float) -> float:
+        """
+        Validates that the RECAPTCHA_MIN_SCORE is between 0.0 and 1.0.
+        """
+        if not 0.0 <= v <= 1.0:
+            raise ValueError(
+                f"Invalid RECAPTCHA_MIN_SCORE: '{v}'. Must be between 0.0 and 1.0."
+            )
+        return v
+
     @field_validator('APIDECK_ENVIRONMENT')
     @classmethod
     def validate_apideck_environment(cls, v: str) -> str:

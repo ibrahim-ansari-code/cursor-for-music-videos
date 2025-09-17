@@ -1,4 +1,5 @@
 // Core API utility functions for interacting with the backend
+import { executeRecaptchaAction } from '../recaptcha';
 
 // Sanitize the base URL: strip any trailing slash to avoid duplicate slashes when concatenating
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
@@ -124,6 +125,19 @@ const handleResponse = async (response) => {
 };
 
 // Base API request function with authentication
+// options.recaptchaAction (string) - when provided, a v3 token is fetched and sent as headers
+// Type hint (JSDoc) so TS callers accept the option
+/**
+ * @typedef {Object} ApiRequestOptions
+ * @property {string} [method]
+ * @property {any} [body]
+ * @property {Record<string,string>} [headers]
+ * @property {boolean} [cache]
+ * @property {number} [cacheMaxAge]
+ * @property {AbortSignal} [signal]
+ * @property {string} [recaptchaAction]
+ */
+/** @param {string} endpoint @param {ApiRequestOptions} [options] */
 export const apiRequest = async (endpoint, options = {}) => {
   const token = localStorage.getItem("token");
 
@@ -143,6 +157,20 @@ export const apiRequest = async (endpoint, options = {}) => {
     ...(token && { Authorization: `Bearer ${token}` }),
     ...options.headers,
   };
+
+  // Inject reCAPTCHA headers when requested
+  if (options.recaptchaAction) {
+    try {
+      const rcToken = await executeRecaptchaAction(options.recaptchaAction);
+      if (rcToken) {
+        requestHeaders['X-Recaptcha-Token'] = rcToken;
+        requestHeaders['X-Recaptcha-Action'] = options.recaptchaAction;
+      }
+    } catch (e) {
+      // If reCAPTCHA fails to execute, proceed without headers; server will enforce
+      console.warn('reCAPTCHA execution failed:', e);
+    }
+  }
 
   // Add intelligent Cache-Control header for GET requests
   // Allow caching unless explicitly disabled

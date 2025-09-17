@@ -12,6 +12,7 @@ from Backend.models.enums import UserType
 from Backend.models.accounting.common import IntegrationType, IntegrationStatus
 from Backend.database import get_session
 from Backend.utils.datetime_utils import create_audit_datetime
+from Backend.utils.recaptcha import require_recaptcha
 
 from .utils import (
     check_rate_limit, get_or_create_integration, get_user_integration, 
@@ -78,12 +79,18 @@ class QuickBooksDisconnectResponse(BaseModel):
 async def connect_to_quickbooks(
     request: Request,
     current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
+    _recaptcha: None = Depends(require_recaptcha("quickbooks_connect"))
 ) -> QuickBooksConnectionResponse:
     """
     Initiates the QuickBooks connection process for the authenticated user.
     
     Checks the user's rate limit, retrieves or creates a QuickBooks integration record, and generates a secure Apideck Vault session URL for completing the connection. Returns a response indicating that user redirection is required to complete the QuickBooks integration.
+
+    Security:
+    - Requires reCAPTCHA v3 headers on the request:
+      - X-Recaptcha-Token: token from grecaptcha.execute('quickbooks_connect')
+      - X-Recaptcha-Action: quickbooks_connect
     """
     # Check rate limit
     if not await check_rate_limit(str(current_user.id)):

@@ -35,6 +35,14 @@ def clear_dependency_overrides():
     yield
     app.dependency_overrides.clear()
 
+@pytest.fixture(autouse=True)
+def mock_recaptcha_for_payment_tests():
+    """Mock reCAPTCHA verification for payment tests."""
+    with patch('Backend.utils.recaptcha.settings') as mock_settings:
+        mock_settings.TESTING = False
+        mock_settings.RECAPTCHA_SECRET_KEY = ""  # This will cause bypass
+        yield mock_settings
+
 # Create a custom TestClient that sets the proper host header
 class TestClientWithHost(TestClient):
     def request(self, method: str, url, **kwargs):
