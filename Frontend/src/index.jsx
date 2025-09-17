@@ -30,17 +30,21 @@ if (!rootElement) {
   const root = ReactDOM.createRoot(rootElement);
   const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
   if (!siteKey && import.meta.env.MODE === 'production') {
-    throw new Error('VITE_RECAPTCHA_SITE_KEY is missing in production build.');
+    console.error('VITE_RECAPTCHA_SITE_KEY is missing in production build. reCAPTCHA headers will be omitted.');
   }
   root.render(
     <React.StrictMode>
       <ProductionErrorBoundary>
-        <GoogleReCaptchaProvider
-          reCaptchaKey={siteKey || 'missing-site-key'}
-          scriptProps={{ async: true, defer: true }}
-        >
+        {siteKey ? (
+          <GoogleReCaptchaProvider
+            reCaptchaKey={siteKey}
+            scriptProps={{ async: true, defer: true }}
+          >
+            <App />
+          </GoogleReCaptchaProvider>
+        ) : (
           <App />
-        </GoogleReCaptchaProvider>
+        )}
       </ProductionErrorBoundary>
     </React.StrictMode>
   );
