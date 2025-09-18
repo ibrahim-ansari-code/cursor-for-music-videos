@@ -91,7 +91,7 @@ const Sidebar = React.memo(() => {
               {!collapsed && (
                 <NavLink key={"Logo-Dashboard"} to={"/dashboard"}>
                   <LazyImage
-                    src="/BrikliTransparent.png"
+                    src="/brikli-logo-green-transparent.png"
                     alt="Brikli"
                     className="h-9 w-auto mx-auto my-4"
                     placeholder={

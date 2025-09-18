@@ -271,7 +271,7 @@ const ResidentialForm: React.FC = () => {
 
       {/* Layout - Building Stories */}
       <div className="bg-white rounded-xl p-3.5 border border-gray-200 hover:shadow-sm transition-all">
-        <label className="text-xs font-medium text-gray-700 mb-2 block flex items-center">
+        <label className="text-xs font-medium text-gray-700 mb-2 flex items-center">
           <Layers className="h-3.5 w-3.5 mr-1.5 text-purple-500" />
           Building Stories
         </label>
@@ -326,7 +326,7 @@ const ResidentialForm: React.FC = () => {
         
         {/* Garage Spaces */}
         <div className="mb-3">
-          <label className="text-xs font-medium text-gray-700 mb-2 block flex items-center">
+          <label className="text-xs font-medium text-gray-700 mb-2 flex items-center">
             <Car className="h-3.5 w-3.5 mr-1.5 text-orange-500" />
             Garage Spaces
           </label>
@@ -384,7 +384,7 @@ const ResidentialForm: React.FC = () => {
           <div className="space-y-2.5">
             {/* Heating */}
             <div className="group">
-              <label className="text-xs font-medium text-gray-600 mb-1 block flex items-center">
+              <label className="text-xs font-medium text-gray-600 mb-1 flex items-center">
                 <Flame className="h-3 w-3 mr-1 text-orange-500" />
                 Heating
               </label>
@@ -405,7 +405,7 @@ const ResidentialForm: React.FC = () => {
 
             {/* Cooling */}
             <div className="group">
-              <label className="text-xs font-medium text-gray-600 mb-1 block flex items-center">
+              <label className="text-xs font-medium text-gray-600 mb-1 flex items-center">
                 <Wind className="h-3 w-3 mr-1 text-cyan-500" />
                 Cooling
               </label>
@@ -424,7 +424,7 @@ const ResidentialForm: React.FC = () => {
 
             {/* Water Heater */}
             <div className="group">
-              <label className="text-xs font-medium text-gray-600 mb-1 block flex items-center">
+              <label className="text-xs font-medium text-gray-600 mb-1 flex items-center">
                 <Droplets className="h-3 w-3 mr-1 text-blue-500" />
                 Water Heater
               </label>
@@ -450,7 +450,7 @@ const ResidentialForm: React.FC = () => {
         <div className="grid grid-cols-2 gap-2.5">
           {/* Roof Type */}
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block flex items-center">
+            <label className="text-xs font-medium text-gray-600 mb-1 flex items-center">
               <Shield className="h-3 w-3 mr-1 text-gray-500" />
               Roof Type
             </label>
@@ -469,7 +469,7 @@ const ResidentialForm: React.FC = () => {
 
           {/* Exterior Material */}
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block flex items-center">
+            <label className="text-xs font-medium text-gray-600 mb-1 flex items-center">
               <Building2 className="h-3 w-3 mr-1 text-gray-500" />
               Exterior
             </label>

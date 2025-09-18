@@ -10,7 +10,11 @@ import {
   Building, Users, Car, Shield, Trash2,
   Phone, Mail, MapPin, AlertCircle,
   Sparkles, Zap, CheckCircle, Info,
-  UserCheck, Building2, Layers
+  UserCheck, Building2, Layers, Trees,
+  Home, Gem, GraduationCap,
+  Dumbbell, Waves, Castle, Shirt,
+  Gamepad2, Briefcase, Dog, ChefHat,
+  Trophy, Circle, Package
 } from 'lucide-react';
 
 /**
@@ -132,12 +136,12 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
 
   // Memoized complex style configurations
   const complexStyles = useMemo(() => [
-    { value: 'garden' as ComplexStyle, label: 'Garden Style', icon: '🌳', description: 'Low-rise with landscaping' },
-    { value: 'highrise' as ComplexStyle, label: 'High-Rise', icon: '🏢', description: '15+ floors' },
-    { value: 'midrise' as ComplexStyle, label: 'Mid-Rise', icon: '🏘️', description: '4-14 floors' },
-    { value: 'townhome' as ComplexStyle, label: 'Townhome', icon: '🏡', description: 'Attached single-family style' },
-    { value: 'luxury' as ComplexStyle, label: 'Luxury', icon: '💎', description: 'High-end amenities' },
-    { value: 'student' as ComplexStyle, label: 'Student Housing', icon: '🎓', description: 'Near educational institutions' }
+    { value: 'garden' as ComplexStyle, label: 'Garden Style', icon: Trees, description: 'Low-rise with landscaping' },
+    { value: 'highrise' as ComplexStyle, label: 'High-Rise', icon: Building, description: '15+ floors' },
+    { value: 'midrise' as ComplexStyle, label: 'Mid-Rise', icon: Building2, description: '4-14 floors' },
+    { value: 'townhome' as ComplexStyle, label: 'Townhome', icon: Home, description: 'Attached single-family style' },
+    { value: 'luxury' as ComplexStyle, label: 'Luxury', icon: Gem, description: 'High-end amenities' },
+    { value: 'student' as ComplexStyle, label: 'Student Housing', icon: GraduationCap, description: 'Near educational institutions' }
   ], []);
 
   // Stable event handlers to prevent re-renders
@@ -179,7 +183,9 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
                 }
               `}
             >
-              <div className="text-lg mb-1" aria-hidden="true">{style.icon}</div>
+              <div className="mb-1" aria-hidden="true">
+                <style.icon className="h-5 w-5 mx-auto" />
+              </div>
               <div className={`text-xs font-medium ${
                 complex_style === style.value ? 'text-purple-700' : 'text-gray-700'
               }`}>
@@ -503,7 +509,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
         </legend>
         <div className="space-y-2.5">
           <div className="group">
-            <label className="text-xs font-medium text-gray-600 mb-1 block flex items-center">
+            <label className="text-xs font-medium text-gray-600 mb-1 flex items-center">
               <UserCheck className="h-3 w-3 mr-1 text-green-500" aria-hidden="true" />
               Property Manager
             </label>
@@ -531,7 +537,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
 
           <div className="grid grid-cols-2 gap-2">
             <div className="group">
-              <label className="text-xs font-medium text-gray-600 mb-1 block flex items-center">
+              <label className="text-xs font-medium text-gray-600 mb-1 flex items-center">
                 <Phone className="h-3 w-3 mr-1 text-gray-500" aria-hidden="true" />
                 Phone
               </label>
@@ -545,7 +551,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
             </div>
             
             <div className="group">
-              <label className="text-xs font-medium text-gray-600 mb-1 block flex items-center">
+              <label className="text-xs font-medium text-gray-600 mb-1 flex items-center">
                 <Mail className="h-3 w-3 mr-1 text-gray-500" aria-hidden="true" />
                 Email
               </label>
@@ -570,7 +576,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
 
           {on_site_management && (
             <div className="group">
-              <label className="text-xs font-medium text-gray-600 mb-1 block flex items-center">
+              <label className="text-xs font-medium text-gray-600 mb-1 flex items-center">
                 <MapPin className="h-3 w-3 mr-1 text-gray-500" aria-hidden="true" />
                 Office Location
               </label>
@@ -594,7 +600,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
         <div className="space-y-2.5">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 block flex items-center">
+              <label className="text-xs font-medium text-gray-600 mb-1 flex items-center">
                 <Shield className="h-3 w-3 mr-1 text-red-500" aria-hidden="true" />
                 Security System
               </label>
@@ -612,7 +618,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 block flex items-center">
+              <label className="text-xs font-medium text-gray-600 mb-1 flex items-center">
                 <Trash2 className="h-3 w-3 mr-1 text-gray-500" aria-hidden="true" />
                 Trash System
               </label>
@@ -634,7 +640,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
             <div className="grid grid-cols-2 gap-2">
               {security_system_type && (
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">
+                  <label className="text-xs font-medium text-gray-600 mb-1">
                     Security Details
                   </label>
                   <input
@@ -648,7 +654,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
 
               {trash_system_type && (
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">
+                  <label className="text-xs font-medium text-gray-600 mb-1">
                     Collection Schedule
                   </label>
                   <input
@@ -673,18 +679,18 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
         
         <div className="grid grid-cols-3 gap-2" role="group" aria-label="Shared amenities">
           {[
-            { value: 'gym' as SharedAmenity, label: 'Fitness Center', icon: '💪' },
-            { value: 'pool' as SharedAmenity, label: 'Swimming Pool', icon: '🏊' },
-            { value: 'parking_garage' as SharedAmenity, label: 'Parking Garage', icon: '🚗' },
-            { value: 'clubhouse' as SharedAmenity, label: 'Clubhouse', icon: '🏛️' },
-            { value: 'laundry' as SharedAmenity, label: 'Laundry Facility', icon: '🧺' },
-            { value: 'playground' as SharedAmenity, label: 'Playground', icon: '🎮' },
-            { value: 'business_center' as SharedAmenity, label: 'Business Center', icon: '💼' },
-            { value: 'pet_area' as SharedAmenity, label: 'Pet Area', icon: '🐕' },
-            { value: 'bbq_area' as SharedAmenity, label: 'BBQ/Picnic Area', icon: '🍖' },
-            { value: 'tennis_court' as SharedAmenity, label: 'Tennis Court', icon: '🎾' },
-            { value: 'basketball_court' as SharedAmenity, label: 'Basketball Court', icon: '🏀' },
-            { value: 'storage' as SharedAmenity, label: 'Storage Units', icon: '📦' }
+            { value: 'gym' as SharedAmenity, label: 'Fitness Center', icon: Dumbbell },
+            { value: 'pool' as SharedAmenity, label: 'Swimming Pool', icon: Waves },
+            { value: 'parking_garage' as SharedAmenity, label: 'Parking Garage', icon: Car },
+            { value: 'clubhouse' as SharedAmenity, label: 'Clubhouse', icon: Castle },
+            { value: 'laundry' as SharedAmenity, label: 'Laundry Facility', icon: Shirt },
+            { value: 'playground' as SharedAmenity, label: 'Playground', icon: Gamepad2 },
+            { value: 'business_center' as SharedAmenity, label: 'Business Center', icon: Briefcase },
+            { value: 'pet_area' as SharedAmenity, label: 'Pet Area', icon: Dog },
+            { value: 'bbq_area' as SharedAmenity, label: 'BBQ/Picnic Area', icon: ChefHat },
+            { value: 'tennis_court' as SharedAmenity, label: 'Tennis Court', icon: Trophy },
+            { value: 'basketball_court' as SharedAmenity, label: 'Basketball Court', icon: Circle },
+            { value: 'storage' as SharedAmenity, label: 'Storage Units', icon: Package }
           ].map((amenity) => (
             <label key={amenity.value} className="flex items-center px-2 py-1.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
               <input
@@ -694,7 +700,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
                 className="mr-1.5 h-3.5 w-3.5 text-purple-600 rounded focus:ring-purple-500"
                 aria-describedby={`${amenity.value}-desc`}
               />
-              <span className="text-xs mr-1" aria-hidden="true">{amenity.icon}</span>
+              <amenity.icon className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" aria-hidden="true" />
               <span id={`${amenity.value}-desc`} className="text-xs font-medium text-gray-700">
                 {amenity.label}
               </span>

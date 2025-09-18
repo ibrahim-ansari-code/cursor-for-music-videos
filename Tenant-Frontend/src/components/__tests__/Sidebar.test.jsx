@@ -52,7 +52,7 @@ describe('Sidebar Component', () => {
     
     const logo = screen.getByAltText('Brikli');
     expect(logo).toBeInTheDocument();
-    expect(logo).toHaveAttribute('src', '/BrikliTransparent.png');
+    expect(logo).toHaveAttribute('src', '/brikli-logo-green-transparent.png');
   });
 
   it('toggles between collapsed and expanded states', () => {

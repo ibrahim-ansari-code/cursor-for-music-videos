@@ -1,129 +1,129 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites name="vitest tests" tests="56" failures="0" errors="0" time="1.026564833">
-    <testsuite name="src/contexts/__tests__/AuthContext.test.jsx" timestamp="2025-08-13T00:38:27.214Z" hostname="Zubins-MacBook-Air.local" tests="5" failures="0" errors="0" skipped="0" time="0.200906958">
-        <testcase classname="src/contexts/__tests__/AuthContext.test.jsx" name="AuthContext &gt; initializes with loading state" time="0.071638833">
+<testsuites name="vitest tests" tests="56" failures="0" errors="0" time="1.51622479">
+    <testsuite name="src/contexts/__tests__/AuthContext.test.jsx" timestamp="2025-09-18T06:57:31.045Z" hostname="Zubins-MacBook-Air.local" tests="5" failures="0" errors="0" skipped="0" time="0.210163458">
+        <testcase classname="src/contexts/__tests__/AuthContext.test.jsx" name="AuthContext &gt; initializes with loading state" time="0.081240125">
         </testcase>
-        <testcase classname="src/contexts/__tests__/AuthContext.test.jsx" name="AuthContext &gt; provides auth methods" time="0.057542958">
+        <testcase classname="src/contexts/__tests__/AuthContext.test.jsx" name="AuthContext &gt; provides auth methods" time="0.056706625">
         </testcase>
-        <testcase classname="src/contexts/__tests__/AuthContext.test.jsx" name="AuthContext &gt; handles successful sign in" time="0.008267125">
+        <testcase classname="src/contexts/__tests__/AuthContext.test.jsx" name="AuthContext &gt; handles successful sign in" time="0.0070855">
         </testcase>
-        <testcase classname="src/contexts/__tests__/AuthContext.test.jsx" name="AuthContext &gt; handles sign out" time="0.003909958">
+        <testcase classname="src/contexts/__tests__/AuthContext.test.jsx" name="AuthContext &gt; handles sign out" time="0.001743209">
         </testcase>
-        <testcase classname="src/contexts/__tests__/AuthContext.test.jsx" name="AuthContext &gt; clears error when clearError is called" time="0.058084333">
+        <testcase classname="src/contexts/__tests__/AuthContext.test.jsx" name="AuthContext &gt; clears error when clearError is called" time="0.061369291">
             <system-err>
-Sign in error: { message: [32m&apos;Test error&apos;[39m }
+Sign in error: { message: &apos;Test error&apos; }
 
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="src/components/__tests__/DashboardContent.test.jsx" timestamp="2025-08-13T00:38:27.215Z" hostname="Zubins-MacBook-Air.local" tests="14" failures="0" errors="0" skipped="0" time="0.260028542">
-        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; renders welcome message with user name" time="0.054313708">
+    <testsuite name="src/components/__tests__/DashboardContent.test.jsx" timestamp="2025-09-18T06:57:31.048Z" hostname="Zubins-MacBook-Air.local" tests="14" failures="0" errors="0" skipped="0" time="0.392061375">
+        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; renders welcome message with user name" time="0.060512083">
         </testcase>
-        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; renders fallback name when user has no first name" time="0.015437958">
+        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; renders fallback name when user has no first name" time="0.010183375">
         </testcase>
-        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; renders all dashboard info cards" time="0.017555375">
+        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; renders all dashboard info cards" time="0.02227125">
         </testcase>
-        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; renders info cards with correct icons" time="0.015333041">
+        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; renders info cards with correct icons" time="0.062730375">
         </testcase>
-        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; handles info card action clicks correctly" time="0.012796167">
+        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; handles info card action clicks correctly" time="0.047993333">
         </testcase>
-        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; renders recent payments section" time="0.012545042">
+        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; renders recent payments section" time="0.013063583">
         </testcase>
-        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; handles view all payments click" time="0.007007417">
+        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; handles view all payments click" time="0.017845458">
         </testcase>
-        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; renders quick action cards" time="0.01718025">
+        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; renders quick action cards" time="0.018604208">
         </testcase>
-        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; handles quick action clicks correctly" time="0.016167041">
+        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; handles quick action clicks correctly" time="0.01387825">
         </testcase>
-        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; applies correct CSS classes for styling" time="0.011409375">
+        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; applies correct CSS classes for styling" time="0.018459375">
         </testcase>
-        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; displays loading spinner initially" time="0.025243209">
+        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; displays loading spinner initially" time="0.044780083">
         </testcase>
-        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; removes loading state after useEffect" time="0.008447792">
+        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; removes loading state after useEffect" time="0.013521625">
         </testcase>
-        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; has proper accessibility structure" time="0.037688417">
+        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; has proper accessibility structure" time="0.038629625">
         </testcase>
-        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; handles hover states for interactive elements" time="0.00703425">
-        </testcase>
-    </testsuite>
-    <testsuite name="src/components/__tests__/ErrorBoundary.test.jsx" timestamp="2025-08-13T00:38:27.217Z" hostname="Zubins-MacBook-Air.local" tests="11" failures="0" errors="0" skipped="0" time="0.08484725">
-        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; renders children when there is no error" time="0.037783375">
-        </testcase>
-        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; renders error UI when there is an error" time="0.012335959">
-        </testcase>
-        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; displays error icon when error occurs" time="0.003563959">
-        </testcase>
-        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; provides retry functionality" time="0.007241208">
-        </testcase>
-        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; provides refresh page functionality" time="0.002913375">
-        </testcase>
-        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; logs errors to console" time="0.004471292">
-        </testcase>
-        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; applies correct styling classes" time="0.003946875">
-        </testcase>
-        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; shows error details in development mode" time="0.00015675">
-        </testcase>
-        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; hides error details in production mode" time="0.000084833">
-        </testcase>
-        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; handles multiple errors correctly" time="0.005048042">
-        </testcase>
-        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; resets error state when retry is clicked" time="0.004945042">
+        <testcase classname="src/components/__tests__/DashboardContent.test.jsx" name="DashboardContent Component &gt; handles hover states for interactive elements" time="0.006879791">
         </testcase>
     </testsuite>
-    <testsuite name="src/components/__tests__/Layout.test.jsx" timestamp="2025-08-13T00:38:27.218Z" hostname="Zubins-MacBook-Air.local" tests="15" failures="0" errors="0" skipped="0" time="0.205722708">
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; renders the layout with sidebar and header" time="0.094949584">
+    <testsuite name="src/components/__tests__/ErrorBoundary.test.jsx" timestamp="2025-09-18T06:57:31.052Z" hostname="Zubins-MacBook-Air.local" tests="11" failures="0" errors="0" skipped="0" time="0.151903458">
+        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; renders children when there is no error" time="0.040129959">
         </testcase>
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; displays loading state when user is loading" time="0.003562084">
+        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; renders error UI when there is an error" time="0.033905917">
         </testcase>
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; displays error state when user is not loaded" time="0.005485208">
+        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; displays error icon when error occurs" time="0.018919959">
         </testcase>
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; displays correct page title based on route" time="0.013199708">
+        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; provides retry functionality" time="0.01231425">
         </testcase>
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; displays user information correctly" time="0.017733333">
+        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; provides refresh page functionality" time="0.00751725">
         </testcase>
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; handles missing user name gracefully" time="0.006256125">
+        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; logs errors to console" time="0.006565667">
         </testcase>
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; displays user initials when no profile image" time="0.01603325">
+        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; applies correct styling classes" time="0.005741666">
         </testcase>
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; displays fallback initials when no name provided" time="0.005244625">
+        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; shows error details in development mode" time="0.00038">
         </testcase>
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; calls signOut when logout button is clicked" time="0.007902208">
+        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; hides error details in production mode" time="0.000140917">
         </testcase>
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; calls signOut when return to login is clicked in error state" time="0.001311">
+        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; handles multiple errors correctly" time="0.015845917">
         </testcase>
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; has functional notifications bell link" time="0.005290959">
-        </testcase>
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; has functional settings link from user avatar" time="0.008111709">
-        </testcase>
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; applies correct CSS classes for layout structure" time="0.00653525">
-        </testcase>
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; renders outlet for nested routes" time="0.004503792">
-        </testcase>
-        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; maintains responsive design classes" time="0.007276541">
+        <testcase classname="src/components/__tests__/ErrorBoundary.test.jsx" name="ErrorBoundary Component &gt; resets error state when retry is clicked" time="0.007703167">
         </testcase>
     </testsuite>
-    <testsuite name="src/components/__tests__/Sidebar.test.jsx" timestamp="2025-08-13T00:38:27.219Z" hostname="Zubins-MacBook-Air.local" tests="11" failures="0" errors="0" skipped="0" time="0.275059375">
-        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; renders the sidebar with all navigation items" time="0.05192375">
+    <testsuite name="src/components/__tests__/Layout.test.jsx" timestamp="2025-09-18T06:57:31.058Z" hostname="Zubins-MacBook-Air.local" tests="15" failures="0" errors="0" skipped="0" time="0.362771458">
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; renders the layout with sidebar and header" time="0.113997542">
         </testcase>
-        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; renders section headers correctly" time="0.012832042">
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; displays loading state when user is loading" time="0.006826">
         </testcase>
-        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; displays the Brikli logo when expanded" time="0.012352875">
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; displays error state when user is not loaded" time="0.005933625">
         </testcase>
-        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; toggles between collapsed and expanded states" time="0.015573958">
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; displays correct page title based on route" time="0.09049375">
         </testcase>
-        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; shows navigation text only when expanded" time="0.074552542">
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; displays user information correctly" time="0.040586917">
         </testcase>
-        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; applies correct active state styling" time="0.013636458">
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; handles missing user name gracefully" time="0.009596541">
         </testcase>
-        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; applies hover styles to inactive navigation items" time="0.011190125">
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; displays user initials when no profile image" time="0.012273292">
         </testcase>
-        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; has correct navigation links" time="0.050457833">
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; displays fallback initials when no name provided" time="0.0166785">
         </testcase>
-        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; uses React Icons correctly" time="0.019897791">
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; calls signOut when logout button is clicked" time="0.024225375">
         </testcase>
-        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; maintains accessibility standards" time="0.006040833">
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; calls signOut when return to login is clicked in error state" time="0.00341775">
         </testcase>
-        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; handles keyboard navigation" time="0.004919">
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; has functional notifications bell link" time="0.006636042">
+        </testcase>
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; has functional settings link from user avatar" time="0.009540792">
+        </testcase>
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; applies correct CSS classes for layout structure" time="0.008295708">
+        </testcase>
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; renders outlet for nested routes" time="0.005249875">
+        </testcase>
+        <testcase classname="src/components/__tests__/Layout.test.jsx" name="Layout Component &gt; maintains responsive design classes" time="0.007387458">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/components/__tests__/Sidebar.test.jsx" timestamp="2025-09-18T06:57:31.063Z" hostname="Zubins-MacBook-Air.local" tests="11" failures="0" errors="0" skipped="0" time="0.399325041">
+        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; renders the sidebar with all navigation items" time="0.065129958">
+        </testcase>
+        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; renders section headers correctly" time="0.01263675">
+        </testcase>
+        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; displays the Brikli logo when expanded" time="0.005380959">
+        </testcase>
+        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; toggles between collapsed and expanded states" time="0.019009542">
+        </testcase>
+        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; shows navigation text only when expanded" time="0.126646084">
+        </testcase>
+        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; applies correct active state styling" time="0.037026833">
+        </testcase>
+        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; applies hover styles to inactive navigation items" time="0.020901042">
+        </testcase>
+        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; has correct navigation links" time="0.061680291">
+        </testcase>
+        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; uses React Icons correctly" time="0.024835">
+        </testcase>
+        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; maintains accessibility standards" time="0.011306792">
+        </testcase>
+        <testcase classname="src/components/__tests__/Sidebar.test.jsx" name="Sidebar Component &gt; handles keyboard navigation" time="0.012844916">
         </testcase>
     </testsuite>
 </testsuites>
