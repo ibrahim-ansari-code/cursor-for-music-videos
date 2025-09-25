@@ -294,32 +294,30 @@ const PaymentsTab = () => {
   return (
     <div>
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          <p>{error}</p>
+        <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded">
+          <p>{String(error)}</p>
           <button
-            onClick={refetch}
-            className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
+            onClick={() => refetch()}
+            className="mt-2 bg-red-500 dark:bg-red-600 hover:bg-red-700 dark:hover:bg-red-500 text-white font-bold py-1 px-2 rounded text-sm"
           >
             Retry
           </button>
         </div>
       )}
 
-
-
       {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0 transition-colors duration-300">
         <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0">
           <div>
             <label
               htmlFor="payment-status"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
               Status
             </label>
             <select
               id="payment-status"
-              className="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               value={paymentFilters.status}
               onChange={(e) =>
                 setPaymentFilters({
@@ -341,13 +339,13 @@ const PaymentsTab = () => {
           <div>
             <label
               htmlFor="payment-date-range"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
               Date Range
             </label>
             <select
               id="payment-date-range"
-              className="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               value={paymentFilters.dateRange}
               onChange={(e) =>
                 setPaymentFilters({
@@ -377,17 +375,17 @@ const PaymentsTab = () => {
                   search: e.target.value,
                 })
               }
-              className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 pr-3 py-2 border-gray-300 rounded-md text-sm"
+              className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 pr-3 py-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md text-sm"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <i className="fas fa-search text-gray-400"></i>
+              <i className="fas fa-search text-gray-400 dark:text-gray-500"></i>
             </div>
           </div>
           
           {/* Import CSV Button */}
           <button
             onClick={() => setShowCSVImportModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             <i className="fas fa-upload mr-2"></i>
             Import CSV
@@ -398,7 +396,7 @@ const PaymentsTab = () => {
             data={csvData}
             headers={csvHeaders}
             filename={generateFilename()}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             <i className="fas fa-download mr-2"></i>
             Export CSV
@@ -416,10 +414,10 @@ const PaymentsTab = () => {
       </div>
 
       {/* Payments Table */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden transition-colors duration-300">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-900">
               <tr>
                 {paymentTableColumns.map((col) => (
                   <th
@@ -427,20 +425,27 @@ const PaymentsTab = () => {
                     scope="col"
                     className={`px-6 py-3 ${
                       col.align === "center" ? "text-center" : "text-left"
-                    } text-xs font-medium text-gray-500 uppercase tracking-wider`}
+                    } text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider`}
                   >
                     {col.label}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {payments.length > 0 ? (
-                payments.map((payment) => (
-                  <tr key={payment.id} className="hover:bg-gray-50">
+                payments.map((payment, index) => {
+                  // Zebra striping with alternating dark grays
+                  const isEven = index % 2 === 0;
+                  const bgColor = isEven 
+                    ? "bg-white dark:bg-gray-800" 
+                    : "bg-gray-50 dark:bg-gray-700/50";
+                  
+                  return (
+                  <tr key={payment.id} className={`${bgColor} hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-150`}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
+                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300">
                           {/* Display tenant initials */}
                           {payment.tenant_name
                             ? payment.tenant_name
@@ -452,11 +457,11 @@ const PaymentsTab = () => {
                             : "TS"}
                         </div>
                         <div className="ml-3">
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                             {payment.tenant_name ||
                               `Tenant #${payment.tenant_id}`}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
                             {payment.property_name ||
                               `Lease #${payment.lease_id}`}
                           </div>
@@ -464,23 +469,23 @@ const PaymentsTab = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="text-sm text-gray-900">
+                      <div className="text-sm text-gray-900 dark:text-gray-100">
                         ${Number.parseFloat(payment.amount).toFixed(2)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="text-sm text-gray-900">
+                      <div className="text-sm text-gray-900 dark:text-gray-100">
                         {new Date(
                           payment.payment_date
                         ).toLocaleDateString()}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
                         {new Date(
                           payment.payment_date
                         ).toLocaleTimeString()}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500 dark:text-gray-400">
                       {payment.payment_method}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -495,7 +500,7 @@ const PaymentsTab = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500 dark:text-gray-400">
                       {payment.quickbooks_id != null
                         ? "QuickBooks"
                         : "Brikli"}
@@ -518,7 +523,7 @@ const PaymentsTab = () => {
                                 descriptiveName
                               );
                             }}
-                            className="text-blue-600 hover:text-blue-900 p-1"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 p-1"
                             title="View Receipt"
                           >
                             <i className="fas fa-eye" />
@@ -527,7 +532,7 @@ const PaymentsTab = () => {
                         <button
                           type="button"
                           onClick={() => handleEditPayment(payment)}
-                          className="text-indigo-600 hover:text-indigo-900"
+                          className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300"
                           title="Edit"
                         >
                           <i className="fas fa-edit" />
@@ -535,7 +540,7 @@ const PaymentsTab = () => {
                         <button
                           type="button"
                           onClick={() => handleDeletePayment(payment.id)}
-                          className="text-red-600 hover:text-red-900"
+                          className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
                           title="Delete"
                         >
                           <i className="fas fa-trash-alt" />
@@ -543,12 +548,13 @@ const PaymentsTab = () => {
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               ) : (
                 <tr>
                   <td
                     colSpan={paymentTableColumns.length}
-                    className="px-6 py-4 text-center text-sm text-gray-500"
+                    className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     No payments found
                   </td>
@@ -558,25 +564,25 @@ const PaymentsTab = () => {
           </table>
         </div>
         {/* Pagination Controls */}
-        <div className="flex justify-between items-center mt-4 p-4">
+        <div className="flex justify-between items-center mt-4 p-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
           <button
             type="button"
             onClick={handlePreviousPage}
             disabled={paymentsPagination.currentPage === 0 || loading}
-            className="btn btn-secondary disabled:opacity-50"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Go to previous page"
           >
             <i className="fas fa-arrow-left mr-2" aria-hidden="true" />
             Previous
           </button>
-          <span className="text-sm text-gray-700">
+          <span className="text-sm text-gray-700 dark:text-gray-300">
             Page {paymentsPagination.currentPage + 1}
           </span>
           <button
             type="button"
             onClick={handleNextPage}
             disabled={!paymentsPagination.hasMore || loading}
-            className="btn btn-secondary disabled:opacity-50"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Go to next page"
           >
             Next

@@ -25,20 +25,20 @@ export const FilterDropdown = React.forwardRef<HTMLDivElement, FilterDropdownPro
     <div className="relative" ref={ref}>
       <button
         onClick={onToggle}
-        className={`inline-flex items-center px-4 py-2 border rounded-lg shadow-sm text-sm font-medium ${
+        className={`inline-flex items-center px-4 py-2 border rounded-lg shadow-sm text-sm font-medium transition-colors duration-300 ${
           hasActiveFilters
-            ? 'bg-blue-50 text-blue-700 border-blue-300'
-            : 'text-gray-700 bg-white border-gray-300'
-        } hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+            ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600'
+            : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600'
+        } hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
       >
         <i className="fas fa-filter mr-2"></i>
         Filter
       </button>
 
       {showFilterMenu && (
-        <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-10">
+        <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black dark:ring-gray-600 ring-opacity-5 divide-y divide-gray-100 dark:divide-gray-600 focus:outline-none z-10 transition-colors duration-300">
           <div className="p-2">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3 pt-1">
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-3 pt-1 transition-colors duration-300">
               Property Type
             </h3>
             <div className="space-y-1">
@@ -46,15 +46,15 @@ export const FilterDropdown = React.forwardRef<HTMLDivElement, FilterDropdownPro
                 <button
                   key={type}
                   onClick={() => onFilterSelect('propertyType', type)}
-                  className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
+                  className={`group flex items-center w-full px-3 py-2 text-sm rounded-md transition-colors duration-300 ${
                     filterOptions.propertyType === type
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
                   {filterOptions.propertyType === type && (
                     <svg
-                      className="mr-2 h-4 w-4 text-blue-500"
+                      className="mr-2 h-4 w-4 text-blue-500 dark:text-blue-400"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -72,7 +72,7 @@ export const FilterDropdown = React.forwardRef<HTMLDivElement, FilterDropdownPro
           </div>
 
           <div className="p-2">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3 pt-1">
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-3 pt-1 transition-colors duration-300">
               Status
             </h3>
             <div className="space-y-1">
@@ -80,15 +80,15 @@ export const FilterDropdown = React.forwardRef<HTMLDivElement, FilterDropdownPro
                 <button
                   key={status}
                   onClick={() => onFilterSelect('status', status)}
-                  className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
+                  className={`group flex items-center w-full px-3 py-2 text-sm rounded-md transition-colors duration-300 ${
                     filterOptions.status === status
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
                   {filterOptions.status === status && (
                     <svg
-                      className="mr-2 h-4 w-4 text-blue-500"
+                      className="mr-2 h-4 w-4 text-blue-500 dark:text-blue-400"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -106,7 +106,7 @@ export const FilterDropdown = React.forwardRef<HTMLDivElement, FilterDropdownPro
           </div>
 
           <div className="p-2">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3 pt-1">
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-3 pt-1 transition-colors duration-300">
               Date Added
             </h3>
             <div className="space-y-1">
@@ -114,15 +114,15 @@ export const FilterDropdown = React.forwardRef<HTMLDivElement, FilterDropdownPro
                 <button
                   key={option.id}
                   onClick={() => onFilterSelect('dateAdded', option.id)}
-                  className={`group flex items-center w-full px-3 py-2 text-sm rounded-md ${
+                  className={`group flex items-center w-full px-3 py-2 text-sm rounded-md transition-colors duration-300 ${
                     filterOptions.dateAdded === option.id
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
                   {filterOptions.dateAdded === option.id && (
                     <svg
-                      className="mr-2 h-4 w-4 text-blue-500"
+                      className="mr-2 h-4 w-4 text-blue-500 dark:text-blue-400"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -142,7 +142,7 @@ export const FilterDropdown = React.forwardRef<HTMLDivElement, FilterDropdownPro
           <div className="p-2">
             <button
               onClick={onClearFilters}
-              className="w-full flex justify-center items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md"
+              className="w-full flex justify-center items-center px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors duration-300"
             >
               <i className="fas fa-times-circle mr-2"></i>
               Clear All Filters

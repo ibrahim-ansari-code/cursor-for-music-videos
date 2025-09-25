@@ -204,7 +204,7 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-gray-900 mb-6">Personal Information</h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 transition-colors duration-300">Personal Information</h2>
       
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Name Fields */}
@@ -217,9 +217,10 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
               value={formData.first_name}
               onChange={handleChange}
               placeholder="Enter your first name"
+              className="bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
             />
             {errors.first_name && (
-              <p className="mt-1 text-sm text-red-600">{errors.first_name}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.first_name}</p>
             )}
           </div>
           
@@ -231,9 +232,10 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
               value={formData.last_name}
               onChange={handleChange}
               placeholder="Enter your last name"
+              className="bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
             />
             {errors.last_name && (
-              <p className="mt-1 text-sm text-red-600">{errors.last_name}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.last_name}</p>
             )}
           </div>
         </div>
@@ -249,9 +251,9 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
               value={formData.email}
               readOnly
               disabled
-              className="bg-gray-50 cursor-not-allowed"
+              className="bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">
               Email address cannot be changed for security reasons.
             </p>
           </div>
@@ -265,17 +267,18 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
               value={formData.phone}
               onChange={handleChange}
               placeholder="(555) 123-4567"
+              className="bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md transition-colors duration-300"
             />
             {errors.phone && (
-              <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.phone}</p>
             )}
           </div>
         </div>
 
         {/* Address Section */}
-        <div className="pt-6 border-t border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Address Information</h3>
-          
+        <div className="pt-6 border-t border-gray-200 dark:border-gray-700 transition-colors duration-300">
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 transition-colors duration-300">Address Information</h3>
+
           <div className="space-y-5">
             <div>
               <Label htmlFor="address">Street Address</Label>
@@ -285,6 +288,7 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
                 value={formData.address}
                 onChange={handleChange}
                 placeholder="123 Main Street"
+                className="bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
               />
             </div>
 
@@ -297,6 +301,7 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
                   value={formData.city}
                   onChange={handleChange}
                   placeholder="Toronto"
+                  className="bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
                 />
               </div>
 
@@ -308,6 +313,7 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
                   value={formData.province}
                   onChange={handleChange}
                   placeholder="Ontario"
+                  className="bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
                 />
               </div>
 
@@ -319,6 +325,7 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
                   value={formData.postal_code}
                   onChange={handleChange}
                   placeholder="M5H 2N2"
+                  className="bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
                 />
               </div>
             </div>
@@ -326,12 +333,12 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
         </div>
 
         {errors.form && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600">{errors.form}</p>
+          <div className="p-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-800 rounded-lg transition-colors duration-300">
+            <p className="text-sm text-red-600 dark:text-red-400">{errors.form}</p>
           </div>
         )}
 
-        <div className="flex justify-end pt-4 border-t border-gray-200">
+        <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700 transition-colors duration-300">
           <Button
             type="submit"
             variant="primary"

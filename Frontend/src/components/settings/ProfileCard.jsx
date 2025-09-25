@@ -101,19 +101,19 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
   const imageSource = avatarPreview || user?.profile_image_url;
 
   return (
-    <div className="h-full pr-8 lg:border-r lg:border-gray-200">
+    <div className="h-full pr-8 lg:border-r lg:border-gray-200 dark:lg:border-gray-700 transition-colors duration-300">
       <div className="flex flex-col items-center sticky top-6">
         {/* Avatar Section */}
         <div className="relative group mb-4">
           {avatarLoadError || !imageSource ? (
-            <div className="h-32 w-32 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-3xl font-semibold">
+            <div className="h-32 w-32 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 text-3xl font-semibold transition-colors duration-300">
               {getInitials(user?.first_name, user?.last_name)}
             </div>
           ) : (
             <img
               src={imageSource}
               alt="Profile"
-              className="h-32 w-32 rounded-full object-cover border-4 border-gray-100"
+              className="h-32 w-32 rounded-full object-cover border-4 border-gray-100 dark:border-gray-600 transition-colors duration-300"
               onError={() => setAvatarLoadError(true)}
             />
           )}
@@ -143,34 +143,34 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
         )}
 
         {/* User Info */}
-        <h3 className="text-xl font-semibold text-gray-900 text-center">
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white text-center transition-colors duration-300">
           {user?.first_name} {user?.last_name}
         </h3>
-        <p className="text-sm text-gray-500 text-center">{user?.email}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 text-center transition-colors duration-300">{user?.email}</p>
 
         {/* Stats */}
         <div className="mt-6 w-full space-y-3">
           {/* Basic Info */}
           <div className="flex justify-between items-center py-2.5">
-            <span className="text-sm text-gray-500">Role</span>
-            <span className="text-sm font-medium text-gray-900 capitalize">
+            <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">Role</span>
+            <span className="text-sm font-medium text-gray-900 dark:text-white capitalize transition-colors duration-300">
               {user?.user_type?.toLowerCase() || "Landlord"}
             </span>
           </div>
           
           <div className="flex justify-between items-center py-2.5">
-            <span className="text-sm text-gray-500">Member Since</span>
-            <span className="text-sm font-medium text-gray-900">
+            <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">Member Since</span>
+            <span className="text-sm font-medium text-gray-900 dark:text-white transition-colors duration-300">
               {formatDate(user?.created_at)}
             </span>
           </div>
           
           {/* Divider */}
-          <div className="border-t border-gray-100 my-3"></div>
+          <div className="border-t border-gray-100 dark:border-gray-700 my-3 transition-colors duration-300"></div>
           
           {/* Status Section */}
           <div className="flex justify-between items-center py-2.5">
-            <span className="text-sm text-gray-500">Email Status</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">Email Status</span>
             <span className={`text-sm font-medium flex items-center ${user?.is_email_verified ? 'text-green-600' : 'text-amber-600'}`}>
               <i className={`fas ${user?.is_email_verified ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-1.5`}></i>
               {user?.is_email_verified ? 'Verified' : 'Unverified'}
@@ -178,8 +178,8 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
           </div>
           
           <div className="flex justify-between items-center py-2.5">
-            <span className="text-sm text-gray-500">Account Status</span>
-            <span className={`text-sm font-medium flex items-center ${user?.is_active ? 'text-green-600' : 'text-red-600'}`}>
+            <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">Account Status</span>
+            <span className={`text-sm font-medium flex items-center ${user?.is_active ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'} transition-colors duration-300`}>
               <i className={`fas ${user?.is_active ? 'fa-check-circle' : 'fa-times-circle'} mr-1.5`}></i>
               {user?.is_active ? 'Active' : 'Inactive'}
             </span>
@@ -187,8 +187,8 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
           
           {user?.is_admin && (
             <div className="flex justify-between items-center py-2.5">
-              <span className="text-sm text-gray-500">Admin</span>
-              <span className="text-sm font-medium text-purple-600 flex items-center">
+              <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">Admin</span>
+              <span className="text-sm font-medium text-purple-600 dark:text-purple-400 flex items-center transition-colors duration-300">
                 <i className="fas fa-shield-alt mr-1.5"></i>
                 Administrator
               </span>
@@ -198,12 +198,12 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
           {/* Contact Info */}
           {(user?.city || user?.province || user?.phone) && (
             <>
-              <div className="border-t border-gray-100 my-3"></div>
+              <div className="border-t border-gray-100 dark:border-gray-700 my-3 transition-colors duration-300"></div>
               
               {(user?.city || user?.province) && (
                 <div className="flex justify-between items-center py-2.5">
-                  <span className="text-sm text-gray-500">Location</span>
-                  <span className="text-sm font-medium text-gray-900 text-right">
+                  <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">Location</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white text-right transition-colors duration-300">
                     {[user?.city, user?.province].filter(Boolean).join(', ')}
                   </span>
                 </div>
@@ -211,8 +211,8 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
               
               {user?.phone && (
                 <div className="flex justify-between items-center py-2.5">
-                  <span className="text-sm text-gray-500">Phone</span>
-                  <span className="text-sm font-medium text-gray-900">
+                  <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">Phone</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white text-right transition-colors duration-300">
                     {formatPhoneDisplay(user.phone)}
                   </span>
                 </div>

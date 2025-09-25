@@ -286,7 +286,7 @@ const RentTracker = ({ onDataLoaded }) => {
     <div className="space-y-4">
       {/* Error message */}
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        <div className="bg-red-100 dark:bg-red-900/50 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-400 px-4 py-3 rounded">
           <p>{error}</p>
           <button
             onClick={loadRentTrackerData}
@@ -300,49 +300,49 @@ const RentTracker = ({ onDataLoaded }) => {
       {/* Summary Cards */}
       {showSummary && summary && (
         <div className="grid gap-4" style={{gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))"}}>
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <div className="text-sm text-gray-500">Total Expected</div>
-            <div className="text-xl mt-1 font-bold text-gray-900">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+            <div className="text-sm text-gray-500 dark:text-gray-400">Total Expected</div>
+            <div className="text-xl mt-1 font-bold text-gray-900 dark:text-gray-100">
               {formatCurrency(summary.total_expected)}
             </div>
           </div>
           
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <div className="text-sm text-gray-500">Total Collected</div>
-            <div className="text-xl mt-1 font-bold text-green-600">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+            <div className="text-sm text-gray-500 dark:text-gray-400">Total Collected</div>
+            <div className="text-xl mt-1 font-bold text-green-600 dark:text-green-400">
               {formatCurrency(summary.total_collected)}
             </div>
           </div>
           
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <div className="text-sm text-gray-500">Outstanding</div>
-            <div className="text-xl mt-1 font-bold text-red-600">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+            <div className="text-sm text-gray-500 dark:text-gray-400">Outstanding</div>
+            <div className="text-xl mt-1 font-bold text-red-600 dark:text-red-400">
               {formatCurrency(summary.total_outstanding)}
             </div>
           </div>
           
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <div className="text-sm text-gray-500">Collection Rate</div>
-            <div className="text-xl mt-1 font-bold text-blue-600">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+            <div className="text-sm text-gray-500 dark:text-gray-400">Collection Rate</div>
+            <div className="text-xl mt-1 font-bold text-blue-600 dark:text-blue-400">
               {summary.collection_rate}%
             </div>
           </div>
           
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <div className="text-sm text-gray-500 mb-2">Status Breakdown</div>
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">Status Breakdown</div>
             <div className="flex gap-1 mt-1 min-w-0">
               <div className="flex-1 text-center min-w-0">
-                <span className="inline-block w-full text-xs font-medium bg-green-100 text-green-800 px-1 py-2 rounded truncate">
+                <span className="inline-block w-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 px-1 py-2 rounded truncate">
                   {summary.units_paid} Paid
                 </span>
               </div>
               <div className="flex-1 text-center min-w-0">
-                <span className="inline-block w-full text-xs font-medium bg-yellow-100 text-yellow-800 px-1 py-2 rounded truncate">
+                <span className="inline-block w-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-1 py-2 rounded truncate">
                   {summary.units_partial} Partial
                 </span>
               </div>
               <div className="flex-1 text-center min-w-0">
-                <span className="inline-block w-full text-xs font-medium bg-red-100 text-red-800 px-1 py-2 rounded truncate">
+                <span className="inline-block w-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 px-1 py-2 rounded truncate">
                   {summary.units_overdue} Overdue
                 </span>
               </div>
@@ -352,12 +352,12 @@ const RentTracker = ({ onDataLoaded }) => {
       )}
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow-sm">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm transition-colors duration-300">
         {/* Action Buttons */}
         <div className="flex justify-between items-center mb-4">
           <button
             onClick={() => setShowSummary(!showSummary)}
-            className="text-sm text-blue-600 hover:text-blue-800"
+            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
           >
             {showSummary ? "Hide" : "Show"} Summary
           </button>
@@ -367,14 +367,14 @@ const RentTracker = ({ onDataLoaded }) => {
               data={csvData}
               headers={csvHeaders}
               filename={generateFilename()}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <i className="fas fa-download mr-2"></i>
               Export CSV
             </CSVLink>
             <button
               onClick={() => toast.info("PDF export coming soon!")}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <i className="fas fa-file-pdf mr-2"></i>
               Export PDF
@@ -385,12 +385,12 @@ const RentTracker = ({ onDataLoaded }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {/* Month Filter */}
           <div>
-            <label htmlFor="month-filter" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="month-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Month
             </label>
             <select
               id="month-filter"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
               value={currentMonth}
               onChange={(e) => setCurrentMonth(parseInt(e.target.value))}
             >
@@ -404,12 +404,12 @@ const RentTracker = ({ onDataLoaded }) => {
 
           {/* Year Filter */}
           <div>
-            <label htmlFor="year-filter" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="year-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Year
             </label>
             <select
               id="year-filter"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
               value={currentYear}
               onChange={(e) => setCurrentYear(parseInt(e.target.value))}
             >
@@ -423,12 +423,12 @@ const RentTracker = ({ onDataLoaded }) => {
 
           {/* Property Filter */}
           <div>
-            <label htmlFor="property-filter" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="property-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Property
             </label>
             <select
               id="property-filter"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
               value={selectedProperty}
               onChange={(e) => setSelectedProperty(e.target.value)}
             >
@@ -443,12 +443,12 @@ const RentTracker = ({ onDataLoaded }) => {
 
           {/* Status Filter */}
           <div>
-            <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Status
             </label>
             <select
               id="status-filter"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
             >
@@ -462,7 +462,7 @@ const RentTracker = ({ onDataLoaded }) => {
 
           {/* Search */}
           <div className="sm:col-span-2 lg:col-span-2 xl:col-span-2">
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Search
             </label>
             <div className="relative">
@@ -476,10 +476,10 @@ const RentTracker = ({ onDataLoaded }) => {
                   const sanitizedValue = e.target.value.replace(/[<>]/g, '');
                   setSearchTerm(sanitizedValue);
                 }}
-                className="block w-full rounded-md border-gray-300 shadow-sm pl-10 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm pl-10 focus:ring-blue-500 focus:border-blue-500 text-sm"
               />
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <i className="fas fa-search text-gray-400"></i>
+                <i className="fas fa-search text-gray-400 dark:text-gray-500"></i>
               </div>
             </div>
           </div>

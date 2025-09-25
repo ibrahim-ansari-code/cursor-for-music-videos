@@ -514,16 +514,16 @@ const ConfirmLeaseModal = ({
             animate="visible"
             exit="exit"
             variants={modalVariants}
-            className="relative w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden"
+            className="relative w-full max-w-3xl bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden"
           >
             {/* Header */}
-            <div className="sticky top-0 z-10 px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">
+            <div className="sticky top-0 z-10 px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                 Confirm Lease Details
               </h2>
               <button
                 onClick={onClose}
-                className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full p-1 transition-colors duration-200"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 rounded-full p-1 transition-colors duration-200"
                 aria-label="Close modal"
               >
                 <svg
@@ -543,7 +543,7 @@ const ConfirmLeaseModal = ({
             </div>
 
             {/* Body */}
-            <div className="p-6 max-h-[calc(100vh-12rem)] overflow-y-auto">
+            <div className="p-6 max-h-[calc(100vh-12rem)] overflow-y-auto bg-white dark:bg-gray-800">
               <AnimatePresence>
                 {error && <ErrorMessage message={error} />}
               </AnimatePresence>
@@ -553,7 +553,7 @@ const ConfirmLeaseModal = ({
                 <FormSection
                   title="Lease Document"
                   containerClass="space-y-6"
-                  titleClass="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200"
+                  titleClass="text-lg font-semibold text-gray-900 dark:text-gray-100 pb-1 border-b border-gray-200 dark:border-gray-700"
                 >
                   <div className="col-span-full mb-4">
                     <Button
@@ -580,7 +580,7 @@ const ConfirmLeaseModal = ({
                         animate={{ opacity: 1, height: "24rem" }} // Consistent height
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.3, ease: "easeInOut" }}
-                        className="col-span-full mt-1 mb-4 border rounded-lg overflow-hidden shadow bg-gray-50" // Consistent styling
+                        className="col-span-full mt-1 mb-4 border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden shadow bg-gray-50 dark:bg-gray-700" // Consistent styling
                       >
                         {renderPreviewContent(leaseData.file_url)}
                       </motion.div>
@@ -593,9 +593,9 @@ const ConfirmLeaseModal = ({
                 <FormSection
                   title="Tenant Information"
                   containerClass="space-y-6"
-                  titleClass="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200"
+                  titleClass="text-lg font-semibold text-gray-900 dark:text-gray-100 pb-1 border-b border-gray-200 dark:border-gray-700"
                 >
-                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
                     <div className="flex flex-col sm:flex-row justify-between">
                       <div>
                         <h4 className="font-medium text-gray-900">
@@ -613,7 +613,7 @@ const ConfirmLeaseModal = ({
                 <FormSection
                   title="Property & Unit Details"
                   containerClass="space-y-6"
-                  titleClass="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200"
+                  titleClass="text-lg font-semibold text-gray-900 dark:text-gray-100 pb-1 border-b border-gray-200 dark:border-gray-700"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Property Information */}
@@ -708,7 +708,7 @@ const ConfirmLeaseModal = ({
                 <FormSection
                   title="Lease Details"
                   containerClass="space-y-6"
-                  titleClass="text-lg font-semibold text-gray-900 pb-1 border-b border-gray-200"
+                  titleClass="text-lg font-semibold text-gray-900 dark:text-gray-100 pb-1 border-b border-gray-200 dark:border-gray-700"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -832,7 +832,7 @@ const ConfirmLeaseModal = ({
                         value={formData.special_terms || ""}
                         onChange={handleChange}
                         rows={2}
-                        className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200"
+                        className="w-full px-4 py-2.5 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 text-gray-900 border border-gray-300 bg-white dark:text-gray-100 dark:border-gray-600 dark:bg-gray-700"
                       />
                       <p className="mt-1 text-xs text-gray-500">
                         Any special conditions for this lease
@@ -844,7 +844,7 @@ const ConfirmLeaseModal = ({
             </div>
 
             {/* Footer */}
-            <div className="sticky bottom-0 z-10 px-6 py-4 bg-white border-t border-gray-200 flex justify-end space-x-3">
+            <div className="sticky bottom-0 z-10 px-6 py-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
               <Button type="button" variant="secondary" onClick={onClose}>
                 Cancel
               </Button>

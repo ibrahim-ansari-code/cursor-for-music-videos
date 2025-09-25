@@ -108,29 +108,26 @@ const UnitTable = ({
 
   if (loading)
     return (
-      <div className="p-8 text-center">
+      <div className="p-8 text-center bg-white dark:bg-gray-800">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
-        <p className="text-gray-600">Loading units...</p>
+        <p className="text-gray-600 dark:text-gray-400">Loading units...</p>
       </div>
     );
 
   if (error)
     return (
-      <div className="p-8 text-center text-red-600">
+      <div className="p-8 text-center text-red-600 dark:text-red-400 bg-white dark:bg-gray-800">
         Error loading units: {error}
       </div>
     );
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+      <table className="data-table min-w-full">
+        <thead>
           <tr>
             {showSelection && (
-              <th
-                scope="col"
-                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
+              <th scope="col" className="text-center">
                 <div className="flex items-center justify-center">
                   <input
                     type="checkbox"
@@ -147,63 +144,28 @@ const UnitTable = ({
                 </div>
               </th>
             )}
-            <th
-              scope="col"
-              className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Unit Number
-            </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Floor
-            </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Rent
-            </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Tenant
-            </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Lease Ends
-            </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Status
-            </th>
+            <th scope="col" className="text-center">Unit Number</th>
+            <th scope="col" className="text-center">Floor</th>
+            <th scope="col" className="text-center">Rent</th>
+            <th scope="col" className="text-center">Tenant</th>
+            <th scope="col" className="text-center">Lease Ends</th>
+            <th scope="col" className="text-center">Status</th>
             {!bulkMode && (
-              <th
-                scope="col"
-                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Actions
-              </th>
+              <th scope="col" className="text-center">Actions</th>
             )}
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody>
           {units && units.length > 0 ? (
-            units.map((unit) => (
+            units.map((unit, index) => (
               <tr
                 key={unit.id}
-                className={`transition-colors ${
+                className={`data-table-row transition-colors ${
                   isUnitSelected(unit.id)
-                    ? "bg-blue-50 border-blue-200"
+                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700"
                     : unit.is_rented && showSelection
-                    ? "bg-gray-50 opacity-75"
-                    : "hover:bg-gray-50"
+                    ? "bg-gray-50 dark:bg-gray-700/50 opacity-75"
+                    : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
                   }`}
               >
                 {showSelection && (
@@ -211,10 +173,10 @@ const UnitTable = ({
                     <div className="flex flex-col items-center">
                       <input
                         type="checkbox"
-                        className={`h-4 w-4 border-gray-300 rounded focus:ring-blue-500 ${
+                        className={`h-4 w-4 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 transition-colors duration-300 ${
                           unit.is_rented 
-                            ? 'opacity-50 cursor-not-allowed bg-gray-100' 
-                            : 'text-blue-600 cursor-pointer'
+                            ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-600' 
+                            : 'text-blue-600 cursor-pointer dark:bg-gray-700'
                         }`}
                         checked={isUnitSelected(unit.id)}
                         disabled={unit.is_rented}
@@ -222,26 +184,26 @@ const UnitTable = ({
                         title={unit.is_rented ? "Unit is occupied - cannot assign new tenant" : "Select for bulk assignment"}
                       />
                       {unit.is_rented && (
-                        <span className="text-xs text-gray-500 mt-1">Occupied</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 transition-colors duration-300">Occupied</span>
                       )}
                     </div>
                   </td>
                 )}
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 text-center transition-colors duration-300">
                   {unit.name || unit.id}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center transition-colors duration-300">
                   {unit.floor ?? "N/A"}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center transition-colors duration-300">
                   {formatCurrency(unit.monthly_rent)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center transition-colors duration-300">
                   <div className="truncate max-w-xs">
                     {getTenantName(unit)}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center transition-colors duration-300">
                   {getLeaseEndDate(unit)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -256,7 +218,7 @@ const UnitTable = ({
                       {!unit.is_rented && onAssign && (
                         <button
                           onClick={() => onAssign(unit)}
-                          className="text-green-600 hover:text-green-900 disabled:opacity-50"
+                          className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 disabled:opacity-50 transition-colors duration-300"
                         >
                           Assign
                         </button>
@@ -264,20 +226,20 @@ const UnitTable = ({
                       {unit.is_rented && onViewLease && (
                         <button
                           onClick={() => onViewLease(unit.id)}
-                          className="text-purple-600 hover:text-purple-900 disabled:opacity-50"
+                          className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300 disabled:opacity-50 transition-colors duration-300"
                         >
                           View Lease
                         </button>
                       )}
                       <button
                         onClick={() => onEdit && onEdit(unit.id)}
-                        className="text-blue-600 hover:text-blue-900 disabled:opacity-50"
+                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50 transition-colors duration-300"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => onDelete && onDelete(unit.id)}
-                        className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50 transition-colors duration-300"
                       >
                         Delete
                       </button>
@@ -293,7 +255,7 @@ const UnitTable = ({
                   let cols = 6; // Base columns: Unit Number, Floor, Rent, Tenant, Lease Ends, Status
                   return cols;
                 })()}
-                className="px-6 py-4 text-center text-sm text-gray-500"
+                className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300"
               >
                 No units found for this property.
               </td>

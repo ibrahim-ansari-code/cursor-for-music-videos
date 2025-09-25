@@ -82,10 +82,10 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
 }) => {
   // Helper functions
   const getInputClassName = (fieldName: string): string => {
-    const baseClasses = "w-full px-3 py-2.5 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-100 text-sm bg-white transition-all duration-200";
+    const baseClasses = "w-full px-3 py-2.5 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-100 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 transition-all duration-200";
     return errors[fieldName] 
-      ? `${baseClasses} border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-100`
-      : `${baseClasses} border-gray-300 hover:border-gray-400 focus:border-emerald-500`;
+      ? `${baseClasses} border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-500 focus:border-red-500 focus:ring-red-100 dark:focus:ring-red-900/30`
+      : `${baseClasses} border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 focus:border-emerald-500 dark:focus:border-emerald-400`;
   };
 
   const handlePropertyChange = (event: React.ChangeEvent<HTMLSelectElement>): void => {
@@ -110,13 +110,13 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
   return (
     <div className="space-y-3">
       {/* Expense Details Section */}
-      <div className="bg-white rounded-lg p-4 border border-gray-200 mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 mb-4">
         <div className="flex items-center mb-3">
           <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center mr-3">
             <DollarSign className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-gray-900">Expense Details</h3>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Expense Details</h3>
           </div>
         </div>
         
@@ -124,7 +124,7 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
           {/* Description */}
           <div>
-            <label htmlFor="description" className="block text-xs font-semibold text-gray-700 mb-1.5">
+            <label htmlFor="description" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
               Title/Description
             </label>
             <div className="relative">
@@ -134,7 +134,7 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
                 id="description"
                 value={formData.description || ''}
                 onChange={(e) => onUpdateField('description', e.target.value)}
-                className="w-full pl-10 pr-3 py-2.5 border-2 rounded-lg bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all duration-200 text-gray-900 text-sm"
+                className="w-full pl-10 pr-3 py-2.5 border-2 rounded-lg bg-white dark:bg-gray-700 focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 focus:outline-none transition-all duration-200 text-gray-900 dark:text-gray-100 text-sm border-gray-300 dark:border-gray-600"
                 placeholder="Expense title..."
               />
             </div>
@@ -142,8 +142,8 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
 
           {/* Property */}
           <div>
-            <label htmlFor="property" className="block text-xs font-semibold text-gray-700 mb-1.5">
-              Property <span className="text-red-500">*</span>
+            <label htmlFor="property" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              Property <span className="text-red-500 dark:text-red-400">*</span>
             </label>
             <select
               id="property"
@@ -159,14 +159,14 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
               ))}
             </select>
             {errors.property_id && (
-              <p className="mt-1 text-xs text-red-600">{errors.property_id}</p>
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.property_id}</p>
             )}
           </div>
 
           {/* Amount */}
           <div>
-            <label htmlFor="amount" className="block text-xs font-semibold text-gray-700 mb-1.5">
-              {mode === 'edit' ? 'Update Amount' : 'Expense Amount'} <span className="text-red-500">*</span>
+            <label htmlFor="amount" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              {mode === 'edit' ? 'Update Amount' : 'Expense Amount'} <span className="text-red-500 dark:text-red-400">*</span>
             </label>
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -177,16 +177,16 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
                 id="amount"
                 value={formData.amount || ''}
                 onChange={(e) => onUpdateField('amount', e.target.value)}
-                className={`w-full pl-10 pr-3 py-2.5 border-2 rounded-lg bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all duration-200 text-gray-900 font-medium text-sm ${
+                className={`w-full pl-10 pr-3 py-2.5 border-2 rounded-lg bg-white dark:bg-gray-700 focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 focus:outline-none transition-all duration-200 text-gray-900 dark:text-gray-100 font-medium text-sm ${
                   errors.amount 
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-100' 
-                    : 'border-gray-300 hover:border-gray-400'
+                    ? 'border-red-300 dark:border-red-500 focus:border-red-500 focus:ring-red-100 dark:focus:ring-red-900/30' 
+                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                 }`}
                 placeholder="0.00"
               />
             </div>
             {errors.amount && (
-              <p className="mt-1 text-xs text-red-600">{errors.amount}</p>
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.amount}</p>
             )}
           </div>
         </div>
@@ -195,8 +195,8 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
           {/* Category */}
           <div>
-            <label htmlFor="category" className="block text-xs font-semibold text-gray-700 mb-1.5">
-              Category <span className="text-red-500">*</span>
+            <label htmlFor="category" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              Category <span className="text-red-500 dark:text-red-400">*</span>
             </label>
             <div className="relative">
               <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -204,10 +204,10 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
                 id="category"
                 value={formData.category || ''}
                 onChange={(e) => onUpdateField('category', e.target.value)}
-                className={`w-full pl-10 pr-8 py-2.5 border-2 rounded-lg bg-white appearance-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all duration-200 text-gray-900 font-medium text-sm ${
+                className={`w-full pl-10 pr-8 py-2.5 border-2 rounded-lg bg-white dark:bg-gray-700 appearance-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 focus:outline-none transition-all duration-200 text-gray-900 dark:text-gray-100 font-medium text-sm ${
                   errors.category 
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-100' 
-                    : 'border-gray-300 hover:border-gray-400'
+                    ? 'border-red-300 dark:border-red-500 focus:border-red-500 focus:ring-red-100 dark:focus:ring-red-900/30' 
+                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                 }`}
               >
                 <option value="">Select category...</option>
@@ -218,19 +218,19 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
                 ))}
               </select>
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
             </div>
             {errors.category && (
-              <p className="mt-1 text-xs text-red-600">{errors.category}</p>
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.category}</p>
             )}
           </div>
 
           {/* Payment Method */}
           <div>
-            <label htmlFor="payment_method" className="block text-xs font-semibold text-gray-700 mb-1.5">
+            <label htmlFor="payment_method" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
               Payment Method
             </label>
             <select
@@ -247,14 +247,14 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
               ))}
             </select>
             {errors.payment_method && (
-              <p className="mt-1 text-xs text-red-600">{errors.payment_method}</p>
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.payment_method}</p>
             )}
           </div>
 
           {/* Date */}
           <div>
-            <label htmlFor="expense_date" className="block text-xs font-semibold text-gray-700 mb-1.5">
-              Date <span className="text-red-500">*</span>
+            <label htmlFor="expense_date" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              Date <span className="text-red-500 dark:text-red-400">*</span>
             </label>
             <input
               type="date"
@@ -264,7 +264,7 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
               className={getInputClassName('expense_date')}
             />
             {errors.expense_date && (
-              <p className="mt-1 text-xs text-red-600">{errors.expense_date}</p>
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.expense_date}</p>
             )}
           </div>
         </div>
@@ -277,7 +277,7 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
           {formData.taxes?.map((tax, index) => (
             <div 
               key={index} 
-              className="group relative bg-gradient-to-r from-emerald-50/50 to-emerald-50 border border-emerald-100 rounded-lg p-3 hover:shadow-sm transition-all duration-200"
+              className="group relative bg-gradient-to-r from-emerald-50/50 to-emerald-50 dark:from-emerald-900/20 dark:to-emerald-900/10 border border-emerald-100 dark:border-emerald-800 rounded-lg p-3 hover:shadow-sm transition-all duration-200"
             >
               <div className="flex items-center justify-between">
                 {/* Left side - all tax fields and controls except Add Tax button */}
@@ -291,10 +291,10 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
                       </svg>
                     </div>
                     <div>
-                      <h4 className="text-sm font-semibold text-gray-900">Tax Details</h4>
-                      <p className="text-xs text-gray-500">Applicable taxes (HST, GST, etc.)</p>
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Tax Details</h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Applicable taxes (HST, GST, etc.)</p>
                     </div>
-                    <div className="h-10 w-px bg-gray-300 ml-4"></div>
+                    <div className="h-10 w-px bg-gray-300 dark:bg-gray-600 ml-4"></div>
                   </div>
                 )}
 
@@ -307,8 +307,8 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
                     type="text"
                     value={tax.tax_name || ''}
                     onChange={(e) => onUpdateTaxLine(index, 'tax_name', e.target.value)}
-                    className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-100 bg-white text-sm ${
-                      errors[`tax_name_${index}`] ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-emerald-300'
+                    className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 ${
+                      errors[`tax_name_${index}`] ? 'border-red-300 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-emerald-300 dark:hover:border-emerald-500'
                     }`}
                     placeholder="Tax name (e.g., HST, GST)"
                   />
@@ -317,7 +317,7 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
                     React.cloneElement(taxRecommendationBanner, { isInline: true } as any)
                   }
                   {errors[`tax_name_${index}`] && (
-                    <p className="mt-1 text-xs text-red-600">{errors[`tax_name_${index}`]}</p>
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors[`tax_name_${index}`]}</p>
                   )}
                 </div>
 
@@ -331,15 +331,15 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
                       max="100"
                       value={tax.tax_rate || ''}
                       onChange={(e) => onUpdateTaxLine(index, 'tax_rate', e.target.value)}
-                      className={`w-full px-3 py-2 pr-8 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-100 bg-white text-sm ${
-                        errors[`tax_rate_${index}`] ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-emerald-300'
+                      className={`w-full px-3 py-2 pr-8 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 ${
+                        errors[`tax_rate_${index}`] ? 'border-red-300 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-emerald-300 dark:hover:border-emerald-500'
                       }`}
                       placeholder="13.00"
                     />
-                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">%</span>
+                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm">%</span>
                   </div>
                   {errors[`tax_rate_${index}`] && (
-                    <p className="mt-1 text-xs text-red-600">{errors[`tax_rate_${index}`]}</p>
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors[`tax_rate_${index}`]}</p>
                   )}
                 </div>
 
@@ -351,8 +351,8 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
                     disabled={!tax.tax_name || !tax.tax_rate}
                     className={`inline-flex items-center px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium ${
                       isDefaultTax(tax)
-                        ? 'bg-yellow-100 text-yellow-700 shadow-sm'
-                        : 'bg-white text-gray-500 hover:bg-yellow-50 hover:text-yellow-600 disabled:opacity-50 border border-gray-200'
+                        ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 shadow-sm'
+                        : 'bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:text-yellow-600 dark:hover:text-yellow-400 disabled:opacity-50 border border-gray-200 dark:border-gray-600'
                     }`}
                     title={getTaxTooltip(tax)}
                   >
@@ -391,7 +391,7 @@ const ExpenseFormFields: React.FC<ExpenseFormFieldsProps> = ({
                     <button
                       type="button"
                       onClick={() => onRemoveTaxLine(index)}
-                      className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                      className="p-2 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200"
                       title="Remove tax"
                     >
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

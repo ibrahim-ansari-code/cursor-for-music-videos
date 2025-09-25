@@ -75,7 +75,7 @@ const SmartReceiptProcessor: React.FC<SmartReceiptProcessorProps> = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={`bg-gradient-to-br from-white to-emerald-50/30 rounded-xl p-4 border border-emerald-100 shadow-sm hover:shadow-md transition-shadow duration-200 ${className}`}
+      className={`bg-gradient-to-br from-white to-emerald-50/30 dark:from-gray-800 dark:to-emerald-900/20 rounded-xl p-4 border border-emerald-100 dark:border-emerald-700 shadow-sm hover:shadow-md transition-shadow duration-200 ${className}`}
     >
       <div className="flex items-start gap-3">
         {/* Left Section - Branding & Info */}
@@ -83,11 +83,11 @@ const SmartReceiptProcessor: React.FC<SmartReceiptProcessorProps> = ({
           <div className="flex items-center gap-5">
             {/* Enhanced Icon Container - Centered */}
             <div className="relative flex-shrink-0">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 rounded-xl flex items-center justify-center shadow-lg">
                 <Receipt className="w-6 h-6 text-white" />
               </div>
               {/* AI Badge*/}
-              <div className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+              <div className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-gradient-to-br from-purple-500 to-purple-600 dark:from-purple-600 dark:to-purple-700 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800 shadow-sm">
                 <Brain className="w-3 h-3 text-white" />
               </div>
             </div>
@@ -95,14 +95,14 @@ const SmartReceiptProcessor: React.FC<SmartReceiptProcessorProps> = ({
             {/* Text Content */}
             <div className="flex-1 py-1.5">
               <div className="flex items-center gap-2.5 mb-1">
-                <h3 className="text-md font-semibold text-gray-900">
+                <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100">
                   Smart Receipt Processing
                 </h3>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-700">
                   AI-Powered
                 </span>
               </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
+              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                 Auto-extract amount, tax details, date & description from receipt
               </p>
             </div>
@@ -124,17 +124,17 @@ const SmartReceiptProcessor: React.FC<SmartReceiptProcessorProps> = ({
             className={`
               relative border-2 border-dashed rounded-lg p-3 h-16 flex items-center justify-center text-center transition-all duration-200 cursor-pointer
               ${isDragActive 
-                ? 'border-emerald-400 bg-emerald-50' 
+                ? 'border-emerald-400 dark:border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' 
                 : isProcessing 
-                  ? 'border-blue-300 bg-blue-50' 
+                  ? 'border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/20' 
                   : hasError
-                    ? 'border-red-300 bg-red-50'
+                    ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20'
                     : isSuccess
-                      ? 'border-green-300 bg-green-50'
-                      : 'border-emerald-200 bg-white hover:border-emerald-300 hover:bg-emerald-50'
+                      ? 'border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/20'
+                      : 'border-emerald-200 dark:border-emerald-700 bg-white dark:bg-gray-700 hover:border-emerald-300 dark:hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
               }
               ${isSubmitting || isProcessing ? 'opacity-75 cursor-not-allowed' : ''}
-              focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2
+              focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800
             `}
           >
             <input
@@ -158,12 +158,12 @@ const SmartReceiptProcessor: React.FC<SmartReceiptProcessorProps> = ({
                   exit={{ opacity: 0 }}
                   className="flex items-center space-x-6"
                 >
-                  <div className="w-6 h-6 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded flex items-center justify-center">
-                    <Upload className="w-3 h-3 text-emerald-600" />
+                  <div className="w-6 h-6 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-800 dark:to-emerald-900 rounded flex items-center justify-center">
+                    <Upload className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div className="text-center">
-                    <p className="font-medium text-gray-900 text-xs">Drop or Click to Browse</p>
-                    <p className="text-xs text-gray-500">PDF, PNG, JPG (10MB max)</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100 text-xs">Drop or Click to Browse</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">PDF, PNG, JPG (10MB max)</p>
                   </div>
                 </motion.div>
               )}
@@ -178,11 +178,11 @@ const SmartReceiptProcessor: React.FC<SmartReceiptProcessorProps> = ({
                   className="flex items-center space-x-2"
                 >
                   <div className="relative">
-                    <div className="w-5 h-5 border-2 border-blue-200 rounded-full animate-spin border-t-blue-600"></div>
-                    <Brain className="w-2 h-2 text-blue-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+                    <div className="w-5 h-5 border-2 border-blue-200 dark:border-blue-600 rounded-full animate-spin border-t-blue-600 dark:border-t-blue-400"></div>
+                    <Brain className="w-2 h-2 text-blue-600 dark:text-blue-400 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
                   </div>
                   <div className="text-left">
-                    <p className="text-xs font-semibold text-blue-800">Processing...</p>
+                    <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">Processing...</p>
                   </div>
                 </motion.div>
               )}
@@ -196,8 +196,8 @@ const SmartReceiptProcessor: React.FC<SmartReceiptProcessorProps> = ({
                   exit={{ opacity: 0 }}
                   className="flex items-center space-x-2"
                 >
-                  <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                  <p className="text-xs font-semibold text-red-800 truncate">Upload failed</p>
+                  <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+                  <p className="text-xs font-semibold text-red-800 dark:text-red-300 truncate">Upload failed</p>
                 </motion.div>
               )}
 
@@ -210,15 +210,15 @@ const SmartReceiptProcessor: React.FC<SmartReceiptProcessorProps> = ({
                   exit={{ opacity: 0 }}
                   className="flex items-center space-x-2"
                 >
-                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                  <div className="w-5 h-5 bg-green-500 dark:bg-green-600 rounded-full flex items-center justify-center">
                     <Check className="w-3 h-3 text-white" strokeWidth={3} />
                   </div>
                   <div className="text-left flex-1">
-                    <p className="text-xs font-semibold text-green-800">Success!</p>
+                    <p className="text-xs font-semibold text-green-800 dark:text-green-300">Success!</p>
                     <button
                       type="button"
                       onClick={() => receiptState.setShowReceiptPreview(!receiptState.showReceiptPreview)}
-                      className="text-xs text-green-700 hover:text-green-800 underline"
+                      className="text-xs text-green-700 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 underline"
                     >
                       {receiptState.showReceiptPreview ? 'Hide' : 'View'}
                     </button>
@@ -236,7 +236,7 @@ const SmartReceiptProcessor: React.FC<SmartReceiptProcessorProps> = ({
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="mt-4 pt-4 border-t border-emerald-100"
+          className="mt-4 pt-4 border-t border-emerald-100 dark:border-emerald-700"
         >
           <SharedReceiptPreview
             show={true}

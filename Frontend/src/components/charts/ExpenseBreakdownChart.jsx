@@ -23,10 +23,10 @@ const ExpenseBreakdownChart = ({ expenses = [] }) => {
     return (
       <div className="flex items-center justify-center h-[260px]">
         <div className="text-center">
-          <div className="w-16 h-16 mb-4 mx-auto rounded-full bg-gray-100 flex items-center justify-center">
+          <div className="w-16 h-16 mb-4 mx-auto rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
             <svg
               aria-hidden="true"
-              className="w-8 h-8 text-gray-400"
+              className="w-8 h-8 text-gray-400 dark:text-gray-500"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -39,8 +39,8 @@ const ExpenseBreakdownChart = ({ expenses = [] }) => {
               />
             </svg>
           </div>
-          <h3 className="text-base font-medium text-gray-800 mb-1">No Expense Data</h3>
-          <p className="text-xs text-gray-600">
+          <h3 className="text-base font-medium text-gray-800 dark:text-gray-200 mb-1">No Expense Data</h3>
+          <p className="text-xs text-gray-600 dark:text-gray-400">
             Add expenses to see a breakdown by category
           </p>
         </div>
@@ -104,7 +104,30 @@ const ExpenseBreakdownChart = ({ expenses = [] }) => {
     return null;
   };
 
-  // Custom label function for legend with percentages
+  // Dynamic colors based on dark mode
+  const [isDarkMode, setIsDarkMode] = React.useState(() => {
+    return document.documentElement.classList.contains('dark');
+  });
+  
+  // Watch for dark mode changes
+  React.useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          setIsDarkMode(document.documentElement.classList.contains('dark'));
+        }
+      });
+    });
+    
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+    
+    return () => observer.disconnect();
+  }, []);
+
+  // Custom label function for legend with percentages and dark mode support
   const renderLegend = (props) => {
     const { payload } = props;
     return (
@@ -114,7 +137,7 @@ const ExpenseBreakdownChart = ({ expenses = [] }) => {
         padding: '0 0 0 24px',
         fontSize: '13px',
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        color: '#374151'
+        color: isDarkMode ? '#F9FAFB' : '#374151' // white in dark, gray-700 in light
       }}>
         {payload.map((entry, index) => {
           const data = chartData.find(item => item.color === entry.color);
@@ -138,10 +161,16 @@ const ExpenseBreakdownChart = ({ expenses = [] }) => {
                 flexDirection: 'column',
                 lineHeight: '1.3'
               }}>
-                <span style={{ fontWeight: '500', color: '#111827' }}>
+                <span style={{ 
+                  fontWeight: '500', 
+                  color: isDarkMode ? '#F9FAFB' : '#111827' // white in dark, gray-900 in light
+                }}>
                   {entry.value}
                 </span>
-                <span style={{ fontSize: '12px', color: '#6B7280' }}>
+                <span style={{ 
+                  fontSize: '12px', 
+                  color: isDarkMode ? '#D1D5DB' : '#6B7280' // gray-300 in dark, gray-500 in light
+                }}>
                   ${data?.formattedValue || '0.00'} ({data?.percentage || '0.0'}%)
                 </span>
               </span>

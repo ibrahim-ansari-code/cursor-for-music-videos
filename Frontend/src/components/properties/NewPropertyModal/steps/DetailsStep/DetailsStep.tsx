@@ -187,14 +187,14 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
       {/* Tab Navigation - Only show when property type is selected */}
       {propertyType && (
         <div className="relative mb-4">
-          <div className="flex p-1 bg-gray-100 rounded-lg">
+          <div className="flex p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
             <button
               type="button"
               onClick={() => setActiveTab('basic')}
               className={`relative flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
                 activeTab === 'basic'
-                  ? 'text-blue-700 bg-white shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'text-blue-700 dark:text-blue-300 bg-white dark:bg-gray-800 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600'
               }`}
             >
               <FileText className="h-3.5 w-3.5 inline mr-1.5 mb-0.5" />
@@ -211,10 +211,10 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
               disabled={!propertyName}
               className={`relative flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
                 activeTab === 'specific'
-                  ? 'text-blue-700 bg-white shadow-sm'
+                  ? 'text-blue-700 dark:text-blue-300 bg-white dark:bg-gray-800 shadow-sm'
                   : !propertyName
-                  ? 'text-gray-400 cursor-not-allowed opacity-60'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-60'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600'
               }`}
               title={!propertyName ? 'Please complete basic information first' : undefined}
             >
@@ -248,7 +248,7 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                   {/* Name and Year/Status Row */}
                   <div className="flex gap-3">
                     <div className="flex-1">
-                      <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
+                      <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">
                         Property Name *
                       </label>
                       <input
@@ -257,42 +257,42 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                           minLength: { value: 3, message: 'At least 3 characters' }
                         })}
                         type="text"
-                        className={`w-full px-3 py-2.5 text-sm font-medium border-2 rounded-xl transition-all
+                        className={`w-full px-3 py-2.5 text-sm font-medium border-2 rounded-xl transition-all bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
                           ${errors.name 
-                            ? 'border-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-100' 
-                            : 'border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
+                            ? 'border-red-300 dark:border-red-500 focus:border-red-400 dark:focus:border-red-400 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-900' 
+                            : 'border-gray-200 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900'
                           }`}
                         placeholder="e.g., Maple Ridge Apartments"
                       />
                       {errors.name && (
-                        <p className="mt-1 text-xs text-red-600">
+                        <p className="mt-1 text-xs text-red-600 dark:text-red-400">
                           {errors.name.message}
                         </p>
                       )}
                     </div>
 
                     <div className="w-32">
-                      <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
+                      <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">
                         Year Built
                       </label>
                       <div className="relative">
-                        <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+                        <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-gray-500 pointer-events-none" />
                         <input
                           {...register('year_built')}
                           type="number"
                           min="1800"
                           max="2025"
-                          className={`w-full pl-8 pr-2 py-2.5 text-sm font-medium border-2 rounded-xl transition-all
+                          className={`w-full pl-8 pr-2 py-2.5 text-sm font-medium border-2 rounded-xl transition-all bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
                             ${errors.year_built 
-                              ? 'border-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-100' 
-                              : 'border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
+                              ? 'border-red-300 dark:border-red-500 focus:border-red-400 dark:focus:border-red-400 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-900' 
+                              : 'border-gray-200 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900'
                             }`}
                           placeholder=""
                         />
                       </div>
                       <div className="h-4 mt-1">
                         {errors.year_built && (
-                          <p className="text-xs text-red-600">
+                          <p className="text-xs text-red-600 dark:text-red-400">
                             {errors.year_built.message}
                           </p>
                         )}
@@ -300,12 +300,12 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                     </div>
 
                     <div className="w-36">
-                      <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
+                      <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">
                         Status
                       </label>
                       <select
                         {...register('status')}
-                        className="w-full px-3 py-2.5 text-sm font-medium border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 bg-white appearance-none cursor-pointer"
+                        className="w-full px-3 py-2.5 text-sm font-medium border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 appearance-none cursor-pointer"
                       >
                         {statusOptions.map(option => (
                           <option key={option.value} value={option.value}>
@@ -318,7 +318,7 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
 
                   {/* Property Type Selection */}
                   <div>
-                    <label className="text-xs font-semibold text-gray-700 mb-3 block">
+                    <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3 block">
                       Property Type *
                     </label>
                     <div className="grid grid-cols-5 gap-3 p-2">
@@ -338,16 +338,16 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                                 : 'hover:shadow-md'
                             }`}
                           >
-                            <div className={`absolute inset-0 bg-gradient-to-br ${
-                              isSelected ? colorClassMap[type.color].gradient : 'from-gray-50 to-gray-100'
+                            <div className={`absolute inset-0 bg-gradient-to-br transition-colors duration-300 ${
+                              isSelected ? colorClassMap[type.color].gradient : 'from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800'
                             } opacity-100`} />
                             
                             <div className="relative px-3 py-4 flex flex-col items-center justify-center space-y-2 min-h-[80px]">
-                              <Icon className={`h-7 w-7 ${
-                                isSelected ? 'text-white' : 'text-gray-600 group-hover:text-gray-800'
-                              } transition-colors flex-shrink-0`} />
-                              <span className={`text-[10px] font-semibold text-center leading-tight ${
-                                isSelected ? 'text-white' : 'text-gray-700'
+                              <Icon className={`h-7 w-7 transition-colors duration-300 ${
+                                isSelected ? 'text-white' : 'text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200'
+                              } flex-shrink-0`} />
+                              <span className={`text-[10px] font-semibold text-center leading-tight transition-colors duration-300 ${
+                                isSelected ? 'text-white' : 'text-gray-700 dark:text-gray-300'
                               }`}>
                                 {type.label}
                               </span>
@@ -368,18 +368,18 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
 
                   {/* Description with internal counter */}
                   <div className="flex-1 flex flex-col">
-                    <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
-                      Description <span className="text-gray-400 font-normal">(Optional)</span>
+                    <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">
+                      Description <span className="text-gray-400 dark:text-gray-500 font-normal">(Optional)</span>
                     </label>
                     <div className="relative flex-1">
                       <textarea
                         {...register('description')}
                         rows={3}
                         maxLength={500}
-                        className="w-full h-full px-3 py-2.5 pb-6 text-sm border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 resize-none transition-all"
+                        className="w-full h-full px-3 py-2.5 pb-6 text-sm border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 resize-none transition-all bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                         placeholder="Brief description of your property..."
                       />
-                      <div className="absolute bottom-1.5 right-2.5 text-[10px] text-gray-400">
+                      <div className="absolute bottom-1.5 right-2.5 text-[10px] text-gray-400 dark:text-gray-500">
                         {description?.length || 0}/500
                       </div>
                     </div>
@@ -390,7 +390,7 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                 <div className="col-span-5 flex flex-col space-y-4">
                   {/* Modern Property Preview Card */}
                   <motion.div 
-                    className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white to-gray-50 border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                    className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow"
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                   >
@@ -432,10 +432,10 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                             </div>
                           )}
                           <div>
-                            <h4 className="font-bold text-gray-900 text-base">
+                            <h4 className="font-bold text-gray-900 dark:text-gray-100 text-base">
                               {propertyName || 'Your Property'}
                             </h4>
-                            <p className="text-xs text-gray-500 flex items-center mt-0.5">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center mt-0.5">
                               <MapPin className="h-3 w-3 mr-1" />
                               {selectedType?.label || 'Select type'}{yearBuilt ? ` • ${yearBuilt}` : ''}
                             </p>
@@ -444,10 +444,10 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                         
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold
                           ${status === PropertyStatus.ACTIVE 
-                            ? 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border border-green-200' 
+                            ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900 dark:to-emerald-900 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700' 
                             : status === PropertyStatus.RENTED 
-                            ? 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200' 
-                            : 'bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200'
+                            ? 'bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900 dark:to-green-900 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700' 
+                            : 'bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-800 dark:to-slate-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
                           }`}>
                           <span className={`w-1.5 h-1.5 rounded-full mr-2 ${
                             status === PropertyStatus.ACTIVE ? 'bg-green-500' :
@@ -460,31 +460,31 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                   </motion.div>
 
                   {/* Compact Quick Tips */}
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100 flex-1 flex flex-col">
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900 rounded-xl p-4 border border-blue-100 dark:border-blue-800 flex-1 flex flex-col">
                     <div className="flex items-center mb-4">
-                      <div className="p-1.5 bg-blue-100 rounded-lg mr-2.5">
-                        <Info className="h-4 w-4 text-blue-600" />
+                      <div className="p-1.5 bg-blue-100 dark:bg-blue-800 rounded-lg mr-2.5">
+                        <Info className="h-4 w-4 text-blue-600 dark:text-blue-300" />
                       </div>
-                      <p className="font-semibold text-sm text-blue-900">Quick Tips</p>
+                      <p className="font-semibold text-sm text-blue-900 dark:text-blue-100">Quick Tips</p>
                     </div>
                     <div className="flex flex-col justify-between flex-1">
                       <div className="flex items-center">
                         <span className="inline-flex w-1.5 h-1.5 rounded-full bg-blue-500 mr-3 flex-shrink-0"></span>
-                        <span className="text-xs text-blue-700 leading-relaxed">Choose the property type that best matches your building structure</span>
+                        <span className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">Choose the property type that best matches your building structure</span>
                       </div>
                       {propertyType && (
                         <div className="flex items-center">
                           <span className="inline-flex w-1.5 h-1.5 rounded-full bg-blue-500 mr-3 flex-shrink-0"></span>
-                          <span className="text-xs text-blue-700 leading-relaxed">Enter {selectedType?.label.toLowerCase()} specific details in the next tab</span>
+                          <span className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">Enter {selectedType?.label.toLowerCase()} specific details in the next tab</span>
                         </div>
                       )}
                       <div className="flex items-center">
                         <span className="inline-flex w-1.5 h-1.5 rounded-full bg-blue-500 mr-3 flex-shrink-0"></span>
-                        <span className="text-xs text-blue-700 leading-relaxed">Units will be configured in the next step</span>
+                        <span className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">Units will be configured in the next step</span>
                       </div>
                       <div className="flex items-center">
                         <span className="inline-flex w-1.5 h-1.5 rounded-full bg-blue-500 mr-3 flex-shrink-0"></span>
-                        <span className="text-xs text-blue-700 leading-relaxed">Complete details improve your Brikli experience</span>
+                        <span className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">Complete details improve your Brikli experience</span>
                       </div>
                     </div>
                   </div>

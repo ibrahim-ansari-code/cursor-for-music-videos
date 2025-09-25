@@ -40,10 +40,10 @@ const UnitsStep: React.FC<UnitsStepProps> = ({ onNext }) => {
       return (
         <div className="text-center py-8">
           <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-300">
             Unit configuration is not available for {propertyType.toLowerCase()} properties.
           </p>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             You can add units manually after property creation if needed.
           </p>
         </div>
@@ -53,7 +53,7 @@ const UnitsStep: React.FC<UnitsStepProps> = ({ onNext }) => {
       return (
         <div className="text-center py-8">
           <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-          <p className="text-gray-600">Please select a property type first</p>
+          <p className="text-gray-600 dark:text-gray-300">Please select a property type first</p>
         </div>
       );
   }

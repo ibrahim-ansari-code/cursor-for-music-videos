@@ -83,7 +83,7 @@ const MixedUseForm: React.FC = () => {
     <div className="space-y-5">
       {/* Mixed-Use Type Selection */}
       <div>
-        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2.5 block">
+        <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5 block transition-colors duration-300">
           Development Type
         </label>
         <div className="grid grid-cols-3 gap-2 p-1">
@@ -95,20 +95,20 @@ const MixedUseForm: React.FC = () => {
               className={`
                 relative p-3 rounded-xl border-2 transition-all duration-200 group
                 ${mixedUseType === type.value 
-                  ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-purple-50 shadow-md' 
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                  ? 'border-indigo-500 dark:border-indigo-400 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/40 dark:to-purple-900/40 shadow-md' 
+                  : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm'
                 }
               `}
             >
               <div className="text-lg mb-1">{type.icon}</div>
-              <div className={`text-xs font-medium ${
-                mixedUseType === type.value ? 'text-indigo-700' : 'text-gray-700'
+              <div className={`text-xs font-medium transition-colors duration-300 ${
+                mixedUseType === type.value ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-700 dark:text-gray-300'
               }`}>
                 {type.label}
               </div>
               {mixedUseType === type.value && (
                 <div className="absolute top-1 right-1">
-                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 bg-indigo-500 dark:bg-indigo-400 rounded-full animate-pulse"></div>
                 </div>
               )}
             </button>
@@ -117,24 +117,24 @@ const MixedUseForm: React.FC = () => {
       </div>
 
       {/* Space Distribution - Primary Section */}
-      <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-4 border border-gray-200">
+      <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800/50 dark:to-gray-900/50 rounded-xl p-4 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
             Essential Details
           </span>
-          <span className="text-xs text-gray-500">* Required</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">* Required</span>
         </div>
         
         <div className="grid grid-cols-2 gap-3 mb-3">
           {/* Residential Square Feet */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200 hover:border-green-300 transition-colors group">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 hover:border-green-300 dark:hover:border-green-500 transition-colors group">
             <label className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-                <Home className="h-3.5 w-3.5 inline mr-1.5 text-green-500" />
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                <Home className="h-3.5 w-3.5 inline mr-1.5 text-green-500 dark:text-green-400" />
                 Residential SF <span className="text-red-500">*</span>
               </span>
               {residentialSquareFeet > 0 && (
-                <span className="text-xs text-green-600 font-semibold">{residentialSquareFeet.toLocaleString()}</span>
+                <span className="text-xs text-green-600 dark:text-green-400 font-semibold transition-colors duration-300">{residentialSquareFeet.toLocaleString()}</span>
               )}
             </label>
             <input
@@ -144,8 +144,8 @@ const MixedUseForm: React.FC = () => {
                 valueAsNumber: true
               })}
               type="number"
-              className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all ${
-                getFieldError('residential_square_feet') ? 'border-red-300' : 'border-gray-200'
+              className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-600 ${
+                getFieldError('residential_square_feet') ? 'border-red-300 dark:border-red-500' : ''
               }`}
               placeholder="50000"
             />
@@ -158,14 +158,14 @@ const MixedUseForm: React.FC = () => {
           </div>
 
           {/* Commercial Square Feet */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200 hover:border-purple-300 transition-colors group">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500 transition-colors group">
             <label className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-                <Store className="h-3.5 w-3.5 inline mr-1.5 text-purple-500" />
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                <Store className="h-3.5 w-3.5 inline mr-1.5 text-purple-500 dark:text-purple-400" />
                 Commercial SF <span className="text-red-500">*</span>
               </span>
               {commercialSquareFeet > 0 && (
-                <span className="text-xs text-purple-600 font-semibold">{commercialSquareFeet.toLocaleString()}</span>
+                <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold transition-colors duration-300">{commercialSquareFeet.toLocaleString()}</span>
               )}
             </label>
             <input
@@ -175,8 +175,8 @@ const MixedUseForm: React.FC = () => {
                 valueAsNumber: true
               })}
               type="number"
-              className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
-                getFieldError('commercial_square_feet') ? 'border-red-300' : 'border-gray-200'
+              className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-600 ${
+                getFieldError('commercial_square_feet') ? 'border-red-300 dark:border-red-500' : ''
               }`}
               placeholder="15000"
             />
@@ -191,9 +191,9 @@ const MixedUseForm: React.FC = () => {
 
         {/* Unit Counts */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="bg-white rounded-md p-2.5 border border-gray-200">
-            <label className="text-[10px] font-medium text-gray-600 block mb-1">
-              <Users className="h-3 w-3 inline mr-1 text-green-500" />
+          <div className="bg-white dark:bg-gray-800 rounded-md p-2.5 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-400 block mb-1 transition-colors duration-300">
+              <Users className="h-3 w-3 inline mr-1 text-green-500 dark:text-green-400" />
               Residential Units
             </label>
             <input
@@ -202,13 +202,13 @@ const MixedUseForm: React.FC = () => {
                 valueAsNumber: true
               })}
               type="number"
-              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-green-500"
+              className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-green-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               placeholder="40"
             />
           </div>
-          <div className="bg-white rounded-md p-2.5 border border-gray-200">
-            <label className="text-[10px] font-medium text-gray-600 block mb-1">
-              <Briefcase className="h-3 w-3 inline mr-1 text-purple-500" />
+          <div className="bg-white dark:bg-gray-800 rounded-md p-2.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-400 block mb-1 transition-colors duration-300">
+              <Briefcase className="h-3 w-3 inline mr-1 text-purple-500 dark:text-purple-400" />
               Commercial Units
             </label>
             <input
@@ -217,7 +217,7 @@ const MixedUseForm: React.FC = () => {
                 valueAsNumber: true
               })}
               type="number"
-              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-purple-500"
+              className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               placeholder="5"
             />
           </div>
@@ -225,23 +225,23 @@ const MixedUseForm: React.FC = () => {
       </div>
 
       {/* Unit Types Configuration */}
-      <div className="bg-white rounded-xl p-3.5 border border-gray-200 hover:shadow-sm transition-all">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600 hover:shadow-sm transition-all">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300">
             Unit Types & Mix
           </span>
         </div>
         
         {/* Residential Unit Types */}
-        <div className={`bg-white rounded-lg p-3 border mb-3 transition-all ${
-          !isResidentialUnitMixValid && residentialUnitsCount > 0 ? 'border-red-300 shadow-sm' : 'border-gray-200'
+        <div className={`bg-white dark:bg-gray-700 rounded-lg p-3 border mb-3 transition-all ${
+          !isResidentialUnitMixValid && residentialUnitsCount > 0 ? 'border-red-300 dark:border-red-500 shadow-sm' : 'border-gray-200 dark:border-gray-600'
         }`}>
-          <label className="text-xs font-medium text-gray-700 mb-2 block flex items-center justify-between">
+          <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 block flex items-center justify-between transition-colors duration-300">
             <span>Residential Unit Mix</span>
             {residentialUnitsCount > 0 && (
               <span className={`text-xs font-medium ${
-                isResidentialUnitMixValid ? 'text-green-600' : 'text-red-600'
-              }`}>
+                isResidentialUnitMixValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+              } transition-colors duration-300`}>
                 {residentialUnitMixTotal} / {residentialUnitsCount} units
                 {isResidentialUnitMixValid && ' ✓'}
               </span>
@@ -249,8 +249,8 @@ const MixedUseForm: React.FC = () => {
           </label>
           
           {residentialUnitsCount > 0 && residentialUnitMixTotal === 0 && (
-            <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-xs text-blue-700 flex items-center">
+            <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+              <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center transition-colors duration-300">
                 <Info className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
                 Distribute your {residentialUnitsCount} residential units across bedroom types below
               </p>
@@ -265,10 +265,10 @@ const MixedUseForm: React.FC = () => {
               { key: '4br', label: '4BR+' },
               { key: 'penthouse', label: 'Penthouse' }
             ].map((unit) => (
-              <div key={unit.key} className={`bg-gray-50 rounded-md p-2 border ${
-                !isResidentialUnitMixValid && residentialUnitsCount > 0 ? 'border-red-200' : 'border-gray-200'
+              <div key={unit.key} className={`bg-gray-50 dark:bg-gray-600 rounded-md p-2 border transition-colors duration-300 ${
+                !isResidentialUnitMixValid && residentialUnitsCount > 0 ? 'border-red-200 dark:border-red-400' : 'border-gray-200 dark:border-gray-500'
               }`}>
-                <label className="text-[10px] font-medium text-gray-600 block mb-1">
+                <label className="text-[10px] font-medium text-gray-600 dark:text-gray-400 block mb-1 transition-colors duration-300">
                   {unit.label}
                 </label>
                 <input
@@ -284,8 +284,8 @@ const MixedUseForm: React.FC = () => {
                     }
                   })}
                   type="number"
-                  className={`w-full px-1.5 py-1 text-xs border rounded focus:ring-1 focus:ring-green-500 ${
-                    !isResidentialUnitMixValid && residentialUnitsCount > 0 ? 'border-red-200' : 'border-gray-200'
+                  className={`w-full px-1.5 py-1 text-xs border rounded focus:ring-1 focus:ring-green-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300 ${
+                    !isResidentialUnitMixValid && residentialUnitsCount > 0 ? 'border-red-200 dark:border-red-400' : 'border-gray-200 dark:border-gray-600'
                   }`}
                   placeholder="0"
                 />
@@ -294,8 +294,8 @@ const MixedUseForm: React.FC = () => {
           </div>
           
           {!isResidentialUnitMixValid && residentialUnitsCount > 0 && residentialUnitMixTotal > 0 && (
-            <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-xs text-red-600 flex items-center">
+            <div className="mt-3 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg">
+              <p className="text-xs text-red-600 dark:text-red-400 flex items-center transition-colors duration-300">
                 <AlertCircle className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
                 Residential unit distribution ({residentialUnitMixTotal}) must equal total residential units ({residentialUnitsCount})
               </p>
@@ -304,8 +304,8 @@ const MixedUseForm: React.FC = () => {
         </div>
 
         {/* Commercial Space Types */}
-        <div className="bg-white rounded-lg p-3 border border-gray-200">
-          <label className="text-xs font-medium text-gray-700 mb-2 block">
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+          <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 block transition-colors duration-300">
             Commercial Space Types
           </label>
           <div className="grid grid-cols-3 gap-2">
@@ -320,7 +320,7 @@ const MixedUseForm: React.FC = () => {
               { value: 'bank', label: 'Bank/Financial', icon: '🏦' },
               { value: 'entertainment', label: 'Entertainment', icon: '🎭' }
             ].map((type) => (
-              <label key={type.value} className="flex items-center px-3 py-1.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+              <label key={type.value} className="flex items-center px-3 py-1.5 bg-gray-50 dark:bg-gray-600 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-500 transition-colors">
                 <input
                   type="checkbox"
                   checked={commercialSpaceTypes.includes(type.value)}
@@ -328,7 +328,7 @@ const MixedUseForm: React.FC = () => {
                   className="mr-2 h-3.5 w-3.5 text-purple-600 rounded focus:ring-purple-500"
                 />
                 <span className="text-sm">{type.icon}</span>
-                <span className="text-xs font-medium text-gray-700">{type.label}</span>
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">{type.label}</span>
               </label>
             ))}
           </div>
@@ -336,17 +336,17 @@ const MixedUseForm: React.FC = () => {
       </div>
 
       {/* Shared Facilities & Management */}
-      <div className="bg-gradient-to-br from-slate-50/50 to-gray-50/30 rounded-xl p-3.5 border border-gray-200">
+      <div className="bg-gradient-to-br from-slate-50/50 to-gray-50/30 dark:from-gray-800/50 dark:to-gray-900/30 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300">
             Shared Facilities & Management
           </span>
         </div>
         
         {/* Configuration Options */}
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <label className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 cursor-pointer transition-all">
-            <span className="text-xs font-medium text-gray-700">Separate Entrances</span>
+          <label className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 cursor-pointer transition-all">
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">Separate Entrances</span>
             <input
               type="checkbox"
               {...register('type_specific_details.separate_entrances')}
@@ -354,8 +354,8 @@ const MixedUseForm: React.FC = () => {
             />
           </label>
           
-          <label className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 cursor-pointer transition-all">
-            <span className="text-xs font-medium text-gray-700">Shared Parking</span>
+          <label className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 cursor-pointer transition-all">
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">Shared Parking</span>
             <input
               type="checkbox"
               {...register('type_specific_details.shared_parking')}
@@ -365,9 +365,9 @@ const MixedUseForm: React.FC = () => {
         </div>
 
         {/* Parking Spaces */}
-        <div className="bg-white rounded-lg p-3 border border-gray-200 mb-3">
-          <label className="text-xs font-medium text-gray-600 block mb-1">
-            <Car className="h-3.5 w-3.5 inline mr-1.5 text-amber-500" />
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 mb-3 transition-colors duration-300">
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1 transition-colors duration-300">
+            <Car className="h-3.5 w-3.5 inline mr-1.5 text-amber-500 dark:text-amber-400" />
             Total Parking Spaces
           </label>
           <input
@@ -376,14 +376,14 @@ const MixedUseForm: React.FC = () => {
               valueAsNumber: true
             })}
             type="number"
-            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-amber-500"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-amber-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
             placeholder="60"
           />
         </div>
 
         {/* Shared Amenities */}
-        <div className="bg-white rounded-lg p-3 border border-gray-200">
-          <label className="text-xs font-medium text-gray-700 mb-2 block">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+          <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 block transition-colors duration-300">
             Shared Amenities
           </label>
           <div className="grid grid-cols-3 gap-2">
@@ -398,14 +398,14 @@ const MixedUseForm: React.FC = () => {
               { value: 'business_center', label: 'Business Center' },
               { value: 'lounge', label: 'Lounge' }
             ].map((amenity) => (
-              <label key={amenity.value} className="flex items-center px-3 py-1.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+              <label key={amenity.value} className="flex items-center px-3 py-1.5 bg-gray-50 dark:bg-gray-600 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-500 transition-colors">
                 <input
                   type="checkbox"
                   checked={sharedAmenities.includes(amenity.value)}
                   onChange={(e) => handleArrayCheckbox('shared_amenities', amenity.value, e.target.checked)}
                   className="mr-2 h-3.5 w-3.5 text-green-600 rounded focus:ring-green-500"
                 />
-                <span className="text-xs font-medium text-gray-700">{amenity.label}</span>
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">{amenity.label}</span>
               </label>
             ))}
           </div>
@@ -413,16 +413,16 @@ const MixedUseForm: React.FC = () => {
       </div>
 
       {/* Management Structure */}
-      <div className="bg-gradient-to-br from-stone-50/40 to-gray-50/30 rounded-xl p-3.5 border border-gray-200">
+      <div className="bg-gradient-to-br from-stone-50/40 to-gray-50/30 dark:from-gray-800/40 dark:to-gray-900/30 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300">
             Management & Zoning
           </span>
         </div>
         
         <div className="space-y-3">
-          <label className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-indigo-300 cursor-pointer transition-all">
-            <span className="text-xs font-medium text-gray-700">Single Management Company</span>
+          <label className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-500 cursor-pointer transition-all">
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">Single Management Company</span>
             <input
               type="checkbox"
               {...register('type_specific_details.single_management_company')}
@@ -430,28 +430,28 @@ const MixedUseForm: React.FC = () => {
             />
           </label>
           
-          <div className="bg-white rounded-lg p-3 border border-gray-200">
-            <label className="text-xs font-medium text-gray-600 block mb-1">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1 transition-colors duration-300">
               Management Structure
             </label>
             <textarea
               {...register('type_specific_details.management_structure')}
-              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               rows={2}
               placeholder="Describe management structure (e.g., Single company manages both residential and commercial)"
             />
           </div>
           
-          <div className="bg-white rounded-lg p-3 border border-gray-200">
-            <label className="text-xs font-medium text-gray-600 block mb-1">
-              <MapPin className="h-3 w-3 inline mr-1 text-gray-500" />
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1 transition-colors duration-300">
+              <MapPin className="h-3 w-3 inline mr-1 text-gray-500 dark:text-gray-400" />
               Zoning Designation
             </label>
             <input
               {...register('type_specific_details.zoning_designation')}
               type="text"
               maxLength={50}
-              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-gray-500"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               placeholder="e.g., MU-2, C-MU, TOD"
             />
           </div>

@@ -87,16 +87,16 @@ const ResidentialReview: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-200"
+          className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl p-3 border border-blue-200 dark:border-blue-700 transition-colors duration-300"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-white rounded-lg shadow-sm">
-                <Home className="h-6 w-6 text-blue-600" />
+              <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm transition-colors duration-300">
+                <Home className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">{formData.name}</h3>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 transition-colors duration-300">{formData.name}</h3>
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
                   <span>{currentSubtype.emoji} {currentSubtype.label}</span>
                   <span>•</span>
                   <span>{formData.city}, {formData.province}</span>
@@ -137,16 +137,16 @@ const ResidentialReview: React.FC = () => {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-white rounded-xl border border-gray-200 p-3"
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 transition-colors duration-300"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-gray-500" />
-                  <h4 className="font-semibold text-gray-900">Location</h4>
+                  <MapPin className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">Location</h4>
                 </div>
                 <div className="text-right text-sm">
-                  <p className="font-medium text-gray-900">{formData.address}</p>
-                  <p className="text-gray-600">
+                  <p className="font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">{formData.address}</p>
+                  <p className="text-gray-600 dark:text-gray-400 transition-colors duration-300">
                     {formData.city}, {formData.province} {formData.postal_code?.replace(/^(.{3})(.{3})$/, '$1 $2')}
                     {formData.year_built && (
                       <span className="ml-2">• Built {formData.year_built}</span>
@@ -161,75 +161,75 @@ const ResidentialReview: React.FC = () => {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-white rounded-xl border border-gray-200 p-3"
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 transition-colors duration-300"
             >
               <div className="flex items-center gap-2 mb-3">
-                <Home className="h-4 w-4 text-gray-500" />
-                <h4 className="font-semibold text-gray-900">Property Specifications</h4>
+                <Home className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">Property Specifications</h4>
               </div>
               
               <div className="grid grid-cols-3 gap-2">
                 {bedrooms && (
-                  <div className="bg-blue-50 rounded-lg p-2 flex items-center gap-2 min-h-[60px]">
-                    <Bed className="h-5 w-5 text-blue-600 flex-shrink-0 ml-1.5 mr-1.5" />
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 flex items-center gap-2 min-h-[60px] transition-colors duration-300">
+                    <Bed className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 ml-1.5 mr-1.5" />
                     <div className="flex-1">
-                      <div className="text-base font-bold text-gray-900 text-center">{bedrooms}</div>
-                      <div className="text-xs text-gray-600 text-center">Bedroom{bedrooms !== 1 ? 's' : ''}</div>
+                      <div className="text-base font-bold text-gray-900 dark:text-gray-100 text-center transition-colors duration-300">{bedrooms}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 text-center transition-colors duration-300">Bedroom{bedrooms !== 1 ? 's' : ''}</div>
                     </div>
                   </div>
                 )}
                 {bathrooms && (
-                  <div className="bg-blue-50 rounded-lg p-2 flex items-center gap-2 min-h-[60px]">
-                    <Bath className="h-5 w-5 text-blue-600 flex-shrink-0 ml-1.5 mr-1.5" />
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 flex items-center gap-2 min-h-[60px] transition-colors duration-300">
+                    <Bath className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 ml-1.5 mr-1.5" />
                     <div className="flex-1">
-                      <div className="text-base font-bold text-gray-900 text-center">{bathrooms}</div>
-                      <div className="text-xs text-gray-600 text-center">Bathroom{bathrooms !== 1 ? 's' : ''}</div>
+                      <div className="text-base font-bold text-gray-900 dark:text-gray-100 text-center transition-colors duration-300">{bathrooms}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 text-center transition-colors duration-300">Bathroom{bathrooms !== 1 ? 's' : ''}</div>
                     </div>
                   </div>
                 )}
                 {squareFeet && (
-                  <div className="bg-indigo-50 rounded-lg p-2 flex items-center gap-2 min-h-[60px]">
-                    <Square className="h-5 w-5 text-indigo-600 flex-shrink-0 ml-1.5 mr-1.5" />
+                  <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-2 flex items-center gap-2 min-h-[60px] transition-colors duration-300">
+                    <Square className="h-5 w-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0 ml-1.5 mr-1.5" />
                     <div className="flex-1">
-                      <div className="text-base font-bold text-gray-900 text-center">{squareFeet.toLocaleString()}</div>
-                      <div className="text-xs text-gray-600 text-center">Sq Ft</div>
+                      <div className="text-base font-bold text-gray-900 dark:text-gray-100 text-center transition-colors duration-300">{squareFeet.toLocaleString()}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 text-center transition-colors duration-300">Sq Ft</div>
                     </div>
                   </div>
                 )}
                 {garageSpaces > 0 && (
-                  <div className="bg-amber-50 rounded-lg p-2 flex items-center gap-2 min-h-[60px]">
-                    <Car className="h-5 w-5 text-amber-600 flex-shrink-0 ml-1.5 mr-1.5" />
+                  <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2 flex items-center gap-2 min-h-[60px] transition-colors duration-300">
+                    <Car className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 ml-1.5 mr-1.5" />
                     <div className="flex-1">
-                      <div className="text-base font-bold text-gray-900 text-center">{garageSpaces}</div>
-                      <div className="text-xs text-gray-600 text-center">Garage</div>
+                      <div className="text-base font-bold text-gray-900 dark:text-gray-100 text-center transition-colors duration-300">{garageSpaces}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 text-center transition-colors duration-300">Garage</div>
                     </div>
                   </div>
                 )}
                 {stories && (
-                  <div className="bg-purple-50 rounded-lg p-2 flex items-center gap-2 min-h-[60px]">
-                    <Layers className="h-5 w-5 text-purple-600 flex-shrink-0 ml-1.5 mr-1.5" />
+                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-2 flex items-center gap-2 min-h-[60px] transition-colors duration-300">
+                    <Layers className="h-5 w-5 text-purple-600 dark:text-purple-400 flex-shrink-0 ml-1.5 mr-1.5" />
                     <div className="flex-1">
-                      <div className="text-base font-bold text-gray-900 text-center">{stories}</div>
-                      <div className="text-xs text-gray-600 text-center">Stories</div>
+                      <div className="text-base font-bold text-gray-900 dark:text-gray-100 text-center transition-colors duration-300">{stories}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 text-center transition-colors duration-300">Stories</div>
                     </div>
                   </div>
                 )}
                 {lotSize && (
-                  <div className="bg-green-50 rounded-lg p-2 flex items-center gap-2 min-h-[60px]">
-                    <Trees className="h-5 w-5 text-green-600 flex-shrink-0 ml-1.5 mr-1.5" />
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2 flex items-center gap-2 min-h-[60px] transition-colors duration-300">
+                    <Trees className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 ml-1.5 mr-1.5" />
                     <div className="flex-1">
-                      <div className="text-base font-bold text-gray-900 text-center">
+                      <div className="text-base font-bold text-gray-900 dark:text-gray-100 text-center transition-colors duration-300">
                         {lotSize >= 1000 ? `${(lotSize/1000).toFixed(1)}K` : lotSize.toLocaleString()}
                       </div>
-                      <div className="text-xs text-gray-600 text-center">Lot SF</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 text-center transition-colors duration-300">Lot SF</div>
                     </div>
                   </div>
                 )}
               </div>
               
               {formData.description && (
-                <div className="mt-2 text-xs text-gray-600 leading-tight">
-                  <span className="font-medium text-gray-700">Note:</span> {formData.description}
+                <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 leading-tight transition-colors duration-300">
+                  <span className="font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">Note:</span> {formData.description}
                 </div>
               )}
             </motion.div>
@@ -240,42 +240,42 @@ const ResidentialReview: React.FC = () => {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
-                className="bg-white rounded-xl border border-gray-200 p-3"
+                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 transition-colors duration-300"
               >
                 <div className="flex items-center gap-2 mb-3">
-                  <Key className="h-4 w-4 text-gray-500" />
-                  <h4 className="font-semibold text-gray-900">
+                  <Key className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">
                     {hasADU ? 'Units Configuration' : 'Rental Configuration'}
                   </h4>
                 </div>
                 
                 <div className="space-y-2">
                   {generatedUnits.map((unit, idx) => (
-                    <div key={idx} className="bg-gray-50 rounded-lg p-3">
+                    <div key={idx} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 transition-colors duration-300">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${
                             unit.unit_type === 'adu' ? 'bg-blue-500' : 'bg-green-500'
                           }`} />
-                          <span className="text-sm font-medium text-gray-900">{unit.name}</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">{unit.name}</span>
                           {unit.unit_type === 'adu' && (
-                            <span className="px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-full">
+                            <span className="px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/30 rounded-full transition-colors duration-300">
                               ADU
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-3 text-sm">
                           {unit.bedrooms !== undefined && (
-                            <span className="text-gray-600">{unit.bedrooms}BR</span>
+                            <span className="text-gray-600 dark:text-gray-400 transition-colors duration-300">{unit.bedrooms}BR</span>
                           )}
                           {unit.bathrooms !== undefined && (
-                            <span className="text-gray-600">{unit.bathrooms}BA</span>
+                            <span className="text-gray-600 dark:text-gray-400 transition-colors duration-300">{unit.bathrooms}BA</span>
                           )}
                           {unit.size && (
-                            <span className="text-gray-600">{unit.size.toLocaleString()}SF</span>
+                            <span className="text-gray-600 dark:text-gray-400 transition-colors duration-300">{unit.size.toLocaleString()}SF</span>
                           )}
                           {unit.monthly_rent && (
-                            <span className="font-semibold text-green-600">${unit.monthly_rent.toLocaleString()}</span>
+                            <span className="font-semibold text-green-600 dark:text-green-400 transition-colors duration-300">${unit.monthly_rent.toLocaleString()}</span>
                           )}
                         </div>
                       </div>
@@ -285,15 +285,15 @@ const ResidentialReview: React.FC = () => {
                 
                 {/* Revenue Summary */}
                 {totalMonthlyRent > 0 && (
-                  <div className="mt-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 border border-green-200">
+                  <div className="mt-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 rounded-lg p-3 border border-green-200 dark:border-green-700 transition-colors duration-300">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-900">Potential Income</span>
+                        <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        <span className="text-sm font-medium text-green-900 dark:text-green-200 transition-colors duration-300">Potential Income</span>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-bold text-green-700">${totalMonthlyRent.toLocaleString()}/mo</div>
-                        <div className="text-xs text-green-600">${(totalMonthlyRent * 12).toLocaleString()}/year</div>
+                        <div className="text-lg font-bold text-green-700 dark:text-green-300 transition-colors duration-300">${totalMonthlyRent.toLocaleString()}/mo</div>
+                        <div className="text-xs text-green-600 dark:text-green-400 transition-colors duration-300">${(totalMonthlyRent * 12).toLocaleString()}/year</div>
                       </div>
                     </div>
                   </div>
@@ -310,12 +310,12 @@ const ResidentialReview: React.FC = () => {
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-white rounded-xl border border-gray-200 p-3"
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 transition-colors duration-300"
             >
               <div className="flex items-center gap-2 mb-3">
-                <ImageIcon className="h-4 w-4 text-gray-500" />
-                <h4 className="font-semibold text-gray-900">Photos</h4>
-                <span className="text-sm text-gray-500">({images.length})</span>
+                <ImageIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">Photos</h4>
+                <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">({images.length})</span>
               </div>
               
               {images.length > 0 ? (
@@ -324,7 +324,7 @@ const ResidentialReview: React.FC = () => {
                     {imageUrls.slice(0, 4).map((url, idx) => (
                       <div
                         key={idx}
-                        className="aspect-[4/3] rounded-lg overflow-hidden border border-gray-200"
+                        className="aspect-[4/3] rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 transition-colors duration-300"
                       >
                         <img
                           src={url}
@@ -335,16 +335,16 @@ const ResidentialReview: React.FC = () => {
                     ))}
                   </div>
                   {images.length > 4 && (
-                    <div className="text-center py-2 bg-gray-50 rounded-lg">
-                      <span className="text-xs text-gray-600">+{images.length - 4} more photos</span>
+                    <div className="text-center py-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg transition-colors duration-300">
+                      <span className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">+{images.length - 4} more photos</span>
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="text-center py-6">
-                  <ImageIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-xs text-gray-500">No photos added</p>
-                  <p className="text-xs text-gray-400 mt-1">Consider adding photos to showcase your property</p>
+                  <ImageIcon className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">No photos added</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 transition-colors duration-300">Consider adding photos to showcase your property</p>
                 </div>
               )}
             </motion.div>
@@ -358,32 +358,32 @@ const ResidentialReview: React.FC = () => {
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
-                className="bg-white rounded-xl border border-gray-200 p-3"
+                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 transition-colors duration-300"
               >
-                <h4 className="font-semibold text-gray-900 mb-2">Features & Systems</h4>
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 transition-colors duration-300">Features & Systems</h4>
                 <div className="space-y-2 text-sm">
                   {typeSpecificDetails.heating_type && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Heating:</span>
-                      <span className="font-medium text-gray-900 capitalize">{typeSpecificDetails.heating_type.replace(/_/g, ' ')}</span>
+                      <span className="text-gray-600 dark:text-gray-400 transition-colors duration-300">Heating:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100 capitalize transition-colors duration-300">{typeSpecificDetails.heating_type.replace(/_/g, ' ')}</span>
                     </div>
                   )}
                   {typeSpecificDetails.cooling_type && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Cooling:</span>
-                      <span className="font-medium text-gray-900 capitalize">{typeSpecificDetails.cooling_type.replace(/_/g, ' ')}</span>
+                      <span className="text-gray-600 dark:text-gray-400 transition-colors duration-300">Cooling:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100 capitalize transition-colors duration-300">{typeSpecificDetails.cooling_type.replace(/_/g, ' ')}</span>
                     </div>
                   )}
                   {typeSpecificDetails.has_driveway && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Driveway:</span>
-                      <span className="font-medium text-green-600">Yes</span>
+                      <span className="text-gray-600 dark:text-gray-400 transition-colors duration-300">Driveway:</span>
+                      <span className="font-medium text-green-600 dark:text-green-400 transition-colors duration-300">Yes</span>
                     </div>
                   )}
                   {typeSpecificDetails.street_parking && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Street Parking:</span>
-                      <span className="font-medium text-green-600">Available</span>
+                      <span className="text-gray-600 dark:text-gray-400 transition-colors duration-300">Street Parking:</span>
+                      <span className="font-medium text-green-600 dark:text-green-400 transition-colors duration-300">Available</span>
                     </div>
                   )}
                 </div>
@@ -396,13 +396,13 @@ const ResidentialReview: React.FC = () => {
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 }}
-                className="bg-yellow-50 border border-yellow-200 rounded-xl p-3"
+                className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl p-3 transition-colors duration-300"
               >
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-xs font-medium text-yellow-900 mb-1">Optional items missing</p>
-                    <ul className="text-xs text-yellow-700 space-y-0.5">
+                    <p className="text-xs font-medium text-yellow-900 dark:text-yellow-200 mb-1 transition-colors duration-300">Optional items missing</p>
+                    <ul className="text-xs text-yellow-700 dark:text-yellow-300 space-y-0.5 transition-colors duration-300">
                       {warnings.map((warning, idx) => (
                         <li key={idx}>• {warning}</li>
                       ))}

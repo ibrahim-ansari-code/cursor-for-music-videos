@@ -23,13 +23,13 @@ export const StatusCardsGrid: React.FC<StatusCardsGridProps> = ({
     <StatusCard
       title="Active"
       count={statusCounts.ACTIVE}
-      iconBgColor={statusFilter === 'ACTIVE' ? 'bg-green-100' : 'bg-green-50'}
-      textColor="text-green-600"
+      iconBgColor={statusFilter === 'ACTIVE' ? 'bg-green-100 dark:bg-green-900' : 'bg-green-50 dark:bg-green-900/50'}
+      textColor="text-green-600 dark:text-green-400"
       onClick={() => onStatusCardClick('ACTIVE')}
       isLoading={isLoading && !hasProperties}
       icon={
         <svg
-          className="h-6 w-6 text-green-600"
+          className="h-6 w-6 text-green-600 dark:text-green-400"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -48,14 +48,14 @@ export const StatusCardsGrid: React.FC<StatusCardsGridProps> = ({
       title="Inactive"
       count={statusCounts.INACTIVE}
       iconBgColor={
-        statusFilter === 'INACTIVE' ? 'bg-orange-100' : 'bg-orange-50'
+        statusFilter === 'INACTIVE' ? 'bg-orange-100 dark:bg-orange-900' : 'bg-orange-50 dark:bg-orange-900/50'
       }
-      textColor="text-orange-600"
+      textColor="text-orange-600 dark:text-orange-400"
       onClick={() => onStatusCardClick('INACTIVE')}
       isLoading={isLoading && !hasProperties}
       icon={
         <svg
-          className="h-6 w-6 text-orange-600"
+          className="h-6 w-6 text-orange-600 dark:text-orange-400"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -73,13 +73,13 @@ export const StatusCardsGrid: React.FC<StatusCardsGridProps> = ({
     <StatusCard
       title="Vacant"
       count={statusCounts.VACANT}
-      iconBgColor={statusFilter === 'VACANT' ? 'bg-yellow-100' : 'bg-yellow-50'}
-      textColor="text-yellow-600"
+      iconBgColor={statusFilter === 'VACANT' ? 'bg-yellow-100 dark:bg-yellow-900' : 'bg-yellow-50 dark:bg-yellow-900/50'}
+      textColor="text-yellow-600 dark:text-yellow-400"
       onClick={() => onStatusCardClick('VACANT')}
       isLoading={isLoading && !hasProperties}
       icon={
         <svg
-          className="h-6 w-6 text-yellow-600"
+          className="h-6 w-6 text-yellow-600 dark:text-yellow-400"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -97,13 +97,13 @@ export const StatusCardsGrid: React.FC<StatusCardsGridProps> = ({
     <StatusCard
       title="Total"
       count={statusCounts.total}
-      iconBgColor={statusFilter === null ? 'bg-indigo-100' : 'bg-indigo-50'}
-      textColor="text-indigo-600"
+      iconBgColor={statusFilter === null ? 'bg-indigo-100 dark:bg-indigo-900' : 'bg-indigo-50 dark:bg-indigo-900/50'}
+      textColor="text-indigo-600 dark:text-indigo-400"
       onClick={onClearFilters}
       isLoading={isLoading && !hasProperties}
       icon={
         <svg
-          className="h-6 w-6 text-indigo-600"
+          className="h-6 w-6 text-indigo-600 dark:text-indigo-400"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"

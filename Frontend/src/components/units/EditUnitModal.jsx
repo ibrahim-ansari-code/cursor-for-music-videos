@@ -141,17 +141,17 @@ const EditUnitModal = ({
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">
+        <div className="px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             Edit Unit Details
           </h2>
           <button
             onClick={handleClose}
-            className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full p-1 transition-colors duration-200"
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 rounded-full p-1 transition-colors duration-200"
             aria-label="Close modal"
           >
             <svg
@@ -171,13 +171,13 @@ const EditUnitModal = ({
         </div>
 
         {/* Body */}
-        <div className="p-6">
+        <div className="p-6 bg-white dark:bg-gray-800">
           {/* Display rental status info if unit is rented */}
           {unit.is_rented && (
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
               <div className="flex items-center gap-3">
                 <svg
-                  className="h-5 w-5 text-blue-600 flex-shrink-0"
+                  className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -190,9 +190,9 @@ const EditUnitModal = ({
                   />
                 </svg>
                 <div className="text-sm">
-                  <p className="font-medium text-blue-900">This unit is currently rented</p>
+                  <p className="font-medium text-blue-900 dark:text-blue-100">This unit is currently rented</p>
                   {unit.tenant && (
-                    <p className="text-blue-700">
+                    <p className="text-blue-700 dark:text-blue-300">
                       Tenant: {unit.tenant.first_name} {unit.tenant.last_name}
                       {unit.monthly_rent && (
                         <span className="ml-2">• Rent: {formatCurrency(unit.monthly_rent)}</span>
@@ -210,7 +210,7 @@ const EditUnitModal = ({
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg flex items-start gap-2"
+                className="mb-6 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg flex items-start gap-2"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -235,7 +235,7 @@ const EditUnitModal = ({
               <div>
                 <label
                   htmlFor="name"
-                  className="block text-sm font-medium text-gray-700 mb-1 after:content-['*'] after:ml-0.5 after:text-red-500"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 after:content-['*'] after:ml-0.5 after:text-red-500"
                 >
                   Unit Number
                 </label>
@@ -246,7 +246,7 @@ const EditUnitModal = ({
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200"
+                  className="w-full px-4 py-2.5 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-all duration-200"
                   placeholder="e.g., 101"
                 />
               </div>
@@ -255,7 +255,7 @@ const EditUnitModal = ({
               <div>
                 <label
                   htmlFor="floor"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 >
                   Floor
                 </label>
@@ -266,7 +266,7 @@ const EditUnitModal = ({
                   value={formData.floor}
                   onChange={handleChange}
                   min="0"
-                  className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200"
+                  className="w-full px-4 py-2.5 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-all duration-200"
                   placeholder="e.g., 1"
                 />
               </div>
@@ -275,7 +275,7 @@ const EditUnitModal = ({
               <div>
                 <label
                   htmlFor="size"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 >
                   Size (sq ft)
                 </label>
@@ -287,7 +287,7 @@ const EditUnitModal = ({
                   onChange={handleChange}
                   min="0"
                   step="0.01"
-                  className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200"
+                  className="w-full px-4 py-2.5 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-all duration-200"
                   placeholder="e.g., 850"
                 />
               </div>
@@ -296,7 +296,7 @@ const EditUnitModal = ({
               <div>
                 <label
                   htmlFor="bedrooms"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 >
                   Bedrooms
                 </label>
@@ -307,7 +307,7 @@ const EditUnitModal = ({
                   value={formData.bedrooms}
                   onChange={handleChange}
                   min="0"
-                  className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200"
+                  className="w-full px-4 py-2.5 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-all duration-200"
                   placeholder="e.g., 2"
                 />
               </div>
@@ -316,7 +316,7 @@ const EditUnitModal = ({
               <div>
                 <label
                   htmlFor="bathrooms"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 >
                   Bathrooms
                 </label>
@@ -328,7 +328,7 @@ const EditUnitModal = ({
                   onChange={handleChange}
                   min="0"
                   step="0.5"
-                  className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200"
+                  className="w-full px-4 py-2.5 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-all duration-200"
                   placeholder="e.g., 1.5"
                 />
               </div>
@@ -338,7 +338,7 @@ const EditUnitModal = ({
             <div>
               <label
                 htmlFor="description"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
               >
                 Description
               </label>
@@ -348,7 +348,7 @@ const EditUnitModal = ({
                 value={formData.description}
                 onChange={handleChange}
                 rows={3}
-                className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200"
+                className="w-full px-4 py-2.5 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-all duration-200"
                 placeholder="Optional description of the unit..."
               />
             </div>
@@ -356,11 +356,11 @@ const EditUnitModal = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+        <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 flex justify-end space-x-3">
           <button
             type="button"
             onClick={handleClose}
-            className="px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
           >
             Cancel
           </button>
@@ -368,7 +368,7 @@ const EditUnitModal = ({
             type="submit"
             form="edit-unit-form"
             disabled={isLoading || isSubmitting}
-            className="px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            className="px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
             {isLoading || isSubmitting ? (
               <>

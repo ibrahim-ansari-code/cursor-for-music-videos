@@ -222,7 +222,7 @@ const SecurityForm = ({ user }) => {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-gray-900 mb-6">Security Settings</h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 transition-colors duration-300">Security Settings</h2>
       
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Current Password */}
@@ -236,20 +236,20 @@ const SecurityForm = ({ user }) => {
               value={passwordData.currentPassword}
               onChange={handlePasswordChange}
               placeholder="Enter your current password"
-              className="pr-10"
               autoComplete="current-password"
+              className="pr-10 bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
             />
             <button
               type="button"
               onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-300"
               aria-label={showCurrentPassword ? "Hide password" : "Show password"}
             >
               <i className={`fas ${showCurrentPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
             </button>
           </div>
           {errors.currentPassword && (
-            <p className="mt-1.5 text-sm text-red-600">{errors.currentPassword}</p>
+            <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.currentPassword}</p>
           )}
         </div>
 
@@ -264,13 +264,13 @@ const SecurityForm = ({ user }) => {
               value={passwordData.newPassword}
               onChange={handlePasswordChange}
               placeholder="Enter new password"
-              className="pr-10"
+              className="pr-10 bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
               autoComplete="new-password"
             />
             <button
               type="button"
               onClick={() => setShowNewPassword(!showNewPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-300"
               aria-label={showNewPassword ? "Hide password" : "Show password"}
             >
               <i className={`fas ${showNewPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
@@ -287,7 +287,7 @@ const SecurityForm = ({ user }) => {
                     style={{ width: `${(passwordStrength.strength / 5) * 100}%` }}
                   />
                 </div>
-                <span className="text-sm text-gray-600 font-medium min-w-[80px] text-right">
+                <span className="text-sm text-gray-600 dark:text-gray-400 font-medium min-w-[80px] text-right transition-colors duration-300">
                   {passwordStrength.label}
                 </span>
               </div>
@@ -295,7 +295,7 @@ const SecurityForm = ({ user }) => {
           )}
           
           {errors.newPassword && (
-            <p className="mt-1.5 text-sm text-red-600">{errors.newPassword}</p>
+            <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.newPassword}</p>
           )}
         </div>
 
@@ -310,40 +310,40 @@ const SecurityForm = ({ user }) => {
               value={passwordData.confirmPassword}
               onChange={handlePasswordChange}
               placeholder="Confirm new password"
-              className="pr-10"
+              className="pr-10 bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
               autoComplete="new-password"
             />
             <button
               type="button"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-300"
               aria-label={showConfirmPassword ? "Hide password" : "Show password"}
             >
               <i className={`fas ${showConfirmPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
             </button>
           </div>
           {errors.confirmPassword && (
-            <p className="mt-1.5 text-sm text-red-600">{errors.confirmPassword}</p>
+            <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.confirmPassword}</p>
           )}
         </div>
 
         {/* Password requirements - Compact version */}
-        <div className="bg-gray-50 rounded-lg p-3">
-          <p className="text-xs font-medium text-gray-700 mb-2">Password must contain:</p>
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 transition-colors duration-300">
+          <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-300">Password must contain:</p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-            <div className={`flex items-center ${passwordData.newPassword.length >= 8 ? 'text-green-600' : 'text-gray-500'}`}>
+            <div className={`flex items-center ${passwordData.newPassword.length >= 8 ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'} transition-colors duration-300`}>
               <i className={`fas ${passwordData.newPassword.length >= 8 ? 'fa-check' : 'fa-times'} mr-1.5 text-xs`}></i>
               8+ characters
             </div>
-            <div className={`flex items-center ${passwordData.newPassword.match(/[A-Z]/) ? 'text-green-600' : 'text-gray-500'}`}>
+            <div className={`flex items-center ${passwordData.newPassword.match(/[A-Z]/) ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'} transition-colors duration-300`}>
               <i className={`fas ${passwordData.newPassword.match(/[A-Z]/) ? 'fa-check' : 'fa-times'} mr-1.5 text-xs`}></i>
               Uppercase letter
             </div>
-            <div className={`flex items-center ${passwordData.newPassword.match(/[a-z]/) ? 'text-green-600' : 'text-gray-500'}`}>
+            <div className={`flex items-center ${passwordData.newPassword.match(/[a-z]/) ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'} transition-colors duration-300`}>
               <i className={`fas ${passwordData.newPassword.match(/[a-z]/) ? 'fa-check' : 'fa-times'} mr-1.5 text-xs`}></i>
               Lowercase letter
             </div>
-            <div className={`flex items-center ${passwordData.newPassword.match(/[0-9]/) ? 'text-green-600' : 'text-gray-500'}`}>
+            <div className={`flex items-center ${passwordData.newPassword.match(/[0-9]/) ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'} transition-colors duration-300`}>
               <i className={`fas ${passwordData.newPassword.match(/[0-9]/) ? 'fa-check' : 'fa-times'} mr-1.5 text-xs`}></i>
               Number
             </div>
@@ -355,16 +355,16 @@ const SecurityForm = ({ user }) => {
         </div>
 
         {errors.form && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600 flex items-center">
+          <div className="p-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-800 rounded-lg transition-colors duration-300">
+            <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
               <i className="fas fa-exclamation-circle mr-2"></i>
               {errors.form}
             </p>
           </div>
         )}
 
-        <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-600">
+        <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700 transition-colors duration-300">
+          <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
             Forgot your current password?{" "}
             <button
               type="button"
@@ -377,7 +377,7 @@ const SecurityForm = ({ user }) => {
                   toast.error("Failed to send reset email. Please try again.");
                 }
               }}
-              className="text-blue-600 hover:text-blue-700 font-medium"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors duration-300"
             >
               Send reset email
             </button>
@@ -407,11 +407,11 @@ const SecurityForm = ({ user }) => {
             }
           }}
         >
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 transition-colors duration-300">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 transition-colors duration-300">
               Enter Verification Code
             </h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 transition-colors duration-300">
               We've sent a 6-digit verification code to your email address. 
               Please enter it below to confirm your password change.
             </p>
@@ -433,10 +433,10 @@ const SecurityForm = ({ user }) => {
                 autoComplete="one-time-code"
                 autoFocus
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">
                 Enter the 6-digit code from your email
               </p>
-              <p className="mt-1 text-xs text-amber-600">
+              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 transition-colors duration-300">
                 <i className="fas fa-info-circle mr-1"></i>
                 Code expires in 60 minutes
               </p>
@@ -468,7 +468,7 @@ const SecurityForm = ({ user }) => {
               </Button>
             </div>
 
-            <p className="mt-4 text-xs text-gray-500 text-center">
+            <p className="mt-4 text-xs text-gray-500 dark:text-gray-400 text-center transition-colors duration-300">
               Didn't receive the code?{" "}
               <button
                 type="button"
@@ -481,7 +481,7 @@ const SecurityForm = ({ user }) => {
                     toast.error("Failed to resend code. Please try again.");
                   }
                 }}
-                className="text-blue-600 hover:text-blue-700 font-medium"
+                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors duration-300"
                 disabled={isLoading}
               >
                 Resend code

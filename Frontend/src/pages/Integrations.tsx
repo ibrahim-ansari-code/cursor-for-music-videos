@@ -91,11 +91,11 @@ const Integrations: React.FC = memo(() => {
         });
       }}
     >
-      <main className="p-4 sm:p-6 lg:p-8" role="main">
+      <main className="p-4 sm:p-6 lg:p-8 dark-bg min-h-screen" role="main">
         <div className="max-w-5xl mx-auto">
           <header className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Manage Integrations</h1>
-            <p className="text-gray-600 mt-1">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Manage Integrations</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
               Connect your Brikli account to other services to streamline your workflows.
             </p>
           </header>

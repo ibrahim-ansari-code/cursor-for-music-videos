@@ -907,7 +907,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
               transition={{ duration: 0.3, type: 'spring', stiffness: 300, damping: 30 }}
               layout
               layoutId="property-modal"
-              className="w-[90vw] max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden relative"
+              className="w-[90vw] max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden relative transition-colors duration-300"
               style={{ minHeight: '500px' }}
             >
               {/* Loading overlay */}
@@ -922,11 +922,11 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
                 } 
               />
             {/* Header */}
-            <div className="relative bg-white border-b border-gray-200">
+            <div className="relative bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-600 transition-colors duration-300">
               <div className="px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Dialog.Title className="text-lg font-semibold text-gray-900">
+                    <Dialog.Title className="text-lg font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">
                       {isEditing ? 'Edit Property' : 'New Property'}
                     </Dialog.Title>
                     <Dialog.Description className="sr-only">
@@ -937,10 +937,10 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
                   </div>
                   <Dialog.Close asChild>
                     <button
-                      className="rounded-lg p-1.5 hover:bg-gray-100 transition-colors"
+                      className="rounded-lg p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       aria-label="Close"
                     >
-                      <X className="h-5 w-5 text-gray-500" />
+                      <X className="h-5 w-5 text-gray-500 dark:text-gray-400 transition-colors duration-300" />
                     </button>
                   </Dialog.Close>
                 </div>
@@ -976,12 +976,12 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
                           <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
                         )}
                       </div>
-                      <span className={`text-xs mt-2 font-medium ${
+                      <span className={`text-xs mt-2 font-medium transition-colors duration-300 ${
                         index === currentStep
-                          ? 'text-gray-900'
+                          ? 'text-gray-900 dark:text-gray-100'
                           : index < currentStep
-                          ? 'text-gray-600'
-                          : 'text-gray-400'
+                          ? 'text-gray-600 dark:text-gray-400'
+                          : 'text-gray-400 dark:text-gray-500'
                       }`}>
                         {step.title}
                       </span>
@@ -989,7 +989,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
                     {index < STEPS.length - 1 && (
                       <div
                         className={`flex-1 h-0.5 mx-3 rounded-full transition-all mt-4 ${
-                          index < currentStep ? 'bg-blue-600' : 'bg-gray-200'
+                          index < currentStep ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'
                         }`}
                       />
                     )}
@@ -1023,7 +1023,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
             </motion.div>
 
             {/* Footer navigation */}
-            <div className="border-t px-6 py-3 flex justify-between items-center bg-white">
+            <div className="border-t px-6 py-3 flex justify-between items-center bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 transition-colors duration-300">
               <button
                 onClick={handlePrevious}
                 disabled={currentStep === 0}
@@ -1046,7 +1046,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
                         ? 'w-6 bg-blue-600'
                         : index < currentStep
                         ? 'w-1.5 bg-blue-400'
-                        : 'w-1.5 bg-gray-300'
+                        : 'w-1.5 bg-gray-300 dark:bg-gray-600'
                     }`}
                   />
                 ))}
@@ -1058,8 +1058,8 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
                   disabled={!isStepComplete()}
                   className={`flex items-center px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                     isStepComplete()
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      ? 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600'
+                      : 'bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                   }`}
                 >
                   {/* Show "Continue" when moving from basic to specific tab */}
@@ -1074,8 +1074,8 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
                   disabled={isSubmitting}
                   className={`flex items-center px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                     !isSubmitting
-                      ? 'bg-green-600 text-white hover:bg-green-700'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      ? 'bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600'
+                      : 'bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                   }`}
                 >
                   {isSubmitting ? 'Submitting...' : isEditing ? 'Update' : 'Create'}

@@ -36,7 +36,7 @@ const AccountingTableSkeleton = ({
 
     {/* Filters Skeleton with integrated buttons */}
     {showFilters && (
-      <div className="bg-white p-4 rounded-lg shadow-sm">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 transition-colors">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
           <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0">
             <div>
@@ -58,16 +58,16 @@ const AccountingTableSkeleton = ({
     )}
 
     {/* Table Skeleton */}
-    <div className="bg-white shadow rounded-lg overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden border dark:border-gray-700 transition-colors">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           {showHeader && (
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 {columns.map((width, index) => (
                   <th
                     key={index}
-                    className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${width}`}
+                    className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider ${width} transition-colors`}
                   >
                     <SkeletonLine width="80%" height="0.75rem" />
                   </th>
@@ -75,9 +75,9 @@ const AccountingTableSkeleton = ({
               </tr>
             </thead>
           )}
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 transition-colors">
             {Array.from({ length: rowCount }, (_, rowIndex) => (
-              <tr key={rowIndex} className="hover:bg-gray-50">
+              <tr key={rowIndex} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                 {columns.map((width, colIndex) => (
                   <td key={colIndex} className={`px-6 py-4 whitespace-nowrap ${width}`}>
                     {colIndex === avatarColumn && showAvatar ? (
@@ -111,7 +111,7 @@ const AccountingTableSkeleton = ({
       
       {/* Pagination Skeleton */}
       {showPagination && (
-        <div className="flex justify-between items-center mt-4 p-4">
+        <div className="flex justify-between items-center mt-4 p-4 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 transition-colors">
           <SkeletonLine width="80px" height="2.5rem" rounded="md" />
           <SkeletonLine width="60px" height="1rem" />
           <SkeletonLine width="60px" height="2.5rem" rounded="md" />
@@ -164,7 +164,7 @@ export const ExpensesTableSkeleton = (props) => (
 export const InvoicesTableSkeleton = (props) => (
   <div className="space-y-4">
     {/* Invoices-specific Filters Skeleton - 4 filters in grid + search/buttons */}
-    <div className="bg-white p-4 rounded-lg shadow-sm">
+    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 transition-colors">
       {/* 4-filter grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <div>
@@ -196,24 +196,24 @@ export const InvoicesTableSkeleton = (props) => (
     </div>
 
     {/* Table Skeleton */}
-    <div className="bg-white shadow rounded-lg overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden border dark:border-gray-700 transition-colors">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
               {COLUMN_WIDTHS.invoices.map((width, index) => (
                 <th
                   key={index}
-                  className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${width}`}
+                  className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider ${width} transition-colors`}
                 >
                   <SkeletonLine width="80%" height="0.75rem" />
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 transition-colors">
             {Array.from({ length: 8 }, (_, rowIndex) => (
-              <tr key={rowIndex} className="hover:bg-gray-50">
+              <tr key={rowIndex} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                 {COLUMN_WIDTHS.invoices.map((width, colIndex) => (
                   <td key={colIndex} className={`px-6 py-4 whitespace-nowrap ${width}`}>
                     <div className="text-center">
@@ -232,7 +232,7 @@ export const InvoicesTableSkeleton = (props) => (
       </div>
       
       {/* Pagination Skeleton */}
-      <div className="flex justify-between items-center mt-4 p-4">
+      <div className="flex justify-between items-center mt-4 p-4 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 transition-colors">
         <SkeletonLine width="80px" height="2.5rem" rounded="md" />
         <SkeletonLine width="60px" height="1rem" />
         <SkeletonLine width="60px" height="2.5rem" rounded="md" />

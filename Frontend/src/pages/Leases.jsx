@@ -296,11 +296,11 @@ const Leases = () => {
 
   if (loading && leases.length === 0) {
     return (
-      <div className="p-6 flex flex-col">
+      <div className="p-6 flex flex-col dark-bg">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end mb-6">
           <div className="mt-3 sm:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-            <div className="animate-pulse h-9 w-48 bg-gray-200 rounded"></div>
-            <div className="animate-pulse h-9 w-32 bg-gray-200 rounded"></div>
+            <div className="animate-pulse h-9 w-48 dark-input rounded transition-colors"></div>
+            <div className="animate-pulse h-9 w-32 dark-input rounded transition-colors"></div>
           </div>
         </div>
         <LeasesTableSkeleton rowCount={8} />
@@ -309,12 +309,12 @@ const Leases = () => {
   }
 
   return (
-    <div className="p-6 flex flex-col">
+    <div className="p-6 flex flex-col dark-bg">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end mb-6">
         <div className="mt-3 sm:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
           <div className="relative">
             <select
-              className="block w-full rounded-md border-gray-300 pr-10 py-2 text-base focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              className="dark-input block w-full pr-10 py-2 text-base focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -339,7 +339,7 @@ const Leases = () => {
       </div>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-200 px-4 py-3 rounded mb-4">
           <p>{error}</p>
           <button
             onClick={() => window.location.reload()}
@@ -350,219 +350,235 @@ const Leases = () => {
         </div>
       )}
 
-      <div className="bg-white shadow rounded-lg overflow-hidden relative">
+      <div className="dark-panel dark-shadow rounded-lg overflow-hidden relative">
         <div
           ref={tableScrollContainerRef}
-          className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-300px)] sm:max-h-[calc(100vh-250px)] lg:max-h-[calc(100vh-200px)]"
+          className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-300px)] sm:max-h-[calc(100vh-250px)] lg:max-h-[calc(100vh-200px)] scrollbar-thin"
         >
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="data-table min-w-full divide-y dark-divider">
+            <thead className="dark-input">
               <tr>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                 >
                   Tenant
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                 >
                   Property
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                 >
                   Dates
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                 >
                   Rent
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                 >
                   Status
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                 >
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="dark-panel divide-y dark-divider">
               {leases.length > 0 ? (
-                leases.map((lease) => (
-                  <tr key={lease.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-left">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
-                          {/* Tenant initials */}
-                          {getTenantInitials(lease.tenant)}
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {getTenantName(lease.tenant)}
+                leases.map((lease, index) => {
+                  return (
+                    <tr key={lease.id} className="hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-150">
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10 rounded-full dark-input flex items-center justify-center text-gray-600 dark:text-gray-300">
+                            {/* Tenant initials */}
+                            {getTenantInitials(lease.tenant)}
                           </div>
-                          <div className="text-sm text-gray-500">
-                            {lease.tenant?.email || ""}
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {getTenantName(lease.tenant)}
+                            </div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {lease.tenant?.email ? (
+                                <a 
+                                  href={`mailto:${lease.tenant.email}`}
+                                  className="email-link"
+                                >
+                                  {lease.tenant.email}
+                                </a>
+                              ) : (
+                                "No email"
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-left">
-                      <div className="text-sm text-gray-900">
-                        {lease.property?.name ||
-                          `Property #${lease.property_id}`}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {lease.unit?.name
-                          ? `Unit: ${lease.unit.name}`
-                          : lease.unit_id
-                          ? `Unit ID: ${lease.unit_id}`
-                          : "No unit specified"}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-left">
-                      <div className="text-sm text-gray-900">
-                        {new Date(lease.start_date).toLocaleDateString()} -{" "}
-                        {new Date(lease.end_date).toLocaleDateString()}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {Math.round(
-                          (new Date(lease.end_date) -
-                            new Date(lease.start_date)) /
-                            (1000 * 60 * 60 * 24 * 30)
-                        )}{" "}
-                        months
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-left">
-                      <div className="text-sm text-gray-900">
-                        ${Number(lease.monthly_rent).toFixed(2)}/month
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        Due: Day {lease.rent_due_day}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center justify-center">
-                        <span
-                          className={`badge ${getStatusBadgeClass(lease.status)}`}
-                        >
-                          {lease.status.charAt(0).toUpperCase() +
-                            lease.status.slice(1).toLowerCase()}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                      <div className="flex items-center justify-center space-x-2">
-                        {/* Documents dropdown or upload button */}
-                        {lease.documents && lease.documents.length > 0 ? (
-                          <div className="relative document-dropdown">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
+                        <div className="text-sm text-gray-900 dark:text-gray-100">
+                          {lease.property?.name ||
+                            `Property #${lease.property_id}`}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {lease.unit?.name
+                            ? `Unit: ${lease.unit.name}`
+                            : lease.unit_id
+                            ? `Unit ID: ${lease.unit_id}`
+                            : "No unit specified"}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
+                        <div className="text-sm text-gray-900 dark:text-gray-100">
+                          {new Date(lease.start_date).toLocaleDateString()} -{" "}
+                          {new Date(lease.end_date).toLocaleDateString()}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {Math.round(
+                            (new Date(lease.end_date) -
+                              new Date(lease.start_date)) /
+                              (1000 * 60 * 60 * 24 * 30)
+                          )}{" "}
+                          months
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
+                        <div className="text-sm text-gray-900 dark:text-gray-100">
+                          ${Number(lease.monthly_rent).toFixed(2)}/month
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          Due: Day {lease.rent_due_day}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center justify-center">
+                          <span
+                            className={`status-pill ${
+                              lease.status.toLowerCase() === 'active' ? 'status-pill-active' :
+                              lease.status.toLowerCase() === 'pending' ? 'status-pill-pending' :
+                              lease.status.toLowerCase() === 'expired' || lease.status.toLowerCase() === 'terminated' ? 'status-pill-overdue' :
+                              'status-pill-inactive'
+                            }`}
+                          >
+                            {lease.status.charAt(0).toUpperCase() +
+                              lease.status.slice(1).toLowerCase()}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <div className="flex items-center justify-center space-x-2">
+                          {/* Documents dropdown or upload button */}
+                          {lease.documents && lease.documents.length > 0 ? (
+                            <div className="relative document-dropdown">
+                              <button
+                                type="button"
+                                ref={(el) =>
+                                  (documentButtonRefs.current[lease.id] = el)
+                                }
+                                onClick={(e) => toggleDocumentDropdown(e, lease)}
+                                className="text-purple-600 hover:text-purple-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 transition-colors duration-150"
+                                title={`View ${lease.documents.length} document${
+                                  lease.documents.length > 1 ? "s" : ""
+                                }`}
+                              >
+                                <i className="fas fa-eye"></i>
+                                {lease.documents.length > 1 && (
+                                  <span className="ml-1 text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded-full">
+                                    {lease.documents.length}
+                                  </span>
+                                )}
+                              </button>
+
+                              {/* Dropdown menu */}
+                              {openDocumentDropdown === lease.id && (
+                                <div
+                                  className={`absolute right-0 w-56 rounded-md dark-shadow dark-panel ring-1 ring-black ring-opacity-5 dark:ring-gray-600 z-20 ${dropdownPositionClass}`}
+                                >
+                                  <div className="py-1" role="menu">
+                                    {lease.documents.map((doc, index) => (
+                                      <button
+                                        key={doc.id || index}
+                                        type="button"
+                                        onClick={() =>
+                                          handlePreviewDocument(lease, doc)
+                                        }
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100 flex items-center justify-between"
+                                        role="menuitem"
+                                      >
+                                        <span className="truncate">
+                                          {doc.document_type
+                                            .charAt(0)
+                                            .toUpperCase() +
+                                            doc.document_type.slice(1)}
+                                        </span>
+                                        <i className="fas fa-external-link-alt text-gray-400 text-xs"></i>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
                             <button
                               type="button"
-                              ref={(el) =>
-                                (documentButtonRefs.current[lease.id] = el)
-                              }
-                              onClick={(e) => toggleDocumentDropdown(e, lease)}
-                              className="text-purple-600 hover:text-purple-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 transition-colors duration-150"
-                              title={`View ${lease.documents.length} document${
-                                lease.documents.length > 1 ? "s" : ""
-                              }`}
+                              onClick={() => handleShowModal("upload", lease)}
+                              className="text-green-600 hover:text-green-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 transition-colors duration-150"
+                              title="Upload document"
                             >
-                              <i className="fas fa-eye"></i>
-                              {lease.documents.length > 1 && (
-                                <span className="ml-1 text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded-full">
-                                  {lease.documents.length}
-                                </span>
-                              )}
+                              <i className="fas fa-file-upload"></i>
                             </button>
+                          )}
 
-                            {/* Dropdown menu */}
-                            {openDocumentDropdown === lease.id && (
-                              <div
-                                className={`absolute right-0 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20 ${dropdownPositionClass}`}
-                              >
-                                <div className="py-1" role="menu">
-                                  {lease.documents.map((doc, index) => (
-                                    <button
-                                      key={doc.id || index}
-                                      type="button"
-                                      onClick={() =>
-                                        handlePreviewDocument(lease, doc)
-                                      }
-                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 flex items-center justify-between"
-                                      role="menuitem"
-                                    >
-                                      <span className="truncate">
-                                        {doc.document_type
-                                          .charAt(0)
-                                          .toUpperCase() +
-                                          doc.document_type.slice(1)}
-                                      </span>
-                                      <i className="fas fa-external-link-alt text-gray-400 text-xs"></i>
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
+                          {/* Edit button */}
                           <button
                             type="button"
-                            onClick={() => handleShowModal("upload", lease)}
-                            className="text-green-600 hover:text-green-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 transition-colors duration-150"
-                            title="Upload document"
+                            onClick={() => handleShowModal("edit", lease)}
+                            className="text-indigo-600 hover:text-indigo-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 transition-colors duration-150"
+                            title="Edit lease"
                           >
-                            <i className="fas fa-file-upload"></i>
+                            <i className="fas fa-edit"></i>
                           </button>
-                        )}
 
-                        {/* Edit button */}
-                        <button
-                          type="button"
-                          onClick={() => handleShowModal("edit", lease)}
-                          className="text-indigo-600 hover:text-indigo-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 transition-colors duration-150"
-                          title="Edit lease"
-                        >
-                          <i className="fas fa-edit"></i>
-                        </button>
+                          {/* Status update button */}
+                          <button
+                            type="button"
+                            onClick={() => handleShowModal("status", lease)}
+                            className="text-blue-600 hover:text-blue-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors duration-150"
+                            title="Update status"
+                          >
+                            <i className="fas fa-tasks"></i>
+                          </button>
 
-                        {/* Status update button */}
-                        <button
-                          type="button"
-                          onClick={() => handleShowModal("status", lease)}
-                          className="text-blue-600 hover:text-blue-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors duration-150"
-                          title="Update status"
-                        >
-                          <i className="fas fa-tasks"></i>
-                        </button>
-
-                        {/* Delete button */}
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteLease(lease.id)}
-                          className="text-red-600 hover:text-red-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-colors duration-150"
-                          title="Delete lease"
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          {/* Delete button */}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteLease(lease.id)}
+                            className="text-red-600 hover:text-red-800 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-colors duration-150"
+                            title="Delete lease"
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td
                     colSpan="6"
-                    className="px-6 py-4 text-center text-sm text-gray-500"
+                    className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     No leases found
                   </td>
@@ -577,9 +593,9 @@ const Leases = () => {
       {showModal && modalType === "upload" && selectedLease && (
         <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
           <div className="fixed inset-0 bg-black bg-opacity-50"></div>
-          <div className="relative bg-white rounded-lg max-w-md w-full mx-auto p-6">
+          <div className="glassmorphism relative rounded-lg max-w-md w-full mx-auto p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Upload Lease Document</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Upload Lease Document</h3>
               <button
                 onClick={handleCloseModal}
                 className="text-gray-400 hover:text-gray-500"
@@ -590,11 +606,11 @@ const Leases = () => {
 
             <form onSubmit={handleUploadDocument}>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Document Type
                 </label>
                 <select
-                  className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="dark-input block w-full py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   value={uploadDocumentType}
                   onChange={(e) => setUploadDocumentType(e.target.value)}
                   required
@@ -608,12 +624,12 @@ const Leases = () => {
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   File
                 </label>
                 <input
                   type="file"
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 dark:file:bg-blue-900/20 file:text-blue-700 dark:file:text-blue-400 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/30"
                   onChange={handleFileChange}
                   required
                 />
@@ -623,7 +639,7 @@ const Leases = () => {
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   Cancel
                 </button>

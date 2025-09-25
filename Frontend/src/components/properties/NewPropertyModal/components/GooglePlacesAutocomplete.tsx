@@ -332,7 +332,7 @@ const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> = React.
       </span>
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-4 w-4 text-gray-400" />
+          <Search className="h-4 w-4 text-gray-400 dark:text-gray-500 transition-colors duration-300" />
         </div>
         <input
           ref={inputRef}
@@ -342,8 +342,8 @@ const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> = React.
           onKeyDown={handleKeyDown}
           onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
           placeholder="123 Main Street, Toronto"
-          className="block w-full pl-10 pr-16 py-3 text-sm border border-gray-300 rounded-md 
-                     focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+          className="block w-full pl-10 pr-16 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-md 
+                     focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           autoComplete="off"
           role="combobox"
           aria-expanded={showSuggestions}
@@ -357,7 +357,7 @@ const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> = React.
         />
         <div className="absolute inset-y-0 right-0 flex items-center pr-3 gap-2">
           {/* Google Icon */}
-          <div className="flex items-center border-l border-gray-200 pl-2">
+          <div className="flex items-center border-l border-gray-200 dark:border-gray-600 pl-2 transition-colors duration-300">
             <GoogleIcon className="h-4 w-4" />
           </div>
           {/* Clear/Loading button */}
@@ -365,13 +365,13 @@ const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> = React.
             <button
               type="button"
               onClick={clearInput}
-              className="ml-1 hover:bg-gray-50 rounded p-1 transition-colors"
+              className="ml-1 hover:bg-gray-50 dark:hover:bg-gray-600 rounded p-1 transition-colors"
               aria-label={isLoading ? "Loading suggestions" : "Clear address"}
             >
               {isLoading ? (
                 <span className="h-3.5 w-3.5 inline-block animate-spin border-2 border-gray-300 border-t-transparent rounded-full" />
               ) : (
-                <X className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600" />
+                <X className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-300" />
               )}
             </button>
           )}
@@ -382,8 +382,8 @@ const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> = React.
       {showSuggestions && (
         <div
           ref={suggestionsRef}
-          className="absolute z-50 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 
-                     max-h-60 overflow-auto"
+          className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-600 
+                     max-h-60 overflow-auto transition-colors duration-300"
           id={listboxId.current}
           role="listbox"
         >
@@ -394,25 +394,25 @@ const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> = React.
                 type="button"
                 onClick={() => selectPlace(suggestion)}
                 onMouseEnter={() => setSelectedIndex(index)}
-                className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50
-                           ${index === selectedIndex ? 'bg-gray-50' : ''}
-                           ${index > 0 ? 'border-t border-gray-100' : ''}`}
+                className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-300
+                           ${index === selectedIndex ? 'bg-gray-50 dark:bg-gray-700' : ''}
+                           ${index > 0 ? 'border-t border-gray-100 dark:border-gray-600' : ''}`}
                 id={`${listboxId.current}-option-${index}`}
                 role="option"
                 aria-selected={index === selectedIndex}
                 data-index={index}
               >
-                <div className="font-medium text-gray-900 truncate">
+                <div className="font-medium text-gray-900 dark:text-gray-100 truncate transition-colors duration-300">
                   {suggestion.mainText}
                 </div>
-                <div className="text-xs text-gray-500 truncate">
+                <div className="text-xs text-gray-500 dark:text-gray-400 truncate transition-colors duration-300">
                   {suggestion.secondaryText}
                 </div>
               </button>
             ))
           ) : (
             inputValue.trim().length >= 3 && (
-              <div className="px-3 py-2 text-sm text-gray-500">No results</div>
+              <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">No results</div>
             )
           )}
         </div>

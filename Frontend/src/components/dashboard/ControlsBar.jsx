@@ -27,7 +27,7 @@ const ControlsBar = ({
     <div className="flex flex-col md:flex-row md:items-center md:justify-between">
       <div className="mt-3 md:mt-0 flex space-x-3">
         <select
-          className="border border-gray-300 rounded-md py-1.5 pl-3 pr-10 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 w-48 truncate"
+          className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md py-1.5 pl-3 pr-10 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 w-48 truncate"
           value={selectedProperty}
           onChange={(e) => onChangeProperty?.(e.target.value)}
         >
@@ -39,7 +39,7 @@ const ControlsBar = ({
         </select>
 
         <select
-          className="border border-gray-300 rounded-md py-1.5 pl-3 pr-10 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 w-44"
+          className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md py-1.5 pl-3 pr-10 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 w-44"
           value={timePeriod}
           onChange={(e) => onChangeTimePeriod?.(e.target.value)}
         >
@@ -56,14 +56,14 @@ const ControlsBar = ({
           <div className="flex items-center space-x-2">
             <input
               type="date"
-              className="border border-gray-300 rounded-md py-1.5 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md py-1.5 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 dark:[color-scheme:dark]"
               value={currentRange?.start || ""}
               onChange={(e) => onSetCustomRange?.({ ...currentRange, start: e.target.value })}
             />
-            <span className="text-gray-400">to</span>
+            <span className="text-gray-400 dark:text-gray-500">to</span>
             <input
               type="date"
-              className="border border-gray-300 rounded-md py-1.5 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md py-1.5 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 dark:[color-scheme:dark]"
               value={currentRange?.end || ""}
               onChange={(e) => onSetCustomRange?.({ ...currentRange, end: e.target.value })}
             />

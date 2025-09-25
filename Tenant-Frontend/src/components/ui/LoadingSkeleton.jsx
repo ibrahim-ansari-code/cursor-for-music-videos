@@ -6,7 +6,7 @@ import PropTypes from 'prop-types';
  */
 const LoadingSkeleton = ({ className = '', width = '100%', height = '1rem', rounded = 'rounded' }) => (
   <div 
-    className={`animate-pulse bg-gray-200 ${rounded} ${className}`}
+    className={`animate-pulse bg-gray-200 dark:bg-gray-700 transition-colors ${rounded} ${className}`}
     style={{ width, height }}
   />
 );
@@ -22,14 +22,14 @@ LoadingSkeleton.propTypes = {
  * Card skeleton for dashboard cards
  */
 export const CardSkeleton = () => (
-  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-colors">
     <div className="flex items-start justify-between">
       <div className="flex-1 space-y-2">
         <LoadingSkeleton width="60%" height="0.875rem" />
         <LoadingSkeleton width="80%" height="2rem" />
         <LoadingSkeleton width="40%" height="0.75rem" />
       </div>
-      <div className="p-3 rounded-lg bg-gray-100">
+      <div className="p-3 rounded-lg bg-gray-100 dark:bg-gray-700 transition-colors">
         <LoadingSkeleton width="1.25rem" height="1.25rem" rounded="rounded-none" />
       </div>
     </div>
@@ -91,8 +91,8 @@ export const DashboardSkeleton = () => (
     </div>
 
     {/* Recent Payments Table skeleton */}
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
-      <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-8 transition-colors">
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <LoadingSkeleton width="150px" height="1.5rem" />
         <LoadingSkeleton width="80px" height="1rem" />
       </div>
@@ -105,9 +105,9 @@ export const DashboardSkeleton = () => (
     {/* Quick Actions skeleton */}
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 3 }, (_, i) => (
-        <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <div key={i} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors">
           <div className="flex items-center">
-            <div className="flex-shrink-0 p-3 bg-gray-100 rounded-lg">
+            <div className="flex-shrink-0 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg transition-colors">
               <LoadingSkeleton width="2rem" height="2rem" rounded="rounded-none" />
             </div>
             <div className="ml-4 flex-1">

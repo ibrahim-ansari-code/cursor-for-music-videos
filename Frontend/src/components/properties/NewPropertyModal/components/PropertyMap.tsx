@@ -413,7 +413,7 @@ const PropertyMap: React.FC<PropertyMapProps> = React.memo(({
       </GoogleMap>
       {showEmptyState && !(latitude && longitude) && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="bg-white/80 backdrop-blur rounded-md px-3 py-1.5 text-xs text-gray-700 border border-gray-200">
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-md px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
             Search an address to drop a pin
           </div>
         </div>

@@ -23,15 +23,15 @@ export const ActiveFiltersDisplay: React.FC<ActiveFiltersDisplayProps> = ({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-gray-500">Filtered by:</span>
+      <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">Filtered by:</span>
       {statusFilter && <StatusBadge status={statusFilter} />}
       {filterOptions.propertyType && (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 transition-colors duration-300">
           Type: {filterOptions.propertyType}
         </span>
       )}
       {filterOptions.dateAdded && (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 transition-colors duration-300">
           Date:{' '}
           {filterOptions.dateAdded === 'last-week'
             ? 'Last week'
@@ -42,7 +42,7 @@ export const ActiveFiltersDisplay: React.FC<ActiveFiltersDisplayProps> = ({
       )}
       <button
         onClick={onClearFilters}
-        className="text-sm text-gray-500 hover:text-gray-700"
+        className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-300"
       >
         <i className="fas fa-times-circle"></i>
       </button>

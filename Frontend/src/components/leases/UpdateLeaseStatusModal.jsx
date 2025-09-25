@@ -105,16 +105,16 @@ const UpdateLeaseStatusModal = ({ isOpen, onClose, lease, onUpdate }) => {
     return (
       <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
         <div className="fixed inset-0 bg-black bg-opacity-50"></div>
-        <div className="relative bg-white rounded-lg max-w-md w-full mx-auto p-6">
-          <h3 className="text-lg font-medium">Update Lease Status</h3>
-          <div className="mt-4 mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full mx-auto p-6">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Update Lease Status</h3>
+          <div className="mt-4 mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded">
             You do not have permission to update lease status.
           </div>
           <div className="mt-6 flex justify-end">
             <button
               type="button"
               onClick={handleClose}
-              className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
             >
               Close
             </button>
@@ -127,26 +127,26 @@ const UpdateLeaseStatusModal = ({ isOpen, onClose, lease, onUpdate }) => {
   return (
     <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black bg-opacity-50"></div>
-      <div className="relative bg-white rounded-lg max-w-md w-full mx-auto p-6">
+      <div className="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full mx-auto p-6">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium">Update Lease Status</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Update Lease Status</h3>
           <button
             type="button"
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-500"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-300"
           >
             <i className="fas fa-times"></i>
           </button>
         </div>
 
         {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
+          <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded relative">
             <div className="flex justify-between items-center">
               <span className="block sm:inline">{error}</span>
               <button
                 type="button"
                 onClick={() => setError(null)}
-                className="p-1 rounded-full hover:bg-red-100"
+                className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-800/30"
               >
                 <i className="fas fa-times"></i>
               </button>
@@ -155,7 +155,7 @@ const UpdateLeaseStatusModal = ({ isOpen, onClose, lease, onUpdate }) => {
               <div className="mt-3 flex space-x-2">
                 <button
                   type="button"
-                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm"
+                  className="bg-blue-500 dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 text-white font-bold py-1 px-3 rounded text-sm"
                   onClick={() => handleStatusChange(statusToRetry)}
                   disabled={isUpdating}
                 >
@@ -163,7 +163,7 @@ const UpdateLeaseStatusModal = ({ isOpen, onClose, lease, onUpdate }) => {
                 </button>
                 <button
                   type="button"
-                  className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-1 px-3 rounded text-sm"
+                  className="bg-gray-500 dark:bg-gray-600 hover:bg-gray-700 dark:hover:bg-gray-500 text-white font-bold py-1 px-3 rounded text-sm"
                   onClick={handleCheckStatus}
                 >
                   Check Status
@@ -174,7 +174,7 @@ const UpdateLeaseStatusModal = ({ isOpen, onClose, lease, onUpdate }) => {
         )}
 
         <div className="mb-4">
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Current Status:{" "}
             <span className={`badge ${getStatusBadgeClass(lease.status)}`}>
               {lease.status.charAt(0).toUpperCase() +
@@ -184,7 +184,7 @@ const UpdateLeaseStatusModal = ({ isOpen, onClose, lease, onUpdate }) => {
         </div>
 
         <div className="space-y-2">
-          <p className="text-sm font-medium text-gray-700">Change status to:</p>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Change status to:</p>
           <div className="grid grid-cols-2 gap-2">
             {[
               "DRAFT",
@@ -201,8 +201,8 @@ const UpdateLeaseStatusModal = ({ isOpen, onClose, lease, onUpdate }) => {
                 disabled={isUpdating || lease.status.toUpperCase() === status}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                   lease.status.toUpperCase() === status
-                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                    : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    ? "bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                    : "bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 }`}
               >
                 {status.charAt(0) + status.slice(1).toLowerCase()}
@@ -215,7 +215,7 @@ const UpdateLeaseStatusModal = ({ isOpen, onClose, lease, onUpdate }) => {
           <button
             type="button"
             onClick={handleClose}
-            className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
           >
             Cancel
           </button>

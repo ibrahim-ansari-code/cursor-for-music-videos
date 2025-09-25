@@ -15,27 +15,27 @@ const RentTrackerSkeleton = ({
     {/* Summary Cards Skeleton */}
     <div className="grid gap-4" style={{gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))"}}>
       {/* Total Expected */}
-      <div className="bg-white p-4 rounded-lg shadow-sm">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm transition-colors">
         <SkeletonLine width="90px" height="0.875rem" className="mb-2" />
         <SkeletonLine width="120px" height="1.75rem" className="mb-1" />
       </div>
       {/* Total Collected */}
-      <div className="bg-white p-4 rounded-lg shadow-sm">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm transition-colors">
         <SkeletonLine width="100px" height="0.875rem" className="mb-2" />
         <SkeletonLine width="80px" height="1.75rem" className="mb-1" />
       </div>
       {/* Outstanding */}
-      <div className="bg-white p-4 rounded-lg shadow-sm">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm transition-colors">
         <SkeletonLine width="80px" height="0.875rem" className="mb-2" />
         <SkeletonLine width="120px" height="1.75rem" className="mb-1" />
       </div>
       {/* Collection Rate */}
-      <div className="bg-white p-4 rounded-lg shadow-sm">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm transition-colors">
         <SkeletonLine width="100px" height="0.875rem" className="mb-2" />
         <SkeletonLine width="60px" height="1.75rem" className="mb-1" />
       </div>
       {/* Status Breakdown */}
-      <div className="bg-white p-4 rounded-lg shadow-sm">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm transition-colors">
         <SkeletonLine width="120px" height="0.875rem" className="mb-2" />
         <div className="flex items-center space-x-2">
           <SkeletonLine width="30px" height="1rem" />
@@ -52,7 +52,7 @@ const RentTrackerSkeleton = ({
     </div>
 
     {/* Filters Skeleton - matches exact grid layout from RentTracker */}
-    <div className="bg-white p-4 rounded-lg shadow-sm">
+    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm transition-colors">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Month Filter */}
         <div>
@@ -83,52 +83,52 @@ const RentTrackerSkeleton = ({
     </div>
 
     {/* Table Skeleton */}
-    <div className="bg-white shadow rounded-lg overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden transition-colors">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
               {/* TENANT */}
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 <SkeletonLine width="60px" height="0.75rem" />
               </th>
               {/* PROPERTY */}
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 <SkeletonLine width="70px" height="0.75rem" />
               </th>
               {/* RENT */}
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 <SkeletonLine width="40px" height="0.75rem" className="mx-auto" />
               </th>
               {/* PAID */}
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 <SkeletonLine width="40px" height="0.75rem" className="mx-auto" />
               </th>
               {/* DUE */}
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 <SkeletonLine width="30px" height="0.75rem" className="mx-auto" />
               </th>
               {/* DUE DATE */}
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 <SkeletonLine width="70px" height="0.75rem" className="mx-auto" />
               </th>
               {/* LAST PAYMENT */}
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 <SkeletonLine width="90px" height="0.75rem" className="mx-auto" />
               </th>
               {/* STATUS */}
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 <SkeletonLine width="50px" height="0.75rem" className="mx-auto" />
               </th>
               {/* ACTIONS */}
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 <SkeletonLine width="60px" height="0.75rem" className="mx-auto" />
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {Array.from({ length: rowCount }, (_, index) => (
-              <tr key={index} className="hover:bg-gray-50">
+              <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                 {/* Tenant Column */}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <SkeletonLine width="120px" height="1rem" />

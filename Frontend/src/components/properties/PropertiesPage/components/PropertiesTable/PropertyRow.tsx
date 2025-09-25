@@ -7,6 +7,7 @@ interface PropertyRowProps {
   property: Property;
   onEdit: (propertyId: number) => void;
   onDelete: (propertyId: number) => void;
+  index: number;
 }
 
 export const PropertyRow: React.FC<PropertyRowProps> = ({
@@ -60,13 +61,14 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({
     }
   };
 
+  // The data-table CSS class now handles zebra striping automatically
   return (
-    <tr
-      className="hover:bg-gray-50 cursor-pointer transition-colors"
+    <tr 
+      className="cursor-pointer"
       onClick={() => property.id && navigate(`/properties/${property.id}`)}
     >
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center justify-start">
+        <div className="flex items-center">
           <div className="relative flex-shrink-0 h-10 w-10 rounded-lg overflow-hidden">
             {getPrimaryImage() && (
               <img
@@ -77,7 +79,7 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({
               />
             )}
             <div 
-              className={`absolute inset-0 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold ${
+              className={`absolute inset-0 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold ${
                 getPrimaryImage() ? 'hidden' : 'flex'
               }`}
             >
@@ -85,39 +87,37 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({
             </div>
           </div>
           <div className="ml-4">
-            <div className="text-sm font-medium text-gray-900 text-left">
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
               {property.name}
             </div>
           </div>
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-left">
         {property.property_type}
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-left">
         <div
-          className="max-w-xs truncate mx-auto"
+          className="max-w-xs truncate"
           title={getFormattedAddress().title}
         >
           {getFormattedAddress().display}
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-center">
-        <div className="flex justify-center">
-          <StatusBadge status={property.status || PropertyStatus.ACTIVE} />
-        </div>
+        <StatusBadge status={property.status || PropertyStatus.ACTIVE} />
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">
         {property.created_at && new Date(property.created_at).toLocaleDateString()}
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-        <div className="flex justify-center space-x-3">
+        <div className="inline-flex space-x-3">
           <button
             onClick={(e) => {
               e.stopPropagation();
               property.id && navigate(`/properties/${property.id}`);
             }}
-            className="text-indigo-600 hover:text-indigo-900"
+            className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300"
           >
             View
           </button>
@@ -126,13 +126,13 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({
               e.stopPropagation();
               property.id && onEdit(property.id);
             }}
-            className="text-blue-600 hover:text-blue-900"
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
           >
             Edit
           </button>
           <button
             onClick={handleDelete}
-            className="text-red-600 hover:text-red-900"
+            className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
           >
             Delete
           </button>

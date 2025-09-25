@@ -16,16 +16,16 @@ const TableSkeleton = ({
   tableClassName = '',
   ...props
 }) => (
-  <div className={`bg-white shadow rounded-lg overflow-hidden ${className}`} {...props}>
+  <div className={`dark-panel dark-shadow rounded-lg overflow-hidden transition-colors ${className}`} {...props}>
     <div className="overflow-x-auto">
-      <table className={`min-w-full divide-y divide-gray-200 ${tableClassName}`}>
+      <table className={`min-w-full divide-y dark-divider ${tableClassName}`}>
         {showHeader && (
-          <thead className="bg-gray-50">
+          <thead className="dark-input">
             <tr>
               {columns.map((width, index) => (
                 <th
                   key={index}
-                  className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${width}`}
+                  className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors ${width}`}
                 >
                   <SkeletonLine width="80%" height="0.75rem" />
                 </th>
@@ -33,9 +33,9 @@ const TableSkeleton = ({
             </tr>
           </thead>
         )}
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="dark-panel divide-y dark-divider">
           {Array.from({ length: rowCount }, (_, rowIndex) => (
-            <tr key={rowIndex} className="hover:bg-gray-50">
+            <tr key={rowIndex} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
               {columns.map((width, colIndex) => (
                 <td key={colIndex} className={`px-6 py-4 whitespace-nowrap ${width}`}>
                   {colIndex === avatarColumn && showAvatar ? (

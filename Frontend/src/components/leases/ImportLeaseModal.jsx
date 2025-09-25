@@ -17,6 +17,7 @@ import {
   ErrorMessage,
   FormSection,
   Select,
+  TextArea,
 } from "../ui/SharedModalComponents";
 
 const ImportLeaseModal = ({
@@ -485,7 +486,13 @@ const ImportLeaseModal = ({
           {isDropdownOpen && (
             <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border max-h-48 overflow-y-auto">
               {isLoadingTenants ? (
-                <div className="p-2 text-sm text-gray-500">Loading...</div>
+                <div className="p-2 text-sm text-gray-500 dark:text-gray-400 transition-colors flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-500 dark:text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Loading tenants...
+                </div>
               ) : (
                 <ul>
                   {filteredTenants.map(t => (
@@ -621,11 +628,10 @@ const ImportLeaseModal = ({
       {/* Special Terms */}
       <div>
         <Label htmlFor="special_terms">Special Terms</Label>
-        <textarea 
+        <TextArea 
           name="special_terms" 
           id="special_terms" 
-          rows="3"
-          className="w-full border-gray-300 rounded-md"
+          rows={3}
           placeholder="Any special conditions or notes..."
           value={formData.special_terms} 
           onChange={handleFormChange}
@@ -646,17 +652,17 @@ const ImportLeaseModal = ({
             onClick={onClose}
           >
             <motion.div 
-              className="relative w-full max-w-3xl bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col z-[10000]"
+              className="relative w-full max-w-3xl bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col z-[10000]"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="px-6 py-4 border-b flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-gray-900">Create New Lease</h2>
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Create New Lease</h2>
               <button
                   onClick={onClose}
                   type="button"
                   aria-label="Close"
-                  className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full p-1"
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 rounded-full p-1"
                 >
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" role="img">
                     <title>Close modal</title>
@@ -667,7 +673,7 @@ const ImportLeaseModal = ({
 
               {/* Mode Selector - Only show if not locked to a specific mode */}
               {!initialPropertyId && (
-                <div className="p-6 border-b">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                   <div className="grid grid-cols-2 gap-4">
                     <div 
                       onClick={() => {setMode('file'); setShowParsedResults(false);}} 
@@ -675,12 +681,12 @@ const ImportLeaseModal = ({
                       tabIndex={0}
                       onKeyDown={(e) => { if (e.key === 'Enter') { setMode('file'); setShowParsedResults(false); } }}
                       className={`p-4 border-2 rounded-lg cursor-pointer text-center ${
-                        mode === 'file' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                        mode === 'file' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                       }`}
                     >
-                      <i className="fas fa-file-upload text-2xl text-blue-600 mb-2"></i>
-                      <h3 className="font-semibold">File Upload</h3>
-                      <p className="text-xs text-gray-500">Upload lease PDF to parse</p>
+                      <i className="fas fa-file-upload text-2xl text-blue-600 dark:text-blue-400 mb-2"></i>
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">File Upload</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Upload lease PDF to parse</p>
                     </div>
                     <div 
                       onClick={() => {setMode('manual'); setShowParsedResults(false);}} 
@@ -688,19 +694,19 @@ const ImportLeaseModal = ({
                       tabIndex={0}
                       onKeyDown={(e) => { if (e.key === 'Enter') { setMode('manual'); setShowParsedResults(false); } }}
                       className={`p-4 border-2 rounded-lg cursor-pointer text-center ${
-                        mode === 'manual' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                        mode === 'manual' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                       }`}
                     >
-                      <i className="fas fa-keyboard text-2xl text-blue-600 mb-2"></i>
-                      <h3 className="font-semibold">Manual Entry</h3>
-                      <p className="text-xs text-gray-500">Enter lease details directly</p>
+                      <i className="fas fa-keyboard text-2xl text-blue-600 dark:text-blue-400 mb-2"></i>
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">Manual Entry</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Enter lease details directly</p>
                     </div>
                   </div>
                 </div>
               )}
               
               {/* Form Area */}
-              <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex-1 overflow-y-auto p-6 bg-white dark:bg-gray-800">
                 {error && <ErrorMessage message={error} />}
 
                 {/* File Upload Mode */}
@@ -730,23 +736,24 @@ const ImportLeaseModal = ({
                           const files = e.target?.files;
                           setFile(files && files.length > 0 ? files[0] : null);
                         }}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm file:mr-4 file:py-1 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md px-3 py-2 text-sm file:mr-4 file:py-1 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 dark:file:bg-blue-900/20 file:text-blue-700 dark:file:text-blue-400 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/30"
                       />
                       {file && (
-                        <p className="mt-2 text-sm text-gray-600">
+                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                           Selected: {file.name}
                         </p>
                           )}
                         </div>
-                      </div>
-                    )}
+
+                  </div>
+                )}
 
                 {/* Show parsed results or manual entry form */}
                 {(mode === 'manual' || showParsedResults) && renderFormFields()}
                   </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 bg-gray-50 border-t flex justify-end space-x-3">
+              <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 flex justify-end space-x-3">
                 <Button variant="secondary" onClick={onClose}>Cancel</Button>
                 {mode === 'file' && !showParsedResults ? (
                   <Button 

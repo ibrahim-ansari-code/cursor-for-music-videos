@@ -480,11 +480,11 @@ const InvoicesTab: React.FC = () => {
   return (
     <div>
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded">
           <p>{String(error)}</p>
           <button
             onClick={() => refetch()}
-            className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
+            className="mt-2 bg-red-500 dark:bg-red-600 hover:bg-red-700 dark:hover:bg-red-500 text-white font-bold py-1 px-2 rounded text-sm"
           >
             Retry
           </button>
@@ -492,19 +492,19 @@ const InvoicesTab: React.FC = () => {
       )}
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow-sm">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           {/* Status Filter */}
           <div>
             <label
               htmlFor="invoice-status"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
               Status
             </label>
             <select
               id="invoice-status"
-              className="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               value={invoiceFilters.status}
               onChange={(e) =>
                 setInvoiceFilters({
@@ -526,13 +526,13 @@ const InvoicesTab: React.FC = () => {
           <div>
             <label
               htmlFor="invoice-date-range"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
               Date Range
             </label>
             <select
               id="invoice-date-range"
-              className="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               value={invoiceFilters.dateRange}
               onChange={(e) =>
                 setInvoiceFilters({
@@ -553,13 +553,13 @@ const InvoicesTab: React.FC = () => {
           <div>
             <label
               htmlFor="invoice-property"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
               Property
             </label>
             <select
               id="invoice-property"
-              className="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               value={invoiceFilters.property_id}
               onChange={(e) =>
                 setInvoiceFilters({
@@ -582,13 +582,13 @@ const InvoicesTab: React.FC = () => {
           <div>
             <label
               htmlFor="invoice-tenant"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
               Tenant
             </label>
             <select
               id="invoice-tenant"
-              className="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               value={invoiceFilters.tenant_id}
               onChange={(e) =>
                 setInvoiceFilters({
@@ -613,7 +613,7 @@ const InvoicesTab: React.FC = () => {
             <input
               type="search"
               placeholder="Search invoices..."
-              className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 pr-3 py-2 border-gray-300 rounded-md text-sm"
+              className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 pr-3 py-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md text-sm"
               value={invoiceFilters.search}
               onChange={(e) =>
                 setInvoiceFilters({
@@ -623,7 +623,7 @@ const InvoicesTab: React.FC = () => {
               }
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <i className="fas fa-search text-gray-400"></i>
+              <i className="fas fa-search text-gray-400 dark:text-gray-500"></i>
             </div>
           </div>
           
@@ -631,7 +631,7 @@ const InvoicesTab: React.FC = () => {
             {/* Import CSV Button */}
             <button
               onClick={() => setShowCSVImportModal(true)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
             >
               <i className="fas fa-upload mr-2"></i>
               Import CSV
@@ -642,7 +642,7 @@ const InvoicesTab: React.FC = () => {
               data={csvData}
               headers={csvHeaders}
               filename={generateFilename()}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
             >
               <i className="fas fa-download mr-2"></i>
               Export CSV
@@ -651,7 +651,7 @@ const InvoicesTab: React.FC = () => {
             {/* New Invoice Button */}
             <button
               onClick={handleShowModal}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
             >
               <i className="fas fa-plus mr-2"></i>
               New Invoice
@@ -661,10 +661,10 @@ const InvoicesTab: React.FC = () => {
       </div>
 
       {/* Invoices Table */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+      <div className="dark-panel dark-shadow rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="data-table min-w-full divide-y dark-divider">
+            <thead className="dark-input">
               <tr>
                 {invoiceTableColumns.map((col) => (
                   <th
@@ -672,23 +672,24 @@ const InvoicesTab: React.FC = () => {
                     scope="col"
                     className={`px-6 py-3 ${
                       col.align === "center" ? "text-center" : "text-left"
-                    } text-xs font-medium text-gray-500 uppercase tracking-wider`}
+                    } text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider`}
                   >
                     {col.label}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="dark-panel divide-y dark-divider">
               {invoices.length > 0 ? (
-                invoices.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-gray-50">
+                invoices.map((invoice, index) => {
+                  return (
+                  <tr key={invoice.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-blue-600 hover:text-blue-900 cursor-pointer">
+                      <div className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 cursor-pointer">
                         #{invoice.invoice_number}
                       </div>
                       {invoice.description && (
-                        <div className="text-xs text-gray-500 mt-1 truncate max-w-32">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate max-w-32">
                           {invoice.description}
                         </div>
                       )}
@@ -696,29 +697,29 @@ const InvoicesTab: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm">
                         {invoice.property && (
-                          <div className="font-medium text-gray-900">
+                          <div className="font-medium text-gray-900 dark:text-gray-100">
                             {invoice.property.name}
                           </div>
                         )}
                         {invoice.tenant && (
-                          <div className="text-gray-500 text-xs">
+                          <div className="text-gray-500 dark:text-gray-400 text-xs">
                             {invoice.tenant.full_name}
                           </div>
                         )}
                         {!invoice.property && !invoice.tenant && (
-                          <div className="text-gray-400 text-sm italic">
+                          <div className="text-gray-400 dark:text-gray-500 text-sm italic">
                             No property/tenant assigned
                           </div>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         ${parseFloat(invoice.amount).toFixed(2)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
                         {new Date(invoice.issue_date).toLocaleDateString()}
                       </div>
                     </td>
@@ -737,7 +738,7 @@ const InvoicesTab: React.FC = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500 dark:text-gray-400">
                       {invoice.quickbooks_id != null ? "QuickBooks" : "Brikli"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
@@ -746,7 +747,7 @@ const InvoicesTab: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleMarkPaid(invoice.id)}
-                            className="text-green-600 hover:text-green-900 p-1"
+                            className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 p-1"
                             title="Mark as Paid"
                           >
                             <i className="fas fa-check-circle" />
@@ -755,7 +756,7 @@ const InvoicesTab: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleEditInvoice(invoice)}
-                          className="text-indigo-600 hover:text-indigo-900 p-1"
+                          className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 p-1"
                           title="Edit Invoice"
                         >
                           <i className="fas fa-edit" />
@@ -763,7 +764,7 @@ const InvoicesTab: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleDeleteInvoice(invoice.id)}
-                          className="text-red-600 hover:text-red-900 p-1"
+                          className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 p-1"
                           title="Delete Invoice"
                         >
                           <i className="fas fa-trash-alt" />
@@ -771,17 +772,18 @@ const InvoicesTab: React.FC = () => {
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               ) : (
                 <tr>
                   <td
                     colSpan={invoiceTableColumns.length}
-                    className="px-6 py-12 text-center text-sm text-gray-500"
+                    className="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     <div className="flex flex-col items-center">
-                      <i className="fas fa-file-invoice-dollar text-gray-300 text-4xl mb-4"></i>
-                      <p className="text-lg font-medium text-gray-900 mb-2">No invoices found</p>
-                      <p className="text-gray-500 mb-4">Get started by creating your first invoice.</p>
+                      <i className="fas fa-file-invoice-dollar text-gray-300 dark:text-gray-600 text-4xl mb-4"></i>
+                      <p className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No invoices found</p>
+                      <p className="text-gray-500 dark:text-gray-400 mb-4">Get started by creating your first invoice.</p>
                       <button
                         onClick={handleShowModal}
                         className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
@@ -799,25 +801,25 @@ const InvoicesTab: React.FC = () => {
         
         {/* Pagination Controls */}
         {invoices.length > 0 && (
-          <div className="flex justify-between items-center mt-4 p-4">
+          <div className="flex justify-between items-center mt-4 p-4 dark-input dark-divider border-t">
             <button
               type="button"
               onClick={handlePreviousPage}
               disabled={invoicesPagination.currentPage === 0 || loading}
-              className="btn btn-secondary disabled:opacity-50"
+              className="inline-flex items-center px-4 py-2 dark-divider border rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 dark-panel hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Go to previous page"
             >
               <i className="fas fa-arrow-left mr-2" aria-hidden="true" />
               Previous
             </button>
-            <span className="text-sm text-gray-700">
+            <span className="text-sm text-gray-700 dark:text-gray-300">
               Page {invoicesPagination.currentPage + 1}
             </span>
             <button
               type="button"
               onClick={handleNextPage}
               disabled={!invoicesPagination.hasMore || loading}
-              className="btn btn-secondary disabled:opacity-50"
+              className="inline-flex items-center px-4 py-2 dark-divider border rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 dark-panel hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Go to next page"
             >
               Next

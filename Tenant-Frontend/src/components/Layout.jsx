@@ -18,9 +18,9 @@ const Layout = React.memo(() => {
   // Show loading state while user data is being fetched
   if (loading) {
     return (
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
         {/* Sidebar skeleton */}
-        <div className="w-64 bg-white border-r border-gray-200">
+        <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
           <div className="p-4">
             <LoadingSkeleton width="150px" height="2.25rem" className="mb-4" />
           </div>
@@ -33,7 +33,7 @@ const Layout = React.memo(() => {
         {/* Main content skeleton */}
         <div className="flex-1 flex flex-col">
           {/* Header skeleton */}
-          <div className="h-16 bg-white border-b border-gray-200 px-6 flex items-center justify-between">
+          <div className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 flex items-center justify-between">
             <LoadingSkeleton width="200px" height="2rem" />
             <LoadingSkeleton width="120px" height="2rem" />
           </div>
@@ -54,9 +54,9 @@ const Layout = React.memo(() => {
   // Handle case where user is not loaded
   if (!user) {
     return (
-      <div className="flex h-screen bg-gray-50 items-center justify-center">
+      <div className="flex h-screen bg-gray-50 dark:bg-gray-900 items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600">Unable to load user data</p>
+          <p className="text-gray-600 dark:text-gray-400">Unable to load user data</p>
           <button 
             onClick={signOut}
             className="mt-2 text-brand-teal hover:text-brand-green"

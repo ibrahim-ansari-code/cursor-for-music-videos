@@ -49,8 +49,8 @@ const Sidebar = () => {
         }}
         className={({ isActive }) =>
           `${isActive
-            ? "bg-teal-50 text-teal-700 border-r-2 border-teal-600"
-            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            ? "bg-teal-50 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 border-r-2 border-teal-600 dark:border-teal-400 dark-shadow"
+            : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
           } 
           group flex items-center py-3 px-3 text-sm font-medium rounded-lg transition-all duration-200`
         }
@@ -58,7 +58,7 @@ const Sidebar = () => {
         <div className="flex items-center w-full">
           <div className={`${collapsed ? "mx-auto" : "w-6 text-center"}`}>
             <i
-              className={`fas ${item.icon} text-gray-400 group-hover:text-gray-600 transition-colors`}
+              className={`fas ${item.icon} text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors`}
             ></i>
           </div>
           {!collapsed && <span className="ml-3">{item.name}</span>}
@@ -73,7 +73,7 @@ const Sidebar = () => {
       return <div className="my-2"></div>;
     }
     return (
-      <h3 className="px-3 text-xs font-medium text-gray-400 uppercase tracking-wider mb-3 mt-3">
+      <h3 className="px-3 text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 mt-3">
         {title}
       </h3>
     );
@@ -82,7 +82,7 @@ const Sidebar = () => {
   return (
     <>
       <aside
-        className={`bg-white transition-all duration-300 ease-in-out h-full ${collapsed ? "w-16" : "w-64"
+        className={`dark-panel transition-all duration-300 ease-in-out h-full dark-divider border-r dark-shadow ${collapsed ? "w-16" : "w-64"
           }`}
       >
         <div className="h-full flex flex-col">
@@ -100,7 +100,7 @@ const Sidebar = () => {
                     <img
                       src="/brikli-logo-green-transparent.png"
                       alt="Brikli"
-                      className="h-8 w-auto"
+                      className="h-8 w-auto dark:[filter:invert(1)_grayscale(1)_brightness(2)]"
                     />
                   </NavLink>
                 )}
@@ -108,7 +108,7 @@ const Sidebar = () => {
             </div>
             <button
               onClick={() => setCollapsed(!collapsed)}
-              className="p-1.5 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none flex-shrink-0"
+              className="p-1.5 rounded-md text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none flex-shrink-0 transition-colors duration-300"
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               <i
@@ -151,7 +151,7 @@ const Sidebar = () => {
               <button
                 type="button"
                 onClick={() => setShowAskModal(true)}
-                className="animation-parent box-shadow-animation w-full flex items-center justify-center px-3 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-xl transition-all duration-200"
+                className="animation-parent box-shadow-animation w-full flex items-center justify-center px-3 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 dark-shadow hover:shadow-xl transition-all duration-200"
               >
                 <Bot className="color-fade mr-2 w-4 h-4" />
                 <p className="color-scroll l-to-r" data-hover="Assistant">
@@ -162,7 +162,7 @@ const Sidebar = () => {
               <button
                 type="button"
                 onClick={() => setShowAskModal(true)}
-                className="w-8 h-8 mx-auto flex items-center justify-center border border-transparent rounded-lg text-white bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-xl transition-all duration-200"
+                className="w-8 h-8 mx-auto flex items-center justify-center border border-transparent rounded-lg text-white bg-green-600 hover:bg-green-700 dark-shadow hover:shadow-xl transition-all duration-200"
                 aria-label="Assistant"
               >
                 <Bot className="w-4 h-4 flex-shrink-0" />

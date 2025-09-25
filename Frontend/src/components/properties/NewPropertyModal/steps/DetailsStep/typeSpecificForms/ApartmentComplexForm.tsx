@@ -163,8 +163,8 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
     <div className="space-y-5" role="form" aria-label="Apartment Complex Details">
       {/* Complex Style Selection - Top Priority with improved accessibility */}
       <fieldset>
-        <legend className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2.5">
-          Complex Style <span className="text-red-500" aria-label="required">*</span>
+        <legend className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5 transition-colors duration-300">
+          Complex Style <span className="text-red-500 dark:text-red-400 transition-colors duration-300" aria-label="required">*</span>
         </legend>
         <div className="grid grid-cols-3 gap-2 p-1" role="radiogroup" aria-required="true">
           {complexStyles.map((style) => (
@@ -178,16 +178,16 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
               className={`
                 relative p-3 rounded-xl border-2 transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-purple-500
                 ${complex_style === style.value 
-                  ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-indigo-50 shadow-md' 
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                  ? 'border-purple-500 dark:border-purple-400 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/40 dark:to-indigo-900/40 shadow-md' 
+                  : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm'
                 }
               `}
             >
               <div className="mb-1" aria-hidden="true">
                 <style.icon className="h-5 w-5 mx-auto" />
               </div>
-              <div className={`text-xs font-medium ${
-                complex_style === style.value ? 'text-purple-700' : 'text-gray-700'
+              <div className={`text-xs font-medium transition-colors duration-300 ${
+                complex_style === style.value ? 'text-purple-700 dark:text-purple-200' : 'text-gray-700 dark:text-gray-200'
               }`}>
                 {style.label}
               </div>
@@ -196,14 +196,14 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
               </div>
               {complex_style === style.value && (
                 <div className="absolute top-1 right-1" aria-hidden="true">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 bg-purple-500 dark:bg-purple-400 rounded-full animate-pulse"></div>
                 </div>
               )}
             </button>
           ))}
         </div>
         {getFieldError('complex_style') && (
-          <p className="mt-2 text-xs text-red-500 flex items-center" role="alert">
+          <p className="mt-2 text-xs text-red-500 dark:text-red-400 flex items-center transition-colors duration-300" role="alert">
             <AlertCircle className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
             {getFieldError('complex_style')}
           </p>
@@ -211,23 +211,23 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
       </fieldset>
 
       {/* Core Complex Details - Required Fields First */}
-      <fieldset className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-3.5 border border-gray-200">
+      <fieldset className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800 dark:to-gray-900/50 rounded-xl p-3.5 border border-gray-200 dark:border-gray-700">
         <legend className="mb-3">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
             Essential Details
           </span>
         </legend>
         
         <div className="grid grid-cols-3 gap-3">
           {/* Number of Buildings */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition-colors group">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 transition-colors group">
             <label className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-                <Building className="h-3.5 w-3.5 inline mr-1 text-blue-500" aria-hidden="true" />
-                Buildings <span className="text-red-500" aria-label="required">*</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                <Building className="h-3.5 w-3.5 inline mr-1 text-blue-500 dark:text-blue-400" aria-hidden="true" />
+                Buildings <span className="text-red-500 dark:text-red-400" aria-label="required">*</span>
               </span>
               {number_of_buildings > 0 && (
-                <span className="text-xs text-blue-600 font-semibold" aria-label={`${number_of_buildings} buildings`}>
+                <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold" aria-label={`${number_of_buildings} buildings`}>
                   {number_of_buildings}
                 </span>
               )}
@@ -244,13 +244,13 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
               max="100"
               aria-invalid={!!getFieldError('number_of_buildings')}
               aria-describedby={getFieldError('number_of_buildings') ? 'buildings-error' : undefined}
-              className={`w-full px-2.5 py-1.5 text-sm font-medium border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                getFieldError('number_of_buildings') ? 'border-red-300' : 'border-gray-200'
+              className={`w-full px-2.5 py-1.5 text-sm font-medium border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                getFieldError('number_of_buildings') ? 'border-red-300 dark:border-red-500' : 'border-gray-200 dark:border-gray-600'
               }`}
               placeholder="3"
             />
             {getFieldError('number_of_buildings') && (
-              <p id="buildings-error" className="mt-1 text-[10px] text-red-500 flex items-center" role="alert">
+              <p id="buildings-error" className="mt-1 text-[10px] text-red-500 dark:text-red-400 flex items-center" role="alert">
                 <AlertCircle className="h-3 w-3 mr-0.5" aria-hidden="true" />
                 {getFieldError('number_of_buildings')}
               </p>
@@ -258,14 +258,14 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
           </div>
 
           {/* Total Units */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200 hover:border-purple-300 transition-colors group">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500 transition-colors group">
             <label className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-                <Users className="h-3.5 w-3.5 inline mr-1 text-purple-500" aria-hidden="true" />
-                Total Units <span className="text-red-500" aria-label="required">*</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                <Users className="h-3.5 w-3.5 inline mr-1 text-purple-500 dark:text-purple-400" aria-hidden="true" />
+                Total Units <span className="text-red-500 dark:text-red-400" aria-label="required">*</span>
               </span>
               {total_units > 0 && (
-                <span className="text-xs text-purple-600 font-semibold" aria-label={`${total_units} units`}>
+                <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold" aria-label={`${total_units} units`}>
                   {total_units}
                 </span>
               )}
@@ -282,13 +282,13 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
               max="10000"
               aria-invalid={!!getFieldError('total_units')}
               aria-describedby={getFieldError('total_units') ? 'units-error' : undefined}
-              className={`w-full px-2.5 py-1.5 text-sm font-medium border rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
-                getFieldError('total_units') ? 'border-red-300' : 'border-gray-200'
+              className={`w-full px-2.5 py-1.5 text-sm font-medium border rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                getFieldError('total_units') ? 'border-red-300 dark:border-red-500' : 'border-gray-200 dark:border-gray-600'
               }`}
               placeholder="120"
             />
             {getFieldError('total_units') && (
-              <p id="units-error" className="mt-1 text-[10px] text-red-500 flex items-center" role="alert">
+              <p id="units-error" className="mt-1 text-[10px] text-red-500 dark:text-red-400 flex items-center" role="alert">
                 <AlertCircle className="h-3 w-3 mr-0.5" aria-hidden="true" />
                 {getFieldError('total_units')}
               </p>
@@ -296,14 +296,14 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
           </div>
 
           {/* Parking Spaces */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200 hover:border-amber-300 transition-colors group">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 hover:border-amber-300 dark:hover:border-amber-500 transition-colors group">
             <label className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-                <Car className="h-3.5 w-3.5 inline mr-1 text-amber-500" aria-hidden="true" />
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                <Car className="h-3.5 w-3.5 inline mr-1 text-amber-500 dark:text-amber-400" aria-hidden="true" />
                 Parking Spaces
               </span>
               {parking_spaces_total > 0 && (
-                <span className="text-xs text-amber-600 font-semibold" aria-label={`${parking_spaces_total} parking spaces`}>
+                <span className="text-xs text-amber-600 dark:text-amber-400 font-semibold" aria-label={`${parking_spaces_total} parking spaces`}>
                   {parking_spaces_total}
                 </span>
               )}
@@ -315,11 +315,11 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
               })}
               type="number"
               min="0"
-              className="w-full px-2.5 py-1.5 text-sm font-medium border border-gray-200 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
+              className="w-full px-2.5 py-1.5 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="180"
             />
             {parking_spaces_total > 0 && total_units > 0 && (
-              <div className="mt-1 text-[9px] text-gray-500 font-medium">
+              <div className="mt-1 text-[9px] text-gray-500 dark:text-gray-400 font-medium">
                 {(parking_spaces_total/total_units).toFixed(1)} per unit
               </div>
             )}
@@ -328,15 +328,15 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
       </fieldset>
 
       {/* Unit Mix Distribution - Required */}
-      <fieldset className={`bg-white rounded-xl p-3.5 border transition-all ${
-        !isUnitMixValid && total_units > 0 ? 'border-red-300 shadow-sm' : 'border-gray-200'
+      <fieldset className={`bg-white dark:bg-gray-800 rounded-xl p-3.5 border transition-all ${
+        !isUnitMixValid && total_units > 0 ? 'border-red-300 dark:border-red-500 shadow-sm' : 'border-gray-200 dark:border-gray-600'
       }`}>
-        <legend className="text-xs font-medium text-gray-700 mb-2 flex items-center">
-          <Layers className="h-3.5 w-3.5 mr-1.5 text-indigo-500" aria-hidden="true" />
-          Unit Mix Distribution <span className="text-red-500 ml-1" aria-label="required">*</span>
+        <legend className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+          <Layers className="h-3.5 w-3.5 mr-1.5 text-indigo-500 dark:text-indigo-400" aria-hidden="true" />
+          Unit Mix Distribution <span className="text-red-500 dark:text-red-400 ml-1" aria-label="required">*</span>
           {total_units > 0 && (
             <span className={`ml-auto text-xs font-medium ${
-              isUnitMixValid ? 'text-green-600' : 'text-red-600'
+              isUnitMixValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
             }`}>
               {unitMixTotal} / {total_units} units
               {isUnitMixValid && ' ✓'}
@@ -345,8 +345,8 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
         </legend>
         
         {total_units > 0 && unitMixTotal === 0 && (
-          <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-xs text-blue-700 flex items-center">
+          <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg">
+            <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center">
               <Info className="h-3.5 w-3.5 mr-1 flex-shrink-0" aria-hidden="true" />
               Distribute your {total_units} units across bedroom types below
             </p>
@@ -364,10 +364,10 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
           ].map((unitType) => {
             const unitCount = (unit_mix as any)?.[unitType.key] || 0;
             return (
-              <div key={unitType.key} className={`bg-gray-50 rounded-lg p-2 ${
-                !isUnitMixValid && total_units > 0 ? 'border border-red-200' : ''
+              <div key={unitType.key} className={`bg-gray-50 dark:bg-gray-700 rounded-lg p-2 ${
+                !isUnitMixValid && total_units > 0 ? 'border border-red-200 dark:border-red-600' : ''
               }`}>
-                <label className="text-[10px] font-medium text-gray-600 mb-1 block">
+                <label className="text-[10px] font-medium text-gray-600 dark:text-gray-400 mb-1 block">
                   {unitType.label}
                 </label>
                 <input
@@ -385,8 +385,8 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
                   type="number"
                   min="0"
                   aria-label={`Number of ${unitType.label} units`}
-                  className={`w-full px-2 py-1.5 text-xs font-medium border rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                    !isUnitMixValid && total_units > 0 ? 'border-red-200' : 'border-gray-200'
+                  className={`w-full px-2 py-1.5 text-xs font-medium border rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 ${
+                    !isUnitMixValid && total_units > 0 ? 'border-red-200 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                   }`}
                   placeholder="0"
                 />
@@ -400,7 +400,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
                       aria-valuemax={100}
                       aria-label={`${unitType.label} represents ${Math.round((unitCount / total_units) * 100)}% of total units`}
                     />
-                    <div className="text-[9px] text-gray-500 mt-0.5">
+                    <div className="text-[9px] text-gray-500 dark:text-gray-400 mt-0.5">
                       {Math.round((unitCount / total_units) * 100)}%
                     </div>
                   </div>
@@ -411,8 +411,8 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
         </div>
         
         {!isUnitMixValid && total_units > 0 && unitMixTotal > 0 && (
-          <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-xs text-red-600 flex items-center" role="alert">
+          <div className="mt-3 p-2 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+            <p className="text-xs text-red-600 dark:text-red-400 flex items-center" role="alert">
               <AlertCircle className="h-3.5 w-3.5 mr-1 flex-shrink-0" aria-hidden="true" />
               Unit distribution ({unitMixTotal}) must equal total units ({total_units})
             </p>
@@ -423,9 +423,9 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
       </fieldset>
 
       {/* Floor Count - Optional but Important */}
-      <fieldset className="bg-gradient-to-br from-blue-50/30 to-indigo-50/20 rounded-xl p-3.5 border border-gray-200">
-        <legend className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2.5">
-          <Layers className="h-3.5 w-3.5 inline mr-1.5 text-blue-500" aria-hidden="true" />
+      <fieldset className="bg-gradient-to-br from-blue-50/30 to-indigo-50/20 dark:from-blue-900/30 dark:to-indigo-900/20 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600">
+        <legend className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5">
+          <Layers className="h-3.5 w-3.5 inline mr-1.5 text-blue-500 dark:text-blue-400" aria-hidden="true" />
           Floor Count
         </legend>
         <div className="flex gap-2" role="group" aria-label="Floor count selection">
@@ -439,7 +439,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
                 flex-1 py-2 px-3 rounded-lg font-medium text-sm transition-all focus:outline-none focus:ring-2 focus:ring-purple-500
                 ${floor_count === num && !floor_count_custom
                   ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }
               `}
             >
@@ -456,16 +456,16 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
             min="4"
             max="100"
             aria-label="Custom floor count (4 or more)"
-            className="w-16 px-2 py-2 text-sm font-medium border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center"
+            className="w-16 px-2 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             placeholder="4+"
           />
         </div>
       </fieldset>
 
       {/* Building Features - Elevator Count */}
-      <fieldset className="bg-white rounded-xl p-3.5 border border-gray-200 hover:shadow-sm transition-all">
-        <legend className="text-xs font-medium text-gray-700 mb-2 flex items-center">
-          <Building2 className="h-3.5 w-3.5 mr-1.5 text-indigo-500" aria-hidden="true" />
+      <fieldset className="bg-white dark:bg-gray-800 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600 hover:shadow-sm transition-all">
+        <legend className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+          <Building2 className="h-3.5 w-3.5 mr-1.5 text-indigo-500 dark:text-indigo-400" aria-hidden="true" />
           Elevator Count
         </legend>
         <div className="flex gap-1.5" role="group" aria-label="Elevator count selection">
@@ -479,7 +479,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
                 flex-1 py-2 px-3 rounded-lg font-medium text-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500
                 ${elevator_count === num
                   ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }
               `}
             >
@@ -496,15 +496,15 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
             min="5"
             max="20"
             aria-label="Custom elevator count (5 or more)"
-            className="w-16 px-2 py-2 text-sm font-medium border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center"
+            className="w-16 px-2 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             placeholder="5+"
           />
         </div>
       </fieldset>
 
       {/* Management Information */}
-      <fieldset className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-3.5 border border-gray-200 hover:shadow-sm transition-all">
-        <legend className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2.5">
+      <fieldset className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800 dark:to-gray-900/50 rounded-xl p-3.5 border border-gray-200 dark:border-gray-700 hover:shadow-sm transition-all">
+        <legend className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5">
           Management
         </legend>
         <div className="space-y-2.5">
@@ -517,20 +517,20 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
               {...register('type_specific_details.assigned_property_manager')}
               type="text"
               maxLength={200}
-              className="w-full text-xs px-2.5 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent group-hover:bg-white transition-colors"
+              className="w-full text-xs px-2.5 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent group-hover:bg-white dark:group-hover:bg-gray-600 transition-colors text-gray-900 dark:text-gray-100"
               placeholder="John Smith"
             />
           </div>
 
           <div className="group">
-            <label className="text-xs font-medium text-gray-600 mb-1 block">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
               Management Company
             </label>
             <input
               {...register('type_specific_details.property_management_company')}
               type="text"
               maxLength={200}
-              className="w-full text-xs px-2.5 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent group-hover:bg-white transition-colors"
+              className="w-full text-xs px-2.5 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent group-hover:bg-white dark:group-hover:bg-gray-600 transition-colors text-gray-900 dark:text-gray-100"
               placeholder="ABC Property Management"
             />
           </div>
@@ -545,7 +545,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
                 {...register('type_specific_details.management_contact_phone')}
                 type="tel"
                 maxLength={20}
-                className="w-full text-xs px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-transparent group-hover:bg-white transition-colors"
+                className="w-full text-xs px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-transparent group-hover:bg-white dark:group-hover:bg-gray-600 transition-colors text-gray-900 dark:text-gray-100"
                 placeholder="555-0100"
               />
             </div>
@@ -559,19 +559,19 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
                 {...register('type_specific_details.management_contact_email')}
                 type="email"
                 maxLength={255}
-                className="w-full text-xs px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-transparent group-hover:bg-white transition-colors"
+                className="w-full text-xs px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-transparent group-hover:bg-white dark:group-hover:bg-gray-600 transition-colors text-gray-900 dark:text-gray-100"
                 placeholder="manager@email.com"
               />
             </div>
           </div>
 
-          <label className="flex items-center px-3 py-1.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+          <label className="flex items-center px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
             <input
               type="checkbox"
               {...register('type_specific_details.on_site_management')}
-              className="mr-2 h-3.5 w-3.5 text-green-600 rounded focus:ring-green-500"
+              className="mr-2 h-3.5 w-3.5 text-green-600 dark:text-green-500 rounded focus:ring-green-500"
             />
-            <span className="text-xs font-medium text-gray-700">On-Site Management Office</span>
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">On-Site Management Office</span>
           </label>
 
           {on_site_management && (
@@ -584,7 +584,7 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
                 {...register('type_specific_details.management_office_location')}
                 type="text"
                 maxLength={100}
-                className="w-full text-xs px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-transparent group-hover:bg-white transition-colors"
+                className="w-full text-xs px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-transparent group-hover:bg-white dark:group-hover:bg-gray-600 transition-colors text-gray-900 dark:text-gray-100"
                 placeholder="Building A, Unit 101"
               />
             </div>
@@ -593,20 +593,20 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
       </fieldset>
 
       {/* Security & Systems */}
-      <fieldset className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-3.5 border border-gray-200 hover:shadow-sm transition-all">
-        <legend className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2.5">
+      <fieldset className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800 dark:to-gray-900/50 rounded-xl p-3.5 border border-gray-200 dark:border-gray-700 hover:shadow-sm transition-all">
+        <legend className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5">
           Security & Systems
         </legend>
         <div className="space-y-2.5">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 flex items-center">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1 flex items-center transition-colors duration-300">
                 <Shield className="h-3 w-3 mr-1 text-red-500" aria-hidden="true" />
                 Security System
               </label>
               <select
                 {...register('type_specific_details.security_system_type')}
-                className="w-full text-xs px-2 py-1.5 bg-white border border-gray-200 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                className="w-full text-xs px-2 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 dark:text-gray-100"
               >
                 <option value="">Select...</option>
                 <option value="cameras">Camera System</option>
@@ -618,13 +618,13 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 flex items-center">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1 flex items-center transition-colors duration-300">
                 <Trash2 className="h-3 w-3 mr-1 text-gray-500" aria-hidden="true" />
                 Trash System
               </label>
               <select
                 {...register('type_specific_details.trash_system_type')}
-                className="w-full text-xs px-2 py-1.5 bg-white border border-gray-200 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                className="w-full text-xs px-2 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-transparent text-gray-900 dark:text-gray-100"
               >
                 <option value="">Select...</option>
                 <option value="chute">Trash Chute</option>
@@ -640,13 +640,13 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
             <div className="grid grid-cols-2 gap-2">
               {security_system_type && (
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1">
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1 transition-colors duration-300">
                     Security Details
                   </label>
                   <input
                     {...register('type_specific_details.security_system_details')}
                     type="text"
-                    className="w-full text-xs px-2 py-1.5 bg-white border border-gray-200 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    className="w-full text-xs px-2 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 dark:text-gray-100"
                     placeholder="24/7 monitoring, access codes"
                   />
                 </div>
@@ -654,14 +654,14 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
 
               {trash_system_type && (
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1">
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1 transition-colors duration-300">
                     Collection Schedule
                   </label>
                   <input
                     {...register('type_specific_details.trash_collection_schedule')}
                     type="text"
                     maxLength={200}
-                    className="w-full text-xs px-2 py-1.5 bg-white border border-gray-200 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                    className="w-full text-xs px-2 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-transparent text-gray-900 dark:text-gray-100"
                     placeholder="Mon/Wed/Fri 8am"
                   />
                 </div>
@@ -672,8 +672,8 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
       </fieldset>
 
       {/* Shared Amenities */}
-      <fieldset className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-3.5 border border-gray-200 hover:shadow-sm transition-all">
-        <legend className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2.5">
+      <fieldset className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800 dark:to-gray-900/50 rounded-xl p-3.5 border border-gray-200 dark:border-gray-700 hover:shadow-sm transition-all">
+        <legend className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5">
           Shared Amenities
         </legend>
         
@@ -692,16 +692,16 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
             { value: 'basketball_court' as SharedAmenity, label: 'Basketball Court', icon: Circle },
             { value: 'storage' as SharedAmenity, label: 'Storage Units', icon: Package }
           ].map((amenity) => (
-            <label key={amenity.value} className="flex items-center px-2 py-1.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+            <label key={amenity.value} className="flex items-center px-2 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
               <input
                 type="checkbox"
                 checked={(shared_amenities as SharedAmenity[]).includes(amenity.value)}
                 onChange={(e) => handleArrayCheckbox('shared_amenities', amenity.value, e.target.checked)}
-                className="mr-1.5 h-3.5 w-3.5 text-purple-600 rounded focus:ring-purple-500"
+                className="mr-1.5 h-3.5 w-3.5 text-purple-600 dark:text-purple-500 rounded focus:ring-purple-500"
                 aria-describedby={`${amenity.value}-desc`}
               />
               <amenity.icon className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" aria-hidden="true" />
-              <span id={`${amenity.value}-desc`} className="text-xs font-medium text-gray-700">
+              <span id={`${amenity.value}-desc`} className="text-xs font-medium text-gray-700 dark:text-gray-200 transition-colors duration-300">
                 {amenity.label}
               </span>
             </label>

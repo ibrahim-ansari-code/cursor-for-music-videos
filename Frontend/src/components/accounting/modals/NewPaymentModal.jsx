@@ -334,7 +334,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
           onClick={onClose}
         >
           <motion.div 
@@ -342,21 +342,21 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 400 }}
-            className="relative w-full max-w-2xl bg-white rounded-xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col z-[10000]"
+            className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col z-[10000]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="relative px-6 py-4 bg-gradient-to-br from-brand-green to-brand-teal text-white">
+            <div className="relative px-6 py-4 bg-gradient-to-br from-brand-green to-brand-teal dark:from-gray-700 dark:to-gray-600 text-white">
               <div className="flex justify-between items-center">
                 <div>
-                  <h2 className="text-xl font-semibold text-white">Log New Payment</h2>
-                  <p className="text-white/80 mt-0.5 text-sm">
+                  <h2 className="text-xl font-semibold text-white dark:text-gray-100">Log New Payment</h2>
+                  <p className="text-white/80 dark:text-gray-300/80 mt-0.5 text-sm">
                     Record a payment from a tenant
                   </p>
                 </div>
                 <button
                   onClick={onClose}
-                  className="text-white/70 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition-all"
+                  className="text-white/70 dark:text-gray-300/70 hover:text-white dark:hover:text-gray-100 hover:bg-white/10 dark:hover:bg-gray-700/50 p-1.5 rounded-lg transition-all"
                 >
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -366,34 +366,34 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
             </div>
 
             {/* Content */}
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-gray-50">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
               {error && (
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mx-6 mt-4 p-3 bg-red-50 border border-red-100 text-red-700 rounded-lg"
+                  className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-700 text-red-700 dark:text-red-300 rounded-lg"
                 >
                   <div className="flex">
-                    <svg className="h-5 w-5 text-red-400 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                    <svg className="h-5 w-5 text-red-400 dark:text-red-500 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-sm">{error}</span>
+                    <span className="text-sm dark:text-red-300">{error}</span>
                   </div>
                 </motion.div>
               )}
 
               <div className="p-6 space-y-4">
                 {/* Receipt Upload Section */}
-                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                   <div className="flex items-start mb-3">
-                    <div className="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
-                      <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <div className="w-9 h-9 bg-purple-50 dark:bg-purple-900/20 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
+                      <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
                     </div>
                     <div>
-                      <h3 className="text-base font-medium text-gray-900">Upload Receipt (Optional)</h3>
-                      <p className="text-sm text-gray-500 mt-0.5">Auto-extracts amount, date & payment method</p>
+                      <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Upload Receipt (Optional)</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Auto-extracts amount, date & payment method</p>
                     </div>
                   </div>
                   <div className="ml-12">
@@ -462,19 +462,19 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                 </div>
 
                 {/* Property and Tenant Selection */}
-                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                   <div className="flex items-center mb-3">
-                    <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center mr-3">
-                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <div className="w-9 h-9 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center mr-3">
+                      <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
                     </div>
-                    <h3 className="text-base font-medium text-gray-900">Property & Tenant</h3>
+                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Property & Tenant</h3>
                   </div>
 
                   <div className="space-y-4">
                     <div ref={propertyDropdownRef} className="relative">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Property <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -491,10 +491,10 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                         }}
                         onFocus={() => setDropdownOpen("property")}
                         autoComplete="off"
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       />
                       {dropdownOpen === "property" && properties.length > 0 && (
-                        <div className="absolute z-20 mt-1 w-full max-w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <div className="absolute z-20 mt-1 w-full max-w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                           <ul className="py-1">
                             {properties
                               .filter((p) =>
@@ -506,7 +506,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                                 <li
                                   key={p.id}
                                   tabIndex={0}
-                                  className="px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-500 hover:text-white cursor-pointer transition-colors duration-150"
+                                  className="px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-500 hover:text-white cursor-pointer transition-colors duration-150"
                                   onClick={() => handlePropertySelect(p)}
                                   onKeyDown={(e) => handlePropertySelectKeyDown(e, p)}
                                 >
@@ -519,7 +519,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                     </div>
 
                     <div ref={tenantDropdownRef} className="relative">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Tenant <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -539,12 +539,12 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                         autoComplete="off"
                         className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
                           !formData.property_id || tenants.length === 0
-                            ? "bg-gray-100 cursor-not-allowed border-gray-200"
-                            : "bg-white border-gray-200"
+                            ? "bg-gray-100 dark:bg-gray-600 cursor-not-allowed border-gray-200 dark:border-gray-500"
+                            : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100"
                         }`}
                       />
                       {dropdownOpen === "tenant" && tenants.length > 0 && (
-                        <div className="absolute z-20 mt-1 w-full max-w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <div className="absolute z-20 mt-1 w-full max-w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                           <ul className="py-1">
                             {tenants
                               .filter((t) =>
@@ -556,7 +556,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                                 <li
                                   key={t.id}
                                   tabIndex={0}
-                                  className="px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-500 hover:text-white cursor-pointer transition-colors duration-150"
+                                  className="px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-500 hover:text-white cursor-pointer transition-colors duration-150"
                                   onClick={() => handleTenantSelect(t)}
                                   onKeyDown={(e) => handleTenantSelectKeyDown(e, t)}
                                 >
@@ -582,7 +582,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                   </div>
 
                   {lease && (
-                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+                    <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg text-sm text-green-700 dark:text-green-300">
                       Active lease found: ID {lease.id}, Rent: $
                       {lease.monthly_rent?.toLocaleString()}
                     </div>
@@ -590,37 +590,37 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                 </div>
 
                 {/* Payment Details */}
-                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                   <div className="flex items-center mb-3">
-                    <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center mr-3">
-                      <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <div className="w-9 h-9 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center mr-3">
+                      <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <h3 className="text-base font-medium text-gray-900">Payment Details</h3>
+                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Payment Details</h3>
                   </div>
 
                   {/* Rent Calculation Display */}
                   {lease && (
-                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
                       <div className="space-y-2">
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-700">Monthly Rent:</span>
-                          <span className="font-medium text-gray-900">
+                          <span className="text-gray-700 dark:text-gray-300">Monthly Rent:</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">
                             ${lease.monthly_rent?.toLocaleString() || '0.00'}
                           </span>
                         </div>
                         {formData.reduction > 0 && (
                           <>
                             <div className="flex justify-between items-center text-sm">
-                              <span className="text-red-600">Reduction:</span>
-                              <span className="font-medium text-red-600">
+                              <span className="text-red-600 dark:text-red-400">Reduction:</span>
+                              <span className="font-medium text-red-600 dark:text-red-400">
                                 -${parseFloat(formData.reduction).toLocaleString()}
                               </span>
                             </div>
-                            <div className="border-t border-blue-200 pt-2 flex justify-between items-center">
-                              <span className="text-sm font-medium text-gray-700">Total to Collect:</span>
-                              <span className="font-semibold text-gray-900">
+                            <div className="border-t border-blue-200 dark:border-blue-600 pt-2 flex justify-between items-center">
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total to Collect:</span>
+                              <span className="font-semibold text-gray-900 dark:text-gray-100">
                                 ${(lease.monthly_rent - parseFloat(formData.reduction || 0)).toLocaleString()}
                               </span>
                             </div>
@@ -632,12 +632,12 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Amount <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <span className="text-gray-500 sm:text-sm">$</span>
+                          <span className="text-gray-500 dark:text-gray-400 sm:text-sm">$</span>
                         </div>
                         <input
                           type="number"
@@ -658,18 +658,18 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                           step="0.01"
                           required
                           placeholder="0.00"
-                          className="w-full px-4 py-2.5 pl-7 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                          className="w-full px-4 py-2.5 pl-7 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Reduction (Optional)
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <span className="text-gray-500 sm:text-sm">$</span>
+                          <span className="text-gray-500 dark:text-gray-400 sm:text-sm">$</span>
                         </div>
                         <input
                           type="number"
@@ -696,16 +696,16 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                           min="0"
                           step="0.01"
                           placeholder="0.00"
-                          className="w-full px-4 py-2.5 pl-7 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                          className="w-full px-4 py-2.5 pl-7 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                         />
                       </div>
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         Enter any one-time discount or reduction
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Payment Date <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -714,12 +714,12 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                         value={formData.payment_date}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 dark:[color-scheme:dark]"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Payment Method <span className="text-red-500">*</span>
                       </label>
                       <select
@@ -727,7 +727,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                         value={formData.payment_method}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       >
                         <option value="">Select a method</option>
                         {PAYMENT_METHODS.map((method) => (
@@ -739,7 +739,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Status <span className="text-red-500">*</span>
                       </label>
                       <select
@@ -747,7 +747,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                         value={formData.status}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       >
                         {PAYMENT_STATUSES.map((s) => (
                           <option key={s} value={s}>
@@ -758,7 +758,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Transaction Reference
                       </label>
                       <input
@@ -767,13 +767,13 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                         value={formData.transaction_reference}
                         onChange={handleInputChange}
                         placeholder="e.g., Bank transaction ID"
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       />
                     </div>
 
                     {formData.reduction > 0 && (
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Reduction Reason <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -783,16 +783,16 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                           onChange={handleInputChange}
                           placeholder="e.g., Tenant referred a friend, Holiday goodwill"
                           required={formData.reduction > 0}
-                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                          className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                         />
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                           Please provide a reason for the reduction
                         </p>
                       </div>
                     )}
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Notes
                       </label>
                       <textarea
@@ -801,7 +801,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                         onChange={handleInputChange}
                         rows="2"
                         placeholder="Optional payment notes..."
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white resize-none"
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
                       />
                     </div>
                   </div>
@@ -810,12 +810,12 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
             </form>
 
             {/* Footer */}
-            <div className="px-6 py-5 bg-gray-50 border-t border-gray-200">
+            <div className="px-6 py-5 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all text-sm font-medium"
+                  className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all text-sm font-medium"
                   disabled={isLoading}
                 >
                   Cancel

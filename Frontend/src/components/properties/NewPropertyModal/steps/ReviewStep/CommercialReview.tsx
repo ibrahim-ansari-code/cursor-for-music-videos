@@ -68,16 +68,16 @@ const CommercialReview: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200"
+          className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl p-4 border border-blue-200 dark:border-blue-700 transition-colors duration-300"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-white rounded-lg shadow-sm">
-                <Store className="h-6 w-6 text-blue-600" />
+              <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm transition-colors duration-300">
+                <Store className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">{formData.name}</h3>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 transition-colors duration-300">{formData.name}</h3>
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
                   <span>{spaceType && `${spaceType.charAt(0).toUpperCase() + spaceType.slice(1)} `}Commercial Space</span>
                   <span>•</span>
                   <span>{formData.city}, {formData.province}</span>
@@ -92,12 +92,12 @@ const CommercialReview: React.FC = () => {
             </div>
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold
               ${formData.status === PropertyStatus.ACTIVE 
-                ? 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border border-green-200' 
+                ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700' 
                 : formData.status === PropertyStatus.RENTED 
-                ? 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200' 
+                ? 'bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700' 
                 : formData.status === PropertyStatus.VACANT
-                ? 'bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-700 border border-yellow-200'
-                : 'bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200'
+                ? 'bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/30 dark:to-amber-900/30 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-700'
+                : 'bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-800/30 dark:to-slate-800/30 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
               }`}>
               <span className={`w-1.5 h-1.5 rounded-full mr-2 ${
                 formData.status === PropertyStatus.ACTIVE ? 'bg-green-500' :
@@ -118,16 +118,16 @@ const CommercialReview: React.FC = () => {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-white rounded-xl border border-gray-200 p-4"
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-gray-500" />
-                  <h4 className="font-semibold text-gray-900">Location</h4>
+                  <MapPin className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">Location</h4>
                 </div>
                 <div className="text-right text-sm">
-                  <p className="font-medium text-gray-900">{formData.address}</p>
-                  <p className="text-gray-600">{formData.city}, {formData.province} {formData.postal_code?.replace(/^(.{3})(.{3})$/, '$1 $2')}</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">{formData.address}</p>
+                  <p className="text-gray-600 dark:text-gray-400 transition-colors duration-300">{formData.city}, {formData.province} {formData.postal_code?.replace(/^(.{3})(.{3})$/, '$1 $2')}</p>
                 </div>
               </div>
             </motion.div>
@@ -137,32 +137,32 @@ const CommercialReview: React.FC = () => {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-white rounded-xl border border-gray-200 p-4"
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300"
             >
               <div className="flex items-center gap-2 mb-3">
-                <Store className="h-4 w-4 text-gray-500" />
-                <h4 className="font-semibold text-gray-900">Commercial Details</h4>
+                <Store className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">Commercial Details</h4>
               </div>
               
               <div className="grid grid-cols-3 gap-3">
                 {usableSquareFeet && (
-                  <div className="text-center p-2 bg-green-50 rounded-lg">
-                    <Square className="h-4 w-4 mx-auto text-green-600 mb-1" />
-                    <div className="text-sm font-semibold text-gray-900">{Number(usableSquareFeet).toLocaleString()}</div>
-                    <div className="text-xs text-gray-600">Usable SF</div>
+                  <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded-lg transition-colors duration-300">
+                    <Square className="h-4 w-4 mx-auto text-green-600 dark:text-green-400 mb-1" />
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">{Number(usableSquareFeet).toLocaleString()}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">Usable SF</div>
                   </div>
                 )}
                 {rentableSquareFeet && (
-                  <div className="text-center p-2 bg-purple-50 rounded-lg">
-                    <TrendingUp className="h-4 w-4 mx-auto text-purple-600 mb-1" />
-                    <div className="text-sm font-semibold text-gray-900">{Number(rentableSquareFeet).toLocaleString()}</div>
-                    <div className="text-xs text-gray-600">Rentable SF</div>
+                  <div className="text-center p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg transition-colors duration-300">
+                    <TrendingUp className="h-4 w-4 mx-auto text-purple-600 dark:text-purple-400 mb-1" />
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">{Number(rentableSquareFeet).toLocaleString()}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">Rentable SF</div>
                   </div>
                 )}
                 {leaseType && (
-                  <div className="text-center p-2 bg-blue-50 rounded-lg">
-                    <Building className="h-4 w-4 mx-auto text-blue-600 mb-1" />
-                    <div className="text-xs font-semibold text-gray-900">{
+                  <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg transition-colors duration-300">
+                    <Building className="h-4 w-4 mx-auto text-blue-600 dark:text-blue-400 mb-1" />
+                    <div className="text-xs font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">{
                       (() => {
                         const leaseTypeMap: Record<string, string> = {
                           'gross': 'GROSS',
@@ -174,14 +174,14 @@ const CommercialReview: React.FC = () => {
                         return leaseTypeMap[leaseType] || leaseType.replace(/_/g, ' ').toUpperCase();
                       })()
                     }</div>
-                    <div className="text-xs text-gray-600">Lease Type</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">Lease Type</div>
                   </div>
                 )}
               </div>
               
               {formData.description && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-xs text-gray-600 leading-relaxed">{formData.description}</p>
+                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-600 transition-colors duration-300">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed transition-colors duration-300">{formData.description}</p>
                 </div>
               )}
             </motion.div>
@@ -192,44 +192,44 @@ const CommercialReview: React.FC = () => {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
-                className="bg-white rounded-xl border border-gray-200 p-4"
+                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300"
               >
                 <div className="flex items-center gap-2 mb-3">
-                  <Key className="h-4 w-4 text-gray-500" />
-                  <h4 className="font-semibold text-gray-900">Units & Revenue</h4>
+                  <Key className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">Units & Revenue</h4>
                 </div>
                 
                 <div className="grid grid-cols-3 gap-3 mb-3">
-                  <div className="text-center p-2 bg-blue-50 rounded-lg">
-                    <Key className="h-4 w-4 mx-auto text-blue-600 mb-1" />
-                    <div className="text-sm font-semibold text-gray-900">{totalUnits}</div>
-                    <div className="text-xs text-gray-600">Units</div>
+                  <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg transition-colors duration-300">
+                    <Key className="h-4 w-4 mx-auto text-blue-600 dark:text-blue-400 mb-1" />
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">{totalUnits}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">Units</div>
                   </div>
                   {totalSize > 0 && (
-                    <div className="text-center p-2 bg-indigo-50 rounded-lg">
-                      <Square className="h-4 w-4 mx-auto text-indigo-600 mb-1" />
-                      <div className="text-sm font-semibold text-gray-900">{totalSize.toLocaleString()}</div>
-                      <div className="text-xs text-gray-600">Total SF</div>
+                    <div className="text-center p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg transition-colors duration-300">
+                      <Square className="h-4 w-4 mx-auto text-indigo-600 dark:text-indigo-400 mb-1" />
+                      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">{totalSize.toLocaleString()}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">Total SF</div>
                     </div>
                   )}
                   {totalMonthlyRent > 0 && (
-                    <div className="text-center p-2 bg-green-50 rounded-lg">
-                      <DollarSign className="h-4 w-4 mx-auto text-green-600 mb-1" />
-                      <div className="text-sm font-semibold text-gray-900">${totalMonthlyRent.toLocaleString()}</div>
-                      <div className="text-xs text-gray-600">Monthly</div>
+                    <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded-lg transition-colors duration-300">
+                      <DollarSign className="h-4 w-4 mx-auto text-green-600 dark:text-green-400 mb-1" />
+                      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">${totalMonthlyRent.toLocaleString()}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">Monthly</div>
                     </div>
                   )}
                 </div>
 
                 {/* Revenue Projection */}
                 {totalMonthlyRent > 0 && (
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 border border-green-200">
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 rounded-lg p-3 border border-green-200 dark:border-green-700 transition-colors duration-300">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-900">Annual Projection</span>
+                        <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        <span className="text-sm font-medium text-green-900 dark:text-green-200 transition-colors duration-300">Annual Projection</span>
                       </div>
-                      <span className="text-lg font-bold text-green-700">
+                      <span className="text-lg font-bold text-green-700 dark:text-green-300 transition-colors duration-300">
                         ${(totalMonthlyRent * 12).toLocaleString()}
                       </span>
                     </div>
@@ -246,12 +246,12 @@ const CommercialReview: React.FC = () => {
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-white rounded-xl border border-gray-200 p-4"
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300"
             >
               <div className="flex items-center gap-2 mb-3">
-                <ImageIcon className="h-4 w-4 text-gray-500" />
-                <h4 className="font-semibold text-gray-900">Media</h4>
-                <span className="text-sm text-gray-500">({images.length})</span>
+                <ImageIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">Media</h4>
+                <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">({images.length})</span>
               </div>
               
               {images.length > 0 ? (
@@ -260,7 +260,7 @@ const CommercialReview: React.FC = () => {
                     {imageUrls.slice(0, 6).map((url, idx) => (
                       <div
                         key={idx}
-                        className="aspect-square rounded-lg overflow-hidden border border-gray-200"
+                        className="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 transition-colors duration-300"
                       >
                         <img
                           src={url}
@@ -272,14 +272,14 @@ const CommercialReview: React.FC = () => {
                   </div>
                   {images.length > 6 && (
                     <div className="text-center">
-                      <span className="text-xs text-gray-500">+{images.length - 6} more images</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">+{images.length - 6} more images</span>
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="text-center py-4">
-                  <ImageIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-xs text-gray-500">No images added</p>
+                  <ImageIcon className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">No images added</p>
                 </div>
               )}
             </motion.div>
@@ -290,13 +290,13 @@ const CommercialReview: React.FC = () => {
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
-                className="bg-yellow-50 border border-yellow-200 rounded-xl p-3"
+                className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl p-3 transition-colors duration-300"
               >
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-xs font-medium text-yellow-900 mb-1">Optional items missing</p>
-                    <ul className="text-xs text-yellow-700 space-y-0.5">
+                    <p className="text-xs font-medium text-yellow-900 dark:text-yellow-200 mb-1 transition-colors duration-300">Optional items missing</p>
+                    <ul className="text-xs text-yellow-700 dark:text-yellow-300 space-y-0.5 transition-colors duration-300">
                       {warnings.map((warning, idx) => (
                         <li key={idx}>• {warning}</li>
                       ))}

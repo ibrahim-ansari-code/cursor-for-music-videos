@@ -1,9 +1,9 @@
 /* Syntax highlighting for code blocks */
-@import 'highlight.js/styles/github.css';
+@import "highlight.js/styles/github.css";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
 
 body {
   font-family: "Inter", sans-serif;
@@ -13,47 +13,109 @@ body {
   padding: 0;
 }
 
-/* Custom scrollbar styles for virtual scrolling */
+/* Dark Mode - Professional Deep Colors */
+.dark body {
+  background-color: #111827; /* Professional dark gray */
+  color: #f3f4f6;
+}
+
+/* Custom scrollbar styles for virtual scrolling and dark mode compliance */
 @layer utilities {
   .scrollbar-thin::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar-track {
-    @apply bg-gray-100 rounded;
+    @apply bg-gray-100 dark:bg-gray-800 rounded;
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-gray-400 rounded hover:bg-gray-500;
+    @apply bg-gray-400 dark:bg-gray-600 rounded hover:bg-gray-500 dark:hover:bg-gray-500;
   }
-  
+
   /* Firefox scrollbar styling */
   .scrollbar-thin {
     scrollbar-width: thin;
-    /* Fallback for browsers that don't support theme() function */
-    scrollbar-color: #9ca3af #f3f4f6;
-    scrollbar-color: theme('colors.gray.400') theme('colors.gray.100');
+    scrollbar-color: #9ca3af #f3f4f6; /* Light gray thumb on light gray track */
+  }
+
+  /* Dark mode Firefox scrollbar - class-based */
+  .dark .scrollbar-thin {
+    scrollbar-color: #6b7280 #374151;
+  }
+
+  /* Simplified 2-tier dark mode utility classes */
+  .dark-bg {
+    @apply bg-gray-50 dark:bg-gray-900;
+  }
+
+  .dark-panel {
+    @apply bg-white dark:bg-gray-800;
+  }
+
+  .dark-input {
+    @apply bg-white dark:bg-gray-700;
+  }
+
+  .dark-divider {
+    @apply border-gray-200 dark:border-gray-700;
+  }
+
+  /* Glassmorphism utilities */
+  .glassmorphism {
+    @apply backdrop-blur-md bg-white/80 dark:bg-gray-800/80 border border-white/20 dark:border-gray-600/30;
+  }
+
+  .glassmorphism-strong {
+    @apply backdrop-blur-xl bg-white/90 dark:bg-gray-800/90 border border-white/30 dark:border-gray-600/40;
   }
 }
 
 /* Hide the reCAPTCHA v3 badge while showing a minimal notice elsewhere */
 .grecaptcha-badge { visibility: hidden; }
 
+/* reCAPTCHA Notice - Professional Dark Mode Support */
 .recaptcha-notice {
   position: fixed;
   right: 12px;
   bottom: 8px;
   z-index: 9999;
   font-size: 11px;
-  color: #64748b; /* slate-500 */
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: saturate(180%) blur(4px);
-  padding: 4px 8px;
-  border-radius: 6px;
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: saturate(180%) blur(8px);
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
 }
-.recaptcha-notice a { color: #0ea5e9; text-decoration: none; }
-.recaptcha-notice a:hover { text-decoration: underline; }
+
+/* Dark mode reCAPTCHA - Professional styling */
+.dark .recaptcha-notice {
+  color: #9ca3af;
+  background: rgba(17, 24, 39, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.recaptcha-notice a {
+  color: #0ea5e9;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.recaptcha-notice a:hover {
+  color: #0284c7;
+  text-decoration: underline;
+}
+
+.dark .recaptcha-notice a {
+  color: #38bdf8;
+}
+
+.dark .recaptcha-notice a:hover {
+  color: #0ea5e9;
+}
 
 @media (max-width: 640px) {
   .recaptcha-notice {
@@ -64,13 +126,59 @@ body {
   }
 }
 
-/* Dashboard Card Styles */
+/* Dashboard Cards - Clean Professional Design */
 .dashboard-card {
-  @apply bg-white rounded-lg shadow-sm p-5 border border-gray-100 transition-shadow duration-200;
+  @apply bg-white dark:bg-gray-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-800 transition-all duration-200;
 }
 
 .dashboard-card:hover {
-  @apply shadow-md;
+  @apply shadow-md dark:shadow-xl transform hover:scale-[1.01] border-gray-200 dark:border-gray-700;
+}
+
+/* Professional KPI Cards with clean design */
+.kpi-card {
+  @apply bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-100 dark:border-gray-800 transition-all duration-200;
+}
+
+.kpi-card:hover {
+  @apply transform hover:scale-[1.01] shadow-lg border-blue-200;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.02) 0%, rgba(99, 102, 241, 0.02) 100%);
+}
+
+.dark .kpi-card:hover {
+  @apply shadow-xl border-blue-800/50;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%);
+}
+
+.kpi-number {
+  @apply text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2;
+  font-size: 22px; /* Larger KPI numbers as requested */
+}
+
+@media (min-width: 640px) {
+  .kpi-number {
+    font-size: 24px;
+  }
+}
+
+.kpi-delta {
+  @apply inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium shadow-sm;
+}
+
+.kpi-delta.positive {
+  @apply bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-700;
+}
+
+.kpi-delta.negative {
+  @apply bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-700;
+}
+
+.kpi-delta.neutral {
+  @apply bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700;
+}
+
+.kpi-sparkline {
+  @apply h-1 flex-1 opacity-60 ml-4 rounded-full;
 }
 
 /* AI Agent Message Styles */
@@ -79,11 +187,11 @@ body {
 }
 
 .ai-message-content h2 {
-  @apply text-lg font-semibold mt-4 mb-2 text-gray-800;
+  @apply text-lg font-semibold mt-4 mb-2 text-gray-800 dark:text-gray-200;
 }
 
 .ai-message-content h3 {
-  @apply text-base font-medium mt-3 mb-2 text-gray-700;
+  @apply text-base font-medium mt-3 mb-2 text-gray-700 dark:text-gray-300;
 }
 
 .ai-message-content h2:first-child,
@@ -103,67 +211,165 @@ body {
   @apply font-semibold;
 }
 
-/* Table Styles */
+/* Table Styles - Perfect Alignment & Professional Design */
 .data-table {
-  @apply w-full border-collapse;
+  @apply w-full border-collapse bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700;
 }
 
 .data-table th {
-  @apply text-left py-3 px-4 font-medium text-gray-500 text-sm;
+  @apply text-sm border-b border-gray-200 dark:border-gray-700;
 }
 
 .data-table td {
-  @apply py-3 px-4 border-t border-gray-100;
+  @apply py-4 px-6 text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-gray-800;
 }
 
-/* Button Styles */
+/* Professional zebra striping with subtle contrast */
+.data-table tbody tr:nth-child(even) {
+  @apply bg-gray-50/30 dark:bg-gray-800/20;
+}
+
+.data-table tbody tr:nth-child(odd) {
+  @apply bg-white dark:bg-gray-900;
+}
+
+/* Sophisticated hover effects */
+.data-table tbody tr:hover {
+  @apply bg-gray-50 dark:bg-gray-800/40 transition-colors duration-150;
+}
+
+/* Enhanced email and phone links with hover underline */
+.email-link, .phone-link,
+.data-table a[href^="mailto:"], 
+.data-table a[href^="tel:"] {
+  @apply text-blue-600 dark:text-blue-400 transition-all duration-200 font-medium;
+}
+
+.email-link:hover, .phone-link:hover,
+.data-table a[href^="mailto:"]:hover, 
+.data-table a[href^="tel:"]:hover {
+  @apply text-blue-800 dark:text-blue-300 underline;
+}
+
+/* Button Styles with Clean Dark Mode */
 .btn {
   @apply px-4 py-2 rounded-md font-medium transition-colors duration-200;
 }
 
 .btn-primary {
-  @apply bg-blue-600 text-white hover:bg-blue-700;
+  @apply bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600;
 }
 
 .btn-secondary {
-  @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+  @apply bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600;
 }
 
 .btn-success {
-  @apply bg-green-600 text-white hover:bg-green-700;
+  @apply bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600;
 }
 
 .btn-danger {
-  @apply bg-red-600 text-white hover:bg-red-700;
+  @apply bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600;
 }
 
-/* Status Badge Styles */
+/* Enhanced Status Badge Styles with Dark Mode Support and status dots */
 .badge {
-  @apply inline-block px-2.5 py-0.5 text-xs font-medium rounded-full;
+  @apply inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-full shadow-sm border transition-all duration-200;
+}
+
+.badge::before {
+  content: '';
+  @apply w-2 h-2 rounded-full mr-2 flex-shrink-0;
 }
 
 .badge-success {
-  @apply bg-green-100 text-green-800;
+  @apply bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700;
+}
+
+.badge-success::before {
+  @apply bg-green-500 dark:bg-green-400;
 }
 
 .badge-warning {
-  @apply bg-yellow-100 text-yellow-800;
+  @apply bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-700;
+}
+
+.badge-warning::before {
+  @apply bg-yellow-500 dark:bg-yellow-400;
 }
 
 .badge-danger {
-  @apply bg-red-100 text-red-800;
+  @apply bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-700;
+}
+
+.badge-danger::before {
+  @apply bg-red-500 dark:bg-red-400;
 }
 
 .badge-info {
-  @apply bg-blue-100 text-blue-800;
+  @apply bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-700;
 }
 
-/* Input Styles */
+.badge-info::before {
+  @apply bg-blue-500 dark:bg-blue-400;
+}
+
+.badge-gray {
+  @apply bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700;
+}
+
+.badge-gray::before {
+  @apply bg-gray-500 dark:bg-gray-400;
+}
+
+/* Enhanced status pills with status dots and improved styling */
+.status-pill {
+  @apply inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-full shadow-sm border transition-all duration-200;
+}
+
+.status-pill::before {
+  content: '';
+  @apply w-2 h-2 rounded-full mr-2 flex-shrink-0;
+}
+
+.status-pill-active {
+  @apply bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-700;
+}
+
+.status-pill-active::before {
+  @apply bg-green-500 dark:bg-green-400;
+}
+
+.status-pill-pending {
+  @apply bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-700;
+}
+
+.status-pill-pending::before {
+  @apply bg-yellow-500 dark:bg-yellow-400;
+}
+
+.status-pill-overdue {
+  @apply bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-700;
+}
+
+.status-pill-overdue::before {
+  @apply bg-red-500 dark:bg-red-400;
+}
+
+.status-pill-inactive {
+  @apply bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700;
+}
+
+.status-pill-inactive::before {
+  @apply bg-gray-500 dark:bg-gray-400;
+}
+
+/* Input Styles with Dark Mode */
 .input {
-  @apply border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  @apply dark-input border dark-divider rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent text-gray-900 dark:text-gray-100;
 }
 
-/* Custom scrollbar */
+/* Global custom scrollbar with dark mode support */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -182,11 +388,39 @@ body {
   background: #a8a8a8;
 }
 
-/* Typing Indicator Animation */
+/* Dark mode global scrollbar */
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-track {
+    background: #374151;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #6b7280;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #6b7280;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Enhanced Typing Indicator Animation for Assistant */
 .typing-indicator {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  padding: 8px 12px;
 }
 
 .typing-indicator span {
@@ -194,33 +428,39 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #9ca3af;
-  animation: typing 1.4s infinite ease-in-out;
-  will-change: transform;
+  background-color: #22c55e; /* Green color for dots */
+  animation: pulseGreen 1.5s infinite ease-in-out;
+  will-change: transform, opacity;
 }
 
 .typing-indicator span:nth-child(1) {
-  animation-delay: -0.32s;
+  animation-delay: 0s;
 }
 
 .typing-indicator span:nth-child(2) {
-  animation-delay: -0.16s;
+  animation-delay: 0.2s;
 }
 
-@keyframes typing {
-  0%, 80%, 100% {
-    transform: scale(0.8);
-    opacity: 0.5;
-  }
-  40% {
-    transform: scale(1);
-    opacity: 1;
-  }
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* Message bubble styles */
+.message-bubble {
+  @apply rounded-2xl px-4 py-3 max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl border transition-all duration-200;
+}
+
+.message-bubble.user {
+  @apply bg-blue-600 dark:bg-blue-500 text-white border-blue-500 dark:border-blue-400;
+}
+
+.message-bubble.assistant {
+  @apply dark-panel border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100;
 }
 
 /* Thin custom scrollbar for lists */
 .custom-scrollbar {
-  scrollbar-width: thin; /* Firefox support */
+  scrollbar-width: thin;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -233,12 +473,16 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  @apply bg-gray-300;
+  @apply bg-gray-300 dark:bg-gray-600;
   border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400;
+  @apply bg-gray-400 dark:bg-gray-500;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-transparent dark:bg-gray-800/50;
 }
 
 /* Skeleton shimmer animation */
@@ -259,6 +503,9 @@ body {
   .backdrop-blur-sm {
     backdrop-filter: blur(4px);
   }
+  .backdrop-blur-xl {
+    backdrop-filter: blur(24px);
+  }
 }
 
 /* Fallback for browsers that don't support backdrop-filter */
@@ -268,5 +515,11 @@ body {
   }
   .backdrop-blur-sm {
     background-color: rgba(255, 255, 255, 0.9);
+  }
+  .backdrop-blur-xl {
+    background-color: rgba(255, 255, 255, 0.95); /* Light mode fallback */
+  }
+  .dark .backdrop-blur-xl {
+    background-color: rgba(0, 0, 0, 0.4); /* Dark mode fallback */
   }
 }

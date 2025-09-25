@@ -72,7 +72,7 @@ const CommercialForm: React.FC = () => {
     <div className="space-y-5">
       {/* Space Type Selection - Required */}
       <div>
-        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2.5 block">
+        <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5 block transition-colors duration-300">
           Commercial Space Type *
         </label>
         <div className="grid grid-cols-3 gap-2 p-1">
@@ -84,27 +84,27 @@ const CommercialForm: React.FC = () => {
               className={`
                 relative p-3 rounded-xl border-2 transition-all duration-200 group
                 ${spaceType === type.value 
-                  ? 'border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 shadow-md' 
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                  ? 'border-green-500 dark:border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/40 dark:to-emerald-900/40 shadow-md' 
+                  : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm'
                 }
               `}
             >
               <div className="text-lg mb-1">{type.icon}</div>
-              <div className={`text-xs font-medium ${
-                spaceType === type.value ? 'text-green-700' : 'text-gray-700'
+              <div className={`text-xs font-medium transition-colors duration-300 ${
+                spaceType === type.value ? 'text-green-700 dark:text-green-300' : 'text-gray-700 dark:text-gray-300'
               }`}>
                 {type.label}
               </div>
               {spaceType === type.value && (
                 <div className="absolute top-1 right-1">
-                  <div className={`w-2 h-2 bg-green-500 rounded-full animate-pulse`}></div>
+                  <div className={`w-2 h-2 bg-green-500 dark:bg-green-400 rounded-full animate-pulse`}></div>
                 </div>
               )}
             </button>
           ))}
         </div>
         {getFieldError('space_type') && (
-          <p className="mt-1 text-xs text-red-500 flex items-center">
+          <p className="mt-1 text-xs text-red-500 dark:text-red-400 flex items-center transition-colors duration-300">
             <AlertCircle className="h-3 w-3 mr-1" />
             {getFieldError('space_type')?.message}
           </p>
@@ -112,24 +112,24 @@ const CommercialForm: React.FC = () => {
       </div>
 
       {/* Core Space Configuration - Required */}
-      <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-4 border border-gray-200">
+      <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800/50 dark:to-gray-900/50 rounded-xl p-4 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300">
             Essential Details
           </span>
-          <span className="text-xs text-gray-500">* Required</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">* Required</span>
         </div>
         
         <div className="grid grid-cols-2 gap-3 mb-3">
           {/* Usable Square Feet - Required */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200 hover:border-indigo-300 transition-colors group">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-500 transition-colors group">
             <label className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-                <Square className="h-3.5 w-3.5 inline mr-1.5 text-indigo-500" />
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                <Square className="h-3.5 w-3.5 inline mr-1.5 text-indigo-500 dark:text-indigo-400" />
                 Usable SF *
               </span>
               {usableSquareFeet > 0 && (
-                <span className="text-xs text-indigo-600 font-semibold">{usableSquareFeet.toLocaleString()} ft²</span>
+                <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">{usableSquareFeet.toLocaleString()} ft²</span>
               )}
             </label>
             <input
@@ -139,25 +139,25 @@ const CommercialForm: React.FC = () => {
                 valueAsNumber: true
               })}
               type="number"
-              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="5000"
             />
             {getFieldError('usable_square_feet') && (
-              <p className="mt-1 text-[10px] text-red-500">
+              <p className="mt-1 text-[10px] text-red-500 dark:text-red-400">
                 {getFieldError('usable_square_feet')?.message}
               </p>
             )}
           </div>
 
           {/* Rentable Square Feet - Required */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200 hover:border-purple-300 transition-colors group">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500 transition-colors group">
             <label className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-                <TrendingUp className="h-3.5 w-3.5 inline mr-1.5 text-purple-500" />
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                <TrendingUp className="h-3.5 w-3.5 inline mr-1.5 text-purple-500 dark:text-purple-400" />
                 Rentable SF *
               </span>
               {rentableSquareFeet > 0 && (
-                <span className="text-xs text-purple-600 font-semibold">{rentableSquareFeet.toLocaleString()} ft²</span>
+                <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold">{rentableSquareFeet.toLocaleString()} ft²</span>
               )}
             </label>
             <input
@@ -167,11 +167,11 @@ const CommercialForm: React.FC = () => {
                 valueAsNumber: true
               })}
               type="number"
-              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="5500"
             />
             {getFieldError('rentable_square_feet') && (
-              <p className="mt-1 text-[10px] text-red-500">
+              <p className="mt-1 text-[10px] text-red-500 dark:text-red-400">
                 {getFieldError('rentable_square_feet')?.message}
               </p>
             )}
@@ -181,13 +181,13 @@ const CommercialForm: React.FC = () => {
         {/* Common Area Factor & Ceiling Height */}
         <div className="grid grid-cols-2 gap-3">
           {/* Common Area Factor (computed, read-only) */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200 hover:border-purple-300 transition-colors group">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500 transition-colors group">
             <label className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-                <Users className="h-3.5 w-3.5 inline mr-1 text-purple-500" />
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                <Users className="h-3.5 w-3.5 inline mr-1 text-purple-500 dark:text-purple-400" />
                 CAF (%)
               </span>
-              <span className="text-xs text-purple-500 font-medium">Auto</span>
+              <span className="text-xs text-purple-500 dark:text-purple-400 font-medium">Auto</span>
             </label>
             <input
               type="text"
@@ -197,32 +197,32 @@ const CommercialForm: React.FC = () => {
               }
               readOnly
               className={`
-                w-full px-2.5 py-1.5 text-sm font-semibold border border-gray-200 rounded-md 
-                bg-gradient-to-r from-purple-50 to-indigo-50 
+                w-full px-2.5 py-1.5 text-sm font-semibold border border-gray-200 dark:border-gray-600 rounded-md 
+                bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900 dark:to-indigo-900
                 transition-all duration-200
                 ${usableSquareFeet > 0 && rentableSquareFeet > 0 
-                  ? 'text-purple-700 border-purple-200' 
-                  : 'text-gray-400 border-gray-200'
+                  ? 'text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700' 
+                  : 'text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-600'
                 }
               `}
               placeholder="Auto-calculated"
             />
             {getFieldError('common_area_factor') && (
-              <p className="mt-1 text-[10px] text-red-500">
+              <p className="mt-1 text-[10px] text-red-500 dark:text-red-400">
                 {getFieldError('common_area_factor')?.message}
               </p>
             )}
           </div>
 
           {/* Ceiling Height */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200 hover:border-indigo-300 transition-colors group">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-500 transition-colors group">
             <label className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-                <Ruler className="h-3.5 w-3.5 inline mr-1.5 text-indigo-500" />
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                <Ruler className="h-3.5 w-3.5 inline mr-1.5 text-indigo-500 dark:text-indigo-400" />
                 Ceiling Height
               </span>
               {typeDetails.ceiling_height > 0 && (
-                <span className="text-xs text-indigo-600 font-semibold">{typeDetails.ceiling_height} ft</span>
+                <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">{typeDetails.ceiling_height} ft</span>
               )}
             </label>
             <input
@@ -232,11 +232,11 @@ const CommercialForm: React.FC = () => {
               })}
               type="number"
               step="0.5"
-              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="12"
             />
             {getFieldError('ceiling_height') && (
-              <p className="mt-1 text-[10px] text-red-500">
+              <p className="mt-1 text-[10px] text-red-500 dark:text-red-400">
                 {getFieldError('ceiling_height')?.message}
               </p>
             )}
@@ -245,9 +245,9 @@ const CommercialForm: React.FC = () => {
       </div>
 
       {/* Floor Count - Standalone Section */}
-      <div className="bg-gradient-to-br from-blue-50/30 to-indigo-50/20 rounded-xl p-3.5 border border-gray-200">
-        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2.5 block">
-          <Layers className="h-3.5 w-3.5 inline mr-1.5 text-blue-500" />
+      <div className="bg-gradient-to-br from-blue-50/30 to-indigo-50/20 dark:from-blue-900/30 dark:to-indigo-900/20 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600">
+        <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5 block">
+          <Layers className="h-3.5 w-3.5 inline mr-1.5 text-blue-500 dark:text-blue-400" />
           Floor Count
         </label>
         <div className="flex gap-2">
@@ -263,7 +263,7 @@ const CommercialForm: React.FC = () => {
                 flex-1 py-2 px-3 rounded-lg font-medium text-sm transition-all
                 ${floorCount === num && !floorCountInput
                   ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }
               `}
             >
@@ -284,17 +284,17 @@ const CommercialForm: React.FC = () => {
             type="number"
             min="4"
             max="100"
-            className="w-16 px-2 py-2 text-sm font-medium border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center"
+            className="w-16 px-2 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             placeholder="4+"
           />
         </div>
       </div>
 
       {/* Lease Structure - Required */}
-      <div className="bg-white rounded-xl p-3.5 border border-gray-200 hover:shadow-sm transition-all">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600 hover:shadow-sm transition-all">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
-            <FileText className="h-3.5 w-3.5 inline mr-1.5 text-green-600" />
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+            <FileText className="h-3.5 w-3.5 inline mr-1.5 text-green-600 dark:text-green-400" />
             Lease Structure *
           </span>
         </div>
@@ -308,29 +308,29 @@ const CommercialForm: React.FC = () => {
               className={`
                 w-full p-3 rounded-lg border-2 text-left transition-all duration-200
                 ${leaseType === lease.value 
-                  ? 'border-green-500 bg-green-50' 
-                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  ? 'border-green-500 dark:border-green-400 bg-green-50 dark:bg-green-900' 
+                  : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-500'
                 }
               `}
             >
               <div className="flex items-center justify-between">
                 <div>
                   <div className={`text-sm font-medium ${
-                    leaseType === lease.value ? 'text-green-700' : 'text-gray-700'
+                    leaseType === lease.value ? 'text-green-700 dark:text-green-300' : 'text-gray-700 dark:text-gray-300'
                   }`}>
                     {lease.label}
                   </div>
-                  <div className="text-xs text-gray-500 mt-0.5">{lease.description}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{lease.description}</div>
                 </div>
                 {leaseType === lease.value && (
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-green-500 dark:bg-green-400 rounded-full"></div>
                 )}
               </div>
             </button>
           ))}
         </div>
         {getFieldError('lease_type') && (
-          <p className="mt-2 text-xs text-red-500 flex items-center">
+          <p className="mt-2 text-xs text-red-500 dark:text-red-400 flex items-center">
             <AlertCircle className="h-3 w-3 mr-1" />
             {getFieldError('lease_type')?.message}
           </p>
@@ -338,43 +338,43 @@ const CommercialForm: React.FC = () => {
       </div>
 
       {/* Loading & Signage */}
-      <div className="bg-gradient-to-br from-slate-50/50 to-gray-50/30 rounded-xl p-3.5 border border-gray-200">
+      <div className="bg-gradient-to-br from-slate-50/50 to-gray-50/30 dark:from-slate-800/50 dark:to-gray-800/30 rounded-xl p-3.5 border border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
             Loading & Signage
           </span>
         </div>
         
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <label className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-amber-300 cursor-pointer transition-all">
-            <span className="text-xs font-medium text-gray-700">
-              <Truck className="h-3.5 w-3.5 inline mr-1.5 text-amber-500" />
+          <label className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-amber-300 dark:hover:border-amber-500 cursor-pointer transition-all">
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              <Truck className="h-3.5 w-3.5 inline mr-1.5 text-amber-500 dark:text-amber-400" />
               Has Loading Area
             </span>
             <input
               type="checkbox"
               {...register('type_specific_details.has_loading_area')}
-              className="rounded text-amber-600 focus:ring-amber-500"
+              className="rounded text-amber-600 dark:text-amber-500 focus:ring-amber-500"
             />
           </label>
           
-          <label className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 cursor-pointer transition-all">
-            <span className="text-xs font-medium text-gray-700">
-              <Eye className="h-3.5 w-3.5 inline mr-1.5 text-blue-500" />
+          <label className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 cursor-pointer transition-all">
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              <Eye className="h-3.5 w-3.5 inline mr-1.5 text-blue-500 dark:text-blue-400" />
               Signage Rights
             </span>
             <input
               type="checkbox"
               {...register('type_specific_details.signage_rights')}
-              className="rounded text-blue-600 focus:ring-blue-500"
+              className="rounded text-blue-600 dark:text-blue-500 focus:ring-blue-500"
             />
           </label>
         </div>
 
         {hasLoadingArea && (
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white rounded-md p-2.5 border border-gray-200">
-              <label className="text-xs font-medium text-gray-600 block mb-1">
+            <div className="bg-white dark:bg-gray-800 rounded-md p-2.5 border border-gray-200 dark:border-gray-600">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
                 Loading Docks Count
               </label>
               <input
@@ -383,20 +383,20 @@ const CommercialForm: React.FC = () => {
                   valueAsNumber: true
                 })}
                 type="number"
-                className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-amber-500"
+                className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-amber-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 placeholder="2"
                 defaultValue={0}
               />
             </div>
             
-            <div className="bg-white rounded-md p-2.5 border border-gray-200">
-              <label className="text-xs font-medium text-gray-600 block mb-1">
+            <div className="bg-white dark:bg-gray-800 rounded-md p-2.5 border border-gray-200 dark:border-gray-600">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
                 Loading Area Details
               </label>
               <input
                 {...register('type_specific_details.loading_area_details')}
                 type="text"
-                className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-amber-500"
+                className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-amber-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 placeholder="Rear loading, 2 bays"
               />
             </div>
@@ -404,13 +404,13 @@ const CommercialForm: React.FC = () => {
         )}
 
         {signageRights && (
-          <div className="bg-white rounded-md p-2.5 border border-gray-200 mt-3">
-            <label className="text-xs font-medium text-gray-600 block mb-1">
+          <div className="bg-white dark:bg-gray-800 rounded-md p-2.5 border border-gray-200 dark:border-gray-600 mt-3">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
               Signage Restrictions
             </label>
             <textarea
               {...register('type_specific_details.signage_restrictions')}
-              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-blue-500"
+              className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               rows={2}
               placeholder="Describe any signage restrictions or requirements"
             />
@@ -419,32 +419,32 @@ const CommercialForm: React.FC = () => {
       </div>
 
       {/* Compliance & Zoning */}
-      <div className="bg-gradient-to-br from-gray-50/50 to-stone-50/30 rounded-xl p-3.5 border border-gray-200">
+      <div className="bg-gradient-to-br from-gray-50/50 to-stone-50/30 dark:from-gray-800/50 dark:to-stone-800/30 rounded-xl p-3.5 border border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
-            <Shield className="h-3.5 w-3.5 inline mr-1.5 text-green-600" />
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+            <Shield className="h-3.5 w-3.5 inline mr-1.5 text-green-600 dark:text-green-400" />
             Compliance & Management
           </span>
         </div>
         
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div className="bg-white rounded-lg p-2.5 border border-gray-200">
-            <label className="text-xs font-medium text-gray-600 block mb-1">
-              <MapPin className="h-3 w-3 inline mr-1 text-gray-500" />
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-2.5 border border-gray-200 dark:border-gray-600">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+              <MapPin className="h-3 w-3 inline mr-1 text-gray-500 dark:text-gray-400" />
               Zoning Code
             </label>
             <input
               {...register('type_specific_details.zoning_code')}
               type="text"
               maxLength={50}
-              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-gray-500"
+              className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="C-2, B-1, etc."
             />
           </div>
           
-          <div className="bg-white rounded-lg p-2.5 border border-gray-200">
-            <label className="text-xs font-medium text-gray-600 block mb-1">
-              <DollarSign className="h-3 w-3 inline mr-1 text-green-500" />
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-2.5 border border-gray-200 dark:border-gray-600">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+              <DollarSign className="h-3 w-3 inline mr-1 text-green-500 dark:text-green-400" />
               CAM Fee (Monthly)
             </label>
             <input
@@ -454,28 +454,28 @@ const CommercialForm: React.FC = () => {
               })}
               type="number"
               step="0.01"
-              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-green-500"
+              className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-green-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="500"
             />
           </div>
         </div>
 
-        <label className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-green-300 cursor-pointer transition-all">
-          <span className="text-xs font-medium text-gray-700">
-            <Wrench className="h-3.5 w-3.5 inline mr-1.5 text-gray-500" />
+        <label className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-green-300 dark:hover:border-green-500 cursor-pointer transition-all">
+          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+            <Wrench className="h-3.5 w-3.5 inline mr-1.5 text-gray-500 dark:text-gray-400" />
             On-Site Maintenance
           </span>
           <input
             type="checkbox"
             {...register('type_specific_details.on_site_maintenance')}
-            className="rounded text-green-600 focus:ring-green-500"
+            className="rounded text-green-600 dark:text-green-500 focus:ring-green-500"
           />
         </label>
       </div>
 
       {/* Permitted Uses */}
-      <div className="bg-gradient-to-br from-neutral-50/50 to-gray-50/40 rounded-xl p-3.5 border border-gray-200">
-        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3 block">
+      <div className="bg-gradient-to-br from-neutral-50/50 to-gray-50/40 dark:from-neutral-800/50 dark:to-gray-800/40 rounded-xl p-3.5 border border-gray-200 dark:border-gray-700">
+        <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-3 block">
           Permitted Uses
         </label>
         <div className="grid grid-cols-3 gap-2">
@@ -490,14 +490,14 @@ const CommercialForm: React.FC = () => {
             { value: 'professional', label: 'Professional Services' },
             { value: 'personal_services', label: 'Personal Services' }
           ].map((use) => (
-            <label key={use.value} className="flex items-center px-3 py-1.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+            <label key={use.value} className="flex items-center px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
               <input
                 type="checkbox"
                 checked={permittedUses.includes(use.value)}
                 onChange={(e) => handleArrayCheckbox('permitted_uses', use.value, e.target.checked)}
-                className="mr-2 h-3.5 w-3.5 text-green-600 rounded focus:ring-green-500"
+                className="mr-2 h-3.5 w-3.5 text-green-600 dark:text-green-500 rounded focus:ring-green-500"
               />
-              <span className="text-xs font-medium text-gray-700">{use.label}</span>
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{use.label}</span>
             </label>
           ))}
         </div>
@@ -505,7 +505,7 @@ const CommercialForm: React.FC = () => {
 
       {/* Dynamic Summary Card */}
       {(usableSquareFeet > 0 || rentableSquareFeet > 0 || spaceType) && (
-        <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl p-4 text-white shadow-lg">
+        <div className="bg-gradient-to-br from-purple-500 to-indigo-600 dark:from-purple-600 dark:to-indigo-700 rounded-xl p-4 text-white shadow-lg">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-bold mb-2">

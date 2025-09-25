@@ -53,7 +53,7 @@ export const PortfolioCardSkeleton = ({ className = '' }) => (
     {/* Stats grid */}
     <div className="grid grid-cols-3 gap-4 mb-4">
       {[0, 1, 2].map((i) => (
-        <div key={i} className="bg-white rounded-lg p-4 border border-gray-100 shadow-sm flex flex-col items-center justify-center">
+        <div key={i} className="bg-white dark:bg-gray-700 rounded-lg p-4 border border-gray-100 dark:border-gray-600 shadow-sm flex flex-col items-center justify-center transition-colors">
           <SkeletonCircle size="3rem" className="mb-3" />
           <SkeletonLine width="1.5rem" height="1.5rem" className="mb-1" />
           <SkeletonLine width="4rem" height="0.875rem" />
@@ -117,7 +117,7 @@ DuePanelSkeleton.propTypes = {
  * Status card skeleton (for Properties page status cards)
  */
 export const StatusCardSkeleton = ({ className = '' }) => (
-  <div className="bg-white overflow-hidden shadow rounded-lg">
+  <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg border dark:border-gray-700 transition-colors">
     <div className="px-4 py-5 sm:p-6">
       <div className="flex items-center">
         <SkeletonCircle size="3rem" className="mr-5" />

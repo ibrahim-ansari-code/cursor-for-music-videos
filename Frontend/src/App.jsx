@@ -16,6 +16,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./contexts/AuthProvider";
 import { AuthContext } from "./contexts/AuthContext";
 
+//Theme
+import { ThemeProvider } from "./contexts/ThemeSwitch";
 // Components
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
@@ -139,20 +141,28 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <SkeletonTheme baseColor="#e5e7eb" highlightColor="#f3f4f6">
-          <AuthProvider>
-            <ToastContainer position="top-right" autoClose={5000} />
-            <AppRoutes />
-            <div className="recaptcha-notice">
-              Protected by reCAPTCHA v3 —
-              <a href="https://policies.google.com/privacy" rel="noopener noreferrer" target="_blank"> Privacy</a>
-              {" • "}
-              <a href="https://policies.google.com/terms" rel="noopener noreferrer" target="_blank"> Terms</a>
-            </div>
-          </AuthProvider>
-        </SkeletonTheme>
-      </Router>
+      <ThemeProvider>
+        <Router>
+          <SkeletonTheme 
+            baseColor="#e5e7eb" 
+            highlightColor="#f3f4f6"
+            // Dark theme will be handled by CSS custom properties in ThemeProvider
+          >
+            <AuthProvider>
+              <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+                <ToastContainer position="top-right" autoClose={5000} />
+                <AppRoutes />
+                <div className="recaptcha-notice">
+                  Protected by reCAPTCHA v3 —
+                  <a href="https://policies.google.com/privacy" rel="noopener noreferrer" target="_blank"> Privacy</a>
+                  {" • "}
+                  <a href="https://policies.google.com/terms" rel="noopener noreferrer" target="_blank"> Terms</a>
+                </div>
+              </div>
+            </AuthProvider>
+          </SkeletonTheme>
+        </Router>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

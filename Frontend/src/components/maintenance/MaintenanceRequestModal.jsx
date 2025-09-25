@@ -396,9 +396,9 @@ const MaintenanceRequestModal = ({
 
   const renderField = (label, value) => (
     <div className="flex flex-col gap-1">
-      <label className="block text-sm font-medium text-gray-700">{label}</label>
-      <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-gray-700 min-h-[40px] flex items-center">
-        {value || <span className="text-gray-400">—</span>}
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">{label}</label>
+      <div className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md px-3 py-2 text-gray-700 dark:text-gray-200 min-h-[40px] flex items-center transition-colors duration-300">
+        {value || <span className="text-gray-400 dark:text-gray-500">—</span>}
       </div>
     </div>
   );
@@ -423,11 +423,11 @@ const MaintenanceRequestModal = ({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: "spring", damping: 25, stiffness: 400 }}
-          className="relative w-full max-w-4xl bg-white rounded-xl shadow-xl max-h-[90vh] overflow-hidden flex flex-col z-[10000]"
+          className="relative w-full max-w-4xl bg-white dark:bg-gray-800 rounded-xl shadow-xl max-h-[90vh] overflow-hidden flex flex-col z-[10000] transition-colors duration-300"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="relative px-6 py-4 bg-gradient-to-br from-brand-green to-brand-teal text-white">
+          <div className="relative px-6 py-4 bg-gradient-to-br from-brand-green to-brand-teal dark:from-gray-700 dark:to-gray-600 text-white transition-colors duration-300">
             <div className="flex justify-between items-center">
               <div>
                 <h2 className="text-xl font-semibold text-white">{modalTitle}</h2>
@@ -452,12 +452,12 @@ const MaintenanceRequestModal = ({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto bg-gray-50">
+          <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
             {error && (
               <motion.div 
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mx-6 mt-4 p-3 bg-red-50 border border-red-100 text-red-700 rounded-lg"
+                className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-700 text-red-700 dark:text-red-300 rounded-lg transition-colors duration-300"
               >
                 <div className="flex">
                   <svg className="h-5 w-5 text-red-400 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
@@ -471,14 +471,14 @@ const MaintenanceRequestModal = ({
             {isViewing ? (
               <div className="p-6 space-y-4">
                 {/* Property and Unit Information */}
-                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600">
                   <div className="flex items-center mb-3">
-                    <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center mr-3">
-                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <div className="w-9 h-9 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center mr-3 transition-colors duration-300">
+                      <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
                     </div>
-                    <h3 className="text-base font-medium text-gray-900">Location Information</h3>
+                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">Location Information</h3>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -497,14 +497,14 @@ const MaintenanceRequestModal = ({
                 </div>
 
                 {/* Request Details */}
-                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600">
                   <div className="flex items-center mb-3">
-                    <div className="w-9 h-9 bg-orange-50 rounded-lg flex items-center justify-center mr-3">
-                      <svg className="w-4 h-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <div className="w-9 h-9 bg-orange-50 dark:bg-orange-900/20 rounded-lg flex items-center justify-center mr-3 transition-colors duration-300">
+                      <svg className="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
-                    <h3 className="text-base font-medium text-gray-900">Request Details</h3>
+                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">Request Details</h3>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -520,14 +520,14 @@ const MaintenanceRequestModal = ({
                 </div>
 
                 {/* Additional Information */}
-                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600 transition-colors duration-300">
                   <div className="flex items-center mb-3">
-                    <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center mr-3">
-                      <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <div className="w-9 h-9 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center mr-3 transition-colors duration-300">
+                      <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       </svg>
                     </div>
-                    <h3 className="text-base font-medium text-gray-900">Additional Information</h3>
+                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">Additional Information</h3>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -555,14 +555,14 @@ const MaintenanceRequestModal = ({
 
                 {/* Photos */}
                 {formData.photos && formData.photos.length > 0 && (
-                  <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600 transition-colors duration-300">
                     <div className="flex items-center mb-3">
-                      <div className="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center mr-3">
-                        <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <div className="w-9 h-9 bg-purple-50 dark:bg-purple-900/20 rounded-lg flex items-center justify-center mr-3 transition-colors duration-300">
+                        <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <h3 className="text-base font-medium text-gray-900">Photos</h3>
+                      <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">Photos</h3>
                     </div>
                     
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -602,19 +602,19 @@ const MaintenanceRequestModal = ({
             ) : (
               <form onSubmit={handleSubmit} className="p-6 space-y-4" id="maintenance-request-form">
                 {/* Property and Unit Section */}
-                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600 transition-colors duration-300">
                   <div className="flex items-center mb-3">
-                    <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center mr-3">
-                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <div className="w-9 h-9 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center mr-3 transition-colors duration-300">
+                      <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
                     </div>
-                    <h3 className="text-base font-medium text-gray-900">Location Information</h3>
+                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">Location Information</h3>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-300">
                         Property <span className="text-red-500">*</span>
                       </label>
                       <select
@@ -624,7 +624,7 @@ const MaintenanceRequestModal = ({
                         onBlur={handleBlur}
                         required
                         disabled={isLoadingProperties}
-                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 ${
                           fieldErrors.property_id && touched.property_id ? 'border-red-300' : 'border-gray-200'
                         }`}
                       >
@@ -643,7 +643,7 @@ const MaintenanceRequestModal = ({
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-300">
                         Unit
                       </label>
                       <select
@@ -652,7 +652,7 @@ const MaintenanceRequestModal = ({
                         onChange={handleChange}
                         onBlur={handleBlur}
                         disabled={!formData.property_id || isLoadingUnits}
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:text-gray-200"
                       >
                         <option value="">
                           {isLoadingUnits ? "Loading..." : "Select Unit or leave blank for common area"}
@@ -666,7 +666,7 @@ const MaintenanceRequestModal = ({
                           </option>
                         ))}
                       </select>
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">
                         Select "Common Area" for property-wide maintenance like parking lots, building exterior, etc.
                       </p>
                     </div>
@@ -674,19 +674,19 @@ const MaintenanceRequestModal = ({
                 </div>
 
                 {/* Request Details Section */}
-                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600 transition-colors duration-300">
                   <div className="flex items-center mb-3">
-                    <div className="w-9 h-9 bg-orange-50 rounded-lg flex items-center justify-center mr-3">
-                      <svg className="w-4 h-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <div className="w-9 h-9 bg-orange-50 dark:bg-orange-900/20 rounded-lg flex items-center justify-center mr-3 transition-colors duration-300">
+                      <svg className="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
-                    <h3 className="text-base font-medium text-gray-900">Request Details</h3>
+                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">Request Details</h3>
                   </div>
                   
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-300">
                         Issue Title <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -697,7 +697,7 @@ const MaintenanceRequestModal = ({
                         onBlur={handleBlur}
                         required
                         placeholder="Brief description of the issue"
-                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-400 ${
                           fieldErrors.issue_title && touched.issue_title ? 'border-red-300' : 'border-gray-200'
                         }`}
                       />
@@ -707,7 +707,7 @@ const MaintenanceRequestModal = ({
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-300">
                         Description
                       </label>
                       <textarea
@@ -716,20 +716,20 @@ const MaintenanceRequestModal = ({
                         onChange={handleChange}
                         rows={3}
                         placeholder="Detailed description of the maintenance issue..."
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white resize-none"
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:text-gray-200 dark:placeholder-gray-400 resize-none"
                       />
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-300">
                           Priority
                         </label>
                         <select
                           name="priority"
                           value={formData.priority || ""}
                           onChange={handleChange}
-                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                          className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:text-gray-200"
                         >
                           <option value="Low">Low</option>
                           <option value="Medium">Medium</option>
@@ -738,14 +738,14 @@ const MaintenanceRequestModal = ({
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-300">
                           Status
                         </label>
                         <select
                           name="status"
                           value={formData.status || ""}
                           onChange={handleChange}
-                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                          className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:text-gray-200"
                         >
                           <option value="Pending">Pending</option>
                           <option value="In Progress">In Progress</option>
@@ -759,19 +759,19 @@ const MaintenanceRequestModal = ({
                 </div>
 
                 {/* Additional Information Section */}
-                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600 transition-colors duration-300">
                   <div className="flex items-center mb-3">
-                    <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center mr-3">
-                      <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <div className="w-9 h-9 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center mr-3 transition-colors duration-300">
+                      <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       </svg>
                     </div>
-                    <h3 className="text-base font-medium text-gray-900">Additional Information</h3>
+                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">Additional Information</h3>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-300">
                         Assign To
                       </label>
                       <input
@@ -780,12 +780,12 @@ const MaintenanceRequestModal = ({
                         value={formData.assigned_to || ""}
                         onChange={handleChange}
                         placeholder="Name of person or company"
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:text-gray-200 dark:placeholder-gray-400"
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-300">
                         Scheduled Date
                       </label>
                       <input
@@ -794,7 +794,7 @@ const MaintenanceRequestModal = ({
                         value={formData.scheduled_date || ""}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 ${
                           fieldErrors.scheduled_date && touched.scheduled_date ? 'border-red-300' : 'border-gray-200'
                         }`}
                       />
@@ -804,7 +804,7 @@ const MaintenanceRequestModal = ({
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-300">
                         Estimated Cost
                       </label>
                       <input
@@ -816,7 +816,7 @@ const MaintenanceRequestModal = ({
                         placeholder="0.00"
                         min="0"
                         step="0.01"
-                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-400 ${
                           fieldErrors.estimated_cost && touched.estimated_cost ? 'border-red-300' : 'border-gray-200'
                         }`}
                       />
@@ -827,7 +827,7 @@ const MaintenanceRequestModal = ({
                   </div>
                   
                   <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-300">
                       Tenant
                     </label>
                     <select
@@ -835,7 +835,7 @@ const MaintenanceRequestModal = ({
                       value={formData.tenant_id || ""}
                       onChange={handleChange}
                       disabled={!formData.property_id || isLoadingTenants}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:text-gray-200"
                     >
                       <option value="">
                         {isLoadingTenants ? "Loading..." : "Select Tenant (optional)"}
@@ -850,14 +850,14 @@ const MaintenanceRequestModal = ({
                 </div>
 
                 {/* Photos Section */}
-                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600 transition-colors duration-300">
                   <div className="flex items-center mb-3">
-                    <div className="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center mr-3">
-                      <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <div className="w-9 h-9 bg-purple-50 dark:bg-purple-900/20 rounded-lg flex items-center justify-center mr-3 transition-colors duration-300">
+                      <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                     </div>
-                    <h3 className="text-base font-medium text-gray-900">Photos</h3>
+                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">Photos</h3>
                   </div>
                   
                   <div>
@@ -866,16 +866,16 @@ const MaintenanceRequestModal = ({
                       name="photos"
                       multiple
                       accept="image/*,.pdf"
-                      className="block w-full text-sm file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer cursor-pointer border border-gray-200 rounded-lg"
+                      className="block w-full text-sm file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer cursor-pointer border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-200"
                       disabled={uploadingPhotos}
                       onChange={handleFileChange}
                     />
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">
                       Upload images or PDFs (max 10MB each). Supported formats: JPG, PNG, GIF, PDF
                     </p>
                     
                     {uploadingPhotos && (
-                      <div className="mt-2 text-blue-600 text-sm flex items-center">
+                      <div className="mt-2 text-blue-600 dark:text-blue-400 text-sm flex items-center">
                         <LoadingSpinner className="mr-2 h-4 w-4" />
                         Uploading photos...
                       </div>
@@ -887,14 +887,14 @@ const MaintenanceRequestModal = ({
                     
                     {formData.photos && formData.photos.length > 0 && (
                       <div className="mt-4">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Uploaded Photos</h4>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-300">Uploaded Photos</h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                           {formData.photos.map((url, idx) => (
                             <div key={idx} className="relative group">
-                              <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                              <div className="aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 transition-colors duration-300">
                                 {url.toLowerCase().includes('.pdf') ? (
-                                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                                    <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-700">
+                                    <svg className="w-6 h-6 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
                                   </div>
@@ -925,9 +925,9 @@ const MaintenanceRequestModal = ({
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-5 bg-gray-50 border-t border-gray-200">
+          <div className="px-6 py-5 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600 transition-colors duration-300">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="text-sm text-gray-500 flex items-start flex-1 sm:max-w-md">
+              <div className="text-sm text-gray-500 dark:text-gray-400 flex items-start flex-1 sm:max-w-md transition-colors duration-300">
                 <svg className="w-4 h-4 mr-2 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -946,7 +946,7 @@ const MaintenanceRequestModal = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all text-sm font-medium"
+                  className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all text-sm font-medium"
                   disabled={isSubmitting}
                 >
                   {isViewing ? "Close" : "Cancel"}

@@ -36,16 +36,16 @@ const Layout = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen dark-bg transition-colors duration-300">
       {/* Sidebar */}
       <Sidebar />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 z-10 h-16">
+        <header className="dark-panel dark-divider border-b z-10 h-16 transition-colors duration-300 dark-shadow">
           <div className="px-6 h-full flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors duration-300">
               {getPageTitle(location.pathname)}
             </h1>
 
@@ -56,7 +56,7 @@ const Layout = () => {
                 to="/settings"
                 className="flex items-center space-x-3 cursor-pointer group"
               >
-                <div className="h-8 w-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 overflow-hidden group-hover:ring-2 group-hover:ring-teal-500 group-hover:ring-offset-2 transition-all">
+                <div className="h-8 w-8 rounded-full bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center text-teal-700 dark:text-teal-300 overflow-hidden group-hover:ring-2 group-hover:ring-teal-500 group-hover:ring-offset-2 dark:group-hover:ring-offset-gray-800 transition-all">
                   {user?.profile_image_url ? (
                     <img
                       key={user.profile_image_url}
@@ -81,17 +81,17 @@ const Layout = () => {
                   )}
                 </div>
                 <div className="hidden md:block">
-                  <p className="text-sm font-medium text-gray-900 group-hover:text-teal-600 transition-colors">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
                     {user?.first_name} {user?.last_name}
                   </p>
-                  <p className="text-xs text-gray-500 capitalize">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize transition-colors duration-300">
                     {user?.user_type}
                   </p>
                 </div>
               </Link>
               {/* Logout Button */}
               <button
-                className="text-sm text-gray-700 hover:text-red-600 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center"
+                className="text-sm text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center"
                 onClick={signOut}
               >
                 <i className="fas fa-sign-out-alt mr-2"></i> Logout
@@ -101,7 +101,7 @@ const Layout = () => {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto bg-gray-50 p-4">
+        <main className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 p-4 transition-colors duration-200">
           <Outlet />
         </main>
       </div>

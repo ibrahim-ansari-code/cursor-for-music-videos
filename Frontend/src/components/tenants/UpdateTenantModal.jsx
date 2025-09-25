@@ -6,8 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 const Label = ({ htmlFor, required, children }) => (
   <label
     htmlFor={htmlFor}
-    className={`block text-sm font-medium text-gray-700 mb-1.5 ${
-      required ? 'after:content-["*"] after:ml-0.5 after:text-red-500' : ""
+    className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 ${
+      required ? 'after:content-["*"] after:ml-0.5 after:text-red-500 dark:after:text-red-400' : ""
     }`}
   >
     {children}
@@ -35,7 +35,7 @@ const Input = ({
     onBlur={onBlur}
     placeholder={placeholder}
     required={required}
-    className={`w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 ${className}`}
+    className={`w-full px-4 py-2.5 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-all duration-200 ${className}`}
     {...props}
   />
 );
@@ -45,7 +45,7 @@ const ErrorMessage = ({ message }) => (
     initial={{ opacity: 0, y: -10 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0 }}
-    className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg flex items-start gap-2"
+    className="mb-6 p-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg flex items-start gap-2"
   >
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -79,7 +79,7 @@ const Button = ({
     primary:
       "bg-gradient-to-br from-brand-green to-brand-teal hover:from-brand-green/90 hover:to-brand-teal/90 text-white border border-transparent focus:ring-brand-green shadow-sm",
     secondary:
-      "bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 focus:ring-blue-500",
+      "bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-offset-gray-800",
     danger:
       "bg-red-600 hover:bg-red-700 text-white border border-transparent focus:ring-red-500",
   };
@@ -375,7 +375,7 @@ const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
         exit={{ scale: 0.95, opacity: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         ref={modalRef}
-        className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden"
       >
         {/* Header */}
         <div className="px-6 py-4 bg-gradient-to-br from-brand-green to-brand-teal text-white">
@@ -409,15 +409,15 @@ const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
         </div>
 
         {/* Body */}
-        <div className="p-6 max-h-[calc(100vh-12rem)] overflow-y-auto bg-gray-50">
+        <div className="p-6 max-h-[calc(100vh-12rem)] overflow-y-auto bg-gray-50 dark:bg-gray-900">
           <AnimatePresence>
             {error && <ErrorMessage message={error} />}
           </AnimatePresence>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Tenant Type Section */}
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">Tenant Type</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Tenant Type</h3>
               <div className="grid grid-cols-2 gap-3">
                 <label className="flex items-center cursor-pointer">
                   <input
@@ -426,9 +426,9 @@ const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
                     value="Individual"
                     checked={formData.tenant_type === "Individual"}
                     onChange={handleChange}
-                    className="mr-3 text-blue-600 focus:ring-blue-500"
+                    className="mr-3 text-blue-600 dark:text-blue-500 focus:ring-blue-500"
                   />
-                  <span className="text-sm font-medium text-gray-700">Individual</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Individual</span>
                 </label>
                 <label className="flex items-center cursor-pointer">
                   <input
@@ -437,16 +437,16 @@ const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
                     value="Company"
                     checked={formData.tenant_type === "Company"}
                     onChange={handleChange}
-                    className="mr-3 text-blue-600 focus:ring-blue-500"
+                    className="mr-3 text-blue-600 dark:text-blue-500 focus:ring-blue-500"
                   />
-                  <span className="text-sm font-medium text-gray-700">Company</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Company</span>
                 </label>
               </div>
             </div>
 
             {/* Conditional Name/Company Fields */}
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
                 {formData.tenant_type === "Individual" ? "Personal Information" : "Company Information"}
               </h3>
               
@@ -466,12 +466,12 @@ const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
                       required
                       className={
                         fieldErrors.first_name && touched.first_name
-                          ? "border-red-500"
+                          ? "border-red-500 dark:border-red-600"
                           : ""
                       }
                     />
                     {fieldErrors.first_name && touched.first_name && (
-                      <p className="mt-1 text-sm text-red-600">
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                         {fieldErrors.first_name}
                       </p>
                     )}
@@ -491,12 +491,12 @@ const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
                       required
                       className={
                         fieldErrors.last_name && touched.last_name
-                          ? "border-red-500"
+                          ? "border-red-500 dark:border-red-600"
                           : ""
                       }
                     />
                     {fieldErrors.last_name && touched.last_name && (
-                      <p className="mt-1 text-sm text-red-600">
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                         {fieldErrors.last_name}
                       </p>
                     )}
@@ -518,12 +518,12 @@ const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
                       required
                       className={
                         fieldErrors.company_name && touched.company_name
-                          ? "border-red-500"
+                          ? "border-red-500 dark:border-red-600"
                           : ""
                       }
                     />
                     {fieldErrors.company_name && touched.company_name && (
-                      <p className="mt-1 text-sm text-red-600">
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                         {fieldErrors.company_name}
                       </p>
                     )}
@@ -547,8 +547,8 @@ const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
             </div>
 
             {/* Contact Information */}
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">Contact Information</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Contact Information</h3>
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="email" required>
@@ -564,11 +564,11 @@ const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
                     placeholder="Enter email"
                     required
                     className={
-                      fieldErrors.email && touched.email ? "border-red-500" : ""
+                      fieldErrors.email && touched.email ? "border-red-500 dark:border-red-600" : ""
                     }
                   />
                   {fieldErrors.email && touched.email && (
-                    <p className="mt-1 text-sm text-red-600">
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                       {fieldErrors.email}
                     </p>
                   )}
@@ -587,11 +587,11 @@ const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
                     onBlur={handleBlur}
                     placeholder="Enter phone number"
                     className={
-                      fieldErrors.phone && touched.phone ? "border-red-500" : ""
+                      fieldErrors.phone && touched.phone ? "border-red-500 dark:border-red-600" : ""
                     }
                   />
                   {fieldErrors.phone && touched.phone && (
-                    <p className="mt-1 text-sm text-red-600">
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                       {fieldErrors.phone}
                     </p>
                   )}
@@ -607,7 +607,7 @@ const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+        <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 flex justify-end space-x-3">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>

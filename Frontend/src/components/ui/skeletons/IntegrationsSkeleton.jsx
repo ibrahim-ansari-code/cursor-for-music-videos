@@ -6,7 +6,7 @@ import { SkeletonLine, SkeletonCircle, SkeletonPill, SkeletonBlock } from './Ske
  * Integration card skeleton that matches the QuickBooksCard layout
  */
 const IntegrationCardSkeleton = ({ className = '' }) => (
-  <article className={`bg-white rounded-lg shadow-sm border border-gray-200 mb-6 overflow-hidden ${className}`}>
+  <article className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-6 overflow-hidden transition-colors ${className}`}>
     <div className="p-6 flex items-center justify-between">
       <div className="flex items-center space-x-6">
         {/* Logo skeleton */}
@@ -44,10 +44,10 @@ IntegrationCardSkeleton.propTypes = {
  * Placeholder card skeleton that matches the "Coming Soon" card
  */
 const PlaceholderCardSkeleton = ({ className = '' }) => (
-  <section className={`bg-white rounded-lg border-2 border-dashed border-gray-300 ${className}`}>
+  <section className={`bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 transition-colors ${className}`}>
     <div className="p-12 text-center">
       {/* Icon */}
-      <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+      <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center mx-auto mb-4 transition-colors">
         <SkeletonCircle size="2rem" />
       </div>
       

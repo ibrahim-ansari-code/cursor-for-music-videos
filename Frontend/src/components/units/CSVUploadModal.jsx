@@ -224,7 +224,7 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.9, opacity: 0 }}
                     transition={{ type: "spring", damping: 25, stiffness: 400 }}
-                    className="relative w-full max-w-4xl bg-white rounded-xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col z-[10000]"
+                    className="relative w-full max-w-4xl bg-white dark:bg-gray-800 rounded-xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col z-[10000]"
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Header */}
@@ -250,14 +250,14 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
                     </div>
 
                     {/* Progress Steps */}
-                    <div className="px-6 py-4 bg-white border-b border-gray-200">
+                    <div className="px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                         <div className="flex items-center space-x-4">
                             {[1, 2, 3].map((stepNumber) => (
                                 <div key={stepNumber} className="flex items-center">
                                     <div
                                         className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all ${step >= stepNumber
                                             ? "bg-brand-green text-white shadow-sm"
-                                            : "bg-gray-300 text-gray-600"
+                                            : "bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
                                             }`}
                                     >
                                         {step > stepNumber ? (
@@ -268,14 +268,14 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
                                             stepNumber
                                         )}
                                     </div>
-                                    <span className={`ml-2 text-sm transition-colors ${step >= stepNumber ? "text-brand-green font-medium" : "text-gray-500"
+                                    <span className={`ml-2 text-sm transition-colors ${step >= stepNumber ? "text-brand-green font-medium" : "text-gray-500 dark:text-gray-400"
                                         }`}>
                                         {stepNumber === 1 && "Select File"}
                                         {stepNumber === 2 && "Preview Data"}
                                         {stepNumber === 3 && "Results"}
                                     </span>
                                     {stepNumber < 3 && (
-                                        <div className={`w-12 h-0.5 ml-4 transition-colors ${step > stepNumber ? "bg-brand-green" : "bg-gray-300"
+                                        <div className={`w-12 h-0.5 ml-4 transition-colors ${step > stepNumber ? "bg-brand-green" : "bg-gray-300 dark:bg-gray-600"
                                             }`} />
                                     )}
                                 </div>
@@ -284,27 +284,27 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 overflow-y-auto bg-gray-50">
+                    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
                         <div className="p-6 space-y-4">
                             {step === 1 && (
                                 <>
                                     {/* Primary Upload Area - Now at the very top */}
-                                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                                         {/* Upload Header */}
-                                        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 px-6 py-4 border-b border-purple-100">
+                                        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 px-6 py-4 border-b border-purple-100 dark:border-purple-800">
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <h3 className="text-lg font-semibold text-gray-900">Upload Your CSV File</h3>
-                                                    <p className="text-sm text-gray-600 mt-1">Required: unit_number, tenant_email, lease_start_date, monthly_rent</p>
+                                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Upload Your CSV File</h3>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Required: unit_number, tenant_email, lease_start_date, monthly_rent</p>
                                                 </div>
                                             </div>
                                         </div>
 
                                         {/* Upload Area */}
                                         <div className="p-6">
-                                            <div className="border-2 border-dashed border-purple-300 rounded-lg p-8 text-center hover:border-purple-400 hover:bg-purple-50/30 transition-all">
-                                                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-xl flex items-center justify-center">
-                                                    <svg className="w-8 h-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <div className="border-2 border-dashed border-purple-300 dark:border-purple-600 rounded-lg p-8 text-center hover:border-purple-400 dark:hover:border-purple-500 hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition-all">
+                                                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-100 to-indigo-100 dark:from-purple-900/30 dark:to-indigo-900/30 rounded-xl flex items-center justify-center">
+                                                    <svg className="w-8 h-8 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                                     </svg>
                                                 </div>
@@ -326,10 +326,10 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
                                                     Choose Your CSV File
                                                 </label>
 
-                                                <p className="mt-4 text-sm text-gray-600">
+                                                <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
                                                     Or drag and drop your file here
                                                 </p>
-                                                <p className="text-xs text-gray-500 mt-2">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                                                     Supports .csv files up to 5MB
                                                 </p>
                                             </div>
@@ -337,19 +337,19 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
                                     </div>
 
                                     {/* Enhanced Detailed Help Section */}
-                                    <details className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-                                        <summary className="p-5 cursor-pointer hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 select-none transition-all list-none [&::-webkit-details-marker]:hidden">
+                                    <details className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                                        <summary className="p-5 cursor-pointer hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 dark:hover:from-gray-700 dark:hover:to-blue-900/20 select-none transition-all list-none [&::-webkit-details-marker]:hidden">
                                             <div className="flex items-center">
-                                                <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center mr-4">
-                                                    <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl flex items-center justify-center mr-4">
+                                                    <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                                                     </svg>
                                                 </div>
                                                 <div className="flex-1">
-                                                    <h3 className="text-lg font-semibold text-gray-900 mb-1">📋 Complete CSV Formatting Guide</h3>
-                                                    <p className="text-sm text-gray-600">Everything you need to know about formatting your bulk assignment file</p>
+                                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">📋 Complete CSV Formatting Guide</h3>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-300">Everything you need to know about formatting your bulk assignment file</p>
                                                 </div>
-                                                <div className="flex items-center text-blue-600">
+                                                <div className="flex items-center text-blue-600 dark:text-blue-400">
                                                     <span className="text-sm font-medium mr-2">View Guide</span>
                                                     <svg className="w-5 h-5 details-chevron transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -358,17 +358,17 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
                                             </div>
                                         </summary>
 
-                                        <div className="border-t border-gray-100">
+                                        <div className="border-t border-gray-100 dark:border-gray-700">
                                             <div className="p-6 space-y-6">
                                                 {/* Required Columns Section */}
                                                 <div>
                                                     <div className="flex items-center mb-4">
-                                                        <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center mr-3">
-                                                            <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                        <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center mr-3">
+                                                            <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                             </svg>
                                                         </div>
-                                                        <h4 className="text-base font-semibold text-gray-900">Required Columns</h4>
+                                                        <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100">Required Columns</h4>
                                                     </div>
 
                                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -551,20 +551,20 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
                                 <>
                                     {/* Parse Errors */}
                                     {parseErrors.length > 0 && (
-                                        <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                                        <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                                             <div className="flex items-center mb-3">
                                                 <div className="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center mr-3">
                                                     <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                                                     </svg>
                                                 </div>
-                                                <h3 className="text-base font-medium text-gray-900">
+                                                <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">
                                                     Validation Errors ({parseErrors.length})
                                                 </h3>
                                             </div>
-                                            <div className="bg-red-50 rounded-lg p-4 max-h-32 overflow-y-auto">
+                                            <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 max-h-32 overflow-y-auto">
                                                 {parseErrors.map((error, index) => (
-                                                    <div key={index} className="text-sm text-red-700 py-1">
+                                                    <div key={index} className="text-sm text-red-700 dark:text-red-400 py-1">
                                                         {error}
                                                     </div>
                                                 ))}
@@ -573,36 +573,36 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
                                     )}
 
                                     {/* Data Preview */}
-                                    <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                                    <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                                         <div className="flex items-center mb-3">
                                             <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center mr-3">
                                                 <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                                 </svg>
                                             </div>
-                                            <h3 className="text-base font-medium text-gray-900">
+                                            <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">
                                                 Data Preview ({csvData?.length || 0} valid rows)
                                             </h3>
                                         </div>
 
-                                        <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                                             <div className="max-h-64 overflow-auto">
-                                                <table className="min-w-full divide-y divide-gray-200">
-                                                    <thead className="bg-gray-50">
+                                                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                                    <thead className="bg-gray-50 dark:bg-gray-700">
                                                         <tr>
-                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Number</th>
-                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant Email</th>
-                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
-                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Rent</th>
+                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unit Number</th>
+                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tenant Email</th>
+                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Start Date</th>
+                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Monthly Rent</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody className="bg-white divide-y divide-gray-200">
+                                                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                                         {csvData?.map((row, index) => (
-                                                            <tr key={index} className="hover:bg-gray-50">
-                                                                <td className="px-4 py-3 text-sm text-gray-900">{row.unit_number}</td>
-                                                                <td className="px-4 py-3 text-sm text-gray-900">{row.tenant_email}</td>
-                                                                <td className="px-4 py-3 text-sm text-gray-900">{row.lease_start_date}</td>
-                                                                <td className="px-4 py-3 text-sm text-gray-900">${row.monthly_rent}</td>
+                                                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{row.unit_number}</td>
+                                                                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{row.tenant_email}</td>
+                                                                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{row.lease_start_date}</td>
+                                                                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">${row.monthly_rent}</td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
@@ -851,13 +851,13 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
                     </div>
 
                     {/* Footer */}
-                    <div className="px-6 py-5 bg-gray-50 border-t border-gray-200">
+                    <div className="px-6 py-5 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                         {step === 1 && (
                             <div className="flex justify-end">
                                 <button
                                     type="button"
                                     onClick={handleClose}
-                                    className="px-4 py-2.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all text-sm font-medium"
+                                    className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all text-sm font-medium"
                                 >
                                     Cancel
                                 </button>
@@ -866,8 +866,8 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
 
                         {step === 2 && (
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                <div className="text-sm text-gray-500 flex items-start flex-1 sm:max-w-md">
-                                    <svg className="w-4 h-4 mr-2 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <div className="text-sm text-gray-500 dark:text-gray-400 flex items-start flex-1 sm:max-w-md">
+                                    <svg className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                     <span>Review the data above before uploading. Fix any validation errors first.</span>
@@ -919,7 +919,7 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
                                         }
                                         handleClose();
                                     }}
-                                    className={`px-5 py-2.5 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all text-sm font-medium shadow-sm ${uploadResults.successful_assignments > 0
+                                    className={`px-5 py-2.5 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all text-sm font-medium shadow-sm ${uploadResults.successful_assignments > 0
                                         ? "bg-gradient-to-br from-brand-green to-brand-teal text-white hover:from-brand-green/90 hover:to-brand-teal/90 focus:ring-brand-green"
                                         : "bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500"
                                         }`}

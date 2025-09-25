@@ -287,10 +287,10 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
         <div className="flex items-center gap-3 mb-2">
           <span className="text-2xl">{currentIndustrialType.emoji}</span>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
               {currentIndustrialType.label} Configuration
             </h2>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
               {totalSquareFeet.toLocaleString()} SF total • 
               {clearHeight > 0 && ` ${clearHeight}' clear height • `}
               {loadingDocksCount > 0 && ` ${loadingDocksCount} loading docks`}
@@ -302,15 +302,15 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
       
       {/* Facility Features Summary */}
       <div className={`rounded-xl p-4 mb-4 ${
-        currentIndustrialType.color === 'blue' ? 'bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200' :
-        currentIndustrialType.color === 'green' ? 'bg-gradient-to-br from-green-50 to-green-100/50 border-green-200' :
-        currentIndustrialType.color === 'orange' ? 'bg-gradient-to-br from-orange-50 to-orange-100/50 border-orange-200' :
-        currentIndustrialType.color === 'purple' ? 'bg-gradient-to-br from-purple-50 to-purple-100/50 border-purple-200' :
-        currentIndustrialType.color === 'cyan' ? 'bg-gradient-to-br from-cyan-50 to-cyan-100/50 border-cyan-200' :
-        'bg-gradient-to-br from-gray-50 to-gray-100/50 border-gray-200'
+        currentIndustrialType.color === 'blue' ? 'bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-700' :
+        currentIndustrialType.color === 'green' ? 'bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/20 border-green-200 dark:border-green-700' :
+        currentIndustrialType.color === 'orange' ? 'bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-900/20 dark:to-orange-800/20 border-orange-200 dark:border-orange-700' :
+        currentIndustrialType.color === 'purple' ? 'bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/20 border-purple-200 dark:border-purple-700' :
+        currentIndustrialType.color === 'cyan' ? 'bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-900/20 dark:to-cyan-800/20 border-cyan-200 dark:border-cyan-700' :
+        'bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-900/20 dark:to-gray-800/20 border-gray-200 dark:border-gray-700'
       }`}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900 flex items-center">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center">
             <Shield className="h-4 w-4 mr-1.5 text-indigo-600" />
             Facility Features
           </h3>
@@ -318,49 +318,49 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
         
         <div className="grid grid-cols-4 gap-3">
           {clearHeight > 0 && (
-            <div className="bg-white rounded-lg p-2 border border-gray-200">
+            <div className="bg-white dark:bg-gray-700 rounded-lg p-2 border border-gray-200 dark:border-gray-600">
               <div className="flex items-center gap-1 mb-0.5">
                 <Gauge className="h-3 w-3 text-blue-500" />
-                <span className="text-[10px] font-medium text-gray-600">Clear Height</span>
+                <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Clear Height</span>
               </div>
-              <span className="text-sm font-bold text-gray-900">{clearHeight}'</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{clearHeight}'</span>
             </div>
           )}
           
           {loadingDocksCount > 0 && (
-            <div className="bg-white rounded-lg p-2 border border-gray-200">
+            <div className="bg-white dark:bg-gray-700 rounded-lg p-2 border border-gray-200 dark:border-gray-600">
               <div className="flex items-center gap-1 mb-0.5">
                 <Truck className="h-3 w-3 text-green-500" />
-                <span className="text-[10px] font-medium text-gray-600">Loading Docks</span>
+                <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Loading Docks</span>
               </div>
-              <span className="text-sm font-bold text-gray-900">{loadingDocksCount}</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{loadingDocksCount}</span>
             </div>
           )}
           
           {driveInDoorsCount > 0 && (
-            <div className="bg-white rounded-lg p-2 border border-gray-200">
+            <div className="bg-white dark:bg-gray-700 rounded-lg p-2 border border-gray-200 dark:border-gray-600">
               <div className="flex items-center gap-1 mb-0.5">
                 <Package className="h-3 w-3 text-amber-500" />
-                <span className="text-[10px] font-medium text-gray-600">Drive-In Doors</span>
+                <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Drive-In Doors</span>
               </div>
-              <span className="text-sm font-bold text-gray-900">{driveInDoorsCount}</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{driveInDoorsCount}</span>
             </div>
           )}
           
           {railAccess && (
-            <div className="bg-white rounded-lg p-2 border border-gray-200">
+            <div className="bg-white dark:bg-gray-700 rounded-lg p-2 border border-gray-200 dark:border-gray-600">
               <div className="flex items-center gap-1 mb-0.5">
                 <Train className="h-3 w-3 text-purple-500" />
-                <span className="text-[10px] font-medium text-gray-600">Rail Access</span>
+                <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Rail Access</span>
               </div>
-              <span className="text-sm font-bold text-gray-900">Available</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-gray-100">Available</span>
             </div>
           )}
         </div>
         
         {/* Quick size presets */}
-        <div className="mt-3 pt-3 border-t border-gray-200 flex items-center gap-2">
-          <span className="text-xs text-gray-600">Quick sizes:</span>
+        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex items-center gap-2">
+          <span className="text-xs text-gray-600 dark:text-gray-300">Quick sizes:</span>
           {currentIndustrialType.typicalSizes.slice(0, 4).map(size => (
             <button
               key={size}
@@ -380,7 +380,7 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
                 }
                 setUnits(newUnits);
               }}
-              className="px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:border-blue-300 transition-colors"
+              className="px-2 py-1 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded hover:border-blue-300 dark:hover:border-blue-600 transition-colors dark:text-gray-200"
             >
               {(size / 1000).toFixed(0)}K SF
             </button>
@@ -399,7 +399,7 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-lg transition-shadow"
+                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg transition-shadow"
               >
                 {/* Unit Header */}
                 <div className="flex items-center justify-between mb-3">
@@ -415,7 +415,7 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
                             if (e.key === 'Enter') saveEdit();
                             if (e.key === 'Escape') cancelEdit();
                           }}
-                          className="px-2 py-1 text-sm font-semibold border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                          className="px-2 py-1 text-sm font-semibold border border-blue-300 dark:border-blue-600 rounded-md focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:bg-gray-700 dark:text-gray-100"
                           autoFocus
                         />
                         <button type="button" onClick={saveEdit} className="p-1 text-green-600">
@@ -427,7 +427,7 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
                       </div>
                     ) : (
                       <h3 
-                        className="font-semibold text-gray-900 cursor-pointer hover:text-blue-600"
+                        className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400"
                         onClick={() => startEditing(index, 'name', unit.name)}
                       >
                         {unit.name}
@@ -459,9 +459,9 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
                 {/* Unit Details Grid */}
                 <div className="grid grid-cols-3 gap-3">
                   {/* Size */}
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-lg p-3 border border-blue-200">
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50/50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-700">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-medium text-gray-600">
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
                         <Square className="h-3.5 w-3.5 inline mr-1 text-blue-500" />
                         Size
                       </span>
@@ -476,7 +476,7 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
                             if (e.key === 'Enter') saveEdit();
                             if (e.key === 'Escape') cancelEdit();
                           }}
-                          className="w-full px-2 py-1 text-sm font-medium border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-2 py-1 text-sm font-medium border border-blue-300 dark:border-blue-600 rounded-md focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:bg-gray-700 dark:text-gray-100"
                           autoFocus
                         />
                         <button type="button" onClick={saveEdit} className="p-1 text-green-600">
@@ -489,7 +489,7 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
                         onClick={() => startEditing(index, 'size', unit.size)}
                         className="w-full text-left"
                       >
-                        <span className="text-lg font-bold text-blue-700">
+                        <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
                           {unit.size?.toLocaleString() || 0} SF
                         </span>
                       </button>
@@ -497,9 +497,9 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
                   </div>
                   
                   {/* Monthly Rent */}
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50/50 rounded-lg p-3 border border-green-200">
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50/50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg p-3 border border-green-200 dark:border-green-700">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-medium text-gray-600">
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
                         <DollarSign className="h-3.5 w-3.5 inline mr-1 text-green-500" />
                         Monthly Rent
                       </span>
@@ -514,7 +514,7 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
                             if (e.key === 'Enter') saveEdit();
                             if (e.key === 'Escape') cancelEdit();
                           }}
-                          className="w-full px-2 py-1 text-sm font-medium border border-green-300 rounded-md focus:ring-2 focus:ring-green-500"
+                          className="w-full px-2 py-1 text-sm font-medium border border-green-300 dark:border-green-600 rounded-md focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 dark:bg-gray-700 dark:text-gray-100"
                           autoFocus
                         />
                         <button type="button" onClick={saveEdit} className="p-1 text-green-600">
@@ -527,7 +527,7 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
                         onClick={() => startEditing(index, 'rent', unit.monthly_rent)}
                         className="w-full text-left"
                       >
-                        <span className="text-lg font-bold text-green-700">
+                        <span className="text-lg font-bold text-green-700 dark:text-green-300">
                           ${unit.monthly_rent?.toLocaleString() || 0}
                         </span>
                       </button>
@@ -535,14 +535,14 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
                   </div>
                   
                   {/* Rent per SF */}
-                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50/50 rounded-lg p-3 border border-purple-200">
+                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50/50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-lg p-3 border border-purple-200 dark:border-purple-700">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-medium text-gray-600">
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
                         <TrendingUp className="h-3.5 w-3.5 inline mr-1 text-purple-500" />
                         $/SF/Year
                       </span>
                     </div>
-                    <span className="text-lg font-bold text-purple-700">
+                    <span className="text-lg font-bold text-purple-700 dark:text-purple-300">
                       ${unit.size && unit.monthly_rent 
                         ? ((unit.monthly_rent * 12) / unit.size).toFixed(2)
                         : '0.00'}
@@ -552,8 +552,8 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
                 
                 {/* Unit description */}
                 {unit.description && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <p className="text-xs text-gray-600">{unit.description}</p>
+                  <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <p className="text-xs text-gray-600 dark:text-gray-400">{unit.description}</p>
                   </div>
                 )}
               </motion.div>
@@ -565,11 +565,11 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
             <button
               type="button"
               onClick={addUnit}
-              className="w-full p-3 border-2 border-dashed border-gray-300 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all group"
+              className="w-full p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-orange-400 dark:hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all group"
             >
               <div className="flex items-center justify-center gap-2">
-                <Plus className="h-4 w-4 text-gray-400 group-hover:text-orange-600" />
-                <span className="text-sm font-medium text-gray-600 group-hover:text-orange-600">
+                <Plus className="h-4 w-4 text-gray-400 group-hover:text-orange-600 dark:group-hover:text-orange-400" />
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300 group-hover:text-orange-600 dark:group-hover:text-orange-400">
                   Add Space ({(totalSquareFeet - getTotalSize()).toLocaleString()} SF remaining)
                 </span>
               </div>
@@ -582,17 +582,17 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
       <div className="mt-6 space-y-3">
         {/* Financial & Space Summary */}
         {getTotalMonthlyRent() > 0 && (
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50/50 rounded-xl p-4 border border-green-200">
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50/50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-4 border border-green-200 dark:border-green-700">
             <div className="grid grid-cols-4 gap-3">
               <div>
                 <div className="flex items-center gap-1 mb-1">
                   <DollarSign className="h-3.5 w-3.5 text-green-600" />
-                  <span className="text-xs font-medium text-green-900">Monthly</span>
+                  <span className="text-xs font-medium text-green-900 dark:text-green-100">Monthly</span>
                 </div>
-                <div className="text-lg font-bold text-green-700">
+                <div className="text-lg font-bold text-green-700 dark:text-green-300">
                   ${getTotalMonthlyRent().toLocaleString()}
                 </div>
-                <div className="text-xs text-green-600">
+                <div className="text-xs text-green-600 dark:text-green-400">
                   ${(getTotalMonthlyRent() * 12).toLocaleString()}/yr
                 </div>
               </div>
@@ -600,12 +600,12 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
               <div>
                 <div className="flex items-center gap-1 mb-1">
                   <Square className="h-3.5 w-3.5 text-blue-600" />
-                  <span className="text-xs font-medium text-blue-900">Configured</span>
+                  <span className="text-xs font-medium text-blue-900 dark:text-blue-100">Configured</span>
                 </div>
-                <div className="text-lg font-bold text-blue-700">
+                <div className="text-lg font-bold text-blue-700 dark:text-blue-300">
                   {(getTotalSize() / 1000).toFixed(0)}K SF
                 </div>
-                <div className="text-xs text-blue-600">
+                <div className="text-xs text-blue-600 dark:text-blue-400">
                   {getSpaceUtilization().toFixed(0)}% utilized
                 </div>
               </div>
@@ -613,37 +613,37 @@ const IndustrialUnits: React.FC<IndustrialUnitsProps> = () => {
               <div>
                 <div className="flex items-center gap-1 mb-1">
                   <TrendingUp className="h-3.5 w-3.5 text-purple-600" />
-                  <span className="text-xs font-medium text-purple-900">Avg Rate</span>
+                  <span className="text-xs font-medium text-purple-900 dark:text-purple-100">Avg Rate</span>
                 </div>
-                <div className="text-lg font-bold text-purple-700">
+                <div className="text-lg font-bold text-purple-700 dark:text-purple-300">
                   ${getAverageRentPerSF().toFixed(2)}
                 </div>
-                <div className="text-xs text-purple-600">per SF/year</div>
+                <div className="text-xs text-purple-600 dark:text-purple-400">per SF/year</div>
               </div>
               
               <div>
                 <div className="flex items-center gap-1 mb-1">
                   <Zap className="h-3.5 w-3.5 text-orange-600" />
-                  <span className="text-xs font-medium text-orange-900">Efficiency</span>
+                  <span className="text-xs font-medium text-orange-900 dark:text-orange-100">Efficiency</span>
                 </div>
-                <div className="text-lg font-bold text-orange-700">
+                <div className="text-lg font-bold text-orange-700 dark:text-orange-300">
                   {warehouseSquareFeet > 0 
                     ? Math.round((warehouseSquareFeet / totalSquareFeet) * 100)
                     : 100}%
                 </div>
-                <div className="text-xs text-orange-600">warehouse</div>
+                <div className="text-xs text-orange-600 dark:text-orange-400">warehouse</div>
               </div>
             </div>
           </div>
         )}
         
         {/* Info Box */}
-        <div className="bg-blue-50 rounded-xl p-3.5 border border-blue-200">
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3.5 border border-blue-200 dark:border-blue-700">
           <div className="flex items-start gap-2">
             <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-xs font-semibold text-blue-900 mb-1">Industrial Configuration</p>
-              <p className="text-xs text-blue-700 leading-relaxed">
+              <p className="text-xs font-semibold text-blue-900 dark:text-blue-100 mb-1">Industrial Configuration</p>
+              <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
                 Your {currentIndustrialType.label.toLowerCase()} facility has been configured based on the space breakdown provided. 
                 {clearHeight > 0 && ` With ${clearHeight}' clear height, this facility is suitable for ${
                   clearHeight >= 30 ? 'high-bay storage and distribution' : 

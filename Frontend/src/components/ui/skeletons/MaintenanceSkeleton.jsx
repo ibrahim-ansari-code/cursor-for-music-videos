@@ -22,9 +22,9 @@ const MaintenanceSkeleton = ({
     </div>
 
     {/* Main Table Container */}
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border dark:border-gray-700 transition-colors">
       {/* Header with tabs and new request button */}
-      <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 bg-gray-50">
+      <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 transition-colors">
         <div className="flex items-center space-x-1">
           {/* Tabs */}
           <SkeletonPill width="7rem" height="2.25rem" />
@@ -42,7 +42,7 @@ const MaintenanceSkeleton = ({
       <MaintenanceTableSkeleton rowCount={rowCount} />
 
       {/* Pagination Footer */}
-      <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200">
+      <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 transition-colors">
         <div className="flex items-center">
           <SkeletonLine width="15rem" height="0.875rem" />
         </div>
@@ -67,9 +67,9 @@ MaintenanceSkeleton.propTypes = {
  */
 export const MaintenanceTableSkeleton = ({ rowCount = 6 }) => (
   <div className="overflow-x-auto">
-    <table className="min-w-full divide-y divide-gray-200">
+    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
       {/* Table Header */}
-      <thead className="bg-gray-50">
+      <thead className="bg-gray-50 dark:bg-gray-700">
         <tr>
           <th className="px-6 py-3 text-center w-1/12">
             <SkeletonLine width="1.5rem" height="0.75rem" />
@@ -102,9 +102,9 @@ export const MaintenanceTableSkeleton = ({ rowCount = 6 }) => (
       </thead>
 
       {/* Table Body */}
-      <tbody className="bg-white divide-y divide-gray-200">
+      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 transition-colors">
         {Array.from({ length: rowCount }, (_, rowIndex) => (
-          <tr key={rowIndex} className="hover:bg-gray-50">
+          <tr key={rowIndex} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
             {/* # */}
             <td className="px-6 py-4 text-center w-1/12">
               <SkeletonLine width="1.5rem" height="1rem" />

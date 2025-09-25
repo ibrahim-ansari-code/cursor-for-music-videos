@@ -17,15 +17,15 @@ const t = (key) => {
 
 const Reports = () => {
   return (
-    <main className="text-center py-16 px-4">
-      <div className="bg-white rounded-lg shadow-sm p-10 max-w-lg mx-auto">
-        <div className="text-blue-600 text-6xl mb-6">
+    <main className="text-center py-16 px-4 dark-bg min-h-screen">
+      <div className="kpi-card group max-w-lg mx-auto p-10">
+        <div className="text-blue-600 dark:text-blue-400 text-6xl mb-6">
           <TrendingUp size={64} className="mx-auto" aria-hidden="true" />
         </div>
-        <h1 className="text-2xl font-semibold text-gray-800 mb-4">
+        <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
           {t("reports.title")}
         </h1>
-        <div className="text-gray-600">
+        <div className="text-gray-600 dark:text-gray-400">
           <p>{t("reports.description")}</p>
           <p className="mt-4">{t("reports.availability")}</p>
         </div>

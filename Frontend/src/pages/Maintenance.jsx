@@ -160,9 +160,9 @@ const Maintenance = () => {
     return <div className="p-6 text-center text-red-500">Error: {error}</div>;
 
   return (
-    <div className="p-6">
+    <div className="p-6 min-h-screen dark-bg transition-colors duration-300">
       {error && (
-        <div className="p-4 mb-4 text-center bg-red-100 text-red-700 rounded-lg">
+        <div className="p-4 mb-4 text-center bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg border border-red-200 dark:border-red-700 transition-colors duration-300">
           {error}
         </div>
       )}
@@ -202,8 +202,8 @@ const Maintenance = () => {
         />
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 bg-gray-50">
+      <div className="dark-panel dark-shadow rounded-lg overflow-hidden dark-divider border transition-colors duration-300">
+        <div className="flex justify-between items-center px-6 py-4 dark-divider border-b dark-input transition-colors duration-300">
           <div className="flex items-center">
             {TABS.map((tab) => (
               <button
@@ -212,8 +212,8 @@ const Maintenance = () => {
                 onClick={() => handleStatusFilterChange(tab)}
                 className={`px-4 py-2 mr-1 rounded-md text-sm font-medium transition-colors duration-150 ${
                   statusFilter === tab
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                    ? "bg-blue-600 dark:bg-blue-500 text-white shadow-sm"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
                 }`}
               >
                 {tab} (
@@ -234,7 +234,7 @@ const Maintenance = () => {
             <button
               type="button"
               onClick={openModalForNew}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150"
             >
               <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -258,14 +258,14 @@ const Maintenance = () => {
             />
 
             {/* Pagination Controls */}
-            <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200">
-              <div className="text-sm text-gray-700">
+            <div className="px-6 py-4 flex items-center justify-between dark-divider border-t dark-input transition-colors duration-300">
+              <div className="text-sm text-gray-700 dark:text-gray-300">
                 Showing page {currentPage} ({requests.length} items)
                 {typeof totalCount === "number" && totalCount > 0 && (
                   <span className="ml-2">of {totalCount} total</span>
                 )}
                 {statusFilter !== "All Requests" && (
-                  <span className="ml-2 text-blue-600">
+                  <span className="ml-2 text-blue-600 dark:text-blue-400">
                     Filtered by: {statusFilter}
                   </span>
                 )}
@@ -274,17 +274,17 @@ const Maintenance = () => {
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage <= 1}
-                  className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 dark-panel dark-divider border rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-300"
                 >
                   Previous
                 </button>
-                <span className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md">
+                <span className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 dark-panel dark-divider border rounded-md transition-colors duration-300">
                   Page {currentPage}
                 </span>
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={!hasMore || loading}
-                  className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 dark-panel dark-divider border rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-300"
                 >
                   Next
                 </button>
@@ -292,7 +292,7 @@ const Maintenance = () => {
                   <button
                     onClick={handleLoadMore}
                     disabled={loading}
-                    className="ml-4 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-300 rounded-md hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="ml-4 px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-600 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-300"
                   >
                     {loading ? "Loading..." : "Load More"}
                   </button>

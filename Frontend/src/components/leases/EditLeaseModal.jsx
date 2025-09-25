@@ -186,15 +186,15 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
         initial="hidden"
         animate="visible"
         exit="exit"
-        className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl overflow-hidden"
+        className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden"
         onClick={(e) => e.stopPropagation()} // Prevent close when clicking inside modal
       >
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-800">Edit Lease</h2>
+        <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Edit Lease</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1 rounded-full focus:outline-none focus:ring-2 focus:ring-gray-400"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
             aria-label="Close modal"
           >
             <svg
@@ -216,14 +216,14 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="p-6 space-y-2 max-h-[calc(100vh-15rem)] overflow-y-auto">
+          <div className="p-6 space-y-2 max-h-[calc(100vh-15rem)] overflow-y-auto bg-white dark:bg-gray-800">
             <AnimatePresence>
               {error && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-md text-sm"
+                  className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 rounded-md text-sm"
                 >
                   {error}
                 </motion.div>
@@ -367,7 +367,7 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
             </FormSection>
           </div>
 
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+          <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 flex justify-end space-x-3">
             <Button
               type="button"
               variant="secondary"

@@ -40,6 +40,7 @@ const ROUNDED_CLASS_MAP = {
 
 /**
  * Generate consistent CSS classes for skeleton elements
+ * Now supports dark mode with proper color transitions
  */
 export const getSkeletonClasses = (options = {}) => {
   const {
@@ -49,7 +50,7 @@ export const getSkeletonClasses = (options = {}) => {
   } = options;
   
   const roundedClass = ROUNDED_CLASS_MAP[rounded] || ROUNDED_CLASS_MAP.md;
-  return `animate-pulse bg-gray-200 ${roundedClass} ${customClasses}`.trim();
+  return `animate-pulse bg-gray-200 dark:bg-gray-700 ${roundedClass} ${customClasses}`.trim();
 };
 
 /**

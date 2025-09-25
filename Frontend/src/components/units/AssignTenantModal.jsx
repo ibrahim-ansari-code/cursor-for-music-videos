@@ -231,7 +231,7 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 400 }}
-              className="relative w-full max-w-2xl bg-white rounded-xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col z-[10000]"
+              className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col z-[10000]"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -253,15 +253,15 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
               </div>
 
               {/* Content */}
-              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-gray-50">
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
                 {error && (
                   <motion.div 
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mx-6 mt-4 p-3 bg-red-50 border border-red-100 text-red-700 rounded-lg"
+                    className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/50 border border-red-100 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg"
                   >
                     <div className="flex">
-                      <svg className="h-5 w-5 text-red-400 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                      <svg className="h-5 w-5 text-red-400 dark:text-red-500 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                       </svg>
                       <span className="text-sm">{error}</span>
@@ -271,19 +271,19 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
 
                 <div className="p-6 space-y-4">
                   {/* Tenant Section */}
-                  <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                     <div className="flex items-center mb-3">
-                      <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center mr-3">
-                        <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <div className="w-9 h-9 bg-blue-50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mr-3">
+                        <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                       </div>
-                      <h3 className="text-base font-medium text-gray-900">Tenant Information</h3>
+                      <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Tenant Information</h3>
                     </div>
                     
                     <div ref={dropdownRef}>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select Tenant <span className="text-red-500">*</span>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Select Tenant <span className="text-red-500 dark:text-red-400">*</span>
                       </label>
                       <div className="relative">
                         <input 
@@ -295,8 +295,8 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
                             setIsDropdownOpen(true);
                           }} 
                           onFocus={() => setIsDropdownOpen(true)}
-                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
-                            fieldErrors.tenant ? 'border-red-300' : 'border-gray-200'
+                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                            fieldErrors.tenant ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                           }`}
                         />
                         <AnimatePresence>
@@ -305,25 +305,25 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
                               initial={{ opacity: 0, y: -10 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -10 }}
-                              className="absolute z-10 mt-2 w-full bg-white shadow-lg rounded-lg border border-gray-100 max-h-48 overflow-y-auto"
+                              className="absolute z-10 mt-2 w-full bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-100 dark:border-gray-700 max-h-48 overflow-y-auto"
                             >
                               {isLoadingTenants ? (
-                                <div className="p-3 text-sm text-gray-500">Loading...</div>
+                                <div className="p-3 text-sm text-gray-500 dark:text-gray-400">Loading...</div>
                               ) : (
                                 <ul>
                                   {filteredTenants.map(t => (
                                     <li 
                                       key={t.id} 
                                       onClick={() => handleSelectTenant(t)} 
-                                      className="p-3 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-100 last:border-b-0 transition-colors"
+                                      className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer text-sm border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors"
                                     >
-                                      <div className="font-medium text-gray-900">{t.first_name} {t.last_name}</div>
-                                      {t.email && <div className="text-gray-500 text-xs mt-0.5">{t.email}</div>}
+                                      <div className="font-medium text-gray-900 dark:text-gray-100">{t.first_name} {t.last_name}</div>
+                                      {t.email && <div className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">{t.email}</div>}
                                     </li>
                                   ))}
                                   <li 
                                     onClick={handleCreateNewTenant} 
-                                    className="p-3 hover:bg-blue-50 cursor-pointer text-sm font-medium text-blue-600 bg-gray-50"
+                                    className="p-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer text-sm font-medium text-blue-600 dark:text-blue-400 bg-gray-50 dark:bg-gray-700/50"
                                   >
                                     <div className="flex items-center">
                                       <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -339,44 +339,44 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
                         </AnimatePresence>
                       </div>
                       {fieldErrors.tenant && (
-                        <p className="mt-2 text-sm text-red-600">{fieldErrors.tenant}</p>
+                        <p className="mt-2 text-sm text-red-600 dark:text-red-400">{fieldErrors.tenant}</p>
                       )}
                     </div>
                   </div>
 
                   {/* Lease Terms Section */}
-                  <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                     <div className="flex items-center mb-3">
-                      <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center mr-3">
-                        <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <div className="w-9 h-9 bg-green-50 dark:bg-green-900/30 rounded-lg flex items-center justify-center mr-3">
+                        <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <h3 className="text-base font-medium text-gray-900">Lease Duration</h3>
+                      <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Lease Duration</h3>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Start Date <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Start Date <span className="text-red-500 dark:text-red-400">*</span>
                         </label>
                         <input
                           type="date"
                           name="start_date"
                           value={leaseData.start_date}
                           onChange={handleFormChange}
-                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
-                            fieldErrors.start_date ? 'border-red-300' : 'border-gray-200'
+                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                            fieldErrors.start_date ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                           }`}
                           required
                         />
                         {fieldErrors.start_date && (
-                          <p className="mt-2 text-sm text-red-600">{fieldErrors.start_date}</p>
+                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{fieldErrors.start_date}</p>
                         )}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          End Date <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          End Date <span className="text-red-500 dark:text-red-400">*</span>
                         </label>
                         <input
                           type="date"
@@ -384,43 +384,43 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
                           value={leaseData.end_date}
                           onChange={handleFormChange}
                           min={leaseData.start_date}
-                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
-                            fieldErrors.end_date ? 'border-red-300' : 'border-gray-200'
+                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                            fieldErrors.end_date ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                           }`}
                           required
                         />
                         {fieldErrors.end_date && (
-                          <p className="mt-2 text-sm text-red-600">{fieldErrors.end_date}</p>
+                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{fieldErrors.end_date}</p>
                         )}
                       </div>
                     </div>
                   </div>
 
                   {/* Financial Terms Section */}
-                  <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                     <div className="flex items-center mb-3">
-                      <div className="w-9 h-9 bg-yellow-50 rounded-lg flex items-center justify-center mr-3">
-                        <svg className="w-4 h-4 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <div className="w-9 h-9 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center mr-3">
+                        <svg className="w-4 h-4 text-yellow-600 dark:text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
-                      <h3 className="text-base font-medium text-gray-900">Financial Terms</h3>
+                      <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Financial Terms</h3>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Monthly Rent <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Monthly Rent <span className="text-red-500 dark:text-red-400">*</span>
                         </label>
                         <div className="relative">
-                          <span className="absolute left-4 top-2.5 text-gray-500 font-medium">$</span>
+                          <span className="absolute left-4 top-2.5 text-gray-500 dark:text-gray-400 font-medium">$</span>
                           <input
                             type="number"
                             name="monthly_rent"
                             value={leaseData.monthly_rent}
                             onChange={handleFormChange}
-                            className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
-                              fieldErrors.monthly_rent ? 'border-red-300' : 'border-gray-200'
+                            className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                              fieldErrors.monthly_rent ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                             } [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                             placeholder="0.00"
                             step="0.01"
@@ -429,22 +429,22 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
                           />
                         </div>
                         {fieldErrors.monthly_rent && (
-                          <p className="mt-2 text-sm text-red-600">{fieldErrors.monthly_rent}</p>
+                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{fieldErrors.monthly_rent}</p>
                         )}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Security Deposit <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Security Deposit <span className="text-red-500 dark:text-red-400">*</span>
                         </label>
                         <div className="relative">
-                          <span className="absolute left-4 top-2.5 text-gray-500 font-medium">$</span>
+                          <span className="absolute left-4 top-2.5 text-gray-500 dark:text-gray-400 font-medium">$</span>
                           <input
                             type="number"
                             name="security_deposit"
                             value={leaseData.security_deposit}
                             onChange={handleFormChange}
-                            className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
-                              fieldErrors.security_deposit ? 'border-red-300' : 'border-gray-200'
+                            className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                              fieldErrors.security_deposit ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                             } [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                             placeholder="0.00"
                             step="0.01"
@@ -453,68 +453,68 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
                           />
                         </div>
                         {fieldErrors.security_deposit && (
-                          <p className="mt-2 text-sm text-red-600">{fieldErrors.security_deposit}</p>
+                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{fieldErrors.security_deposit}</p>
                         )}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           When is Rent Due?
                         </label>
-                        <div className="space-y-1.5 bg-gray-50 p-3 rounded-lg">
-                          <label className="flex items-center cursor-pointer hover:text-blue-600 transition-colors py-1">
+                        <div className="space-y-1.5 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                          <label className="flex items-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors py-1">
                             <input
                               type="radio"
                               name="rent_due_option"
                               value="1"
                               checked={rentDueOption === '1'}
                               onChange={(e) => handleRentDueOptionChange(e.target.value)}
-                              className="mr-2.5 text-blue-600 focus:ring-blue-500"
+                              className="mr-2.5 text-blue-600 dark:text-blue-500 focus:ring-blue-500"
                             />
-                            <span className="text-sm">1st of every month</span>
+                            <span className="text-sm text-gray-900 dark:text-gray-100">1st of every month</span>
                           </label>
-                          <label className="flex items-center cursor-pointer hover:text-blue-600 transition-colors py-1">
+                          <label className="flex items-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors py-1">
                             <input
                               type="radio"
                               name="rent_due_option"
                               value="15"
                               checked={rentDueOption === '15'}
                               onChange={(e) => handleRentDueOptionChange(e.target.value)}
-                              className="mr-2.5 text-blue-600 focus:ring-blue-500"
+                              className="mr-2.5 text-blue-600 dark:text-blue-500 focus:ring-blue-500"
                             />
-                            <span className="text-sm">15th of every month</span>
+                            <span className="text-sm text-gray-900 dark:text-gray-100">15th of every month</span>
                           </label>
-                          <label className="flex items-center cursor-pointer hover:text-blue-600 transition-colors py-1">
+                          <label className="flex items-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors py-1">
                             <input
                               type="radio"
                               name="rent_due_option"
                               value="last"
                               checked={rentDueOption === 'last'}
                               onChange={(e) => handleRentDueOptionChange(e.target.value)}
-                              className="mr-2.5 text-blue-600 focus:ring-blue-500"
+                              className="mr-2.5 text-blue-600 dark:text-blue-500 focus:ring-blue-500"
                             />
-                            <span className="text-sm">Last day of every month</span>
+                            <span className="text-sm text-gray-900 dark:text-gray-100">Last day of every month</span>
                           </label>
                           <div className="flex items-center py-1">
-                            <label className="flex items-center cursor-pointer hover:text-blue-600 transition-colors">
+                            <label className="flex items-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                               <input
                                 type="radio"
                                 name="rent_due_option"
                                 value="custom"
                                 checked={rentDueOption === 'custom'}
                                 onChange={(e) => handleRentDueOptionChange(e.target.value)}
-                                className="mr-2.5 text-blue-600 focus:ring-blue-500"
+                                className="mr-2.5 text-blue-600 dark:text-blue-500 focus:ring-blue-500"
                               />
-                              <span className="text-sm">Other day:</span>
+                              <span className="text-sm text-gray-900 dark:text-gray-100">Other day:</span>
                             </label>
                             {rentDueOption === 'custom' && (
                               <input
                                 type="number"
                                 value={customRentDueDay}
                                 onChange={(e) => handleCustomRentDueChange(e.target.value)}
-                                className="ml-2 w-16 px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="ml-2 w-16 px-2 py-1 border border-gray-200 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 placeholder="e.g. 5"
                                 min="1"
                                 max="31"
@@ -522,24 +522,24 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
                             )}
                           </div>
                         </div>
-                        <p className="mt-1.5 text-xs text-gray-500">
+                        <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                           For months with fewer days, the last valid day will be used
                         </p>
                       </div>
                       
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Late Fee Amount
                           </label>
                           <div className="relative">
-                            <span className="absolute left-4 top-2.5 text-gray-500 font-medium">$</span>
+                            <span className="absolute left-4 top-2.5 text-gray-500 dark:text-gray-400 font-medium">$</span>
                             <input
                               type="number"
                               name="late_fee_amount"
                               value={leaseData.late_fee_amount}
                               onChange={handleFormChange}
-                              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               placeholder="50.00"
                               step="0.01"
                               min="0"
@@ -547,7 +547,7 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
                           </div>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Grace Period Before Late Fee
                           </label>
                           <div className="relative">
@@ -556,13 +556,13 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
                               name="late_fee_after_days"
                               value={leaseData.late_fee_after_days}
                               onChange={handleFormChange}
-                              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               placeholder="5"
                               min="0"
                             />
-                            <span className="absolute right-4 top-2.5 text-gray-500 text-sm">days</span>
+                            <span className="absolute right-4 top-2.5 text-gray-500 dark:text-gray-400 text-sm">days</span>
                           </div>
-                          <p className="mt-1 text-xs text-gray-500">
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                             Number of days after due date before late fee applies
                           </p>
                         </div>
@@ -571,14 +571,14 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
                   </div>
 
                   {/* Special Terms Section */}
-                  <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                     <div className="flex items-center mb-3">
-                      <div className="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center mr-3">
-                        <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <div className="w-9 h-9 bg-purple-50 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mr-3">
+                        <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                       </div>
-                      <h3 className="text-base font-medium text-gray-900">Additional Terms</h3>
+                      <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Additional Terms</h3>
                     </div>
                     
                     <textarea
@@ -586,7 +586,7 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
                       rows="4"
                       value={leaseData.special_terms}
                       onChange={handleFormChange}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none bg-white"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       placeholder="Enter any special conditions, pet policies, utilities arrangements, or other lease terms..."
                     />
                   </div>
@@ -594,10 +594,10 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
               </form>
 
               {/* Footer */}
-              <div className="px-6 py-5 bg-gray-50 border-t border-gray-200">
+              <div className="px-6 py-5 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="text-sm text-gray-500 flex items-start flex-1 sm:max-w-md">
-                    <svg className="w-4 h-4 mr-2 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 flex items-start flex-1 sm:max-w-md">
+                    <svg className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span>This will create an active lease in your system. You can upload documents and set other lease details on the Leases page.</span>
@@ -606,7 +606,7 @@ const AssignTenantModal = ({ isOpen, onClose, unit, propertyId, onSuccess }) => 
                     <button
                       type="button"
                       onClick={onClose}
-                      className="px-4 py-2.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all text-sm font-medium"
+                      className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all text-sm font-medium"
                       disabled={loading}
                     >
                       Cancel

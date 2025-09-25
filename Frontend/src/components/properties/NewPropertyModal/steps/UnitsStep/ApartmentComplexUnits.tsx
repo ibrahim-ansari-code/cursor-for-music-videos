@@ -380,10 +380,10 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
         <div className="flex items-center gap-3 mb-2">
           <span className="text-2xl">{currentStyle.emoji}</span>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 transition-colors duration-300">
               {currentStyle.label} Complex Setup
             </h2>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
               {numberOfBuildings} {numberOfBuildings === 1 ? 'building' : 'buildings'} • {totalUnits} total units
             </p>
           </div>
@@ -391,14 +391,14 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
       </div>
       
       {/* Building Distribution Section */}
-      <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl p-4 border border-indigo-200 mb-4">
+      <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/20 rounded-xl p-4 border border-indigo-200 dark:border-indigo-700 mb-4 transition-colors duration-300">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-              <Layout className="h-4 w-4 text-indigo-600" />
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <Layout className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
               Building Distribution
             </h3>
-            <p className="text-xs text-gray-600 mt-0.5">How to split your {totalUnits} units across {numberOfBuildings} buildings</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 transition-colors duration-300">How to split your {totalUnits} units across {numberOfBuildings} buildings</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -406,8 +406,8 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
               onClick={() => setDistributionMode('even')}
               className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
                 distributionMode === 'even' 
-                  ? 'bg-indigo-600 text-white shadow-sm' 
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                  ? 'bg-indigo-600 dark:bg-indigo-700 text-white shadow-sm' 
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
               <Percent className="h-3 w-3 inline mr-1" />
@@ -418,8 +418,8 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
               onClick={() => setDistributionMode('custom')}
               className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
                 distributionMode === 'custom' 
-                  ? 'bg-indigo-600 text-white shadow-sm' 
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                  ? 'bg-indigo-600 dark:bg-indigo-700 text-white shadow-sm' 
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
               <Settings className="h-3 w-3 inline mr-1" />
@@ -430,7 +430,7 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
         
         {/* Unit Numbering Pattern */}
         <div className="mb-3 flex items-center justify-between">
-          <label className="text-xs font-medium text-gray-700">Unit Numbering</label>
+          <label className="text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">Unit Numbering</label>
           <div className="flex gap-1">
             <button
               type="button"
@@ -440,8 +440,8 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
               }}
               className={`px-2 py-1 text-xs rounded-md transition-all ${
                 unitNumberingPattern === 'floor-based'
-                  ? 'bg-indigo-100 text-indigo-700 font-medium'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
+                  ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
               Floor-Based (101, 201)
@@ -454,8 +454,8 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
               }}
               className={`px-2 py-1 text-xs rounded-md transition-all ${
                 unitNumberingPattern === 'sequential'
-                  ? 'bg-indigo-100 text-indigo-700 font-medium'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
+                  ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
               Sequential (101, 102)
@@ -466,17 +466,17 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
         {/* Distribution Grid */}
         <div className="space-y-2">
           {buildingDistributions.map((dist, index) => (
-            <div key={dist.buildingId} className="bg-white rounded-lg p-3 border border-gray-200">
+            <div key={dist.buildingId} className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-gray-700 flex items-center gap-1">
-                  <Building2 className="h-3 w-3 text-indigo-500" />
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1 transition-colors duration-300">
+                  <Building2 className="h-3 w-3 text-indigo-500 dark:text-indigo-400" />
                   {dist.buildingName}
                 </span>
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full transition-colors duration-300 ${
                   dist.totalUnits === Math.floor(totalUnits / numberOfBuildings) || 
                   (index === buildingDistributions.length - 1 && isDistributionValid())
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-amber-100 text-amber-700'
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                    : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
                 }`}>
                   {dist.totalUnits} units ({dist.percentage.toFixed(1)}%)
                 </span>
@@ -491,7 +491,7 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
                     
                     return (
                       <div key={unitType} className="flex items-center gap-1">
-                        <label className="text-[10px] text-gray-600 min-w-[40px]">
+                        <label className="text-[10px] text-gray-600 dark:text-gray-400 min-w-[40px] transition-colors duration-300">
                           {config?.label || unitType}
                         </label>
                         <input
@@ -500,7 +500,7 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
                           max={totalCount as number}
                           value={currentCount}
                           onChange={(e) => updateBuildingDistribution(index, unitType, parseInt(e.target.value) || 0)}
-                          className="w-12 px-1 py-0.5 text-xs font-medium border border-gray-200 rounded text-center focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                          className="w-12 px-1 py-0.5 text-xs font-medium border border-gray-200 dark:border-gray-600 rounded text-center focus:ring-1 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
                         />
                       </div>
                     );
@@ -509,7 +509,7 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
               )}
               
               {distributionMode === 'even' && (
-                <div className="text-[10px] text-gray-500">
+                <div className="text-[10px] text-gray-500 dark:text-gray-400 transition-colors duration-300">
                   {Object.entries(dist.unitCounts)
                     .filter(([_, count]) => count > 0)
                     .map(([unitType, count]) => {
@@ -525,14 +525,14 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
         
         {/* Distribution Validation */}
         {!isDistributionValid() && (
-          <div className="mt-2 p-2 bg-amber-50 rounded-lg border border-amber-200">
+          <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700 transition-colors duration-300">
             <div className="flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-xs font-medium text-amber-900">
+                <p className="text-xs font-medium text-amber-900 dark:text-amber-200 transition-colors duration-300">
                   {distributionMode === 'custom' ? 'Distribution Incomplete' : 'Distribution Mismatch'}
                 </p>
-                <p className="text-[10px] text-amber-700 mt-0.5">
+                <p className="text-[10px] text-amber-700 dark:text-amber-300 mt-0.5 transition-colors duration-300">
                   Total distributed: {getTotalDistributedUnits()} / {totalUnits} units
                   {distributionMode === 'even' && ' (Unit types must match original mix)'}
                 </p>
@@ -542,10 +542,10 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
         )}
         
         {showDistributionWarning && (
-          <div className="mt-2 flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="mt-2 flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 transition-colors duration-300">
             <div className="flex items-center gap-2">
               <Info className="h-4 w-4 text-blue-600" />
-              <p className="text-xs text-blue-700">Distribution changed. Regenerate units?</p>
+              <p className="text-xs text-blue-700 dark:text-blue-300 transition-colors duration-300">Distribution changed. Regenerate units?</p>
             </div>
             <button
               type="button"
@@ -553,7 +553,7 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
                 generateUnitsFromDistributionMemo();
                 setShowDistributionWarning(false);
               }}
-              className="px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-1"
+              className="px-2 py-1 text-xs font-medium bg-blue-600 dark:bg-blue-700 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-800 transition-colors flex items-center gap-1"
             >
               <RefreshCw className="h-3 w-3" />
               Regenerate
@@ -563,19 +563,19 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
       </div>
       
       {/* Quick Setup by Unit Type - Collapsible */}
-      <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl border border-gray-200 mb-4 overflow-hidden">
+      <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800/30 dark:to-gray-900/30 rounded-xl border border-gray-200 dark:border-gray-600 mb-4 overflow-hidden transition-colors duration-300">
         <button
           type="button"
           onClick={() => setShowQuickSetup(!showQuickSetup)}
-          className="w-full px-4 py-3 hover:bg-gray-100 transition-all flex items-center justify-between"
+          className="w-full px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all flex items-center justify-between"
         >
-          <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 transition-colors duration-300">
             <Calculator className="h-4 w-4 text-indigo-600" />
             Quick Setup by Unit Type
-            <span className="text-xs font-normal text-gray-600 ml-2">(Optional)</span>
+            <span className="text-xs font-normal text-gray-600 dark:text-gray-400 ml-2 transition-colors duration-300">(Optional)</span>
           </h3>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Set rent and size for all units of each type</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">Set rent and size for all units of each type</span>
             {showQuickSetup ? (
               <ChevronDown className="h-4 w-4 text-gray-400" />
             ) : (
@@ -605,21 +605,22 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
             const currentSize = getQuickSetupValue(unitType, 'size');
             
             return (
-              <div key={unitType} className="bg-white rounded-lg p-3 border border-gray-200">
+              <div key={unitType} className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-gray-700">
+                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                     {config.label} ({unitCount} units)
                   </span>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
                     {config.bedrooms}BR/{config.bathrooms}BA
                   </span>
+
                 </div>
                 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] text-gray-600 mb-0.5 block">Rent/Unit</label>
+                    <label className="text-[10px] text-gray-600 dark:text-gray-400 mb-0.5 block transition-colors duration-300">Rent/Unit</label>
                     <div className="flex items-center">
-                      <span className="text-xs text-gray-500 mr-1">$</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mr-1 transition-colors duration-300">$</span>
                       <input
                         type="number"
                         value={currentRent || ''}
@@ -627,14 +628,15 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
                           const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
                           updateQuickSetupValue(unitType, 'rent', value);
                         }}
-                        className="w-full px-2 py-1 text-xs font-medium border border-gray-200 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        className="w-full px-2 py-1 text-xs font-medium border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors duration-300"
                         placeholder="Enter rent"
                       />
+
                     </div>
                   </div>
                   
                   <div>
-                    <label className="text-[10px] text-gray-600 mb-0.5 block">Size (sq ft)</label>
+                    <label className="text-[10px] text-gray-600 dark:text-gray-400 mb-0.5 block transition-colors duration-300">Size (sq ft)</label>
                     <input
                       type="number"
                       value={currentSize || ''}
@@ -642,9 +644,10 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
                         const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
                         updateQuickSetupValue(unitType, 'size', value);
                       }}
-                      className="w-full px-2 py-1 text-xs font-medium border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-2 py-1 text-xs font-medium border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-300"
                       placeholder="Enter size"
                     />
+
                   </div>
                 </div>
               </div>
@@ -671,21 +674,24 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, x: -100 }}
                   transition={{ delay: buildingIndex * 0.05 }}
-                  className="bg-white rounded-xl border border-gray-200 overflow-hidden"
+                  className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-600 overflow-hidden transition-colors duration-300"
+
                 >
                   {/* Building Header */}
                   <button
                     type="button"
                     onClick={() => toggleBuilding(building.buildingId)}
-                    className="w-full px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-150 transition-all flex items-center justify-between"
+                    className="w-full px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/50 hover:from-gray-100 hover:to-gray-150 dark:hover:from-gray-700/70 dark:hover:to-gray-600/70 transition-all flex items-center justify-between"
+
                   >
                     <div className="flex items-center gap-3">
                       <Building2 className="h-5 w-5 text-indigo-600" />
                       <div className="text-left">
-                        <h4 className="font-semibold text-gray-900">{building.buildingName}</h4>
-                        <span className="text-xs text-gray-600">
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">{building.buildingName}</h4>
+                        <span className="text-xs text-gray-600 dark:text-gray-400 transition-colors duration-300">
                           {building.units.length} units • {dist?.percentage.toFixed(1)}% of complex
                         </span>
+
                       </div>
                     </div>
                     
@@ -693,7 +699,7 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
                       {isDistributionValid() && (
                         <CheckCircle className="h-4 w-4 text-green-500" />
                       )}
-                      <span className="text-sm font-medium text-green-600">
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400 transition-colors duration-300">
                         ${building.units.reduce((sum, u) => sum + (u.monthly_rent || 0), 0).toLocaleString()}/mo
                       </span>
                       {expandedBuildings.has(building.buildingId) ? (
@@ -714,7 +720,8 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="p-4 bg-gray-50/50">
+                        <div className="p-4 bg-gray-50/50 dark:bg-gray-700/20 transition-colors duration-300">
+
                           {/* Group units by type */}
                           {Object.entries(
                             building.units.reduce((acc, unit) => {
@@ -725,20 +732,22 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
                             }, {} as { [key: string]: GeneratedUnit[] })
                           ).map(([unitType, unitsOfType]) => (
                             <div key={unitType} className="mb-3">
-                              <h5 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider flex items-center justify-between">
+                              <h5 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wider flex items-center justify-between transition-colors duration-300">
+
                                 <div className="flex items-center gap-2">
                                   {unitTypeConfig[unitType as keyof typeof unitTypeConfig]?.label || unitType} 
-                                  <span className="text-gray-500 normal-case">
+                                  <span className="text-gray-500 dark:text-gray-400 normal-case transition-colors duration-300">
                                     ({unitsOfType.length} {unitsOfType.length === 1 ? 'unit' : 'units'})
                                   </span>
                                   {unitNumberingPattern === 'floor-based' && (
                                     <Hash className="h-3 w-3 text-gray-400" />
                                   )}
                                 </div>
-                                <span className="text-[10px] text-gray-400 normal-case flex items-center gap-1">
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 normal-case flex items-center gap-1 transition-colors duration-300">
                                   <Edit2 className="h-3 w-3" />
                                   Click names to edit
                                 </span>
+
                               </h5>
                               
                               <div className="grid grid-cols-2 gap-2">
@@ -747,7 +756,8 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
                                   
                                   return (
                                     <div key={`${unit.name}-${unitIndex}`} 
-                                         className="bg-white rounded-lg p-2.5 border border-gray-200 hover:border-indigo-300 transition-colors">
+                                         className="bg-white dark:bg-gray-800 rounded-lg p-2.5 border border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-400 transition-colors">
+
                                       <div className="flex items-center justify-between mb-1.5">
                                         <div className="flex items-center gap-1 flex-1 min-w-0">
                                           <Home className="h-3 w-3 text-gray-400 flex-shrink-0" />
@@ -771,7 +781,7 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
                                                 }
                                               }}
                                               className="text-xs font-medium text-gray-900 bg-indigo-50 border border-indigo-300 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                              autoFocus
+
                                             />
                                           ) : (
                                             <button
@@ -780,50 +790,54 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
                                                 setEditingUnitName({ buildingIndex, unitIndex: actualUnitIndex });
                                                 setTempUnitName(unit.name);
                                               }}
-                                              className="text-xs font-medium text-gray-900 hover:bg-indigo-50 rounded px-1 py-0.5 transition-colors text-left truncate"
-                                              title="Click to edit unit name/number"
+                                              className="text-xs font-medium text-gray-900 dark:text-gray-100 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-300 dark:border-indigo-600 rounded px-1 py-0.5 transition-colors text-left truncate"
+
                                             >
-                                              {unit.name}
+                                              <span className="text-xs font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">{unit.name}</span>
+
                                             </button>
                                           )}
                                         </div>
-                                        <span className="text-[10px] text-gray-500 flex-shrink-0 ml-2">
+                                        <span className="text-[10px] text-gray-500 dark:text-gray-400 flex-shrink-0 ml-2 transition-colors duration-300">
                                           {unit.bedrooms}BR/{unit.bathrooms}BA
                                         </span>
+
                                       </div>
                                       
                                       <div className="grid grid-cols-2 gap-1.5">
                                         <div>
-                                          <label className="text-[10px] text-gray-500">Rent</label>
+                                          <label className="text-[10px] text-gray-500 dark:text-gray-400 transition-colors duration-300">Rent</label>
                                           <div className="flex items-center">
-                                            <span className="text-[10px] text-gray-400 mr-0.5">$</span>
+                                            <span className="text-[10px] text-gray-400 dark:text-gray-500 mr-0.5 transition-colors duration-300">$</span>
                                             <input
                                               type="number"
                                               value={unit.monthly_rent || ''}
                                               onChange={(e) => updateUnitField(buildingIndex, actualUnitIndex, 'rent', parseFloat(e.target.value) || 0)}
-                                              className="w-full px-1.5 py-0.5 text-xs font-medium border border-gray-200 rounded focus:ring-1 focus:ring-green-500 focus:border-transparent"
+                                              className="w-full px-1.5 py-0.5 text-xs font-medium border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
                                               placeholder=""
                                             />
+
                                           </div>
                                         </div>
                                         
                                         <div>
-                                          <label className="text-[10px] text-gray-500">Size</label>
+                                          <label className="text-[10px] text-gray-500 dark:text-gray-400 transition-colors duration-300">Size</label>
                                           <div className="flex items-center">
                                             <input
                                               type="number"
                                               value={unit.size || ''}
                                               onChange={(e) => updateUnitField(buildingIndex, actualUnitIndex, 'size', parseFloat(e.target.value) || 0)}
-                                              className="w-full px-1.5 py-0.5 text-xs font-medium border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                              className="w-full px-1.5 py-0.5 text-xs font-medium border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
                                               placeholder=""
                                             />
-                                            <span className="text-[10px] text-gray-400 ml-0.5">ft²</span>
+                                            <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-0.5 transition-colors duration-300">ft²</span>
+
                                           </div>
                                         </div>
                                       </div>
                                       
                                       {unit.floor && (
-                                        <div className="mt-1 text-[10px] text-gray-500">
+                                        <div className="mt-1 text-[10px] text-gray-500 dark:text-gray-400 transition-colors duration-300">
                                           Floor {unit.floor}
                                         </div>
                                       )}
@@ -848,30 +862,31 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
       <div className="mt-6 space-y-3">
         {/* Revenue Projection */}
         {getTotalMonthlyRent() > 0 && (
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50/50 rounded-xl p-4 border border-green-200">
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50/50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-4 border border-green-200 dark:border-green-700 transition-colors duration-300">
+
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium text-green-900">
+                <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <span className="text-sm font-medium text-green-900 dark:text-green-100">
                   Revenue Projection
                 </span>
               </div>
               <div className="text-right">
-                <div className="text-lg font-bold text-green-700">
+                <div className="text-lg font-bold text-green-700 dark:text-green-300 transition-colors duration-300">
                   ${getTotalMonthlyRent().toLocaleString()}/mo
                 </div>
-                <div className="text-xs text-green-600">
+                <div className="text-xs text-green-600 dark:text-green-400 transition-colors duration-300">
                   ${(getTotalMonthlyRent() * 12).toLocaleString()}/year
                 </div>
               </div>
             </div>
             
             {/* Occupancy scenarios */}
-            <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-green-200">
+            <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-green-200 dark:border-green-700 transition-colors duration-300">
               {[100, 95, 90].map(occupancy => (
                 <div key={occupancy} className="text-center">
-                  <div className="text-xs text-green-600 mb-0.5">{occupancy}% Occupied</div>
-                  <div className="text-sm font-semibold text-green-800">
+                  <div className="text-xs text-green-600 dark:text-green-400 mb-0.5 transition-colors duration-300">{occupancy}% Occupied</div>
+                  <div className="text-sm font-semibold text-green-800 dark:text-green-200 transition-colors duration-300">
                     ${Math.round(getTotalMonthlyRent() * (occupancy / 100)).toLocaleString()}
                   </div>
                 </div>
@@ -882,24 +897,28 @@ const ApartmentComplexUnits: React.FC<ApartmentComplexUnitsProps> = () => {
         
         {/* Distribution Summary */}
         {isDistributionValid() ? (
-          <div className="bg-green-50 rounded-xl p-3.5 border border-green-200">
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-3.5 border border-green-200 dark:border-green-700 transition-colors duration-300">
+
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
               <div>
-                <p className="text-xs font-semibold text-green-900">Configuration Complete</p>
-                <p className="text-xs text-green-700">
+                <p className="text-xs font-semibold text-green-900 dark:text-green-100 transition-colors duration-300">Configuration Complete</p>
+                <p className="text-xs text-green-700 dark:text-green-300 transition-colors duration-300">
+
                   All {totalUnits} units have been distributed across {numberOfBuildings} buildings.
                 </p>
               </div>
             </div>
           </div>
         ) : (
-          <div className="bg-amber-50 rounded-xl p-3.5 border border-amber-200">
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3.5 border border-amber-200 dark:border-amber-700 transition-colors duration-300">
+
             <div className="flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-xs font-semibold text-amber-900 mb-1">Configuration Incomplete</p>
-                <p className="text-xs text-amber-700 leading-relaxed">
+                <p className="text-xs font-semibold text-amber-900 dark:text-amber-100 mb-1 transition-colors duration-300">Configuration Incomplete</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed transition-colors duration-300">
+
                   Please ensure all units are properly distributed across buildings. 
                   Current: {getTotalDistributedUnits()} / {totalUnits} units distributed.
                   {distributionMode === 'even' && ' (Unit type distribution must match the original unit mix)'}

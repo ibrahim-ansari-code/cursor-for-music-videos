@@ -11,8 +11,8 @@ const PropertyDetailSkeleton = ({
   className = '',
   ...props 
 }) => (
-  <div className={`min-h-screen bg-gray-50 ${className}`} {...props}>
-    <div className="bg-white shadow">
+  <div className={`min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300 ${className}`} {...props}>
+    <div className="bg-white dark:bg-gray-800 shadow transition-colors duration-300">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="py-6">
           {/* Breadcrumb */}
@@ -45,9 +45,9 @@ const PropertyDetailSkeleton = ({
       </div>
 
       {/* Units Section */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="bg-white dark:bg-gray-800 shadow rounded-lg transition-colors duration-300">
         {/* Section Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 transition-colors duration-300">
           <div className="flex justify-between items-center">
             <div>
               <SkeletonLine width="6rem" height="1.5rem" className="mb-1" />
@@ -76,9 +76,9 @@ PropertyDetailSkeleton.propTypes = {
  */
 export const UnitsTableSkeleton = ({ rowCount = 6 }) => (
   <div className="overflow-x-auto">
-    <table className="min-w-full divide-y divide-gray-200">
+    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
       {/* Table Header */}
-      <thead className="bg-gray-50">
+      <thead className="bg-gray-50 dark:bg-gray-800 transition-colors duration-300">
         <tr>
           <th className="px-6 py-3 text-left w-3/12">
             <SkeletonLine width="4rem" height="0.75rem" />
@@ -102,7 +102,7 @@ export const UnitsTableSkeleton = ({ rowCount = 6 }) => (
       </thead>
 
       {/* Table Body */}
-      <tbody className="bg-white divide-y divide-gray-200">
+      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 transition-colors duration-300">
         {Array.from({ length: rowCount }, (_, rowIndex) => (
           <tr key={rowIndex}>
             {/* Unit Name */}

@@ -75,38 +75,38 @@ const InvoiceFormFields: React.FC<InvoiceFormFieldsProps> = ({
   return (
     <div className="space-y-6">
       {/* Invoice Details Section */}
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Invoice Details</h3>
+      <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Invoice Details</h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Invoice Number */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Invoice Number *
             </label>
             <input
               type="text"
               value={formData.invoice_number}
               onChange={(e) => onUpdateField('invoice_number', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.invoice_number ? 'border-red-300 bg-red-50' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                errors.invoice_number ? 'border-red-300 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600'
               }`}
               placeholder="e.g., INV-2023-001"
             />
             {errors.invoice_number && (
-              <p className="mt-1 text-sm text-red-600">{errors.invoice_number}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.invoice_number}</p>
             )}
           </div>
 
           {/* Status */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Status
             </label>
             <select
               value={formData.status}
               onChange={(e) => onUpdateField('status', e.target.value as InvoiceStatus)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               {INVOICE_STATUSES.map((status) => (
                 <option key={status} value={status}>
@@ -118,100 +118,100 @@ const InvoiceFormFields: React.FC<InvoiceFormFieldsProps> = ({
 
           {/* Issue Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Issue Date *
             </label>
             <input
               type="date"
               value={formData.issue_date}
               onChange={(e) => onUpdateField('issue_date', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.issue_date ? 'border-red-300 bg-red-50' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                errors.issue_date ? 'border-red-300 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600'
               }`}
             />
             {errors.issue_date && (
-              <p className="mt-1 text-sm text-red-600">{errors.issue_date}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.issue_date}</p>
             )}
           </div>
 
           {/* Due Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Due Date *
             </label>
             <input
               type="date"
               value={formData.due_date}
               onChange={(e) => onUpdateField('due_date', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.due_date ? 'border-red-300 bg-red-50' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                errors.due_date ? 'border-red-300 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600'
               }`}
             />
             {errors.due_date && (
-              <p className="mt-1 text-sm text-red-600">{errors.due_date}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.due_date}</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Amount & Description Section */}
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Amount & Description</h3>
+      <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Amount & Description</h3>
         
         <div className="space-y-4">
           {/* Subtotal Amount */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Subtotal Amount (before taxes) *
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-2 text-gray-500">$</span>
+              <span className="absolute left-3 top-2 text-gray-500 dark:text-gray-400">$</span>
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 value={formData.amount}
                 onChange={(e) => onUpdateField('amount', e.target.value)}
-                className={`w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.amount ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                className={`w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                  errors.amount ? 'border-red-300 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600'
                 }`}
                 placeholder="0.00"
               />
             </div>
             {errors.amount && (
-              <p className="mt-1 text-sm text-red-600">{errors.amount}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.amount}</p>
             )}
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Description *
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => onUpdateField('description', e.target.value)}
               rows={3}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical ${
-                errors.description ? 'border-red-300 bg-red-50' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 resize-vertical bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                errors.description ? 'border-red-300 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600'
               }`}
               placeholder="Invoice description..."
             />
             {errors.description && (
-              <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.description}</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Property & Tenant Section */}
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Property & Tenant</h3>
+      <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Property & Tenant</h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Property Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Property (Optional)
             </label>
             <select
@@ -231,8 +231,8 @@ const InvoiceFormFields: React.FC<InvoiceFormFieldsProps> = ({
                   : undefined;
                 onUpdateField('property_name', selectedProperty?.name || '');
               }}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.property_id ? 'border-red-300 bg-red-50' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                errors.property_id ? 'border-red-300 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600'
               }`}
             >
               <option value="">Select a property...</option>
@@ -244,13 +244,13 @@ const InvoiceFormFields: React.FC<InvoiceFormFieldsProps> = ({
               ))}
             </select>
             {errors.property_id && (
-              <p className="mt-1 text-sm text-red-600">{errors.property_id}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.property_id}</p>
             )}
           </div>
 
           {/* Tenant Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Tenant (Optional)
             </label>
             <select
@@ -262,7 +262,7 @@ const InvoiceFormFields: React.FC<InvoiceFormFieldsProps> = ({
                 const selectedTenant = filteredTenants.find(t => t.id === parseInt(e.target.value, 10));
                 onUpdateField('tenant_name', selectedTenant?.full_name || '');
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               <option value="">Select a tenant (optional)...</option>
               {filteredTenants.map((tenant) => (
@@ -272,7 +272,7 @@ const InvoiceFormFields: React.FC<InvoiceFormFieldsProps> = ({
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {formData.property_id 
                 ? 'Showing tenants for selected property' 
                 : 'Showing all tenants - select a property to filter'}
@@ -285,13 +285,13 @@ const InvoiceFormFields: React.FC<InvoiceFormFieldsProps> = ({
       {taxRecommendationBanner}
 
       {/* Tax Lines Section */}
-      <div className="bg-gray-50 p-4 rounded-lg">
+      <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium text-gray-900">Tax Details</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Tax Details</h3>
           <button
             type="button"
             onClick={onAddTaxLine}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors"
           >
             + Add Tax
           </button>
@@ -299,7 +299,7 @@ const InvoiceFormFields: React.FC<InvoiceFormFieldsProps> = ({
 
         <div className="space-y-3">
           {formData.taxes.map((tax, index) => (
-            <div key={index} className="flex items-center space-x-3 bg-white p-3 rounded-md border border-gray-200">
+            <div key={index} className="flex items-center space-x-3 bg-white dark:bg-gray-700 p-3 rounded-md border border-gray-200 dark:border-gray-600">
               <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-3">
                 {/* Tax Name */}
                 <div>
@@ -307,13 +307,13 @@ const InvoiceFormFields: React.FC<InvoiceFormFieldsProps> = ({
                     type="text"
                     value={tax.tax_name}
                     onChange={(e) => onUpdateTaxLine(index, 'tax_name', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors[`tax_name_${index}`] ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 ${
+                      errors[`tax_name_${index}`] ? 'border-red-300 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600'
                     }`}
                     placeholder="Tax name (e.g., HST, GST)"
                   />
                   {errors[`tax_name_${index}`] && (
-                    <p className="mt-1 text-xs text-red-600">{errors[`tax_name_${index}`]}</p>
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors[`tax_name_${index}`]}</p>
                   )}
                 </div>
 
@@ -327,15 +327,15 @@ const InvoiceFormFields: React.FC<InvoiceFormFieldsProps> = ({
                       max="100"
                       value={tax.tax_rate}
                       onChange={(e) => onUpdateTaxLine(index, 'tax_rate', e.target.value)}
-                      className={`w-full px-3 py-2 pr-8 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors[`tax_rate_${index}`] ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 pr-8 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 ${
+                        errors[`tax_rate_${index}`] ? 'border-red-300 dark:border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600'
                       }`}
                       placeholder="0.00"
                     />
-                    <span className="absolute right-3 top-2 text-gray-500">%</span>
+                    <span className="absolute right-3 top-2 text-gray-500 dark:text-gray-400">%</span>
                   </div>
                   {errors[`tax_rate_${index}`] && (
-                    <p className="mt-1 text-xs text-red-600">{errors[`tax_rate_${index}`]}</p>
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors[`tax_rate_${index}`]}</p>
                   )}
                 </div>
               </div>
@@ -348,8 +348,8 @@ const InvoiceFormFields: React.FC<InvoiceFormFieldsProps> = ({
                   disabled={!tax.tax_name || !tax.tax_rate}
                   className={`p-2 h-9 w-9 flex items-center justify-center border rounded-lg transition-all ${
                     isCurrentDefault?.({ tax_name: tax.tax_name, tax_rate: String(tax.tax_rate) })
-                      ? 'bg-yellow-50 text-yellow-600 border-yellow-200 hover:bg-yellow-100'
-                      : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50 hover:text-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed'
+                      ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-700 hover:bg-yellow-100 dark:hover:bg-yellow-900/50'
+                      : 'bg-white dark:bg-gray-700 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-yellow-500 dark:hover:text-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed'
                   }`}
                   title={getTooltipText?.({ tax_name: tax.tax_name, tax_rate: String(tax.tax_rate) }) || "Set as my default tax"}
                 >
@@ -370,7 +370,7 @@ const InvoiceFormFields: React.FC<InvoiceFormFieldsProps> = ({
                 <button
                   type="button"
                   onClick={() => onRemoveTaxLine(index)}
-                  className="text-red-600 hover:text-red-700 p-2 rounded-md transition-colors"
+                  className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-2 rounded-md transition-colors"
                   title="Remove tax line"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -384,24 +384,24 @@ const InvoiceFormFields: React.FC<InvoiceFormFieldsProps> = ({
       </div>
 
       {/* Totals Summary */}
-      <div className="bg-blue-50 p-4 rounded-lg">
-        <h3 className="text-lg font-medium text-gray-900 mb-3">Invoice Summary</h3>
+      <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Invoice Summary</h3>
         
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-600">Subtotal:</span>
-            <span className="font-medium">${calculatedTotals.subtotal.toFixed(2)}</span>
+            <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
+            <span className="font-medium text-gray-900 dark:text-gray-100">${calculatedTotals.subtotal.toFixed(2)}</span>
           </div>
           
           <div className="flex justify-between">
-            <span className="text-gray-600">Total Tax:</span>
-            <span className="font-medium">${calculatedTotals.totalTax.toFixed(2)}</span>
+            <span className="text-gray-600 dark:text-gray-400">Total Tax:</span>
+            <span className="font-medium text-gray-900 dark:text-gray-100">${calculatedTotals.totalTax.toFixed(2)}</span>
           </div>
           
-          <div className="border-t border-blue-200 pt-2">
+          <div className="border-t border-blue-200 dark:border-blue-700 pt-2">
             <div className="flex justify-between text-lg font-semibold">
-              <span className="text-gray-900">Total Amount:</span>
-              <span className="text-blue-600">${calculatedTotals.grandTotal.toFixed(2)}</span>
+              <span className="text-gray-900 dark:text-gray-100">Total Amount:</span>
+              <span className="text-blue-600 dark:text-blue-400">${calculatedTotals.grandTotal.toFixed(2)}</span>
             </div>
           </div>
         </div>

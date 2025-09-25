@@ -142,8 +142,8 @@ const IndustrialForm: React.FC = () => {
     <div className="space-y-5">
       {/* Industrial Type Selection */}
       <div>
-        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2.5 block">
-          Facility Type <span className="text-red-500">*</span>
+        <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5 block transition-colors duration-300">
+          Facility Type <span className="text-red-500 dark:text-red-400 transition-colors duration-300">*</span>
         </label>
         <div className="grid grid-cols-4 gap-2 p-1">
           {industrialTypes.map((type) => (
@@ -159,27 +159,27 @@ const IndustrialForm: React.FC = () => {
               className={`
                 relative p-3 rounded-xl border-2 transition-all duration-200 group
                 ${industrialType === type.value 
-                  ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 shadow-md' 
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                  ? 'border-orange-500 dark:border-orange-400 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/40 dark:to-amber-900/40 shadow-md' 
+                  : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm'
                 }
               `}
             >
               <div className="text-lg mb-1">{type.icon}</div>
-              <div className={`text-xs font-medium ${
-                industrialType === type.value ? 'text-orange-700' : 'text-gray-700'
+              <div className={`text-xs font-medium transition-colors duration-300 ${
+                industrialType === type.value ? 'text-orange-700 dark:text-orange-300' : 'text-gray-700 dark:text-gray-300'
               }`}>
                 {type.label}
               </div>
               {industrialType === type.value && (
                 <div className="absolute top-1 right-1">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 bg-orange-500 dark:bg-orange-400 rounded-full animate-pulse"></div>
                 </div>
               )}
             </button>
           ))}
         </div>
         {getFieldError('industrial_type') && (
-          <p className="mt-2 text-xs text-red-500 flex items-center">
+          <p className="mt-2 text-xs text-red-500 dark:text-red-400 flex items-center transition-colors duration-300">
             <AlertCircle className="h-3.5 w-3.5 mr-1" />
             {getFieldError('industrial_type')?.message || 'Please select a facility type'}
           </p>
@@ -187,23 +187,23 @@ const IndustrialForm: React.FC = () => {
       </div>
       
       {/* Core Space Configuration - Required */}
-      <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-4 border border-gray-200">
+      <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800/50 dark:to-gray-900/50 rounded-xl p-4 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300">
             Essential Details
           </span>
-          <span className="text-xs text-gray-500">* Required</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">* Required</span>
         </div>
         
         {/* Total Square Feet - Required */}
-        <div className="bg-white rounded-lg p-3 border border-gray-200 hover:border-orange-300 transition-colors group mb-3">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 hover:border-orange-300 dark:hover:border-orange-500 transition-colors group mb-3">
           <label className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-              <Square className="h-3.5 w-3.5 inline mr-1.5 text-orange-500" />
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+              <Square className="h-3.5 w-3.5 inline mr-1.5 text-orange-500 dark:text-orange-400" />
               Total Square Feet *
             </span>
             {totalSquareFeet > 0 && (
-              <span className="text-xs text-orange-600 font-semibold">{totalSquareFeet.toLocaleString()} SF</span>
+              <span className="text-xs text-orange-600 dark:text-orange-400 font-semibold">{totalSquareFeet.toLocaleString()} SF</span>
             )}
           </label>
           <input
@@ -214,11 +214,11 @@ const IndustrialForm: React.FC = () => {
               valueAsNumber: true
             })}
             type="number"
-            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             placeholder="100000"
           />
           {getFieldError('total_square_feet') && (
-            <p className="mt-1 text-[10px] text-red-500 flex items-center">
+            <p className="mt-1 text-[10px] text-red-500 dark:text-red-400 flex items-center">
               <AlertCircle className="h-3 w-3 mr-0.5" />
               {getFieldError('total_square_feet')?.message}
             </p>
@@ -229,26 +229,26 @@ const IndustrialForm: React.FC = () => {
         {totalSquareFeet > 0 && (
           <div className={`mb-3 p-2.5 rounded-lg border transition-all ${
             isValidDistribution 
-              ? 'bg-green-50 border-green-200' 
+              ? 'bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700' 
               : hasDistributionError
-              ? 'bg-red-50 border-red-200'
-              : 'bg-blue-50 border-blue-200'
+              ? 'bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700'
+              : 'bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700'
           }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {isValidDistribution ? (
-                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
                 ) : hasDistributionError ? (
-                  <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                  <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
                 ) : (
-                  <Info className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                  <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                 )}
                 <span className={`text-xs font-medium ${
                   isValidDistribution 
-                    ? 'text-green-900' 
+                    ? 'text-green-900 dark:text-green-100' 
                     : hasDistributionError
-                    ? 'text-red-900'
-                    : 'text-blue-900'
+                    ? 'text-red-900 dark:text-red-100'
+                    : 'text-blue-900 dark:text-blue-100'
                 }`}>
                   {isValidDistribution 
                     ? 'Space distribution complete' 
@@ -262,7 +262,7 @@ const IndustrialForm: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleQuickFill}
-                  className="px-2 py-1 text-xs font-medium bg-white text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50 transition-colors flex items-center gap-1"
+                  className="px-2 py-1 text-xs font-medium bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-600 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors flex items-center gap-1"
                 >
                   <Calculator className="h-3 w-3" />
                   Auto-fill
@@ -270,7 +270,7 @@ const IndustrialForm: React.FC = () => {
               )}
             </div>
             {hasDistributionError && (
-              <div className="mt-2 text-xs text-gray-600">
+              <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
                 <span className="font-medium">Total: </span>{totalSquareFeet.toLocaleString()} SF • 
                 <span className="font-medium ml-2">Allocated: </span>{calculatedTotal.toLocaleString()} SF
               </div>
@@ -280,24 +280,24 @@ const IndustrialForm: React.FC = () => {
 
         {/* Space Distribution */}
         <div>
-          <label className="text-xs font-medium text-gray-600 mb-2 block">
-            Space Distribution <span className="text-red-500">*</span>
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 block">
+            Space Distribution <span className="text-red-500 dark:text-red-400">*</span>
             {totalSquareFeet > 0 && (
-              <span className="text-gray-500 ml-2">
+              <span className="text-gray-500 dark:text-gray-400 ml-2">
                 (Must total {totalSquareFeet.toLocaleString()} SF)
               </span>
             )}
           </label>
           <div className="grid grid-cols-3 gap-2">
           {/* Warehouse SF */}
-          <div className={`bg-white rounded-md p-2.5 border transition-all ${
+          <div className={`bg-white dark:bg-gray-800 rounded-md p-2.5 border transition-all ${
             autoCalculateMode === 'warehouse' 
-              ? 'border-blue-400 ring-2 ring-blue-200' 
-              : 'border-gray-200'
+              ? 'border-blue-400 dark:border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800' 
+              : 'border-gray-200 dark:border-gray-600'
           }`}>
-            <label className="text-[10px] font-medium text-gray-600 flex items-center justify-between mb-1">
+            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-400 flex items-center justify-between mb-1">
               <span>
-                <Warehouse className="h-3 w-3 inline mr-1 text-blue-500" />
+                <Warehouse className="h-3 w-3 inline mr-1 text-blue-500 dark:text-blue-400" />
                 Warehouse SF
               </span>
               <button
@@ -305,8 +305,8 @@ const IndustrialForm: React.FC = () => {
                 onClick={() => setAutoCalculateMode(autoCalculateMode === 'warehouse' ? null : 'warehouse')}
                 className={`px-1.5 py-0.5 text-[9px] font-medium rounded transition-all ${
                   autoCalculateMode === 'warehouse'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 {autoCalculateMode === 'warehouse' ? 'AUTO' : 'Auto'}
@@ -339,27 +339,27 @@ const IndustrialForm: React.FC = () => {
               disabled={autoCalculateMode === 'warehouse'}
               className={`w-full px-2 py-1 text-xs border rounded transition-all ${
                 autoCalculateMode === 'warehouse'
-                  ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium'
-                  : 'border-gray-200 focus:ring-1 focus:ring-blue-500'
+                  ? 'bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 font-medium'
+                  : 'border-gray-200 dark:border-gray-600 focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
               }`}
               placeholder="85000"
             />
             {warehouseSquareFeet > 0 && totalSquareFeet > 0 && (
-              <div className="mt-1 text-[9px] text-gray-500 font-medium">
+              <div className="mt-1 text-[9px] text-gray-500 dark:text-gray-400 font-medium">
                 {Math.round((warehouseSquareFeet / totalSquareFeet) * 100)}% of total
               </div>
             )}
           </div>
           
           {/* Office SF */}
-          <div className={`bg-white rounded-md p-2.5 border transition-all ${
+          <div className={`bg-white dark:bg-gray-800 rounded-md p-2.5 border transition-all ${
             autoCalculateMode === 'office' 
-              ? 'border-indigo-400 ring-2 ring-indigo-200' 
-              : 'border-gray-200'
+              ? 'border-indigo-400 dark:border-indigo-500 ring-2 ring-indigo-200 dark:ring-indigo-800' 
+              : 'border-gray-200 dark:border-gray-600'
           }`}>
-            <label className="text-[10px] font-medium text-gray-600 flex items-center justify-between mb-1">
+            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-400 flex items-center justify-between mb-1">
               <span>
-                <Building className="h-3 w-3 inline mr-1 text-indigo-500" />
+                <Building className="h-3 w-3 inline mr-1 text-indigo-500 dark:text-indigo-400" />
                 Office SF
               </span>
               <button
@@ -367,8 +367,8 @@ const IndustrialForm: React.FC = () => {
                 onClick={() => setAutoCalculateMode(autoCalculateMode === 'office' ? null : 'office')}
                 className={`px-1.5 py-0.5 text-[9px] font-medium rounded transition-all ${
                   autoCalculateMode === 'office'
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-indigo-100 dark:bg-indigo-800 text-indigo-700 dark:text-indigo-300'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 {autoCalculateMode === 'office' ? 'AUTO' : 'Auto'}
@@ -401,27 +401,27 @@ const IndustrialForm: React.FC = () => {
               disabled={autoCalculateMode === 'office'}
               className={`w-full px-2 py-1 text-xs border rounded transition-all ${
                 autoCalculateMode === 'office'
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-medium'
-                  : 'border-gray-200 focus:ring-1 focus:ring-indigo-500'
+                  ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-600 text-indigo-700 dark:text-indigo-300 font-medium'
+                  : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-indigo-500'
               }`}
               placeholder="5000"
             />
             {officeSquareFeet > 0 && totalSquareFeet > 0 && (
-              <div className="mt-1 text-[9px] text-gray-500 font-medium">
+              <div className="mt-1 text-[9px] text-gray-500 dark:text-gray-400 font-medium">
                 {Math.round((officeSquareFeet / totalSquareFeet) * 100)}% of total
               </div>
             )}
           </div>
           
           {/* Manufacturing SF */}
-          <div className={`bg-white rounded-md p-2.5 border transition-all ${
+          <div className={`bg-white dark:bg-gray-800 rounded-md p-2.5 border transition-all ${
             autoCalculateMode === 'manufacturing' 
-              ? 'border-purple-400 ring-2 ring-purple-200' 
-              : 'border-gray-200'
+              ? 'border-purple-400 dark:border-purple-500 ring-2 ring-purple-200 dark:ring-purple-800' 
+              : 'border-gray-200 dark:border-gray-600'
           }`}>
-            <label className="text-[10px] font-medium text-gray-600 flex items-center justify-between mb-1">
+            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-400 flex items-center justify-between mb-1">
               <span>
-                <Factory className="h-3 w-3 inline mr-1 text-purple-500" />
+                <Factory className="h-3 w-3 inline mr-1 text-purple-500 dark:text-purple-400" />
                 Manufacturing SF
               </span>
               <button
@@ -429,8 +429,8 @@ const IndustrialForm: React.FC = () => {
                 onClick={() => setAutoCalculateMode(autoCalculateMode === 'manufacturing' ? null : 'manufacturing')}
                 className={`px-1.5 py-0.5 text-[9px] font-medium rounded transition-all ${
                   autoCalculateMode === 'manufacturing'
-                    ? 'bg-purple-100 text-purple-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 {autoCalculateMode === 'manufacturing' ? 'AUTO' : 'Auto'}
@@ -463,13 +463,13 @@ const IndustrialForm: React.FC = () => {
               disabled={autoCalculateMode === 'manufacturing'}
               className={`w-full px-2 py-1 text-xs border rounded transition-all ${
                 autoCalculateMode === 'manufacturing'
-                  ? 'bg-purple-50 border-purple-200 text-purple-700 font-medium'
-                  : 'border-gray-200 focus:ring-1 focus:ring-purple-500'
+                  ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-600 text-purple-700 dark:text-purple-300 font-medium'
+                  : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-purple-500'
               }`}
               placeholder="10000"
             />
             {manufacturingSquareFeet > 0 && totalSquareFeet > 0 && (
-              <div className="mt-1 text-[9px] text-gray-500 font-medium">
+              <div className="mt-1 text-[9px] text-gray-500 dark:text-gray-400 font-medium">
                 {Math.round((manufacturingSquareFeet / totalSquareFeet) * 100)}% of total
               </div>
             )}
@@ -479,17 +479,17 @@ const IndustrialForm: React.FC = () => {
       </div>
 
       {/* Building Specifications */}
-      <div className="bg-white rounded-xl p-3.5 border border-gray-200 hover:shadow-sm transition-all">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600 hover:shadow-sm transition-all">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
-            <Ruler className="h-3.5 w-3.5 inline mr-1.5 text-blue-600" />
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300">
+            <Ruler className="h-3.5 w-3.5 inline mr-1.5 text-blue-600 dark:text-blue-400" />
             Building Specifications
           </span>
         </div>
         
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-lg p-2.5 border border-gray-200">
-            <label className="text-xs font-medium text-gray-600 block mb-1">
+          <div className="bg-white dark:bg-gray-700 rounded-lg p-2.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1 transition-colors duration-300">
               Clear Height (feet)
             </label>
             <input
@@ -500,14 +500,14 @@ const IndustrialForm: React.FC = () => {
               })}
               type="number"
               step="0.5"
-              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-blue-500"
+              className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               placeholder="32"
             />
           </div>
           
-          <div className="bg-white rounded-lg p-2.5 border border-gray-200">
-            <label className="text-xs font-medium text-gray-600 block mb-1">
-              <Square className="h-3 w-3 inline mr-1 text-amber-500" />
+          <div className="bg-white dark:bg-gray-700 rounded-lg p-2.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1 transition-colors duration-300">
+              <Square className="h-3 w-3 inline mr-1 text-amber-500 dark:text-amber-400" />
               Truck Court SF
             </label>
             <input
@@ -516,7 +516,7 @@ const IndustrialForm: React.FC = () => {
                 valueAsNumber: true
               })}
               type="number"
-              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-amber-500"
+              className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-amber-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               placeholder="15000"
             />
           </div>
@@ -524,18 +524,18 @@ const IndustrialForm: React.FC = () => {
       </div>
 
       {/* Loading & Access Configuration */}
-      <div className="bg-gradient-to-br from-stone-50/40 to-gray-50/30 rounded-xl p-3.5 border border-gray-200">
+      <div className="bg-gradient-to-br from-stone-50/40 to-gray-50/30 dark:from-gray-800/40 dark:to-gray-900/30 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
-            <Truck className="h-3.5 w-3.5 inline mr-1.5 text-amber-600" />
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300">
+            <Truck className="h-3.5 w-3.5 inline mr-1.5 text-amber-600 dark:text-amber-400" />
             Loading & Access
           </span>
         </div>
         
         {/* Loading Doors Grid */}
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div className="bg-white rounded-md p-2.5 border border-gray-200">
-            <label className="text-xs font-medium text-gray-600 block mb-1">
+          <div className="bg-white dark:bg-gray-700 rounded-md p-2.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1 transition-colors duration-300">
               Loading Docks
             </label>
             <input
@@ -545,12 +545,12 @@ const IndustrialForm: React.FC = () => {
                 valueAsNumber: true
               })}
               type="number"
-              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-amber-500"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-amber-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               placeholder="10"
             />
           </div>
-          <div className="bg-white rounded-md p-2.5 border border-gray-200">
-            <label className="text-xs font-medium text-gray-600 block mb-1">
+          <div className="bg-white dark:bg-gray-700 rounded-md p-2.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1 transition-colors duration-300">
               Drive-In Doors
             </label>
             <input
@@ -560,16 +560,16 @@ const IndustrialForm: React.FC = () => {
                 valueAsNumber: true
               })}
               type="number"
-              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-amber-500"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-amber-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               placeholder="2"
             />
           </div>
         </div>
 
         {/* Rail Access */}
-        <label className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-amber-300 cursor-pointer transition-all">
-          <span className="text-xs font-medium text-gray-700">
-            <Train className="h-3.5 w-3.5 inline mr-1.5 text-gray-500" />
+        <label className="flex items-center justify-between p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-amber-300 dark:hover:border-amber-400 cursor-pointer transition-all">
+          <span className="text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">
+            <Train className="h-3.5 w-3.5 inline mr-1.5 text-gray-500 dark:text-gray-400" />
             Rail Spur Access
           </span>
           <input
@@ -581,49 +581,49 @@ const IndustrialForm: React.FC = () => {
       </div>
 
       {/* Power & Infrastructure */}
-      <div className="bg-gradient-to-br from-slate-50/50 to-gray-50/30 rounded-xl p-3.5 border border-gray-200">
+      <div className="bg-gradient-to-br from-slate-50/50 to-gray-50/30 dark:from-gray-800/50 dark:to-gray-900/30 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
-            <Zap className="h-3.5 w-3.5 inline mr-1.5 text-yellow-600" />
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300">
+            <Zap className="h-3.5 w-3.5 inline mr-1.5 text-yellow-600 dark:text-yellow-400" />
             Power & Infrastructure
           </span>
         </div>
         
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div className="bg-white rounded-lg p-2.5 border border-gray-200">
-            <label className="text-xs font-medium text-gray-600 block mb-1">
-              <Gauge className="h-3 w-3 inline mr-1 text-yellow-500" />
+          <div className="bg-white dark:bg-gray-700 rounded-lg p-2.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1 transition-colors duration-300">
+              <Gauge className="h-3 w-3 inline mr-1 text-yellow-500 dark:text-yellow-400" />
               Power Capacity
             </label>
             <input
               {...register('type_specific_details.power_capacity')}
               type="text"
               maxLength={50}
-              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-yellow-500"
+              className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-yellow-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               placeholder="2000 amps"
             />
           </div>
           
-          <div className="bg-white rounded-lg p-2.5 border border-gray-200">
-            <label className="text-xs font-medium text-gray-600 block mb-1">
-              <Zap className="h-3 w-3 inline mr-1 text-yellow-500" />
+          <div className="bg-white dark:bg-gray-700 rounded-lg p-2.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1 transition-colors duration-300">
+              <Zap className="h-3 w-3 inline mr-1 text-yellow-500 dark:text-yellow-400" />
               Power Voltage
             </label>
             <input
               {...register('type_specific_details.power_voltage')}
               type="text"
               maxLength={50}
-              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-yellow-500"
+              className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-yellow-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               placeholder="480V 3-phase"
             />
           </div>
         </div>
 
         {/* Crane System */}
-        <div className="bg-white rounded-lg p-2.5 border border-gray-200">
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-2.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
           <label className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-700">
-              <Package className="h-3.5 w-3.5 inline mr-1.5 text-purple-500" />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">
+              <Package className="h-3.5 w-3.5 inline mr-1.5 text-purple-500 dark:text-purple-400" />
               Overhead Crane System
             </span>
             <input
@@ -637,21 +637,21 @@ const IndustrialForm: React.FC = () => {
               {...register('type_specific_details.crane_capacity')}
               type="text"
               maxLength={50}
-              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-purple-500"
+              className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-purple-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               placeholder="Crane capacity (e.g., 10 ton)"
             />
           )}
         </div>
 
         {/* Sprinkler System */}
-        <div className="bg-white rounded-lg p-2.5 border border-gray-200 mt-3">
-          <label className="text-xs font-medium text-gray-600 block mb-1">
-            <Droplets className="h-3 w-3 inline mr-1 text-blue-500" />
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-2.5 border border-gray-200 dark:border-gray-600 mt-3 transition-colors duration-300">
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1 transition-colors duration-300">
+            <Droplets className="h-3 w-3 inline mr-1 text-blue-500 dark:text-blue-400" />
             Sprinkler System Type
           </label>
           <select
             {...register('type_specific_details.sprinkler_system_type')}
-            className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-blue-500"
+            className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
           >
             <option value="">Select...</option>
             <option value="esfr">ESFR</option>
@@ -665,18 +665,18 @@ const IndustrialForm: React.FC = () => {
       </div>
 
       {/* Environmental & Compliance */}
-      <div className="bg-gradient-to-br from-gray-50/50 to-stone-50/30 rounded-xl p-3.5 border border-gray-200">
+      <div className="bg-gradient-to-br from-gray-50/50 to-stone-50/30 dark:from-gray-800/50 dark:to-gray-900/30 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
-            <Shield className="h-3.5 w-3.5 inline mr-1.5 text-green-600" />
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300">
+            <Shield className="h-3.5 w-3.5 inline mr-1.5 text-green-600 dark:text-green-400" />
             Environmental & Compliance
           </span>
         </div>
         
         {/* Hazmat Storage */}
-        <label className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-yellow-300 cursor-pointer transition-all mb-3">
-          <span className="text-xs font-medium text-gray-700">
-            <Shield className="h-3.5 w-3.5 inline mr-1.5 text-yellow-500" />
+        <label className="flex items-center justify-between p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-yellow-300 dark:hover:border-yellow-400 cursor-pointer transition-all mb-3">
+          <span className="text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">
+            <Shield className="h-3.5 w-3.5 inline mr-1.5 text-yellow-500 dark:text-yellow-400" />
             Hazardous Materials Storage Permitted
           </span>
           <input
@@ -687,55 +687,55 @@ const IndustrialForm: React.FC = () => {
         </label>
 
         {/* Environmental Compliance */}
-        <div className="bg-white rounded-lg p-3 border border-gray-200 mb-3">
-          <label className="text-xs font-medium text-gray-600 block mb-2">
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600 mb-3 transition-colors duration-300">
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-2 transition-colors duration-300">
             Environmental Compliance
           </label>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Phase I ESA Date</label>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1 transition-colors duration-300">Phase I ESA Date</label>
               <input
                 {...register('type_specific_details.environmental_compliance.phase_1_esa')}
                 type="date"
-                className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-green-500"
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-green-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               />
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Phase II ESA Date</label>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1 transition-colors duration-300">Phase II ESA Date</label>
               <input
                 {...register('type_specific_details.environmental_compliance.phase_2_esa')}
                 type="date"
-                className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-green-500"
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-green-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               />
             </div>
           </div>
           
           <div className="mb-3">
-            <label className="text-xs text-gray-500 block mb-1">Permits (comma-separated)</label>
+            <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1 transition-colors duration-300">Permits (comma-separated)</label>
             <input
               {...register('type_specific_details.environmental_compliance.permits')}
               type="text"
-              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-green-500"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-green-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               placeholder="air_quality, wastewater, hazmat"
             />
           </div>
           
           <div className="mb-3">
-            <label className="text-xs text-gray-500 block mb-1">Certifications (comma-separated)</label>
+            <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1 transition-colors duration-300">Certifications (comma-separated)</label>
             <input
               {...register('type_specific_details.environmental_compliance.certifications')}
               type="text"
-              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-green-500"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-green-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               placeholder="ISO_14001, LEED_Silver"
             />
           </div>
           
           <div>
-            <label className="text-xs text-gray-500 block mb-1">Additional Notes</label>
+            <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1 transition-colors duration-300">Additional Notes</label>
             <textarea
               {...register('type_specific_details.environmental_compliance.notes')}
-              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-green-500"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-green-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               rows={2}
               placeholder="Additional compliance notes and details"
             />
@@ -743,24 +743,24 @@ const IndustrialForm: React.FC = () => {
         </div>
 
         {/* Zoning */}
-        <div className="bg-white rounded-lg p-3 border border-gray-200">
-          <label className="text-xs font-medium text-gray-600 block mb-1">
-            <MapPin className="h-3 w-3 inline mr-1 text-gray-500" />
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1 transition-colors duration-300">
+            <MapPin className="h-3 w-3 inline mr-1 text-gray-500 dark:text-gray-400" />
             Zoning Classification
           </label>
           <input
             {...register('type_specific_details.zoning_classification')}
             type="text"
             maxLength={50}
-            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-gray-500"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded focus:ring-1 focus:ring-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors duration-300"
             placeholder="e.g., M-1, M-2, I-1"
           />
         </div>
       </div>
 
       {/* Permitted Uses */}
-      <div className="bg-gradient-to-br from-neutral-50/50 to-gray-50/40 rounded-xl p-3.5 border border-gray-200">
-        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3 block">
+      <div className="bg-gradient-to-br from-neutral-50/50 to-gray-50/40 dark:from-gray-800/50 dark:to-gray-900/40 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+        <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-3 block transition-colors duration-300">
           Permitted Industrial Uses
         </label>
         <div className="grid grid-cols-3 gap-2">
@@ -778,14 +778,14 @@ const IndustrialForm: React.FC = () => {
             { value: 'logistics', label: 'Logistics Hub' },
             { value: 'fulfillment', label: 'E-Commerce Fulfillment' }
           ].map((use) => (
-            <label key={use.value} className="flex items-center px-3 py-1.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+            <label key={use.value} className="flex items-center px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
               <input
                 type="checkbox"
                 checked={permittedUses.includes(use.value)}
                 onChange={(e) => handleArrayCheckbox('permitted_uses', use.value, e.target.checked)}
                 className="mr-2 h-3.5 w-3.5 text-green-600 rounded focus:ring-green-500"
               />
-              <span className="text-xs font-medium text-gray-700">{use.label}</span>
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">{use.label}</span>
             </label>
           ))}
         </div>

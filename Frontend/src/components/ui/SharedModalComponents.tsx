@@ -168,8 +168,8 @@ export type OnDataExtractedCallback = (
 export const Label: React.FC<LabelProps> = ({ htmlFor, required, children, className = "" }) => (
   <label
     htmlFor={htmlFor}
-    className={`block text-sm font-medium text-gray-700 mb-1.5 ${
-      required ? 'after:content-["*"] after:ml-0.5 after:text-red-500' : ""
+    className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 transition-colors duration-300 ${
+      required ? 'after:content-["*"] after:ml-0.5 after:text-red-500 dark:after:text-red-400' : ""
     } ${className}`}
   >
     {children}
@@ -197,7 +197,7 @@ export const Input: React.FC<InputProps> = ({
     onBlur={onBlur}
     placeholder={placeholder}
     required={required}
-    className={`w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 ${className}`}
+    className={`w-full px-4 py-2.5 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-all duration-200 ${className}`}
     {...props}
   />
 );
@@ -223,10 +223,10 @@ export const Select: React.FC<SelectProps> = ({
       onBlur={onBlur}
       required={required}
       disabled={disabled}
-      className={`w-full px-4 py-2.5 pr-10 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm appearance-none 
-        hover:border-gray-400 
-        focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none 
-        disabled:bg-gray-50 disabled:text-gray-500 disabled:border-gray-200 disabled:cursor-not-allowed
+      className={`w-full px-4 py-2.5 pr-10 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm appearance-none 
+        hover:border-gray-400 dark:hover:border-gray-500 
+        focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none 
+        disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:border-gray-200 dark:disabled:border-gray-600 disabled:cursor-not-allowed
         transition-all duration-200 ${className}`}
       {...props}
     >
@@ -234,7 +234,7 @@ export const Select: React.FC<SelectProps> = ({
     </select>
     <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
       <svg
-        className={`w-5 h-5 ${disabled ? "text-gray-400" : "text-gray-500"}`}
+        className={`w-5 h-5 ${disabled ? "text-gray-400 dark:text-gray-500" : "text-gray-500 dark:text-gray-400"} transition-colors duration-200`}
         fill="currentColor"
         viewBox="0 0 20 20"
         aria-hidden="true"
@@ -271,7 +271,7 @@ export const TextArea: React.FC<TextAreaProps> = ({
     rows={rows}
     placeholder={placeholder}
     required={required}
-    className={`w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:outline-none transition-all duration-200 ${className}`}
+    className={`w-full px-4 py-2.5 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-all duration-200 ${className}`}
     {...props}
   />
 );
@@ -291,12 +291,12 @@ export const Checkbox: React.FC<CheckboxProps> = ({
       type="checkbox"
       checked={checked}
       onChange={onChange}
-      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-offset-1 transition duration-150 ease-in-out disabled:opacity-70 disabled:cursor-not-allowed"
+      className="h-4 w-4 text-blue-600 dark:text-blue-500 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded focus:ring-blue-500 focus:ring-offset-1 transition duration-150 ease-in-out disabled:opacity-70 disabled:cursor-not-allowed"
     />
     {children && (
       <label
         htmlFor={id || name}
-        className="ml-2.5 block text-sm text-gray-800 cursor-pointer"
+        className="ml-2.5 block text-sm text-gray-800 dark:text-gray-200 cursor-pointer transition-colors duration-200"
       >
         {children}
       </label>
@@ -309,7 +309,7 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({ message }) => (
     initial={{ opacity: 0, y: -10 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0 }}
-    className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg flex items-start gap-2"
+    className="mb-6 p-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg flex items-start gap-2 transition-colors duration-200"
   >
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -343,11 +343,11 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variants = {
     primary:
-      "bg-blue-600 hover:bg-blue-700 text-white border border-transparent focus:ring-blue-500",
+      "bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white border border-transparent focus:ring-blue-500 dark:focus:ring-offset-gray-800",
     secondary:
-      "bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 focus:ring-blue-500",
+      "bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-offset-gray-800",
     danger:
-      "bg-red-600 hover:bg-red-700 text-white border border-transparent focus:ring-red-500",
+      "bg-red-600 dark:bg-red-700 hover:bg-red-700 dark:hover:bg-red-600 text-white border border-transparent focus:ring-red-500 dark:focus:ring-offset-gray-800",
   };
 
   return (
@@ -362,7 +362,7 @@ export const Button: React.FC<ButtonProps> = ({
         <>
           <svg
             className={`animate-spin -ml-1 mr-2 h-4 w-4 ${
-              variant === "secondary" ? "text-gray-600" : "text-white"
+              variant === "secondary" ? "text-gray-600 dark:text-gray-300" : "text-white"
             }`}
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -396,7 +396,7 @@ export const FormSection: React.FC<FormSectionProps> = ({
   title,
   children,
   containerClass = "pt-6", // Default container style
-  titleClass = "text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200", // Default title style
+  titleClass = "text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700", // Default title style
 }) => (
   <div className={containerClass}>
     {title && <h3 className={titleClass}>{title}</h3>}
@@ -465,17 +465,17 @@ export const ModalShell: React.FC<ModalShellProps> = ({
         exit={{ scale: 0.95, opacity: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         ref={modalRef}
-        className={`relative w-full ${maxWidth} bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden max-h-[calc(100vh-4rem)] z-[10000]`}
+        className={`relative w-full ${maxWidth} bg-white dark:bg-gray-800 rounded-xl shadow-2xl flex flex-col overflow-hidden max-h-[calc(100vh-4rem)] z-[10000]`}
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center flex-shrink-0">
-          <h2 id="modal-title" className="text-xl font-semibold text-gray-900">
+        <div className="sticky top-0 z-10 px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
+          <h2 id="modal-title" className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full p-1 transition-colors duration-200"
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 rounded-full p-1 transition-colors duration-200"
             aria-label="Close modal"
           >
             <svg
@@ -508,7 +508,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
 
         {/* Footer */}
         {footerContent && (
-          <div className="sticky bottom-0 z-10 px-6 py-4 bg-white border-t border-gray-200 flex justify-end space-x-3 flex-shrink-0">
+          <div className="sticky bottom-0 z-10 px-6 py-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3 flex-shrink-0">
             {footerContent}
           </div>
         )}
@@ -538,14 +538,14 @@ export const ReceiptUploadAndPreview: React.FC<ReceiptUploadAndPreviewProps> = (
 }) => {
   return (
     <div
-      className={`bg-blue-50 border border-blue-200 rounded-lg p-4 ${className}`}
+      className={`bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 ${className}`}
     >
       <div className="flex items-center justify-between mb-3">
-        <Label className="text-lg font-semibold text-blue-800">
+        <Label className="text-lg font-semibold text-blue-800 dark:text-blue-200">
           <i className="fas fa-receipt mr-2" />
           {title}
         </Label>
-        <div className="text-sm text-blue-600">{subtitle}</div>
+        <div className="text-sm text-blue-600 dark:text-blue-300">{subtitle}</div>
       </div>
 
       <Input
@@ -555,15 +555,15 @@ export const ReceiptUploadAndPreview: React.FC<ReceiptUploadAndPreviewProps> = (
         accept={acceptedFileTypes}
         onChange={onReceiptFileChange}
         disabled={disabled || isParsingReceipt}
-        className="block w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 disabled:opacity-50"
+        className="block w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 dark:file:bg-blue-900/30 file:text-blue-600 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50 disabled:opacity-50"
       />
 
       {/* Loading State */}
       {isParsingReceipt && (
-        <div className="mt-3 flex items-center justify-center p-3 bg-blue-100 rounded-lg">
+        <div className="mt-3 flex items-center justify-center p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-            <p className="text-sm text-blue-700 font-medium">
+            <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
               AI is parsing your receipt and extracting data...
             </p>
           </div>
@@ -572,8 +572,8 @@ export const ReceiptUploadAndPreview: React.FC<ReceiptUploadAndPreviewProps> = (
 
       {/* Error State */}
       {receiptParseError && (
-        <div className="mt-3 p-3 bg-red-100 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-700">
+        <div className="mt-3 p-3 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
+          <p className="text-sm text-red-700 dark:text-red-400">
             <i className="fas fa-exclamation-triangle mr-2" />
             Error: {receiptParseError}
           </p>
@@ -582,10 +582,10 @@ export const ReceiptUploadAndPreview: React.FC<ReceiptUploadAndPreviewProps> = (
 
       {/* Success State with Preview Toggle */}
       {currentReceiptUrl && !isParsingReceipt && !receiptParseError && (
-        <div className="mt-3 flex items-center justify-between p-3 bg-green-100 border border-green-200 rounded-lg">
+        <div className="mt-3 flex items-center justify-between p-3 bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg">
           <div className="flex items-center space-x-2">
             <i className="fas fa-check-circle text-green-600" />
-            <span className="text-sm text-green-700 font-medium">
+            <span className="text-sm text-green-700 dark:text-green-300 font-medium">
               Receipt parsed successfully! Review the extracted data below.
             </span>
           </div>

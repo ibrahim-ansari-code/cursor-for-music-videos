@@ -89,7 +89,14 @@ const Tenants = () => {
 
     const formattedDate = new Date(expiryDate).toLocaleDateString();
     const subject = `Lease Renewal - ${unitInfo}`;
-    const body = `Dear ${tenantName},\n\nYour lease for ${unitInfo} is set to expire on ${formattedDate}.\n\nWe wanted to reach out to discuss your renewal options. Please let us know if you would like to renew your lease.\n\nBest regards,\nProperty Management`;
+    const body = `Dear ${tenantName},
+
+Your lease for ${unitInfo} is set to expire on ${formattedDate}.
+
+We wanted to reach out to discuss your renewal options. Please let us know if you would like to renew your lease.
+
+Best regards,
+Property Management`;
 
     // Open email client with prefilled data
     window.location.href = `mailto:${tenantEmail}?subject=${encodeURIComponent(
@@ -144,163 +151,163 @@ const Tenants = () => {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {/* Total Tenants */}
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-indigo-100 rounded-md p-3">
-                <svg
-                  className="h-6 w-6 text-indigo-600"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                  />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Total Tenants
-                  </dt>
-                  <dd>
-                    {isLoading ? (
-                      <div className="animate-pulse h-6 w-8 bg-gray-200 rounded"></div>
-                    ) : (
-                      <div className="text-lg font-medium text-gray-900">
-                        {dashboardData.totalTenants}
-                      </div>
-                    )}
-                  </dd>
-                </dl>
-              </div>
+        <div className="kpi-card">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 bg-indigo-100 dark:bg-indigo-900/50 rounded-md p-3">
+              <svg
+                className="h-6 w-6 text-indigo-600 dark:text-indigo-400"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                />
+              </svg>
+            </div>
+            <div className="ml-5 w-0 flex-1">
+              <dl>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                  Total Tenants
+                </dt>
+                <dd>
+                  {isLoading ? (
+                    <div className="animate-pulse h-6 w-8 bg-gray-200 dark:bg-gray-700 rounded transition-colors"></div>
+                  ) : (
+                    <div className="kpi-number">
+                      {dashboardData.totalTenants}
+                    </div>
+                  )}
+                </dd>
+              </dl>
             </div>
           </div>
+          {/* Tiny sparkline placeholder */}
+          <div className="kpi-sparkline bg-gradient-to-r from-indigo-200 to-indigo-300 dark:from-indigo-800 rounded opacity-30 mt-3"></div>
         </div>
 
         {/* Active Leases */}
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-green-100 rounded-md p-3">
-                <svg
-                  className="h-6 w-6 text-green-600"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Active Leases
-                  </dt>
-                  <dd>
-                    {isLoading ? (
-                      <div className="animate-pulse h-6 w-8 bg-gray-200 rounded"></div>
-                    ) : (
-                      <div className="text-lg font-medium text-gray-900">
-                        {dashboardData.activeLeases}
-                      </div>
-                    )}
-                  </dd>
-                </dl>
-              </div>
+        <div className="kpi-card">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 bg-green-100 dark:bg-green-900/50 rounded-md p-3">
+              <svg
+                className="h-6 w-6 text-green-600 dark:text-green-400"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <div className="ml-5 w-0 flex-1">
+              <dl>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                  Active Leases
+                </dt>
+                <dd>
+                  {isLoading ? (
+                    <div className="animate-pulse h-6 w-8 bg-gray-200 dark:bg-gray-700 rounded transition-colors"></div>
+                  ) : (
+                    <div className="kpi-number">
+                      {dashboardData.activeLeases}
+                    </div>
+                  )}
+                </dd>
+              </dl>
             </div>
           </div>
+          {/* Tiny sparkline placeholder */}
+          <div className="kpi-sparkline bg-gradient-to-r from-green-200 to-green-300 dark:from-green-800 rounded opacity-30 mt-3"></div>
         </div>
 
         {/* Expiring Soon */}
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-yellow-100 rounded-md p-3">
-                <svg
-                  className="h-6 w-6 text-yellow-600"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Expiring in 30 Days
-                  </dt>
-                  <dd>
-                    {isLoading ? (
-                      <div className="animate-pulse h-6 w-8 bg-gray-200 rounded"></div>
-                    ) : (
-                      <div className="text-lg font-medium text-gray-900">
-                        {dashboardData.expiringSoon}
-                      </div>
-                    )}
-                  </dd>
-                </dl>
-              </div>
+        <div className="kpi-card">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 bg-yellow-100 dark:bg-yellow-900/50 rounded-md p-3">
+              <svg
+                className="h-6 w-6 text-yellow-600 dark:text-yellow-400"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <div className="ml-5 w-0 flex-1">
+              <dl>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                  Expiring in 30 Days
+                </dt>
+                <dd>
+                  {isLoading ? (
+                    <div className="animate-pulse h-6 w-8 bg-gray-200 dark:bg-gray-700 rounded transition-colors"></div>
+                  ) : (
+                    <div className="kpi-number">
+                      {dashboardData.expiringSoon}
+                    </div>
+                  )}
+                </dd>
+              </dl>
             </div>
           </div>
+          {/* Tiny sparkline placeholder */}
+          <div className="kpi-sparkline bg-gradient-to-r from-yellow-200 to-yellow-300 dark:from-yellow-800 rounded opacity-30 mt-3"></div>
         </div>
 
         {/* Overdue Payments */}
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-red-100 rounded-md p-3">
-                <svg
-                  className="h-6 w-6 text-red-600"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Overdue Payments
-                  </dt>
-                  <dd>
-                    {isLoading ? (
-                      <div className="animate-pulse h-6 w-8 bg-gray-200 rounded"></div>
-                    ) : (
-                      <div className="text-lg font-medium text-gray-900">
-                        {dashboardData.overduePayments}
-                      </div>
-                    )}
-                  </dd>
-                </dl>
-              </div>
+        <div className="kpi-card">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 bg-red-100 dark:bg-red-900/50 rounded-md p-3">
+              <svg
+                className="h-6 w-6 text-red-600 dark:text-red-400"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <div className="ml-5 w-0 flex-1">
+              <dl>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                  Overdue Payments
+                </dt>
+                <dd>
+                  {isLoading ? (
+                    <div className="animate-pulse h-6 w-8 bg-gray-200 dark:bg-gray-700 rounded transition-colors"></div>
+                  ) : (
+                    <div className="kpi-number">
+                      {dashboardData.overduePayments}
+                    </div>
+                  )}
+                </dd>
+              </dl>
             </div>
           </div>
+          {/* Tiny sparkline placeholder */}
+          <div className="kpi-sparkline bg-gradient-to-r from-red-200 to-red-300 dark:from-red-800 rounded opacity-30 mt-3"></div>
         </div>
       </div>
 
@@ -357,7 +364,7 @@ const Tenants = () => {
       {/* Tenant Directory - Moved section title directly above table */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-medium text-gray-900">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
             Tenant Directory
           </h2>
           <div className="flex items-center gap-3">
@@ -383,7 +390,7 @@ const Tenants = () => {
             <div className="relative flex-1 min-w-[240px]">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg
-                  className="h-5 w-5 text-gray-400"
+                  className="h-5 w-5 text-gray-400 dark:text-gray-500"
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 20 20"
                   fill="currentColor"
@@ -400,7 +407,7 @@ const Tenants = () => {
                 placeholder="Search tenants..."
                 value={searchTerm}
                 onChange={handleSearchChange}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
             </div>
           </div>
@@ -408,11 +415,11 @@ const Tenants = () => {
 
         {/* Error State */}
         {!isLoading && error && (
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+          <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
             <div className="p-6 text-center">
-              <div className="rounded-full bg-red-100 h-12 w-12 flex items-center justify-center mx-auto mb-4">
+              <div className="rounded-full bg-red-100 dark:bg-red-900 h-12 w-12 flex items-center justify-center mx-auto mb-4">
                 <svg
-                  className="h-6 w-6 text-red-600"
+                  className="h-6 w-6 text-red-600 dark:text-red-400"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -426,7 +433,7 @@ const Tenants = () => {
                   />
                 </svg>
               </div>
-              <p className="text-red-600">{error}</p>
+              <p className="text-red-600 dark:text-red-400">{error}</p>
             </div>
           </div>
         )}
@@ -448,75 +455,75 @@ const Tenants = () => {
       {/* Lease Expiry Warning */}
       {dashboardData.expiringSoon > 0 && (
         <div className="mt-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
             Leases Expiring Soon
           </h2>
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-4">
+          <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg mb-4">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                     >
                       Tenant
                     </th>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                     >
                       Unit
                     </th>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                     >
                       Expiry Date
                     </th>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                     >
                       Days Remaining
                     </th>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                     >
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {expiringLeases.map((lease) => (
                     <tr
                       key={lease.leaseId}
-                      className="hover:bg-gray-50 transition-colors duration-150"
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-left">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
-                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                              <span className="text-gray-700 font-medium">
+                            <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                              <span className="text-gray-700 dark:text-gray-200 font-medium">
                                 {getInitials({ full_name: lease.tenantName })}
                               </span>
                             </div>
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                               {lease.tenantName}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 text-center">
+                        <div className="text-sm text-gray-900 dark:text-gray-100 text-center">
                           {lease.unitInfo || "--"}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 text-left">
+                        <div className="text-sm text-gray-900 dark:text-gray-100 text-left">
                           {formatDate(lease.expiryDate)}
                         </div>
                       </td>
@@ -524,10 +531,10 @@ const Tenants = () => {
                         <span
                           className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             lease.daysRemaining <= 7
-                              ? "bg-red-100 text-red-800"
+                              ? "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200"
                               : lease.daysRemaining <= 14
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-green-100 text-green-800"
+                              ? "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200"
+                              : "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
                           }`}
                         >
                           {lease.daysRemaining} days

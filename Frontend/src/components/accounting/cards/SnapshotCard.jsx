@@ -10,15 +10,18 @@ const SnapshotCard = ({ data }) => {
   } = data || {};
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 h-full flex flex-col">
-      <h2 className="text-base font-medium text-gray-800 mb-4">Snapshot</h2>
+    <div className="kpi-card group h-full flex flex-col">
+      <div className="flex items-center mb-4">
+        <h2 className="text-base font-medium text-gray-800 dark:text-gray-200 whitespace-nowrap">Snapshot</h2>
+        <div className="kpi-sparkline bg-gradient-to-r from-purple-200 to-purple-300 dark:from-purple-800"></div>
+      </div>
 
       <div className="space-y-4 flex-grow">
         <div className="text-center">
-          <p className="text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">
+          <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">
             Occupancy Rate
           </p>
-          <p className="text-2xl font-semibold text-blue-600 tabular-nums">
+          <p className="kpi-number text-blue-600 dark:text-blue-400 tabular-nums">
             <CountUp
               end={occupancyRate}
               duration={1.5}
@@ -30,11 +33,11 @@ const SnapshotCard = ({ data }) => {
           </p>
         </div>
 
-        <div className="text-center border-t border-gray-100 pt-4">
-          <p className="text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">
+        <div className="text-center dark-divider border-t pt-4">
+          <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">
             Paid Rent
           </p>
-          <p className="text-2xl font-semibold text-green-600 tabular-nums whitespace-nowrap overflow-x-auto">
+          <p className="kpi-number text-green-600 dark:text-green-400 tabular-nums whitespace-nowrap overflow-x-auto">
             <CountUp 
               end={paidRent} 
               duration={1.5} 
@@ -42,7 +45,7 @@ const SnapshotCard = ({ data }) => {
               separator="," 
               preserveValue={true}
             />
-            <span className="text-gray-500">
+            <span className="text-gray-500 dark:text-gray-400">
               /<CountUp
                 end={totalRent}
                 duration={1.5}
@@ -54,11 +57,11 @@ const SnapshotCard = ({ data }) => {
           </p>
         </div>
 
-        <div className="text-center border-t border-gray-100 pt-4">
-          <p className="text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">
+        <div className="text-center dark-divider border-t pt-4">
+          <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">
             Avg Rent
           </p>
-          <p className="text-2xl font-semibold text-gray-900 tabular-nums">
+          <p className="kpi-number tabular-nums">
             $<CountUp 
               end={avgRent} 
               duration={1.5} 

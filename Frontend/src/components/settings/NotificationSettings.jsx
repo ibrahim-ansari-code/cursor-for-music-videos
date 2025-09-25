@@ -95,11 +95,11 @@ const NotificationSettings = ({ user, onNotificationUpdate }) => {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-gray-900 mb-6">Notification Settings</h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 transition-colors duration-300">Notification Settings</h2>
       
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Email Notifications Toggle */}
-        <div className="bg-gray-50 rounded-lg p-4">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 transition-colors duration-300">
           <Checkbox
             id="emailEnabled"
             name="emailEnabled"
@@ -108,17 +108,17 @@ const NotificationSettings = ({ user, onNotificationUpdate }) => {
             disabled
             className="opacity-70"
           >
-            <span className="font-medium text-gray-800">Enable Email Notifications</span>
+            <span className="font-medium text-gray-800 dark:text-gray-200 transition-colors duration-300">Enable Email Notifications</span>
           </Checkbox>
-          <p className="text-sm text-gray-600 ml-6 mt-1">
+          <p className="text-sm text-gray-600 dark:text-gray-400 ml-6 mt-1 transition-colors duration-300">
             Receive important updates and reminders via email.
           </p>
         </div>
 
         {/* Notification Categories */}
         <div>
-          <Label className="text-base font-medium text-gray-900 mb-4 block">
-            <i className="fas fa-bell mr-2 text-gray-500"></i>
+          <Label className="text-base font-medium text-gray-900 dark:text-white mb-4 block transition-colors duration-300">
+            <i className="fas fa-bell mr-2 text-gray-500 dark:text-gray-400 transition-colors duration-300"></i>
             Notification Categories
           </Label>
           
@@ -132,8 +132,8 @@ const NotificationSettings = ({ user, onNotificationUpdate }) => {
                 className="opacity-70"
               >
                 <div>
-                  <span className="font-medium text-gray-800">Rent Reminders</span>
-                  <p className="text-sm text-gray-600">Get notified about upcoming and overdue rent payments</p>
+                  <span className="font-medium text-gray-800 dark:text-gray-200 transition-colors duration-300">Rent Reminders</span>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Get notified about upcoming and overdue rent payments</p>
                 </div>
               </Checkbox>
 
@@ -145,8 +145,8 @@ const NotificationSettings = ({ user, onNotificationUpdate }) => {
                 className="opacity-70"
               >
                 <div>
-                  <span className="font-medium text-gray-800">Payment Received</span>
-                  <p className="text-sm text-gray-600">Notification when tenants make payments</p>
+                  <span className="font-medium text-gray-800 dark:text-gray-200 transition-colors duration-300">Payment Received</span>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Notification when tenants make payments</p>
                 </div>
               </Checkbox>
 
@@ -158,8 +158,8 @@ const NotificationSettings = ({ user, onNotificationUpdate }) => {
                 className="opacity-70"
               >
                 <div>
-                  <span className="font-medium text-gray-800">Lease Expiring</span>
-                  <p className="text-sm text-gray-600">Alerts for leases expiring within 60 days</p>
+                  <span className="font-medium text-gray-800 dark:text-gray-200 transition-colors duration-300">Lease Expiring</span>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Alerts for leases expiring within 60 days</p>
                 </div>
               </Checkbox>
 
@@ -171,8 +171,8 @@ const NotificationSettings = ({ user, onNotificationUpdate }) => {
                 className="opacity-70"
               >
                 <div>
-                  <span className="font-medium text-gray-800">Maintenance Updates</span>
-                  <p className="text-sm text-gray-600">Updates on maintenance requests and work orders</p>
+                  <span className="font-medium text-gray-800 dark:text-gray-200 transition-colors duration-300">Maintenance Updates</span>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Updates on maintenance requests and work orders</p>
                 </div>
               </Checkbox>
 
@@ -184,8 +184,8 @@ const NotificationSettings = ({ user, onNotificationUpdate }) => {
                 className="opacity-70"
               >
                 <div>
-                  <span className="font-medium text-gray-800">New Applications</span>
-                  <p className="text-sm text-gray-600">Notifications for new rental applications</p>
+                  <span className="font-medium text-gray-800 dark:text-gray-200 transition-colors duration-300">New Applications</span>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Notifications for new rental applications</p>
                 </div>
               </Checkbox>
 
@@ -197,8 +197,8 @@ const NotificationSettings = ({ user, onNotificationUpdate }) => {
                 className="opacity-70"
               >
                 <div>
-                  <span className="font-medium text-gray-800">System Updates</span>
-                  <p className="text-sm text-gray-600">Important announcements and updates</p>
+                  <span className="font-medium text-gray-800 dark:text-gray-200 transition-colors duration-300">System Updates</span>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Important announcements and updates</p>
                 </div>
               </Checkbox>
             </div>
@@ -208,7 +208,7 @@ const NotificationSettings = ({ user, onNotificationUpdate }) => {
         {/* Notification Frequency */}
         <div>
           <Label htmlFor="frequency">
-            <i className="fas fa-clock mr-2 text-gray-500"></i>
+            <i className="fas fa-clock mr-2 text-gray-500 dark:text-gray-400 transition-colors duration-300"></i>
             Notification Frequency
           </Label>
           <Select
@@ -223,20 +223,20 @@ const NotificationSettings = ({ user, onNotificationUpdate }) => {
             <option value="daily" disabled>Daily Digest (Coming Soon)</option>
             <option value="weekly" disabled>Weekly Summary (Coming Soon)</option>
           </Select>
-          <p className="mt-1.5 text-sm text-gray-600">
+          <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
             Choose how often you want to receive notification emails.
           </p>
         </div>
 
         {/* Info Box */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <p className="text-sm text-amber-800">
+        <div className="bg-amber-50 dark:bg-amber-900/50 border border-amber-200 dark:border-amber-800 rounded-lg p-4 transition-colors duration-300">
+          <p className="text-sm text-amber-800 dark:text-amber-200 transition-colors duration-300">
             <i className="fas fa-info-circle mr-2"></i>
             Email notifications are coming soon. You'll be able to customize which updates you receive and how often.
           </p>
         </div>
 
-        <div className="flex justify-end pt-4 border-t border-gray-200">
+        <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700 transition-colors duration-300">
           <Button
             type="submit"
             variant="primary"

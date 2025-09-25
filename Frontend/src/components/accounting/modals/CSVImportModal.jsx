@@ -405,7 +405,7 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+                className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
                 onClick={handleClose}
             >
                 <motion.div
@@ -413,11 +413,11 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.9, opacity: 0 }}
                     transition={{ type: "spring", damping: 25, stiffness: 400 }}
-                    className="relative w-full max-w-4xl bg-white rounded-xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col z-[10000]"
+                    className="relative w-full max-w-4xl bg-white dark:bg-gray-800 rounded-xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col z-[10000] transition-colors duration-300"
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Header */}
-                    <div className="relative px-6 py-4 bg-gradient-to-br from-brand-green to-brand-teal text-white">
+                    <div className="relative px-6 py-4 bg-gradient-to-br from-brand-green to-brand-teal text-white dark:from-gray-700 dark:to-gray-600 transition-colors duration-300">
                         <div className="flex justify-between items-center">
                             <div>
                                 <h2 className="text-xl font-semibold text-white">
@@ -439,14 +439,14 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                     </div>
 
                     {/* Progress Steps */}
-                    <div className="px-6 py-4 bg-white border-b border-gray-200">
+                    <div className="px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-600 transition-colors duration-300">
                         <div className="flex items-center space-x-4">
                             {[1, 2, 3].map((stepNumber) => (
                                 <div key={stepNumber} className="flex items-center">
                                     <div
                                         className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all ${step >= stepNumber
                                             ? "bg-brand-green text-white shadow-sm"
-                                            : "bg-gray-300 text-gray-600"
+                                            : "bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
                                             }`}
                                     >
                                         {step > stepNumber ? (
@@ -457,14 +457,14 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                                             stepNumber
                                         )}
                                     </div>
-                                    <span className={`ml-2 text-sm transition-colors ${step >= stepNumber ? "text-brand-green font-medium" : "text-gray-500"
+                                    <span className={`ml-2 text-sm transition-colors ${step >= stepNumber ? "text-brand-green font-medium" : "text-gray-500 dark:text-gray-400"
                                         }`}>
                                         {stepNumber === 1 && "Select File"}
                                         {stepNumber === 2 && "Preview Data"}
                                         {stepNumber === 3 && "Results"}
                                     </span>
                                     {stepNumber < 3 && (
-                                        <div className={`w-12 h-0.5 ml-4 transition-colors ${step > stepNumber ? "bg-brand-green" : "bg-gray-300"
+                                        <div className={`w-12 h-0.5 ml-4 transition-colors ${step > stepNumber ? "bg-brand-green" : "bg-gray-300 dark:bg-gray-600"
                                             }`} />
                                     )}
                                 </div>
@@ -473,17 +473,17 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 overflow-y-auto bg-gray-50">
+                    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
                         <div className="p-6 space-y-4">
                             {step === 1 && (
                                 <>
                                     {/* Upload Area */}
-                                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-                                        <div className="bg-gradient-to-r from-green-50 to-green-100 px-6 py-4 border-b border-green-100">
+                                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors duration-300">
+                                        <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-gray-700 dark:to-gray-600 px-6 py-4 border-b border-green-100 dark:border-gray-600 transition-colors duration-300">
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <h3 className="text-lg font-semibold text-gray-900">Upload Your CSV File</h3>
-                                                    <p className="text-sm text-gray-600 mt-1">
+                                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">Upload Your CSV File</h3>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 transition-colors duration-300">
                                                         Required: {expectedHeaders.filter(h => h.required).map(h => h.label).join(', ')}
                                                     </p>
                                                 </div>
@@ -491,7 +491,7 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                                         </div>
 
                                         <div className="p-6">
-                                            <div className="border-2 border-dashed border-green-300 rounded-lg p-8 text-center hover:border-green-400 hover:bg-green-50/30 transition-all">
+                                            <div className="border-2 border-dashed border-green-300 dark:border-green-600 rounded-lg p-8 text-center hover:border-green-400 dark:hover:border-green-500 hover:bg-green-50/30 dark:hover:bg-gray-700/30 transition-all">
                                                 <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-green-100 to-green-600 rounded-xl flex items-center justify-center">
                                                     <svg className="w-8 h-8 text-brand-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -515,10 +515,10 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                                                     Choose Your CSV File
                                                 </label>
 
-                                                <p className="mt-4 text-sm text-gray-600">
+                                                <p className="mt-4 text-sm text-gray-600 dark:text-gray-300 transition-colors duration-300">
                                                     Or drag and drop your file here
                                                 </p>
-                                                <p className="text-xs text-gray-500 mt-2">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 transition-colors duration-300">
                                                     Supports .csv files up to 5MB
                                                 </p>
                                             </div>
@@ -527,10 +527,10 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
 
                                     {/* Sample Data Section */}
                                     {sampleData.length > 0 && (
-                                        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors duration-300">
                                             <div className="px-6 py-4 border-b border-gray-200">
-                                                <h3 className="text-lg font-semibold text-gray-900">Sample CSV Format</h3>
-                                                <p className="text-sm text-gray-600 mt-1">Your CSV should look like this:</p>
+                                                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">Sample CSV Format</h3>
+                                                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 transition-colors duration-300">Your CSV should look like this:</p>
                                             </div>
                                             <div className="p-6">
                                                 <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
@@ -548,16 +548,16 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
 
                                     {/* Validation Tips */}
                                     {validationTips.length > 0 && (
-                                        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-                                            <div className="px-6 py-4 border-b border-gray-200">
-                                                <h3 className="text-lg font-semibold text-gray-900">💡 Important Tips</h3>
+                                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors duration-300">
+                                            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                                                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">💡 Important Tips</h3>
                                             </div>
                                             <div className="p-6">
                                                 <div className="space-y-2">
                                                     {validationTips.map((tip, index) => (
                                                         <div key={index} className="flex items-start text-sm">
                                                             <span className="text-brand-green mr-2">•</span>
-                                                            <span className="text-gray-700">{tip}</span>
+                                                            <span className="text-gray-700 dark:text-gray-300 transition-colors duration-300">{tip}</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -567,20 +567,20 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
 
                                     {/* Parse Errors */}
                                     {parseErrors.length > 0 && (
-                                        <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                                        <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors duration-300">
                                             <div className="flex items-center mb-3">
                                                 <div className="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center mr-3">
                                                     <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                                                     </svg>
                                                 </div>
-                                                <h3 className="text-base font-medium text-gray-900">
+                                                <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">
                                                     Validation Errors ({parseErrors.length})
                                                 </h3>
                                             </div>
-                                            <div className="bg-red-50 rounded-lg p-4 max-h-32 overflow-y-auto">
+                                            <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 max-h-32 overflow-y-auto transition-colors duration-300">
                                                 {parseErrors.map((error, index) => (
-                                                    <div key={index} className="text-sm text-red-700 py-1">
+                                                    <div key={index} className="text-sm text-red-700 dark:text-red-300 py-1 transition-colors duration-300">
                                                         {error}
                                                     </div>
                                                 ))}
@@ -593,35 +593,35 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                             {step === 2 && (
                                 <>
                                     {/* Data Preview */}
-                                    <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                                    <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors duration-300">
                                         <div className="flex items-center mb-3">
                                             <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center mr-3">
                                                 <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                                 </svg>
                                             </div>
-                                            <h3 className="text-base font-medium text-gray-900">
+                                            <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">
                                                 Data Preview ({csvData?.length || 0} rows)
                                             </h3>
                                         </div>
 
-                                        <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                        <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden transition-colors duration-300">
                                             <div className="max-h-64 overflow-auto">
-                                                <table className="min-w-full divide-y divide-gray-200">
-                                                    <thead className="bg-gray-50">
+                                                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600 transition-colors duration-300">
+                                                    <thead className="bg-gray-50 dark:bg-gray-700 transition-colors duration-300">
                                                         <tr>
                                                             {expectedHeaders.map(header => (
-                                                                <th key={header.key} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                                <th key={header.key} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300">
                                                                     {header.label}
                                                                 </th>
                                                             ))}
                                                         </tr>
                                                     </thead>
-                                                    <tbody className="bg-white divide-y divide-gray-200">
+                                                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600 transition-colors duration-300">
                                                         {csvData?.map((row, index) => (
-                                                            <tr key={index} className="hover:bg-gray-50">
+                                                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-300">
                                                                 {expectedHeaders.map(header => (
-                                                                    <td key={header.key} className="px-4 py-3 text-sm text-gray-900">
+                                                                    <td key={header.key} className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 transition-colors duration-300">
                                                                         {header.type === 'number' && row[header.key] ? 
                                                                             `$${row[header.key]}` : 
                                                                             row[header.key] || 'N/A'
@@ -641,18 +641,20 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                             {step === 3 && uploadResults && (
                                 <>
                                     {/* Results summary similar to existing CSVUploadModal */}
-                                    <div className={`rounded-lg p-6 border-2 ${uploadResults.successful_imports > 0 && uploadResults.failed_imports === 0
-                                        ? "bg-green-50 border-green-200"
-                                        : uploadResults.successful_imports > 0 && uploadResults.failed_imports > 0
-                                            ? "bg-yellow-50 border-yellow-200"
-                                            : "bg-red-50 border-red-200"
+                                    <div className={`rounded-lg p-6 border-2 transition-colors duration-300 ${
+                                        uploadResults.successful_imports > 0 && uploadResults.failed_imports === 0
+                                            ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700"
+                                            : uploadResults.successful_imports > 0 && uploadResults.failed_imports > 0
+                                                ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700"
+                                                : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700"
                                         }`}>
                                         <div className="flex items-start">
-                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${uploadResults.successful_imports > 0 && uploadResults.failed_imports === 0
-                                                ? "bg-green-100"
-                                                : uploadResults.successful_imports > 0 && uploadResults.failed_imports > 0
-                                                    ? "bg-yellow-100"
-                                                    : "bg-red-100"
+                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 transition-colors duration-300 ${
+                                                uploadResults.successful_imports > 0 && uploadResults.failed_imports === 0
+                                                    ? "bg-green-100 dark:bg-green-800"
+                                                    : uploadResults.successful_imports > 0 && uploadResults.failed_imports > 0
+                                                        ? "bg-yellow-100 dark:bg-yellow-800"
+                                                        : "bg-red-100 dark:bg-red-800"
                                                 }`}>
                                                 {uploadResults.successful_imports > 0 && uploadResults.failed_imports === 0 ? (
                                                     <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -669,11 +671,12 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                                                 )}
                                             </div>
                                             <div className="flex-1">
-                                                <h3 className={`text-lg font-semibold mb-2 ${uploadResults.successful_imports > 0 && uploadResults.failed_imports === 0
-                                                    ? "text-green-800"
-                                                    : uploadResults.successful_imports > 0 && uploadResults.failed_imports > 0
-                                                        ? "text-yellow-800"
-                                                        : "text-red-800"
+                                                <h3 className={`text-lg font-semibold mb-2 transition-colors duration-300 ${
+                                                    uploadResults.successful_imports > 0 && uploadResults.failed_imports === 0
+                                                        ? "text-green-800 dark:text-green-200"
+                                                        : uploadResults.successful_imports > 0 && uploadResults.failed_imports > 0
+                                                            ? "text-yellow-800 dark:text-yellow-200"
+                                                            : "text-red-800 dark:text-red-200"
                                                     }`}>
                                                     {uploadResults.successful_imports > 0 && uploadResults.failed_imports === 0
                                                         ? "🎉 All Imports Completed Successfully!"
@@ -681,11 +684,12 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                                                             ? "⚠️ Import Partially Completed"
                                                             : "❌ Import Failed"}
                                                 </h3>
-                                                <p className={`text-sm ${uploadResults.successful_imports > 0 && uploadResults.failed_imports === 0
-                                                    ? "text-green-700"
-                                                    : uploadResults.successful_imports > 0 && uploadResults.failed_imports > 0
-                                                        ? "text-yellow-700"
-                                                        : "text-red-700"
+                                                <p className={`text-sm transition-colors duration-300 ${
+                                                    uploadResults.successful_imports > 0 && uploadResults.failed_imports === 0
+                                                        ? "text-green-700 dark:text-green-300"
+                                                        : uploadResults.successful_imports > 0 && uploadResults.failed_imports > 0
+                                                            ? "text-yellow-700 dark:text-yellow-300"
+                                                            : "text-red-700 dark:text-red-300"
                                                     }`}>
                                                     {uploadResults.successful_imports > 0 && uploadResults.failed_imports === 0
                                                         ? `Perfect! All ${uploadResults.total_rows} records have been imported successfully.`
@@ -699,7 +703,7 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
 
                                     {/* Error Details */}
                                     {uploadResults.errors?.length > 0 && (
-                                        <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                                        <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors duration-300">
                                             <div className="flex items-center justify-between mb-4">
                                                 <div className="flex items-center">
                                                     <div className="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center mr-3">
@@ -707,7 +711,7 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                                                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                                                         </svg>
                                                     </div>
-                                                    <h3 className="text-base font-medium text-gray-900">Import Errors</h3>
+                                                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">Import Errors</h3>
                                                 </div>
                                                 <button
                                                     onClick={downloadResults}
@@ -720,19 +724,19 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                                                 </button>
                                             </div>
 
-                                            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 transition-colors duration-300">
                                                 <div className="space-y-3">
                                                     {uploadResults.errors.map((error, index) => (
-                                                        <div key={index} className="bg-white rounded-lg p-4 border border-red-200">
+                                                        <div key={index} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-red-200 dark:border-red-600 transition-colors duration-300">
                                                             <div className="flex items-start">
-                                                                <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                                                                    <span className="text-red-600 text-sm font-medium">{error.row_number || index + 1}</span>
+                                                                <div className="w-8 h-8 bg-red-100 dark:bg-red-800 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0 transition-colors duration-300">
+                                                                    <span className="text-red-600 dark:text-red-300 text-sm font-medium transition-colors duration-300">{error.row_number || index + 1}</span>
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <div className="flex items-center gap-3 mb-2">
-                                                                        <span className="text-sm font-medium text-gray-900">Row {error.row_number || index + 1}</span>
+                                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">Row {error.row_number || index + 1}</span>
                                                                     </div>
-                                                                    <p className="text-sm text-red-700">
+                                                                    <p className="text-sm text-red-700 dark:text-red-300 transition-colors duration-300">
                                                                         <span className="font-medium">Error:</span> {error.error_message || error.message}
                                                                     </p>
                                                                 </div>
@@ -749,13 +753,13 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                     </div>
 
                     {/* Footer */}
-                    <div className="px-6 py-5 bg-gray-50 border-t border-gray-200">
+                    <div className="px-6 py-5 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600 transition-colors duration-300">
                         {step === 1 && (
                             <div className="flex justify-end">
                                 <button
                                     type="button"
                                     onClick={handleClose}
-                                    className="px-4 py-2.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all text-sm font-medium"
+                                    className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all text-sm font-medium"
                                 >
                                     Cancel
                                 </button>
@@ -764,7 +768,7 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
 
                         {step === 2 && (
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                <div className="text-sm text-gray-500 flex items-start flex-1 sm:max-w-md">
+                                <div className="text-sm text-gray-500 dark:text-gray-400 flex items-start flex-1 sm:max-w-md transition-colors duration-300">
                                     <svg className="w-4 h-4 mr-2 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
@@ -816,9 +820,10 @@ const CSVImportModal = ({ isOpen, onClose, onSuccess, config }) => {
                                         }
                                         handleClose();
                                     }}
-                                    className={`px-5 py-2.5 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all text-sm font-medium shadow-sm ${uploadResults.successful_imports > 0
-                                        ? "bg-gradient-to-br from-brand-green to-brand-teal text-white hover:from-brand-green/90 hover:to-brand-teal/90 focus:ring-brand-green"
-                                        : "bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500"
+                                    className={`px-5 py-2.5 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all text-sm font-medium shadow-sm ${
+                                        uploadResults.successful_imports > 0
+                                            ? "bg-gradient-to-br from-brand-green to-brand-teal text-white hover:from-brand-green/90 hover:to-brand-teal/90 focus:ring-brand-green"
+                                            : "bg-gray-600 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 focus:ring-gray-500"
                                         }`}
                                 >
                                     {uploadResults.successful_imports > 0 ? "🎉 All Done!" : "Close"}

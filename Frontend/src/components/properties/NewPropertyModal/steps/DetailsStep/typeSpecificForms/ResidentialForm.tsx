@@ -51,7 +51,7 @@ const ResidentialForm: React.FC = () => {
     <div className="space-y-5">
       {/* Property Subtype - Enhanced Card Selection */}
       <div>
-        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2.5 block">
+        <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5 block transition-colors duration-300">
           Property Type
         </label>
         <div className="grid grid-cols-3 gap-2 p-1">
@@ -63,20 +63,20 @@ const ResidentialForm: React.FC = () => {
               className={`
                 relative p-3 rounded-xl border-2 transition-all duration-200 group
                 ${propertySubtype === type.value 
-                  ? 'border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 shadow-md' 
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                  ? 'border-green-500 dark:border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900 dark:to-emerald-900 shadow-md' 
+                  : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm'
                 }
               `}
             >
               <div className="text-lg mb-1">{type.icon}</div>
               <div className={`text-xs font-medium ${
-                propertySubtype === type.value ? 'text-green-700' : 'text-gray-700'
+                propertySubtype === type.value ? 'text-green-700 dark:text-green-300' : 'text-gray-700 dark:text-gray-300'
               }`}>
                 {type.label}
               </div>
               {propertySubtype === type.value && (
                 <div className="absolute top-1 right-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 bg-green-500 dark:bg-green-400 rounded-full animate-pulse"></div>
                 </div>
               )}
             </button>
@@ -85,24 +85,24 @@ const ResidentialForm: React.FC = () => {
       </div>
 
       {/* Core Property Details - Modern Card Layout */}
-      <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-4 border border-gray-200">
+      <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800/50 dark:to-gray-900/50 rounded-xl p-4 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
             Essential Details
           </span>
-          <span className="text-xs text-gray-500">* Required</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">* Required</span>
         </div>
         
         <div className="grid grid-cols-2 gap-3">
           {/* Bedrooms */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition-colors group">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 transition-colors group">
             <label className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-                <Bed className="h-3.5 w-3.5 inline mr-1 text-blue-500" />
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                <Bed className="h-3.5 w-3.5 inline mr-1 text-blue-500 dark:text-blue-400" />
                 Bedrooms *
               </span>
               {bedrooms > 0 && (
-                <span className="text-xs text-blue-600 font-semibold">{bedrooms} {bedrooms === 1 ? 'bed' : 'beds'}</span>
+                <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">{bedrooms} {bedrooms === 1 ? 'bed' : 'beds'}</span>
               )}
             </label>
             <input
@@ -113,23 +113,23 @@ const ResidentialForm: React.FC = () => {
                 valueAsNumber: true
               })}
               type="number"
-              className="w-full px-2.5 py-1.5 text-sm font-medium border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="w-full px-2.5 py-1.5 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="3"
             />
             {getFieldError('bedrooms') && (
-              <p className="mt-1 text-xs text-red-500">{getFieldError('bedrooms')?.message}</p>
+              <p className="mt-1 text-xs text-red-500 dark:text-red-400">{getFieldError('bedrooms')?.message}</p>
             )}
           </div>
 
           {/* Bathrooms */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition-colors group">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 transition-colors group">
             <label className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-                <Bath className="h-3.5 w-3.5 inline mr-1 text-blue-500" />
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                <Bath className="h-3.5 w-3.5 inline mr-1 text-blue-500 dark:text-blue-400" />
                 Bathrooms *
               </span>
               {bathrooms > 0 && (
-                <span className="text-xs text-blue-600 font-semibold">{bathrooms} {bathrooms === 1 ? 'bath' : 'baths'}</span>
+                <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">{bathrooms} {bathrooms === 1 ? 'bath' : 'baths'}</span>
               )}
             </label>
             <input
@@ -140,23 +140,23 @@ const ResidentialForm: React.FC = () => {
               })}
               type="number"
               step="0.5"
-              className="w-full px-2.5 py-1.5 text-sm font-medium border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="w-full px-2.5 py-1.5 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="2.5"
             />
             {getFieldError('bathrooms') && (
-              <p className="mt-1 text-xs text-red-500">{getFieldError('bathrooms')?.message}</p>
+              <p className="mt-1 text-xs text-red-500 dark:text-red-400">{getFieldError('bathrooms')?.message}</p>
             )}
           </div>
 
           {/* Square Feet */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition-colors group">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 transition-colors group">
             <label className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-                <Square className="h-3.5 w-3.5 inline mr-1 text-indigo-500" />
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                <Square className="h-3.5 w-3.5 inline mr-1 text-indigo-500 dark:text-indigo-400" />
                 Living Area
               </span>
               {squareFeet > 0 && (
-                <span className="text-xs text-indigo-600 font-semibold">{squareFeet.toLocaleString()} ft²</span>
+                <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">{squareFeet.toLocaleString()} ft²</span>
               )}
             </label>
             <input
@@ -172,23 +172,23 @@ const ResidentialForm: React.FC = () => {
                 valueAsNumber: true
               })}
               type="number"
-              className="w-full px-2.5 py-1.5 text-sm font-medium border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="w-full px-2.5 py-1.5 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="2000"
             />
             {getFieldError('square_feet') && (
-              <p className="mt-1 text-xs text-red-500">{getFieldError('square_feet')?.message}</p>
+              <p className="mt-1 text-xs text-red-500 dark:text-red-400">{getFieldError('square_feet')?.message}</p>
             )}
           </div>
 
           {/* Lot Size */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition-colors group">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 transition-colors group">
             <label className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-                <Trees className="h-3.5 w-3.5 inline mr-1 text-green-500" />
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                <Trees className="h-3.5 w-3.5 inline mr-1 text-green-500 dark:text-green-400" />
                 Lot Size
               </span>
               {lotSize > 0 && (
-                <span className="text-xs text-green-600 font-semibold">{lotSize.toLocaleString()} ft²</span>
+                <span className="text-xs text-green-600 dark:text-green-400 font-semibold">{lotSize.toLocaleString()} ft²</span>
               )}
             </label>
             <input
@@ -204,7 +204,7 @@ const ResidentialForm: React.FC = () => {
                 valueAsNumber: true
               })}
               type="number"
-              className="w-full px-2.5 py-1.5 text-sm font-medium border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="w-full px-2.5 py-1.5 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="5000"
             />
             {getFieldError('lot_size') && (
@@ -288,7 +288,7 @@ const ResidentialForm: React.FC = () => {
                 flex-1 py-2 px-3 rounded-lg font-medium text-sm transition-all
                 ${stories === num && !storiesInput
                   ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }
               `}
             >
@@ -312,14 +312,14 @@ const ResidentialForm: React.FC = () => {
             type="number"
             min="4"
             max="10"
-            className="w-16 px-2 py-2 text-sm font-medium border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center"
+            className="w-16 px-2 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
             placeholder="4+"
           />
         </div>
       </div>
 
       {/* Parking & Garage - Combined Section */}
-      <div className="bg-gradient-to-br from-stone-50/40 to-gray-50/30 rounded-xl p-3.5 border border-gray-200">
+      <div className="bg-gradient-to-br from-stone-50/40 to-gray-50/30 dark:from-gray-800/40 dark:to-gray-900/30 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
         <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2.5 block">
           Parking & Garage
         </label>
@@ -340,7 +340,7 @@ const ResidentialForm: React.FC = () => {
                   flex-1 py-2 px-2 rounded-lg font-medium text-sm transition-all
                   ${garageSpaces === num 
                     ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }
                 `}
               >
@@ -352,24 +352,24 @@ const ResidentialForm: React.FC = () => {
 
         {/* Additional Parking Options */}
         <div className="space-y-2">
-          <label className="text-xs font-medium text-gray-600 block">Additional Options</label>
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block transition-colors duration-300">Additional Options</label>
           <div className="flex gap-2">
-            <label className="flex items-center px-3 py-1.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+            <label className="flex items-center px-3 py-1.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600/50 transition-colors">
               <input
                 type="checkbox"
                 {...register('type_specific_details.has_driveway')}
                 className="mr-2 h-3.5 w-3.5 text-blue-600 rounded focus:ring-blue-500"
               />
-              <span className="text-xs font-medium text-gray-700">Driveway</span>
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">Driveway</span>
             </label>
             
-            <label className="flex items-center px-3 py-1.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+            <label className="flex items-center px-3 py-1.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600/50 transition-colors">
               <input
                 type="checkbox"
                 {...register('type_specific_details.street_parking')}
                 className="mr-2 h-3.5 w-3.5 text-blue-600 rounded focus:ring-blue-500"
               />
-              <span className="text-xs font-medium text-gray-700">Street Parking</span>
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">Street Parking</span>
             </label>
           </div>
         </div>
@@ -377,8 +377,8 @@ const ResidentialForm: React.FC = () => {
 
 
       {/* Systems - Modern Dropdown Cards */}
-      <div className="bg-gradient-to-br from-slate-50/50 to-gray-50/30 rounded-xl p-3.5 border border-gray-200">
-          <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2.5 block">
+      <div className="bg-gradient-to-br from-slate-50/50 to-gray-50/30 dark:from-gray-800/50 dark:to-gray-900/30 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+          <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5 block transition-colors duration-300">
             Systems
           </label>
           <div className="space-y-2.5">
@@ -390,7 +390,7 @@ const ResidentialForm: React.FC = () => {
               </label>
               <select
                 {...register('type_specific_details.heating_type')}
-                className="w-full text-xs px-2.5 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent group-hover:bg-white transition-colors"
+                className="w-full text-xs px-2.5 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent group-hover:bg-white dark:group-hover:bg-gray-600 transition-colors text-gray-900 dark:text-gray-100"
               >
                 <option value="">Select type...</option>
                 <option value="forced_air">Forced Air</option>
@@ -411,7 +411,7 @@ const ResidentialForm: React.FC = () => {
               </label>
               <select
                 {...register('type_specific_details.cooling_type')}
-                className="w-full text-xs px-2.5 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent group-hover:bg-white transition-colors"
+                className="w-full text-xs px-2.5 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent group-hover:bg-white dark:group-hover:bg-gray-600 transition-colors text-gray-900 dark:text-gray-100"
               >
                 <option value="">Select type...</option>
                 <option value="central_air">Central Air</option>
@@ -430,7 +430,7 @@ const ResidentialForm: React.FC = () => {
               </label>
               <select
                 {...register('type_specific_details.water_heater_type')}
-                className="w-full text-xs px-2.5 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent group-hover:bg-white transition-colors"
+                className="w-full text-xs px-2.5 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent group-hover:bg-white dark:group-hover:bg-gray-600 transition-colors text-gray-900 dark:text-gray-100"
               >
                 <option value="">Select type...</option>
                 <option value="tank">Tank</option>
@@ -443,8 +443,8 @@ const ResidentialForm: React.FC = () => {
         </div>
 
       {/* Additional Details - Compact Grid */}
-      <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-3.5 border border-gray-200">
-        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2.5 block">
+      <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800/50 dark:to-gray-900/50 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+        <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5 block transition-colors duration-300">
           Property Details
         </label>
         <div className="grid grid-cols-2 gap-2.5">
@@ -456,7 +456,7 @@ const ResidentialForm: React.FC = () => {
             </label>
             <select
               {...register('type_specific_details.roof_type')}
-              className="w-full text-xs px-2 py-1.5 bg-white border border-gray-200 rounded-md focus:ring-1 focus:ring-blue-500"
+              className="w-full text-xs px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-900 dark:text-gray-100 transition-colors duration-300"
             >
               <option value="">Select...</option>
               <option value="shingle">Shingle</option>
@@ -475,7 +475,7 @@ const ResidentialForm: React.FC = () => {
             </label>
             <select
               {...register('type_specific_details.exterior_material')}
-              className="w-full text-xs px-2 py-1.5 bg-white border border-gray-200 rounded-md focus:ring-1 focus:ring-blue-500"
+              className="w-full text-xs px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-900 dark:text-gray-100 transition-colors duration-300"
             >
               <option value="">Select...</option>
               <option value="brick">Brick</option>

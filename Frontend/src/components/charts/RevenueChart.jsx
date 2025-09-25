@@ -21,6 +21,37 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
   const incomeGradientId = `incomeGradient-${chartId}`;
   const expenseGradientId = `expenseGradient-${chartId}`;
   
+  // Dynamic colors based on dark mode with reactive updates
+  const [isDarkMode, setIsDarkMode] = React.useState(() => {
+    return document.documentElement.classList.contains('dark');
+  });
+  
+  // Watch for dark mode changes
+  React.useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          setIsDarkMode(document.documentElement.classList.contains('dark'));
+        }
+      });
+    });
+    
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+    
+    return () => observer.disconnect();
+  }, []);
+  
+  const chartColors = useMemo(() => ({
+    tickColor: isDarkMode ? '#F9FAFB' : '#6B7280', // gray-50 in dark, gray-500 in light
+    gridColor: isDarkMode ? '#374151' : '#E5E7EB', // gray-700 in dark, gray-200 in light  
+    axisColor: isDarkMode ? '#4B5563' : '#E5E7EB', // gray-600 in dark, gray-200 in light
+    referenceColor: isDarkMode ? '#6B7280' : '#9CA3AF', // gray-500 in dark, gray-400 in light
+    legendColor: isDarkMode ? '#F9FAFB' : '#374151', // gray-50 in dark, gray-700 in light
+  }), [isDarkMode]);
+  
   // Improved data validation and trimming function
   const trimFinancialData = useMemo(() => {
     if (!data || !data.months || !data.revenue || !data.expenses) {
@@ -148,9 +179,9 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
     return (
       <div className="flex items-center justify-center h-[300px]">
         <div className="text-center">
-          <div className="w-16 h-16 mb-4 mx-auto rounded-full bg-gray-100 flex items-center justify-center">
+          <div className="w-16 h-16 mb-4 mx-auto rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
             <svg
-              className="w-8 h-8 text-gray-400"
+              className="w-8 h-8 text-gray-400 dark:text-gray-500"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -163,10 +194,10 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
               />
             </svg>
           </div>
-          <h3 className="text-base font-medium text-gray-800 mb-1">
+          <h3 className="text-base font-medium text-gray-800 dark:text-gray-200 mb-1">
             No Revenue Data
           </h3>
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-gray-600 dark:text-gray-400">
             {emptyStateMessage}
           </p>
         </div>
@@ -207,7 +238,7 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
 
   // Custom bar label renderer
   const renderBarLabel = (props) => {
-    const { x, y, width, value } = props;
+    const { x, y, width, value, dataKey } = props;
     // Only show labels when we have few data points for clarity
     if (chartData.length > 6) return null;
     
@@ -215,21 +246,24 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
       ? `$${(value / 1000).toFixed(0)}k` 
       : `$${value}`;
     
+     // FORCE: Income labels GREEN, expenses RED - logical color coding  
+     const labelColor = dataKey === 'Income' ? '#10B981' : '#EF4444';
+    
     return (
       <text 
         x={x + width / 2} 
         y={y - 5} 
-        fill="#374151" 
+        fill={labelColor} 
         textAnchor="middle" 
         fontSize="11"
-        fontWeight="500"
+        fontWeight="600"
       >
         {formattedValue}
       </text>
     );
   };
 
-  // Custom NetIncome bar label renderer with color matching
+  // Custom NetIncome bar label renderer with better positioning and visibility
   const renderNetIncomeLabel = (props) => {
     const { x, y, width, value } = props;
     // Only show labels when we have few data points for clarity
@@ -239,11 +273,16 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
       ? `${value < 0 ? '-' : ''}$${(Math.abs(value) / 1000).toFixed(0)}k` 
       : `${value < 0 ? '-' : ''}$${Math.abs(value)}`;
     
+    // For negative values, position label above the zero line for visibility
+    // For positive values, position above the bar
+    const labelY = value < 0 ? y - 20 : y - 5;
+    const labelColor = value >= 0 ? '#10B981' : '#EF4444'; // Green for positive, red for negative
+    
     return (
       <text 
         x={x + width / 2} 
-        y={y - 5} 
-        fill={value >= 0 ? '#059669' : '#DC2626'} // Darker green/red for better contrast
+        y={labelY} 
+        fill={labelColor}
         textAnchor="middle" 
         fontSize="11"
         fontWeight="600"
@@ -263,12 +302,13 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
       >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
+            key={`revenue-chart-${isDarkMode ? 'dark' : 'light'}-${chartData.length}`}
             data={chartData}
             margin={{
-              top: 10,
-              right: 20,
-              left: 15,
-              bottom: chartData.length > 6 ? 40 : 20,
+              top: 20,
+              right: 30,
+              left: 25,
+              bottom: chartData.length > 6 ? 50 : 30,
             }}
             barCategoryGap="20%"
           >
@@ -287,25 +327,26 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
             </defs>
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="#E5E7EB"
+              stroke={chartColors.gridColor}
               vertical={false}
               horizontalOpacity={0.5}
             />
             <XAxis
               dataKey="month"
-              axisLine={{ stroke: '#E5E7EB' }}
+              axisLine={{ stroke: chartColors.axisColor }}
               tickLine={false}
-              tick={{ fontSize: 12, fill: "#6B7280" }}
+              tick={{ fontSize: 12, fill: chartColors.tickColor }}
               angle={chartData.length > 6 ? -45 : 0}
               textAnchor={chartData.length > 6 ? "end" : "middle"}
-              height={chartData.length > 6 ? 60 : 30}
+              height={chartData.length > 6 ? 65 : 35}
               interval={chartData.length > 12 ? 1 : 0}
-              tickMargin={10}
+              tickMargin={15}
             />
             <YAxis
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 12, fill: "#6B7280" }}
+              tick={{ fontSize: 12, fill: chartColors.tickColor }}
+              tickMargin={8}
               tickFormatter={(value) => {
                 const absValue = Math.abs(value);
                 const sign = value < 0 ? "-" : "";
@@ -320,7 +361,7 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
             {chartData.some(d => d.NetIncome < 0) && (
               <ReferenceLine 
                 y={0} 
-                stroke="#9CA3AF" 
+                stroke={chartColors.referenceColor} 
                 strokeDasharray="3 3" 
                 strokeWidth={1}
               />
@@ -328,6 +369,7 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
             <Tooltip
               content={<CustomTooltip />}
               cursor={{ fill: "rgba(59, 130, 246, 0.05)" }}
+              animationDuration={150}
             />
             <Legend
               align="right"
@@ -338,7 +380,10 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
                 paddingBottom: "20px",
                 paddingRight: "0px",
               }}
-              formatter={(value) => <span style={{ color: '#374151' }}>{value}</span>}
+              formatter={(value) => {
+                const displayValue = value === 'NetIncome' ? 'Net Income' : value;
+                return <span style={{ color: chartColors.legendColor, paddingLeft: '8px' }}>{displayValue}</span>
+              }}
             />
             <Bar
               dataKey="Income"
@@ -362,6 +407,7 @@ const RevenueChart = ({ data, emptyStateMessage = "Revenue and expense data will
             />
             <Bar
               dataKey="NetIncome"
+              name="Net Income"
               radius={[6, 6, 0, 0]}
               maxBarSize={chartData.length <= 3 ? 100 : chartData.length <= 6 ? 80 : 60}
               animationDuration={800}

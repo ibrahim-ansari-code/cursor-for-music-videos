@@ -70,7 +70,7 @@ const GoogleSignInButton = ({ setLoading, setError }) => {
     <button
       type="button"
       onClick={handleGoogleSignIn}
-      className="w-full flex items-center justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-teal mb-4"
+      className="w-full flex items-center justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-teal mb-4 transition-colors duration-200"
     >
       <GoogleIcon />
       Continue with Google

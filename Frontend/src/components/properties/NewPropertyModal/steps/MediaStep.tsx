@@ -127,7 +127,7 @@ const MediaStep: React.FC<MediaStepProps> = ({ propertyId, onPropertyCreated }) 
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-4 flex items-center space-x-2 text-blue-600 bg-blue-50 p-3 rounded-lg"
+          className="mb-4 flex items-center space-x-2 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg"
         >
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
           <span className="text-sm font-medium">Uploading images...</span>
@@ -144,18 +144,18 @@ const MediaStep: React.FC<MediaStepProps> = ({ propertyId, onPropertyCreated }) 
           {...getRootProps()}
           className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all duration-300 ${
             isUploading 
-              ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-50'
+              ? 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 cursor-not-allowed opacity-50'
               : isDragActive 
-              ? 'border-blue-500 bg-blue-50 cursor-pointer' 
+              ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20 cursor-pointer' 
               : isDragReject
-              ? 'border-red-500 bg-red-50 cursor-pointer'
-              : 'border-gray-300 hover:border-gray-400 bg-gray-50/50 cursor-pointer'
+              ? 'border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 cursor-pointer'
+              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 bg-gray-50/50 dark:bg-gray-800/30 cursor-pointer'
           }`}
         >
           <input {...getInputProps()} disabled={isUploading} />
           
           {/* Backdrop blur effect */}
-          <div className="absolute inset-0 bg-white/30 backdrop-blur-sm rounded-xl" />
+          <div className="absolute inset-0 bg-white/30 dark:bg-gray-800/30 backdrop-blur-sm rounded-xl" />
           
           {/* Content */}
           <div className="relative z-10">
@@ -165,7 +165,7 @@ const MediaStep: React.FC<MediaStepProps> = ({ propertyId, onPropertyCreated }) 
                 rotate: isDragActive ? 5 : 0
               }}
               transition={{ duration: 0.2 }}
-              className="inline-flex p-3 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl mb-3"
+              className="inline-flex p-3 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40 rounded-xl mb-3"
             >
               {isUploading ? (
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
@@ -176,7 +176,7 @@ const MediaStep: React.FC<MediaStepProps> = ({ propertyId, onPropertyCreated }) 
               )}
             </motion.div>
             
-            <p className="text-base font-medium text-gray-900 mb-2">
+            <p className="text-base font-medium text-gray-900 dark:text-gray-100 mb-2">
               {isUploading
                 ? 'Uploading images...'
                 : isDragActive 
@@ -185,10 +185,10 @@ const MediaStep: React.FC<MediaStepProps> = ({ propertyId, onPropertyCreated }) 
                 ? 'Some files are not valid images'
                 : 'Drag & drop images of your property here'}
             </p>
-            <p className="text-sm text-gray-500 mb-3">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
               {isUploading ? 'Please wait while we upload your images' : 'or click to browse from your computer'}
             </p>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-400 dark:text-gray-500">
               Supports: JPG, PNG, GIF, WebP (max 10MB per file, 20 images max)
             </p>
           </div>
@@ -205,10 +205,10 @@ const MediaStep: React.FC<MediaStepProps> = ({ propertyId, onPropertyCreated }) 
         >
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-lg font-semibold text-gray-900">
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Images ({images.length})
               </h4>
-              <div className="flex items-center space-x-3 text-xs text-gray-500 mt-1">
+              <div className="flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {uploadedImages.length > 0 && (
                   <span className="flex items-center">
                     <CheckCircle className="h-3 w-3 text-green-500 mr-1" />
@@ -229,7 +229,7 @@ const MediaStep: React.FC<MediaStepProps> = ({ propertyId, onPropertyCreated }) 
                   type="button"
                   onClick={() => uploadImages(pendingImages.map(img => String(img.id)))}
                   disabled={isUploading}
-                  className="text-blue-600 hover:text-blue-700 flex items-center text-xs disabled:opacity-50"
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center text-xs disabled:opacity-50"
                 >
                   <Upload className="h-4 w-4 mr-1" />
                   Upload All
@@ -238,7 +238,7 @@ const MediaStep: React.FC<MediaStepProps> = ({ propertyId, onPropertyCreated }) 
               <button
                 type="button"
                 onClick={clearPendingImages}
-                className="text-red-600 hover:text-red-700 flex items-center text-xs"
+                className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 flex items-center text-xs"
               >
                 <Trash2 className="h-4 w-4 mr-1" />
                 Clear Pending
@@ -249,7 +249,7 @@ const MediaStep: React.FC<MediaStepProps> = ({ propertyId, onPropertyCreated }) 
           {/* Uploaded Images Grid */}
           {uploadedImages.length > 0 && (
             <div>
-              <h5 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+              <h5 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center">
                 <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
                 Uploaded Images
               </h5>
@@ -387,7 +387,7 @@ const MediaStep: React.FC<MediaStepProps> = ({ propertyId, onPropertyCreated }) 
           {/* Pending Images Grid */}
           {pendingImages.length > 0 && (
             <div>
-              <h5 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+              <h5 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center">
                 <Upload className="h-4 w-4 text-blue-500 mr-2" />
                 Pending Images
                 {!propertyId && (
@@ -581,7 +581,7 @@ const MediaStep: React.FC<MediaStepProps> = ({ propertyId, onPropertyCreated }) 
           className="text-center py-4"
         >
           <ImageIcon className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500 text-sm">No images uploaded yet</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">No images uploaded yet</p>
         </motion.div>
       )}
 

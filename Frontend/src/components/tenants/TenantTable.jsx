@@ -19,10 +19,10 @@ const TenantTable = ({ tenants, onEditTenant, onDeleteTenant, onAddTenant, isLoa
     return null;
   };
 
-  // Helper function to get lease duration display
+  // Helper function to get lease duration display (returns string for combined column)
   const getLeaseDuration = (tenant) => {
     if (!tenant.leases || tenant.leases.length === 0) {
-      return "--";
+      return null; // Return null so we don't display anything
     }
 
     // Find the most recent active lease
@@ -57,34 +57,24 @@ const TenantTable = ({ tenants, onEditTenant, onDeleteTenant, onAddTenant, isLoa
     }
 
     if (!targetLease) {
-      return "--";
+      return null; // Return null so we don't display anything
     }
 
     const startDate = formatDate(targetLease.start_date);
     const endDate = formatDate(targetLease.end_date);
-    const isActive = targetLease.status?.toUpperCase() === "ACTIVE";
     
-    return (
-      <div className="text-center">
-        <div className="text-sm text-gray-900">
-          {startDate} - {endDate}
-        </div>
-        <div className={`text-xs font-medium ${isActive ? 'text-green-600' : 'text-gray-500'}`}>
-          {isActive ? 'Active' : 'Inactive'}
-        </div>
-      </div>
-    );
+    return `${startDate} - ${endDate}`;
   };
 
   if (isLoading) {
     return (
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+      <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
         <div className="p-8 text-center">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded mb-4"></div>
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
             <div className="space-y-3">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-12 bg-gray-100 rounded"></div>
+                <div key={i} className="h-12 bg-gray-100 dark:bg-gray-600 rounded"></div>
               ))}
             </div>
           </div>
@@ -95,10 +85,10 @@ const TenantTable = ({ tenants, onEditTenant, onDeleteTenant, onAddTenant, isLoa
 
   if (!tenants || tenants.length === 0) {
     return (
-      <div className="bg-white shadow-lg rounded-lg p-8 text-center border border-gray-100">
-        <div className="mx-auto w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+      <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-8 text-center border border-gray-100 dark:border-gray-700">
+        <div className="mx-auto w-24 h-24 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mb-4">
           <svg
-            className="h-12 w-12 text-blue-500"
+            className="h-12 w-12 text-blue-500 dark:text-blue-400"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -112,17 +102,17 @@ const TenantTable = ({ tenants, onEditTenant, onDeleteTenant, onAddTenant, isLoa
             />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
           No tenants found
         </h3>
-        <p className="text-gray-500 mb-6">
+        <p className="text-gray-500 dark:text-gray-400 mb-6">
           Try adjusting your search criteria or add new tenants.
         </p>
         {onAddTenant && (
           <button
             type="button"
             onClick={onAddTenant}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
           >
             <svg
               className="-ml-1 mr-2 h-5 w-5"
@@ -144,143 +134,117 @@ const TenantTable = ({ tenants, onEditTenant, onDeleteTenant, onAddTenant, isLoa
   }
 
   return (
-    <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div className="overflow-hidden rounded-lg">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="data-table min-w-full">
+          <thead>
             <tr>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Tenant
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Property
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Unit
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Email
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Phone
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Lease Duration
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Status
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Actions
-              </th>
+              <th scope="col" className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Tenant</th>
+              <th scope="col" className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Property</th>
+              <th scope="col" className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Unit</th>
+              <th scope="col" className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Email</th>
+              <th scope="col" className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Phone</th>
+              <th scope="col" className="px-6 py-4 text-center font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Lease & Status</th>
+              <th scope="col" className="px-6 py-4 text-center font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Actions</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {tenants.map((tenant) => {
+          <tbody>
+            {tenants.map((tenant, index) => {
               const leaseDuration = getLeaseDuration(tenant);
               const displayName = getTenantDisplayName(tenant);
               const subtitle = getTenantSubtitle(tenant);
-
+              
+              // data-table CSS now handles zebra striping
               return (
-                <tr
-                  key={tenant.id}
-                  className="hover:bg-gray-50 transition-colors duration-150"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap text-left">
-                    <div className="flex items-center justify-left">
+                <tr key={tenant.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
-                        <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                          <span className="text-gray-700 font-medium text-sm">
+                        <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                          <span className="text-gray-700 dark:text-gray-300 font-medium text-sm">
                             {getInitials(tenant)}
                           </span>
                         </div>
                       </div>
-                      <div className="ml-4 text-left">
-                        <div className="text-sm font-medium text-gray-900">
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {displayName}
                         </div>
                         {subtitle && (
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
                             {subtitle}
                           </div>
                         )}
                         {tenant.tenant_type === "Company" && (
-                          <div className="text-xs text-blue-600 font-medium">
+                          <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
                             Company
                           </div>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 text-center">
-                      {tenant.property?.name ??
-                        tenant.unit?.property?.name ??
-                        "--"}
-                    </div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-left">
+                    {tenant.property?.name ??
+                      tenant.unit?.property?.name ??
+                      "--"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 text-center">
-                      {tenant.unit ? tenant.unit.name : "--"}
-                    </div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-left">
+                    {tenant.unit ? tenant.unit.name : "--"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 text-center">
-                      {tenant.email || "--"}
-                    </div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-left">
+                    {tenant.email ? (
+                      <a 
+                        href={`mailto:${tenant.email}`}
+                        className="email-link"
+                      >
+                        {tenant.email}
+                      </a>
+                    ) : (
+                      <span className="text-gray-500 dark:text-gray-400">--</span>
+                    )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 text-center">
-                      {tenant.phone || "--"}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {leaseDuration}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-left">
+                    {tenant.phone ? (
+                      <a 
+                        href={`tel:${tenant.phone}`}
+                        className="phone-link"
+                      >
+                        {tenant.phone}
+                      </a>
+                    ) : (
+                      <span className="text-gray-500 dark:text-gray-400">--</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(
-                        tenant.status
-                      )}`}
-                    >
-                      {tenant.status || "Unknown"}
-                    </span>
+                    <div className="flex flex-col items-center space-y-1">
+                      {leaseDuration && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                          {leaseDuration}
+                        </div>
+                      )}
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          tenant.status?.toLowerCase() === 'active' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' :
+                          tenant.status?.toLowerCase() === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200' :
+                          tenant.status?.toLowerCase() === 'overdue' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200' :
+                          'bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-200'
+                        }`}
+                      >
+                        {tenant.status || "Unknown"}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                    <div className="flex justify-center space-x-3">
+                    <div className="inline-flex space-x-3">
                       <button
                         onClick={() => onEditTenant(tenant)}
-                        className="text-blue-600 hover:text-blue-900 focus:outline-none transition-colors duration-150"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 focus:outline-none transition-colors duration-150"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => onDeleteTenant(tenant.id)}
-                        className="text-red-600 hover:text-red-900 focus:outline-none transition-colors duration-150"
+                        className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 focus:outline-none transition-colors duration-150"
                       >
                         Delete
                       </button>

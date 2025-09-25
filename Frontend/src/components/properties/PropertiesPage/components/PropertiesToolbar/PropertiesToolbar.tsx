@@ -40,7 +40,7 @@ export const PropertiesToolbar: React.FC<PropertiesToolbarProps> = ({
   filterMenuRef,
   sortMenuRef,
 }) => (
-  <div className="p-4 border-b border-gray-200">
+  <div className="p-4 border-b border-gray-200 dark:border-gray-600 transition-colors duration-300">
     <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
       <SearchInput searchTerm={searchTerm} onChange={onSearch} />
       <div className="flex items-center gap-4">
@@ -51,7 +51,7 @@ export const PropertiesToolbar: React.FC<PropertiesToolbarProps> = ({
         />
 
         <button
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors duration-300"
           onClick={onAddProperty}
           onMouseEnter={() => preloadGoogleMaps()}
           onFocus={() => preloadGoogleMaps()}

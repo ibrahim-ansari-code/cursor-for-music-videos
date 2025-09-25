@@ -201,7 +201,7 @@ const OverviewTab = () => {
     return (
       <div className="space-y-6">
         {/* Property Filter Skeleton - Match actual component height */}
-        <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-4" style={{minHeight: "72px"}}>
+        <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-4" style={{minHeight: "72px"}}>
           <div className="flex items-center space-x-4">
             <SkeletonLine width="120px" height="1rem" />
             <SkeletonLine width="200px" height="2.5rem" rounded="md" />
@@ -211,7 +211,7 @@ const OverviewTab = () => {
         {/* Financial Summary Cards Skeleton - Match actual card heights */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Monthly Metrics Card */}
-          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "140px"}}>
+          <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "140px"}}>
             <div className="flex items-center justify-between mb-4">
               <SkeletonLine width="100px" height="1.25rem" />
               <SkeletonLine width="60px" height="1rem" rounded="full" />
@@ -233,7 +233,7 @@ const OverviewTab = () => {
           </div>
           
           {/* YTD Card */}
-          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "140px"}}>
+          <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "140px"}}>
             <div className="flex items-center justify-between mb-4">
               <SkeletonLine width="120px" height="1.25rem" />
               <SkeletonLine width="60px" height="1rem" rounded="full" />
@@ -255,7 +255,7 @@ const OverviewTab = () => {
           </div>
           
           {/* Snapshot Card */}
-          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "140px"}}>
+          <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "140px"}}>
             <div className="flex items-center justify-between mb-4">
               <SkeletonLine width="80px" height="1.25rem" />
               <SkeletonLine width="60px" height="1rem" rounded="full" />
@@ -280,7 +280,7 @@ const OverviewTab = () => {
         {/* Charts Section Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Revenue Chart Skeleton */}
-          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "400px"}}>
+          <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "400px"}}>
             <div className="flex items-center mb-4">
               <SkeletonLine width="180px" height="1.5rem" />
             </div>
@@ -288,12 +288,12 @@ const OverviewTab = () => {
           </div>
 
           {/* Expense Chart Skeleton */}
-          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "400px"}}>
+          <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "400px"}}>
             <div className="flex items-center mb-4">
               <SkeletonLine width="160px" height="1.5rem" />
             </div>
             <div className="h-[300px] flex items-center justify-center">
-              <div className="w-48 h-48 rounded-full bg-gray-200 animate-pulse"></div>
+          <div className="w-48 h-48 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
             </div>
           </div>
         </div>
@@ -301,7 +301,7 @@ const OverviewTab = () => {
         {/* Occupancy & Outstanding Payments Section Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Income by Property Chart Skeleton */}
-          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "400px"}}>
+          <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-6" style={{minHeight: "400px"}}>
             <div className="flex items-center mb-4">
               <SkeletonLine width="140px" height="1.5rem" />
             </div>
@@ -309,14 +309,14 @@ const OverviewTab = () => {
           </div>
 
           {/* Outstanding Payments Card Skeleton */}
-          <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 flex flex-col" style={{minHeight: "400px"}}>
+          <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-6 flex flex-col" style={{minHeight: "400px"}}>
             <div className="flex items-center mb-4">
               <SkeletonLine width="180px" height="1.5rem" />
               <SkeletonLine width="24px" height="20px" rounded="full" className="ml-2" />
             </div>
             
             {/* Table Header Skeleton */}
-            <div className="border-b border-gray-200 mb-2">
+            <div className="dark-divider border-b mb-2">
               <div className="grid grid-cols-12 text-sm">
                 <div className="col-span-5 py-3">
                   <SkeletonLine width="60px" height="0.75rem" />
@@ -333,7 +333,7 @@ const OverviewTab = () => {
             {/* Payment Rows Skeleton */}
             <div className="overflow-y-auto pr-1 custom-scrollbar min-h-[200px] max-h-[350px]">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="grid grid-cols-12 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150">
+                <div key={i} className="grid grid-cols-12 py-3 dark-divider border-b hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150">
                   <div className="col-span-5">
                     <SkeletonLine width="85%" height="1rem" className="mb-1" />
                     <SkeletonLine width="65%" height="0.75rem" />
@@ -349,7 +349,7 @@ const OverviewTab = () => {
             </div>
             
             {/* Total Outstanding Skeleton */}
-            <div className="mt-4 pt-3 border-t border-gray-200">
+            <div className="mt-4 pt-3 dark-divider border-t">
               <div className="grid grid-cols-12 items-center">
                 <div className="col-span-5">
                   <SkeletonLine width="120px" height="1rem" />
@@ -369,11 +369,11 @@ const OverviewTab = () => {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded">
           <p>{error.message || error.toString() || 'An error occurred while loading data'}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
+            className="mt-2 bg-red-500 dark:bg-red-600 hover:bg-red-700 dark:hover:bg-red-500 text-white font-bold py-1 px-2 rounded text-sm"
           >
             Retry
           </button>
@@ -381,11 +381,11 @@ const OverviewTab = () => {
       )}
 
       {/* Property Filter Selector */}
-      <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-4">
+      <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-4">
         <div className="flex items-center space-x-4">
           <label
             htmlFor="propertyFilter"
-            className="text-sm font-medium text-gray-700"
+            className="text-sm font-medium text-gray-700 dark:text-gray-300"
           >
             Filter by Property:
           </label>
@@ -393,7 +393,7 @@ const OverviewTab = () => {
             id="propertyFilter"
             value={selectedProperty}
             onChange={(e) => setSelectedProperty(e.target.value)}
-            className="block rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className="dark-input block rounded-md py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">All Properties</option>
             {properties.map((property) => (
@@ -415,12 +415,12 @@ const OverviewTab = () => {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue Chart */}
-        <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 h-full">
+        <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-6 h-full">
           <div className="flex items-center mb-4">
-            <h2 className="text-lg font-medium text-gray-800">
+            <h2 className="text-lg font-medium text-gray-800 dark:text-gray-200">
               Revenue Breakdown
               {selectedProperty !== "all" && (
-                <span className="text-sm font-normal text-gray-500 ml-2">
+                <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
                   (
                   {properties.find((p) => p.id.toString() === selectedProperty)
                     ?.name || "Selected Property"}
@@ -449,12 +449,12 @@ const OverviewTab = () => {
         </div>
 
         {/* Expense Breakdown Chart */}
-        <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 h-full">
+        <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-6 h-full">
           <div className="flex items-center mb-4">
-            <h2 className="text-lg font-medium text-gray-800">
+            <h2 className="text-lg font-medium text-gray-800 dark:text-gray-200">
               Expense Breakdown
               {selectedProperty !== "all" && (
-                <span className="text-sm font-normal text-gray-500 ml-2">
+                <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
                   (
                   {properties.find((p) => p.id.toString() === selectedProperty)
                     ?.name || "Selected Property"}
@@ -470,12 +470,12 @@ const OverviewTab = () => {
       {/* Occupancy & Outstanding Payments */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Income by Property Chart */}
-        <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 h-full">
+        <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-6 h-full">
           <div className="flex items-center mb-4">
-            <h2 className="text-lg font-medium text-gray-800">
+            <h2 className="text-lg font-medium text-gray-800 dark:text-gray-200">
               Income by Property
               {selectedProperty !== "all" && (
-                <span className="text-sm font-normal text-gray-500 ml-2">
+                <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
                   (
                   {properties.find((p) => p.id.toString() === selectedProperty)
                     ?.name || "Selected Property"}
@@ -488,12 +488,12 @@ const OverviewTab = () => {
         </div>
 
         {/* Outstanding Payments Card */}
-        <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6 h-full flex flex-col">
+        <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-6 h-full flex flex-col">
           <div className="flex items-center mb-4">
-            <h2 className="text-lg font-medium text-gray-800">
+            <h2 className="text-lg font-medium text-gray-800 dark:text-gray-200">
               Outstanding Payments
               {selectedProperty !== "all" && (
-                <span className="text-sm font-normal text-gray-500 ml-2">
+                <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
                   (
                   {properties.find((p) => p.id.toString() === selectedProperty)
                     ?.name || "Selected Property"}
@@ -502,7 +502,7 @@ const OverviewTab = () => {
               )}
             </h2>
             {outstandingPayments.length > 0 && (
-              <span className="ml-2 bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded-full">
+              <span className="ml-2 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400 text-xs font-medium px-2 py-0.5 rounded-full">
                 {outstandingPayments.length}
               </span>
             )}
@@ -510,15 +510,15 @@ const OverviewTab = () => {
 
           {outstandingPayments.length > 0 ? (
             <div className="flex-1 flex flex-col">
-              <div className="border-b border-gray-200 mb-2">
+              <div className="dark-divider border-b mb-2">
                 <div className="grid grid-cols-12 text-sm">
-                  <div className="col-span-5 py-3 text-gray-500 font-medium uppercase tracking-wider">
+                  <div className="col-span-5 py-3 text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">
                     Tenant
                   </div>
-                  <div className="col-span-3 py-3 text-gray-500 font-medium uppercase tracking-wider text-center">
+                  <div className="col-span-3 py-3 text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider text-center">
                     Status
                   </div>
-                  <div className="col-span-4 py-3 text-gray-500 font-medium uppercase tracking-wider text-right">
+                  <div className="col-span-4 py-3 text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider text-right">
                     Amount Due
                   </div>
                 </div>
@@ -527,29 +527,30 @@ const OverviewTab = () => {
                 {outstandingPayments.map((payment) => (
                   <div
                     key={payment.id}
-                    className="grid grid-cols-12 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
+                    className="grid grid-cols-12 py-3 dark-divider border-b hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
                   >
                     <div className="col-span-5 text-sm">
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-gray-900 dark:text-gray-100">
                         {payment.tenant_name}
                       </div>
-                      <div className="text-gray-500 text-xs">
+                      <div className="text-gray-500 dark:text-gray-400 text-xs">
                         {payment.property_name}
                       </div>
                     </div>
                     <div className="col-span-3 flex items-center justify-center">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${payment.status === "Overdue"
-                          ? "bg-red-100 text-red-800"
-                          : payment.status === "Partial"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-orange-100 text-orange-800"
-                          }`}
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          payment.status === "Overdue"
+                            ? "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400"
+                            : payment.status === "Partial"
+                              ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400"
+                              : "bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400"
+                        }`}
                       >
                         {payment.status}
                       </span>
                     </div>
-                    <div className="col-span-4 text-sm font-medium text-gray-900 text-right pr-2">
+                    <div className="col-span-4 text-sm font-medium text-gray-900 dark:text-gray-100 text-right pr-2">
                       ${Number.parseFloat(payment.amount).toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
@@ -558,16 +559,16 @@ const OverviewTab = () => {
                   </div>
                 ))}
               </div>
-              <div className="mt-4 pt-3 border-t border-gray-200">
+              <div className="mt-4 pt-3 dark-divider border-t">
                 <div className="grid grid-cols-12 items-center">
                   <div className="col-span-5">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Total Outstanding:
                     </span>
                   </div>
                   <div className="col-span-3"></div>
                   <div className="col-span-4 text-right pr-2">
-                    <span className="text-lg font-semibold text-red-600">
+                    <span className="text-lg font-semibold text-red-600 dark:text-red-400">
                       ${parseFloat(totalOutstandingAmount).toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
@@ -579,13 +580,13 @@ const OverviewTab = () => {
             </div>
           ) : (
             <div className="flex items-center justify-center" style={{ minHeight: "300px" }}>
-              <div className="text-center text-gray-500">
+              <div className="text-center text-gray-500 dark:text-gray-400">
                 <div className="mb-4">
-                  <svg className="w-16 h-16 mx-auto text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <div className="text-xl font-bold text-green-600">All Paid</div>
+                <div className="text-xl font-bold text-green-600 dark:text-green-400">All Paid</div>
                 <p className="text-sm mt-2">All payments are up to date</p>
               </div>
             </div>

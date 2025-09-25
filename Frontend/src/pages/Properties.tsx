@@ -70,7 +70,7 @@ const Properties: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto">
+    <div className="p-6 max-w-[1600px] mx-auto bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors duration-200">
       <StatusCardsGrid
         statusCounts={statusCounts}
         statusFilter={filtersState.statusFilter}
@@ -80,7 +80,7 @@ const Properties: React.FC = () => {
         hasProperties={properties.length > 0}
       />
 
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
         <PropertiesToolbar
           searchTerm={filtersState.searchTerm}
           onSearch={filtersState.handleSearch}

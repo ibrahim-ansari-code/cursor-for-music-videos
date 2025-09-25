@@ -2,30 +2,25 @@ import React from "react";
 import PropTypes from "prop-types";
 
 const StatusBadge = ({ status }) => {
-  const statusStyles = {
-    "PENDING": "bg-yellow-100 text-yellow-800",
-    "IN_PROGRESS": "bg-blue-100 text-blue-800", 
-    "SCHEDULED": "bg-indigo-100 text-indigo-800",
-    "COMPLETED": "bg-green-100 text-green-800",
-    "CANCELLED": "bg-gray-100 text-gray-800",
-    // Support title-case values as well for backward compatibility
-    "Pending": "bg-yellow-100 text-yellow-800",
-    "In Progress": "bg-blue-100 text-blue-800",
-    "Scheduled": "bg-indigo-100 text-indigo-800", 
-    "Completed": "bg-green-100 text-green-800",
-    "Cancelled": "bg-gray-100 text-gray-800",
+  // Map status to our enhanced CSS classes
+  const getStatusClass = (status) => {
+    switch (status?.toLowerCase()) {
+      case "completed":
+        return "badge-success";
+      case "pending":
+        return "badge-warning";
+      case "in_progress":
+      case "in progress":
+        return "badge-info";
+      case "cancelled":
+        return "badge-gray";
+      default:
+        return "badge-info";
+    }
   };
 
-  // Normalize status value to handle different cases
-  const normalizedStatus = (status || "")
-    .replace(/[-\s]/g, "_")   // unify separators
-    .toUpperCase();
-  const style = statusStyles[normalizedStatus] || statusStyles[normalizedStatus.toUpperCase()] || "bg-gray-100 text-gray-800";
-
   return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style}`}
-    >
+    <span className={`badge ${getStatusClass(status)}`}>
       {status}
     </span>
   );
@@ -36,24 +31,22 @@ StatusBadge.propTypes = {
 };
 
 const PriorityBadge = ({ priority }) => {
-  const priorityStyles = {
-    "HIGH": "bg-red-100 text-red-800",
-    "MEDIUM": "bg-orange-100 text-orange-800", 
-    "LOW": "bg-green-100 text-green-800",
-    // Support title-case values as well for backward compatibility
-    "High": "bg-red-100 text-red-800",
-    "Medium": "bg-orange-100 text-orange-800",
-    "Low": "bg-green-100 text-green-800",
+  // Map priority to our enhanced CSS classes
+  const getPriorityClass = (priority) => {
+    switch (priority?.toLowerCase()) {
+      case "high":
+        return "badge-danger";
+      case "medium":
+        return "badge-warning";
+      case "low":
+        return "badge-success";
+      default:
+        return "badge-gray";
+    }
   };
 
-  // Normalize priority value to handle different cases
-  const normalizedPriority = priority || "";
-  const style = priorityStyles[normalizedPriority] || priorityStyles[normalizedPriority.toUpperCase()] || "bg-gray-100 text-gray-800";
-
   return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style}`}
-    >
+    <span className={`badge ${getPriorityClass(priority)}`}>
       {priority}
     </span>
   );
@@ -66,10 +59,10 @@ PriorityBadge.propTypes = {
 const MaintenanceTable = ({ requests, onEdit, onDelete, onView, currentPage = 1, pageSize = 20 }) => {
   if (!requests || requests.length === 0) {
     return (
-      <div className="bg-white shadow-lg rounded-lg p-8 text-center border border-gray-100">
-        <div className="mx-auto w-24 h-24 bg-orange-50 rounded-full flex items-center justify-center mb-4">
+      <div className="dark-panel dark-shadow rounded-lg p-8 text-center dark-divider border">
+        <div className="mx-auto w-24 h-24 bg-orange-50 dark:bg-orange-900/20 rounded-full flex items-center justify-center mb-4">
           <svg
-            className="h-12 w-12 text-orange-500"
+            className="h-12 w-12 text-orange-500 dark:text-orange-400"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -83,10 +76,10 @@ const MaintenanceTable = ({ requests, onEdit, onDelete, onView, currentPage = 1,
             />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
           No maintenance requests found
         </h3>
-        <p className="text-gray-500">
+        <p className="text-gray-500 dark:text-gray-400">
           No maintenance requests match the current filter.
         </p>
       </div>
@@ -94,141 +87,143 @@ const MaintenanceTable = ({ requests, onEdit, onDelete, onView, currentPage = 1,
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+    <div className="overflow-x-auto scrollbar-thin">
+      <table className="data-table min-w-full divide-y dark-divider">
+          <thead className="dark-input">
             <tr>
               <th
                 scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300"
               >
                 #
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300"
               >
                 Issue
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300"
               >
                 Property / Unit
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300"
               >
                 Tenant
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300"
               >
                 Request Date
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300"
               >
                 Priority
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300"
               >
                 Assigned To
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300"
               >
                 Status
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider transition-colors duration-300"
               >
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {requests.map((request, index) => (
-              <tr key={request.id} className="hover:bg-gray-50 transition-colors duration-150">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {(currentPage - 1) * pageSize + index + 1}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">
-                    {request.issue_title}
-                  </div>
-                  <div
-                    className="text-sm text-gray-500 truncate"
-                    style={{ maxWidth: "250px" }}
-                  >
-                    {request.description}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <div className="text-sm text-gray-900">
-                    {request.property?.name || "N/A"}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {request.unit?.unit_number || request.unit?.name || "Common Area"}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <div className="text-sm text-gray-900">
-                    {request.tenant?.name || "N/A"}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <div className="text-sm text-gray-900">
-                    {(() => {
-                      try {
-                        const date = new Date(request.request_date);
-                        return isNaN(date.getTime()) ? "Invalid Date" : date.toLocaleDateString();
-                      } catch {
-                        return "Invalid Date";
-                      }
-                    })()}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <PriorityBadge priority={request.priority} />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {request.assigned_to || "N/A"}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <StatusBadge status={request.status} />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                  <div className="flex justify-center space-x-3">
-                    <button
-                      onClick={() => onView(request)}
-                      className="text-indigo-600 hover:text-indigo-900 focus:outline-none transition-colors duration-150"
+          <tbody className="dark-panel divide-y dark-divider">
+            {requests.map((request, index) => {
+              return (
+                <tr key={request.id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">
+                    {(currentPage - 1) * pageSize + index + 1}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {request.issue_title}
+                    </div>
+                    <div
+                      className="text-sm text-gray-500 dark:text-gray-400 truncate"
+                      style={{ maxWidth: "250px" }}
                     >
-                      View
-                    </button>
-                    <button
-                      onClick={() => onEdit(request)}
-                      className="text-blue-600 hover:text-blue-900 focus:outline-none transition-colors duration-150"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => onDelete(request.id)}
-                      className="text-red-600 hover:text-red-900 focus:outline-none transition-colors duration-150"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                      {request.description}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">
+                    <div className="text-sm text-gray-900 dark:text-gray-100 transition-colors duration-300">
+                      {request.property?.name || "N/A"}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {request.unit?.unit_number || request.unit?.name || "Common Area"}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <div className="text-sm text-gray-900 dark:text-gray-100 transition-colors duration-300">
+                      {request.tenant?.name || "N/A"}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <div className="text-sm text-gray-900 dark:text-gray-100 transition-colors duration-300">
+                      {(() => {
+                        try {
+                          const date = new Date(request.request_date);
+                          return isNaN(date.getTime()) ? "Invalid Date" : date.toLocaleDateString();
+                        } catch {
+                          return "Invalid Date";
+                        }
+                      })()}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <PriorityBadge priority={request.priority} />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 transition-colors duration-300">
+                    {request.assigned_to || "N/A"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <StatusBadge status={request.status} />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                    <div className="flex justify-center space-x-3">
+                      <button
+                        onClick={() => onView(request)}
+                        className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 focus:outline-none transition-colors duration-150"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => onEdit(request)}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 focus:outline-none transition-colors duration-150"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => onDelete(request.id)}
+                        className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 focus:outline-none transition-colors duration-150"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
     </div>

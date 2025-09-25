@@ -104,11 +104,11 @@ class FinancialErrorBoundary extends Component<Props, State> {
 
       // Default financial error UI
       return (
-        <div className="min-h-[400px] flex items-center justify-center bg-red-50 border border-red-200 rounded-lg p-8">
+        <div className="min-h-[400px] flex items-center justify-center bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-8">
           <div className="text-center max-w-md">
             <div className="mb-4">
               <svg 
-                className="mx-auto h-16 w-16 text-red-400" 
+                className="mx-auto h-16 w-16 text-red-400 dark:text-red-500" 
                 fill="none" 
                 viewBox="0 0 24 24" 
                 stroke="currentColor"
@@ -122,11 +122,11 @@ class FinancialErrorBoundary extends Component<Props, State> {
               </svg>
             </div>
             
-            <h3 className="text-lg font-semibold text-red-800 mb-2">
+            <h3 className="text-lg font-semibold text-red-800 dark:text-red-300 mb-2">
               Financial Calculation Error
             </h3>
             
-            <p className="text-red-600 mb-6 text-sm leading-relaxed">
+            <p className="text-red-600 dark:text-red-400 mb-6 text-sm leading-relaxed">
               We encountered an error while processing your financial data. 
               Your information is safe and has not been lost.
             </p>
@@ -134,14 +134,14 @@ class FinancialErrorBoundary extends Component<Props, State> {
             <div className="space-y-3">
               <button
                 onClick={this.handleRetry}
-                className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                className="w-full bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white font-medium py-2 px-4 rounded-md transition-colors"
               >
                 Try Again
               </button>
               
               <button
                 onClick={this.handleRefresh}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-md transition-colors"
+                className="w-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium py-2 px-4 rounded-md transition-colors"
               >
                 Refresh Page
               </button>
@@ -149,10 +149,10 @@ class FinancialErrorBoundary extends Component<Props, State> {
 
             {process.env.NODE_ENV === 'development' && (
               <details className="mt-6 text-left">
-                <summary className="cursor-pointer text-sm text-gray-600 mb-2">
+                <summary className="cursor-pointer text-sm text-gray-600 dark:text-gray-400 mb-2">
                   Error Details (Development)
                 </summary>
-                <div className="bg-gray-100 p-3 rounded text-xs font-mono text-gray-800 overflow-auto max-h-40">
+                <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded text-xs font-mono text-gray-800 dark:text-gray-200 overflow-auto max-h-40">
                   <div className="mb-2">
                     <strong>Error ID:</strong> {this.state.errorId}
                   </div>

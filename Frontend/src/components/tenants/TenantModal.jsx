@@ -310,7 +310,7 @@ const TenantModal = ({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 400 }}
-            className="relative w-full max-w-2xl bg-white rounded-xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col z-[10000]"
+            className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col z-[10000]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -334,12 +334,12 @@ const TenantModal = ({
             </div>
 
             {/* Content */}
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-gray-50">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
               {error && (
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mx-6 mt-4 p-3 bg-red-50 border border-red-100 text-red-700 rounded-lg"
+                  className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/50 border border-red-100 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg"
                 >
                   <div className="flex">
                     <svg className="h-5 w-5 text-red-400 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
@@ -352,14 +352,14 @@ const TenantModal = ({
 
               <div className="p-6 space-y-4">
                 {/* Tenant Type Section */}
-                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                   <div className="flex items-center mb-3">
-                    <div className="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center mr-3">
-                      <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <div className="w-9 h-9 bg-purple-50 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mr-3">
+                      <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
                     </div>
-                    <h3 className="text-base font-medium text-gray-900">Tenant Type</h3>
+                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Tenant Type</h3>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-3">
@@ -370,13 +370,13 @@ const TenantModal = ({
                         value="Individual"
                         checked={formData.tenant_type === "Individual"}
                         onChange={handleChange}
-                        className="mr-3 text-blue-600 focus:ring-blue-500"
+                        className="mr-3 text-blue-600 dark:text-blue-500 focus:ring-blue-500"
                       />
                       <div className="flex items-center">
-                        <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-5 h-5 text-gray-400 dark:text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        <span className="text-sm font-medium text-gray-700">Individual</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Individual</span>
                       </div>
                     </label>
                     <label className="flex items-center cursor-pointer">
@@ -386,27 +386,27 @@ const TenantModal = ({
                         value="Company"
                         checked={formData.tenant_type === "Company"}
                         onChange={handleChange}
-                        className="mr-3 text-blue-600 focus:ring-blue-500"
+                        className="mr-3 text-blue-600 dark:text-blue-500 focus:ring-blue-500"
                       />
                       <div className="flex items-center">
-                        <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-5 h-5 text-gray-400 dark:text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
-                        <span className="text-sm font-medium text-gray-700">Company</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Company</span>
                       </div>
                     </label>
                   </div>
                 </div>
 
                 {/* Conditional Name/Company Section */}
-                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                   <div className="flex items-center mb-3">
-                    <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center mr-3">
-                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <div className="w-9 h-9 bg-blue-50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mr-3">
+                      <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                     </div>
-                    <h3 className="text-base font-medium text-gray-900">
+                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">
                       {formData.tenant_type === "Individual" ? "Personal Information" : "Company Information"}
                     </h3>
                   </div>
@@ -414,8 +414,8 @@ const TenantModal = ({
                   {formData.tenant_type === "Individual" ? (
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          First Name <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          First Name <span className="text-red-500 dark:text-red-400">*</span>
                         </label>
                         <input
                           name="first_name"
@@ -423,19 +423,19 @@ const TenantModal = ({
                           onChange={handleChange}
                           onBlur={handleBlur}
                           placeholder="Enter first name"
-                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
-                            fieldErrors.first_name && touched.first_name ? 'border-red-300' : 'border-gray-200'
+                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                            fieldErrors.first_name && touched.first_name ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                           }`}
                           required
                         />
                         {fieldErrors.first_name && touched.first_name && (
-                          <p className="mt-2 text-sm text-red-600">{fieldErrors.first_name}</p>
+                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{fieldErrors.first_name}</p>
                         )}
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Last Name <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Last Name <span className="text-red-500 dark:text-red-400">*</span>
                         </label>
                         <input
                           name="last_name"
@@ -443,21 +443,21 @@ const TenantModal = ({
                           onChange={handleChange}
                           onBlur={handleBlur}
                           placeholder="Enter last name"
-                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
-                            fieldErrors.last_name && touched.last_name ? 'border-red-300' : 'border-gray-200'
+                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                            fieldErrors.last_name && touched.last_name ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                           }`}
                           required
                         />
                         {fieldErrors.last_name && touched.last_name && (
-                          <p className="mt-2 text-sm text-red-600">{fieldErrors.last_name}</p>
+                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{fieldErrors.last_name}</p>
                         )}
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Company Name <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Company Name <span className="text-red-500 dark:text-red-400">*</span>
                         </label>
                         <input
                           name="company_name"
@@ -465,18 +465,18 @@ const TenantModal = ({
                           onChange={handleChange}
                           onBlur={handleBlur}
                           placeholder="Enter company name"
-                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
-                            fieldErrors.company_name && touched.company_name ? 'border-red-300' : 'border-gray-200'
+                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                            fieldErrors.company_name && touched.company_name ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                           }`}
                           required
                         />
                         {fieldErrors.company_name && touched.company_name && (
-                          <p className="mt-2 text-sm text-red-600">{fieldErrors.company_name}</p>
+                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{fieldErrors.company_name}</p>
                         )}
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Contact Person
                         </label>
                         <input
@@ -485,7 +485,7 @@ const TenantModal = ({
                           onChange={handleChange}
                           onBlur={handleBlur}
                           placeholder="Enter contact person name"
-                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                          className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                         />
                       </div>
                     </div>
@@ -493,20 +493,20 @@ const TenantModal = ({
                 </div>
 
                 {/* Contact Information Section */}
-                <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                   <div className="flex items-center mb-3">
-                    <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center mr-3">
-                      <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <div className="w-9 h-9 bg-green-50 dark:bg-green-900/30 rounded-lg flex items-center justify-center mr-3">
+                      <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                     </div>
-                    <h3 className="text-base font-medium text-gray-900">Contact Information</h3>
+                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Contact Information</h3>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email <span className="text-red-500">*</span>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Email <span className="text-red-500 dark:text-red-400">*</span>
                       </label>
                       <input
                         name="email"
@@ -515,18 +515,18 @@ const TenantModal = ({
                         onChange={handleChange}
                         onBlur={handleBlur}
                         placeholder="Enter email address"
-                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
-                          fieldErrors.email && touched.email ? 'border-red-300' : 'border-gray-200'
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                          fieldErrors.email && touched.email ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                         }`}
                         required
                       />
                       {fieldErrors.email && touched.email && (
-                        <p className="mt-2 text-sm text-red-600">{fieldErrors.email}</p>
+                        <p className="mt-2 text-sm text-red-600 dark:text-red-400">{fieldErrors.email}</p>
                       )}
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Phone Number
                       </label>
                       <input
@@ -536,12 +536,12 @@ const TenantModal = ({
                         onChange={handleChange}
                         onBlur={handleBlur}
                         placeholder="Enter phone number"
-                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
-                          fieldErrors.phone && touched.phone ? 'border-red-300' : 'border-gray-200'
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                          fieldErrors.phone && touched.phone ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                         }`}
                       />
                       {fieldErrors.phone && touched.phone && (
-                        <p className="mt-2 text-sm text-red-600">{fieldErrors.phone}</p>
+                        <p className="mt-2 text-sm text-red-600 dark:text-red-400">{fieldErrors.phone}</p>
                       )}
                     </div>
                   </div>
@@ -550,14 +550,14 @@ const TenantModal = ({
             </form>
 
             {/* Footer */}
-            <div className="px-6 py-5 bg-gray-50 border-t border-gray-200">
+            <div className="px-6 py-5 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="text-sm text-gray-500 flex items-start flex-1 sm:max-w-md">
-                  <svg className="w-4 h-4 mr-2 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <div className="text-sm text-gray-500 dark:text-gray-400 flex items-start flex-1 sm:max-w-md">
+                  <svg className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>
-                    <span className="text-red-600 font-bold">*</span> Required fields. 
+                    <span className="text-red-600 dark:text-red-400 font-bold">*</span> Required fields. 
                     Phone number is optional but recommended for communication.
                   </span>
                 </div>
@@ -565,7 +565,7 @@ const TenantModal = ({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all text-sm font-medium"
+                    className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all text-sm font-medium"
                     disabled={isLoading}
                   >
                     Cancel

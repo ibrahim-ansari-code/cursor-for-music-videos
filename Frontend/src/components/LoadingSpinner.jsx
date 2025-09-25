@@ -30,10 +30,10 @@ const LoadingSpinner = ({
     >
       <div className={center ? "text-center" : ""}>
         <div 
-          className={`animate-spin rounded-full border-b-2 border-blue-500 mx-auto ${spinnerSizeClass}`}
+          className={`animate-spin rounded-full border-b-2 border-blue-500 dark:border-blue-400 mx-auto transition-colors ${spinnerSizeClass}`}
           aria-hidden="true"
         />
-        <p className="mt-3 text-gray-600" id={descriptionId}>
+        <p className="mt-3 text-gray-600 dark:text-gray-400 transition-colors" id={descriptionId}>
           {message}
         </p>
       </div>

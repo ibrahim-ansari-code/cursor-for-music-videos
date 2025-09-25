@@ -49,6 +49,17 @@ const UnitStatusBadge = ({ isRented, tenantName = null, size = "default" }) => {
         label: "Vacant",
       };
 
+  const getStatusStyle = () => {
+    switch (status) {
+      case 'rented':
+        return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-700';
+      case 'vacant':
+        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700';
+      default:
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-600';
+    }
+  };
+
   return (
     <span
       className={`

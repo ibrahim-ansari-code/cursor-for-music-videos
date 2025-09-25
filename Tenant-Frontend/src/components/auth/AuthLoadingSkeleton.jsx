@@ -2,7 +2,7 @@ import React from "react";
 
 const AuthLoadingSkeleton = () => {
   return (
-    <div className="min-h-screen flex bg-gray-50">
+    <div className="min-h-screen flex bg-gray-50 dark:bg-gray-900">
       {/* Left Column - Branding Panel Skeleton */}
       <div className="hidden md:block md:w-3/5 bg-gradient-to-br from-brand-green to-brand-teal relative overflow-hidden"
            style={{ padding: 'calc(32px + 1.5625vw)' }}>
@@ -70,21 +70,21 @@ const AuthLoadingSkeleton = () => {
       </div>
 
       {/* Right Column - Form Skeleton */}
-      <div className="w-full md:w-2/5 bg-white flex items-center justify-center p-8 md:p-12">
+      <div className="w-full md:w-2/5 bg-white dark:bg-gray-800 flex items-center justify-center p-8 md:p-12">
         <div className="w-full max-w-sm animate-pulse">
           <div className="space-y-6">
             <div className="space-y-2">
-              <div className="h-8 w-32 bg-gray-200 rounded"></div>
-              <div className="h-4 w-48 bg-gray-200 rounded"></div>
+              <div className="h-8 w-32 bg-gray-200 dark:bg-gray-700 rounded transition-colors"></div>
+              <div className="h-4 w-48 bg-gray-200 dark:bg-gray-700 rounded transition-colors"></div>
             </div>
             
             <div className="space-y-4">
-              <div className="h-10 w-full bg-gray-200 rounded"></div>
-              <div className="h-10 w-full bg-gray-200 rounded"></div>
-              <div className="h-10 w-full bg-gray-200 rounded"></div>
+              <div className="h-10 w-full bg-gray-200 dark:bg-gray-700 rounded transition-colors"></div>
+              <div className="h-10 w-full bg-gray-200 dark:bg-gray-700 rounded transition-colors"></div>
+              <div className="h-10 w-full bg-gray-200 dark:bg-gray-700 rounded transition-colors"></div>
             </div>
             
-            <div className="h-4 w-32 bg-gray-200 rounded ml-auto"></div>
+            <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded ml-auto transition-colors"></div>
           </div>
         </div>
       </div>

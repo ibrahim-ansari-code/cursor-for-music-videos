@@ -336,7 +336,7 @@ const BulkAssignTenantModal = ({
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
                             transition={{ type: "spring", damping: 25, stiffness: 400 }}
-                            className="relative w-full max-w-3xl bg-white rounded-xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col z-[10000]"
+                            className="relative w-full max-w-3xl bg-white dark:bg-gray-800 rounded-xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col z-[10000]"
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Header */}
@@ -365,7 +365,7 @@ const BulkAssignTenantModal = ({
                             </div>
 
                             {/* Content */}
-                            <div className="flex-1 overflow-y-auto bg-gray-50">
+                            <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
                                 {!showResults ? (
                                     /* Form View */
                                     <div>
@@ -373,10 +373,10 @@ const BulkAssignTenantModal = ({
                                             <motion.div
                                                 initial={{ opacity: 0, y: -10 }}
                                                 animate={{ opacity: 1, y: 0 }}
-                                                className="mx-6 mt-4 p-3 bg-red-50 border border-red-100 text-red-700 rounded-lg"
+                                                className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/50 border border-red-100 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg"
                                             >
                                                 <div className="flex">
-                                                    <svg className="h-5 w-5 text-red-400 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                                                    <svg className="h-5 w-5 text-red-400 dark:text-red-500 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
                                                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                                                     </svg>
                                                     <span className="text-sm">{error}</span>
@@ -386,22 +386,22 @@ const BulkAssignTenantModal = ({
 
                                         <form onSubmit={handleSubmit} className="p-6 space-y-4">
                                             {/* Selected Units Section */}
-                                            <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                                            <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                                                 <div className="flex items-center mb-3">
-                                                    <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center mr-3">
-                                                        <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <div className="w-9 h-9 bg-blue-50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mr-3">
+                                                        <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                             <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                                         </svg>
                                                     </div>
-                                                    <h3 className="text-base font-medium text-gray-900">
+                                                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">
                                                         Selected Units ({selectedUnits.length})
                                                     </h3>
                                                 </div>
-                                                <div className="flex flex-wrap gap-2 max-h-20 overflow-y-auto bg-gray-50 p-3 rounded-lg">
+                                                <div className="flex flex-wrap gap-2 max-h-20 overflow-y-auto bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
                                                     {selectedUnits.map(unit => (
                                                         <span
                                                             key={unit.id}
-                                                            className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                                            className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400"
                                                         >
                                                             {unit.name || unit.id}
                                                         </span>
@@ -410,19 +410,19 @@ const BulkAssignTenantModal = ({
                                             </div>
 
                                             {/* Tenant Selection Section */}
-                                            <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                                            <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                                                 <div className="flex items-center mb-3">
                                                     <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center mr-3">
                                                         <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                             <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                                         </svg>
                                                     </div>
-                                                    <h3 className="text-base font-medium text-gray-900">Tenant Information</h3>
+                                                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Tenant Information</h3>
                                                 </div>
 
                                                 <div ref={dropdownRef}>
                                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                        Select Tenant <span className="text-red-500">*</span>
+                                                        Select Tenant <span className="text-red-500 dark:text-red-400">*</span>
                                                     </label>
                                                     <div className="relative">
                                                         <input
@@ -444,7 +444,7 @@ const BulkAssignTenantModal = ({
                                                                 }
                                                             }}
                                                             onFocus={() => setIsDropdownOpen(true)}
-                                                            className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${fieldErrors.tenant ? 'border-red-300' : 'border-gray-200'
+                                                            className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${fieldErrors.tenant ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                                                                 }`}
                                                         />
                                                         <AnimatePresence>
@@ -453,25 +453,25 @@ const BulkAssignTenantModal = ({
                                                                     initial={{ opacity: 0, y: -10 }}
                                                                     animate={{ opacity: 1, y: 0 }}
                                                                     exit={{ opacity: 0, y: -10 }}
-                                                                    className="absolute z-10 mt-2 w-full bg-white shadow-lg rounded-lg border border-gray-100 max-h-48 overflow-y-auto"
+                                                                    className="absolute z-10 mt-2 w-full bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-100 dark:border-gray-700 max-h-48 overflow-y-auto"
                                                                 >
                                                                     {isLoadingTenants ? (
-                                                                        <div className="p-3 text-sm text-gray-500">Loading...</div>
+                                                                        <div className="p-3 text-sm text-gray-500 dark:text-gray-400">Loading...</div>
                                                                     ) : (
                                                                         <ul>
                                                                             {filteredTenants.map(t => (
                                                                                 <li
                                                                                     key={t.id}
                                                                                     onClick={() => handleSelectTenant(t)}
-                                                                                    className="p-3 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-100 last:border-b-0 transition-colors"
+                                                                                    className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer text-sm border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors"
                                                                                 >
-                                                                                    <div className="font-medium text-gray-900">{t.first_name} {t.last_name}</div>
-                                                                                    {t.email && <div className="text-gray-500 text-xs mt-0.5">{t.email}</div>}
+                                                                                    <div className="font-medium text-gray-900 dark:text-gray-100">{t.first_name} {t.last_name}</div>
+                                                                                    {t.email && <div className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">{t.email}</div>}
                                                                                 </li>
                                                                             ))}
                                                                             <li
                                                                                 onClick={handleCreateNewTenant}
-                                                                                className="p-3 hover:bg-blue-50 cursor-pointer text-sm font-medium text-blue-600 bg-gray-50"
+                                                                                className="p-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer text-sm font-medium text-blue-600 dark:text-blue-400 bg-gray-50 dark:bg-gray-700/50"
                                                                             >
                                                                                 <div className="flex items-center">
                                                                                     <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -487,43 +487,43 @@ const BulkAssignTenantModal = ({
                                                         </AnimatePresence>
                                                     </div>
                                                     {fieldErrors.tenant && (
-                                                        <p className="mt-2 text-sm text-red-600">{fieldErrors.tenant}</p>
+                                                        <p className="mt-2 text-sm text-red-600 dark:text-red-400">{fieldErrors.tenant}</p>
                                                     )}
                                                 </div>
                                             </div>
 
                                             {/* Lease Terms Section */}
-                                            <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                                            <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                                                 <div className="flex items-center mb-3">
-                                                    <div className="w-9 h-9 bg-yellow-50 rounded-lg flex items-center justify-center mr-3">
-                                                        <svg className="w-4 h-4 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <div className="w-9 h-9 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center mr-3">
+                                                        <svg className="w-4 h-4 text-yellow-600 dark:text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                             <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                         </svg>
                                                     </div>
-                                                    <h3 className="text-base font-medium text-gray-900">Lease Duration</h3>
+                                                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Lease Duration</h3>
                                                 </div>
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                                                     <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                            Lease Start Date <span className="text-red-500">*</span>
+                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                            Lease Start Date <span className="text-red-500 dark:text-red-400">*</span>
                                                         </label>
                                                         <input
                                                             type="date"
                                                             name="lease_start_date"
                                                             value={leaseData.lease_start_date}
                                                             onChange={handleChange}
-                                                            className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${fieldErrors.lease_start_date ? 'border-red-300' : 'border-gray-200'
+                                                            className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 dark:[color-scheme:dark] ${fieldErrors.lease_start_date ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                                                                 }`}
                                                             required
                                                         />
                                                         {fieldErrors.lease_start_date && (
-                                                            <p className="mt-2 text-sm text-red-600">{fieldErrors.lease_start_date}</p>
+                                                            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{fieldErrors.lease_start_date}</p>
                                                         )}
                                                     </div>
                                                     <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                            Lease End Date <span className="text-red-500">*</span>
+                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                            Lease End Date <span className="text-red-500 dark:text-red-400">*</span>
                                                         </label>
                                                         <input
                                                             type="date"
@@ -531,41 +531,41 @@ const BulkAssignTenantModal = ({
                                                             value={leaseData.end_date}
                                                             onChange={handleChange}
                                                             min={leaseData.lease_start_date}
-                                                            className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${fieldErrors.end_date ? 'border-red-300' : 'border-gray-200'
+                                                            className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 dark:[color-scheme:dark] ${fieldErrors.end_date ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                                                                 }`}
                                                             required
                                                         />
                                                         {fieldErrors.end_date && (
-                                                            <p className="mt-2 text-sm text-red-600">{fieldErrors.end_date}</p>
+                                                            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{fieldErrors.end_date}</p>
                                                         )}
                                                     </div>
                                                 </div>
                                             </div>
 
                                             {/* Financial Terms Section */}
-                                            <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                                            <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                                                 <div className="flex items-center mb-3">
-                                                    <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center mr-3">
-                                                        <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <div className="w-9 h-9 bg-green-50 dark:bg-green-900/30 rounded-lg flex items-center justify-center mr-3">
+                                                        <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                         </svg>
                                                     </div>
-                                                    <h3 className="text-base font-medium text-gray-900">Financial Terms</h3>
+                                                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Financial Terms</h3>
                                                 </div>
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                                     <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                                             Monthly Rent (Optional)
                                                         </label>
                                                         <div className="relative">
-                                                            <span className="absolute left-4 top-2.5 text-gray-500 font-medium">$</span>
+                                                            <span className="absolute left-4 top-2.5 text-gray-500 dark:text-gray-400 font-medium">$</span>
                                                             <input
                                                                 type="number"
                                                                 name="monthly_rent"
                                                                 value={leaseData.monthly_rent}
                                                                 onChange={handleChange}
-                                                                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                                 placeholder="Use unit's default rent"
                                                                 step="0.01"
                                                                 min="0"
@@ -573,17 +573,17 @@ const BulkAssignTenantModal = ({
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                            Security Deposit <span className="text-red-500">*</span>
+                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                            Security Deposit <span className="text-red-500 dark:text-red-400">*</span>
                                                         </label>
                                                         <div className="relative">
-                                                            <span className="absolute left-4 top-2.5 text-gray-500 font-medium">$</span>
+                                                            <span className="absolute left-4 top-2.5 text-gray-500 dark:text-gray-400 font-medium">$</span>
                                                             <input
                                                                 type="number"
                                                                 name="security_deposit"
                                                                 value={leaseData.security_deposit}
                                                                 onChange={handleChange}
-                                                                className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${fieldErrors.security_deposit ? 'border-red-300' : 'border-gray-200'
+                                                                className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${fieldErrors.security_deposit ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
                                                                     }`}
                                                                 placeholder="0.00"
                                                                 step="0.01"
@@ -592,49 +592,49 @@ const BulkAssignTenantModal = ({
                                                             />
                                                         </div>
                                                         {fieldErrors.security_deposit && (
-                                                            <p className="mt-2 text-sm text-red-600">{fieldErrors.security_deposit}</p>
+                                                            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{fieldErrors.security_deposit}</p>
                                                         )}
                                                     </div>
                                                 </div>
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                     <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                                             When is Rent Due?
                                                         </label>
-                                                        <div className="space-y-1.5 bg-gray-50 p-3 rounded-lg">
-                                                            <label className="flex items-center cursor-pointer hover:text-blue-600 transition-colors py-1">
+                                                        <div className="space-y-1.5 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                                                            <label className="flex items-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors py-1">
                                                                 <input
                                                                     type="radio"
                                                                     name="rent_due_option"
                                                                     value="1"
                                                                     checked={rentDueOption === '1'}
                                                                     onChange={(e) => handleRentDueOptionChange(e.target.value)}
-                                                                    className="mr-2.5 text-blue-600 focus:ring-blue-500"
+                                                                    className="mr-2.5 text-blue-600 dark:text-blue-500 focus:ring-blue-500"
                                                                 />
-                                                                <span className="text-sm">1st of every month</span>
+                                                                <span className="text-sm text-gray-900 dark:text-gray-100">1st of every month</span>
                                                             </label>
-                                                            <label className="flex items-center cursor-pointer hover:text-blue-600 transition-colors py-1">
+                                                            <label className="flex items-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors py-1">
                                                                 <input
                                                                     type="radio"
                                                                     name="rent_due_option"
                                                                     value="15"
                                                                     checked={rentDueOption === '15'}
                                                                     onChange={(e) => handleRentDueOptionChange(e.target.value)}
-                                                                    className="mr-2.5 text-blue-600 focus:ring-blue-500"
+                                                                    className="mr-2.5 text-blue-600 dark:text-blue-500 focus:ring-blue-500"
                                                                 />
-                                                                <span className="text-sm">15th of every month</span>
+                                                                <span className="text-sm text-gray-900 dark:text-gray-100">15th of every month</span>
                                                             </label>
-                                                            <label className="flex items-center cursor-pointer hover:text-blue-600 transition-colors py-1">
+                                                            <label className="flex items-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors py-1">
                                                                 <input
                                                                     type="radio"
                                                                     name="rent_due_option"
                                                                     value="last"
                                                                     checked={rentDueOption === 'last'}
                                                                     onChange={(e) => handleRentDueOptionChange(e.target.value)}
-                                                                    className="mr-2.5 text-blue-600 focus:ring-blue-500"
+                                                                    className="mr-2.5 text-blue-600 dark:text-blue-500 focus:ring-blue-500"
                                                                 />
-                                                                <span className="text-sm">Last day of every month</span>
+                                                                <span className="text-sm text-gray-900 dark:text-gray-100">Last day of every month</span>
                                                             </label>
                                                             <div className="flex items-center py-1">
                                                                 <label className="flex items-center cursor-pointer hover:text-blue-600 transition-colors">
@@ -644,16 +644,16 @@ const BulkAssignTenantModal = ({
                                                                         value="custom"
                                                                         checked={rentDueOption === 'custom'}
                                                                         onChange={(e) => handleRentDueOptionChange(e.target.value)}
-                                                                        className="mr-2.5 text-blue-600 focus:ring-blue-500"
+                                                                        className="mr-2.5 text-blue-600 dark:text-blue-500 focus:ring-blue-500"
                                                                     />
-                                                                    <span className="text-sm">Other day:</span>
+                                                                    <span className="text-sm text-gray-900 dark:text-gray-100">Other day:</span>
                                                                 </label>
                                                                 {rentDueOption === 'custom' && (
                                                                     <input
                                                                         type="number"
                                                                         value={customRentDueDay}
                                                                         onChange={(e) => handleCustomRentDueChange(e.target.value)}
-                                                                        className="ml-2 w-16 px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                                        className="ml-2 w-16 px-2 py-1 border border-gray-200 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                                         placeholder="e.g. 5"
                                                                         min="1"
                                                                         max="31"
@@ -661,24 +661,24 @@ const BulkAssignTenantModal = ({
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        <p className="mt-1.5 text-xs text-gray-500">
+                                                        <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                                                             For months with fewer days, the last valid day will be used
                                                         </p>
                                                     </div>
 
                                                     <div className="space-y-4">
                                                         <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                                                 Late Fee Amount
                                                             </label>
                                                             <div className="relative">
-                                                                <span className="absolute left-4 top-2.5 text-gray-500 font-medium">$</span>
+                                                                <span className="absolute left-4 top-2.5 text-gray-500 dark:text-gray-400 font-medium">$</span>
                                                                 <input
                                                                     type="number"
                                                                     name="late_fee_amount"
                                                                     value={leaseData.late_fee_amount}
                                                                     onChange={handleChange}
-                                                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                                     placeholder="50.00"
                                                                     step="0.01"
                                                                     min="0"
@@ -686,7 +686,7 @@ const BulkAssignTenantModal = ({
                                                             </div>
                                                         </div>
                                                         <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                                                 Grace Period Before Late Fee
                                                             </label>
                                                             <div className="relative">
@@ -695,13 +695,13 @@ const BulkAssignTenantModal = ({
                                                                     name="late_fee_after_days"
                                                                     value={leaseData.late_fee_after_days}
                                                                     onChange={handleChange}
-                                                                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                                     placeholder="5"
                                                                     min="0"
                                                                 />
-                                                                <span className="absolute right-4 top-2.5 text-gray-500 text-sm">days</span>
+                                                                <span className="absolute right-4 top-2.5 text-gray-500 dark:text-gray-400 text-sm">days</span>
                                                             </div>
-                                                            <p className="mt-1 text-xs text-gray-500">
+                                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                                                 Number of days after due date before late fee applies
                                                             </p>
                                                         </div>
@@ -710,14 +710,14 @@ const BulkAssignTenantModal = ({
                                             </div>
 
                                             {/* Special Terms Section */}
-                                            <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                                            <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
                                                 <div className="flex items-center mb-3">
-                                                    <div className="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center mr-3">
-                                                        <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <div className="w-9 h-9 bg-purple-50 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mr-3">
+                                                        <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                         </svg>
                                                     </div>
-                                                    <h3 className="text-base font-medium text-gray-900">Additional Terms</h3>
+                                                    <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Additional Terms</h3>
                                                 </div>
 
                                                 <textarea
@@ -725,7 +725,7 @@ const BulkAssignTenantModal = ({
                                                     rows="4"
                                                     value={leaseData.special_terms}
                                                     onChange={handleChange}
-                                                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none bg-white"
+                                                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                                     placeholder="Enter any special conditions, pet policies, utilities arrangements, or other lease terms that will apply to all selected units..."
                                                 />
                                             </div>
@@ -736,43 +736,43 @@ const BulkAssignTenantModal = ({
                                     <div className="p-6">
                                         {/* Results Summary */}
                                         <div className="mb-6 grid grid-cols-3 gap-4">
-                                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                                                <div className="text-2xl font-bold text-blue-600">{assignmentResults?.total_units || 0}</div>
-                                                <div className="text-sm text-blue-700">Total Units</div>
+                                            <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4 text-center">
+                                                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{assignmentResults?.total_units || 0}</div>
+                                                <div className="text-sm text-blue-700 dark:text-blue-300">Total Units</div>
                                             </div>
-                                            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                                                <div className="text-2xl font-bold text-green-600">{assignmentResults?.successful_assignments || 0}</div>
-                                                <div className="text-sm text-green-700">Successful</div>
+                                            <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg p-4 text-center">
+                                                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{assignmentResults?.successful_assignments || 0}</div>
+                                                <div className="text-sm text-green-700 dark:text-green-300">Successful</div>
                                             </div>
-                                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-                                                <div className="text-2xl font-bold text-red-600">{assignmentResults?.failed_assignments || 0}</div>
-                                                <div className="text-sm text-red-700">Failed</div>
+                                            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg p-4 text-center">
+                                                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{assignmentResults?.failed_assignments || 0}</div>
+                                                <div className="text-sm text-red-700 dark:text-red-300">Failed</div>
                                             </div>
                                         </div>
 
                                         {/* Error Details */}
                                         {assignmentResults?.errors?.length > 0 && (
-                                            <div className="mb-6 bg-white rounded-lg p-5 shadow-sm border border-gray-100">
-                                                <h3 className="font-medium text-gray-900 mb-3 flex items-center">
-                                                    <svg className="w-5 h-5 text-red-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+                                                <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center">
+                                                    <svg className="w-5 h-5 text-red-500 dark:text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                                                     </svg>
                                                     Assignment Errors
                                                 </h3>
-                                                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                                <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                                                     <div className="max-h-64 overflow-auto">
                                                         <table className="min-w-full divide-y divide-gray-200">
-                                                            <thead className="bg-gray-50">
+                                                            <thead className="bg-gray-50 dark:bg-gray-700">
                                                                 <tr>
-                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Number</th>
-                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Error</th>
+                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unit Number</th>
+                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Error</th>
                                                                 </tr>
                                                             </thead>
-                                                            <tbody className="bg-white divide-y divide-gray-200">
+                                                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                                                 {assignmentResults.errors.map((error, index) => (
-                                                                    <tr key={index} className="hover:bg-gray-50">
-                                                                        <td className="px-4 py-3 text-sm text-gray-900">{error.unit_number}</td>
-                                                                        <td className="px-4 py-3 text-sm text-red-600">{error.error_message}</td>
+                                                                    <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{error.unit_number}</td>
+                                                                        <td className="px-4 py-3 text-sm text-red-600 dark:text-red-400">{error.error_message}</td>
                                                                     </tr>
                                                                 ))}
                                                             </tbody>
@@ -786,11 +786,11 @@ const BulkAssignTenantModal = ({
                             </div>
 
                             {/* Footer */}
-                            <div className="px-6 py-5 bg-gray-50 border-t border-gray-200">
+                            <div className="px-6 py-5 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                                 {!showResults ? (
                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                        <div className="text-sm text-gray-500 flex items-start flex-1 sm:max-w-md">
-                                            <svg className="w-4 h-4 mr-2 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <div className="text-sm text-gray-500 dark:text-gray-400 flex items-start flex-1 sm:max-w-md">
+                                            <svg className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
                                             <span>This will create customized leases for all selected units with the terms you've specified above. Additional lease details can be modified later on the Leases page.</span>
@@ -799,7 +799,7 @@ const BulkAssignTenantModal = ({
                                             <button
                                                 type="button"
                                                 onClick={handleClose}
-                                                className="px-4 py-2.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all text-sm font-medium"
+                                                className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all text-sm font-medium"
                                                 disabled={loading}
                                             >
                                                 Cancel

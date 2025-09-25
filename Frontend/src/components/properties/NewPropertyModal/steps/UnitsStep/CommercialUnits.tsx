@@ -206,10 +206,10 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
         <div className="flex items-center gap-3 mb-2">
           <span className="text-2xl">{currentSpaceType.emoji}</span>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
               {currentSpaceType.label} Space Configuration
             </h2>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
               {usableSquareFeet.toLocaleString()} SF usable • 
               {rentableSquareFeet > 0 && ` ${rentableSquareFeet.toLocaleString()} SF rentable • `}
               {leaseTypeLabels[leaseType as keyof typeof leaseTypeLabels]}
@@ -221,16 +221,16 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
       {/* Quick Split Options */}
       <div className={(() => {
         const color = currentSpaceType.color;
-        if (color === 'green') return 'bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4 border border-green-200 mb-4';
-        if (color === 'blue') return 'bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200 mb-4';
-        if (color === 'red') return 'bg-gradient-to-br from-red-50 to-red-100/50 rounded-xl p-4 border border-red-200 mb-4';
-        if (color === 'amber') return 'bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-xl p-4 border border-amber-200 mb-4';
-        if (color === 'purple') return 'bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-4 border border-purple-200 mb-4';
-        if (color === 'indigo') return 'bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-xl p-4 border border-indigo-200 mb-4';
-        return 'bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-4 border border-gray-200 mb-4';
+        if (color === 'green') return 'bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-4 border border-green-200 dark:border-green-700 mb-4';
+        if (color === 'blue') return 'bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-4 border border-blue-200 dark:border-blue-700 mb-4';
+        if (color === 'red') return 'bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/20 rounded-xl p-4 border border-red-200 dark:border-red-700 mb-4';
+        if (color === 'amber') return 'bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/20 rounded-xl p-4 border border-amber-200 dark:border-amber-700 mb-4';
+        if (color === 'purple') return 'bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4 border border-purple-200 dark:border-purple-700 mb-4';
+        if (color === 'indigo') return 'bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/20 dark:to-indigo-800/20 rounded-xl p-4 border border-indigo-200 dark:border-indigo-700 mb-4';
+        return 'bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-900/20 dark:to-gray-800/20 rounded-xl p-4 border border-gray-200 dark:border-gray-700 mb-4';
       })()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900 flex items-center">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center">
             <Layers className="h-4 w-4 mr-1.5 text-indigo-600" />
             Space Division Options
           </h3>
@@ -243,7 +243,7 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
             className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
               units.length === 1 && !autoSplit
                 ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md'
-                : 'bg-white text-gray-700 border border-gray-200 hover:border-gray-300'
+                : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
             }`}
           >
             Single Tenant
@@ -256,14 +256,14 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                 autoSplit
                   ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md'
-                  : 'bg-white text-gray-700 border border-gray-200 hover:border-gray-300'
+                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
               }`}
             >
               Multi-Tenant
             </button>
             
             {autoSplit && (
-              <div className="flex items-center gap-1 bg-white rounded-lg px-2 py-1 border border-gray-200">
+              <div className="flex items-center gap-1 bg-white dark:bg-gray-700 rounded-lg px-2 py-1 border border-gray-200 dark:border-gray-600">
                 <button
                   type="button"
                   onClick={() => {
@@ -275,7 +275,7 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
                 >
                   <Minus className="h-3 w-3" />
                 </button>
-                <span className="px-2 text-sm font-medium text-gray-700 min-w-[30px] text-center">
+                <span className="px-2 text-sm font-medium text-gray-700 dark:text-gray-200 min-w-[30px] text-center">
                   {numberOfSpaces}
                 </span>
                 <button
@@ -295,7 +295,7 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
           
           {/* Quick size presets */}
           <div className="ml-auto flex items-center gap-2">
-            <span className="text-xs text-gray-600">Quick sizes:</span>
+            <span className="text-xs text-gray-600 dark:text-gray-400">Quick sizes:</span>
             {currentSpaceType.typicalSizes.slice(0, 3).map(size => (
               <button
                 key={size}
@@ -308,7 +308,7 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
                     setUnits(newUnits);
                   }
                 }}
-                className="px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:border-blue-300 transition-colors"
+                className="px-2 py-1 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded hover:border-blue-300 dark:hover:border-blue-600 transition-colors dark:text-gray-200"
               >
                 {size.toLocaleString()} SF
               </button>
@@ -328,7 +328,7 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow"
               >
                 {/* Unit Header */}
                 <div className="flex items-center justify-between mb-3">
@@ -343,7 +343,7 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
                             if (e.key === 'Enter') saveEdit();
                             if (e.key === 'Escape') cancelEdit();
                           }}
-                          className="px-2 py-1 text-sm font-semibold border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="px-2 py-1 text-sm font-semibold border border-blue-300 dark:border-blue-600 rounded-md focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
                           autoFocus
                         />
                         <button
@@ -363,7 +363,7 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
                       </div>
                     ) : (
                       <h3 
-                        className="font-semibold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+                        className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                         onClick={() => startEditing(index, 'name', unit.name)}
                       >
                         {unit.name}
@@ -391,9 +391,9 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
                 {/* Unit Details Grid */}
                 <div className="grid grid-cols-3 gap-3">
                   {/* Size */}
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-lg p-3 border border-blue-200">
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50/50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-700">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-medium text-gray-600">
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
                         <Square className="h-3.5 w-3.5 inline mr-1 text-blue-500" />
                         Size
                       </span>
@@ -408,7 +408,7 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
                             if (e.key === 'Enter') saveEdit();
                             if (e.key === 'Escape') cancelEdit();
                           }}
-                          className="w-full px-2 py-1 text-sm font-medium border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-2 py-1 text-sm font-medium border border-blue-300 dark:border-blue-600 rounded-md focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
                           autoFocus
                         />
                         <button
@@ -425,7 +425,7 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
                         onClick={() => startEditing(index, 'size', unit.size)}
                         className="w-full text-left"
                       >
-                        <span className="text-lg font-bold text-blue-700">
+                        <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
                           {unit.size?.toLocaleString() || 0} SF
                         </span>
                       </button>
@@ -433,9 +433,9 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
                   </div>
                   
                   {/* Monthly Rent */}
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50/50 rounded-lg p-3 border border-green-200">
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50/50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg p-3 border border-green-200 dark:border-green-700">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-medium text-gray-600">
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
                         <DollarSign className="h-3.5 w-3.5 inline mr-1 text-green-500" />
                         Monthly Rent
                       </span>
@@ -450,7 +450,7 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
                             if (e.key === 'Enter') saveEdit();
                             if (e.key === 'Escape') cancelEdit();
                           }}
-                          className="w-full px-2 py-1 text-sm font-medium border border-green-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          className="w-full px-2 py-1 text-sm font-medium border border-green-300 dark:border-green-600 rounded-md focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
                           autoFocus
                         />
                         <button
@@ -467,7 +467,7 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
                         onClick={() => startEditing(index, 'rent', unit.monthly_rent)}
                         className="w-full text-left"
                       >
-                        <span className="text-lg font-bold text-green-700">
+                        <span className="text-lg font-bold text-green-700 dark:text-green-300">
                           ${unit.monthly_rent?.toLocaleString() || 0}
                         </span>
                       </button>
@@ -475,14 +475,14 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
                   </div>
                   
                   {/* Rent per SF */}
-                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50/50 rounded-lg p-3 border border-purple-200">
+                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50/50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-lg p-3 border border-purple-200 dark:border-purple-700">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-medium text-gray-600">
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
                         <TrendingUp className="h-3.5 w-3.5 inline mr-1 text-purple-500" />
                         $/SF/Year
                       </span>
                     </div>
-                    <span className="text-lg font-bold text-purple-700">
+                    <span className="text-lg font-bold text-purple-700 dark:text-purple-300">
                       ${unit.size && unit.monthly_rent 
                         ? ((unit.monthly_rent * 12) / unit.size).toFixed(2)
                         : '0.00'}
@@ -492,9 +492,9 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
                 
                 {/* Permitted Uses (if applicable) */}
                 {permittedUses.length > 0 && index === 0 && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
+                  <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-medium text-gray-600">Permitted:</span>
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Permitted:</span>
                       {permittedUses.slice(0, 4).map((use: string) => (
                         <span key={use} className="px-2 py-0.5 text-xs font-medium text-indigo-700 bg-indigo-100 rounded-full">
                           {use.replace(/_/g, ' ')}
@@ -515,11 +515,11 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
             <button
               type="button"
               onClick={addUnit}
-              className="w-full p-3 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all group"
+              className="w-full p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
             >
               <div className="flex items-center justify-center gap-2">
-                <Plus className="h-4 w-4 text-gray-400 group-hover:text-blue-600" />
-                <span className="text-sm font-medium text-gray-600 group-hover:text-blue-600">
+                <Plus className="h-4 w-4 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400">
                   Add Another Space
                 </span>
               </div>
@@ -532,17 +532,17 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
       <div className="mt-6 space-y-3">
         {/* Financial Summary */}
         {getTotalMonthlyRent() > 0 && (
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50/50 rounded-xl p-4 border border-green-200">
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50/50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-4 border border-green-200 dark:border-green-700">
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <div className="flex items-center gap-1 mb-1">
                   <DollarSign className="h-3.5 w-3.5 text-green-600" />
-                  <span className="text-xs font-medium text-green-900">Monthly Revenue</span>
+                  <span className="text-xs font-medium text-green-900 dark:text-green-100">Monthly Revenue</span>
                 </div>
-                <div className="text-lg font-bold text-green-700">
+                <div className="text-lg font-bold text-green-700 dark:text-green-300">
                   ${getTotalMonthlyRent().toLocaleString()}
                 </div>
-                <div className="text-xs text-green-600">
+                <div className="text-xs text-green-600 dark:text-green-400">
                   ${(getTotalMonthlyRent() * 12).toLocaleString()}/year
                 </div>
               </div>
@@ -550,12 +550,12 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
               <div>
                 <div className="flex items-center gap-1 mb-1">
                   <Square className="h-3.5 w-3.5 text-blue-600" />
-                  <span className="text-xs font-medium text-blue-900">Total Leased</span>
+                  <span className="text-xs font-medium text-blue-900 dark:text-blue-100">Total Leased</span>
                 </div>
-                <div className="text-lg font-bold text-blue-700">
+                <div className="text-lg font-bold text-blue-700 dark:text-blue-300">
                   {getTotalSize().toLocaleString()} SF
                 </div>
-                <div className="text-xs text-blue-600">
+                <div className="text-xs text-blue-600 dark:text-blue-400">
                   {usableSquareFeet > 0 ? Math.round((getTotalSize() / usableSquareFeet) * 100) : 0}% utilized
                 </div>
               </div>
@@ -563,12 +563,12 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
               <div>
                 <div className="flex items-center gap-1 mb-1">
                   <TrendingUp className="h-3.5 w-3.5 text-purple-600" />
-                  <span className="text-xs font-medium text-purple-900">Avg Rate</span>
+                  <span className="text-xs font-medium text-purple-900 dark:text-purple-100">Avg Rate</span>
                 </div>
-                <div className="text-lg font-bold text-purple-700">
+                <div className="text-lg font-bold text-purple-700 dark:text-purple-300">
                   ${getAverageRentPerSF().toFixed(2)}/SF
                 </div>
-                <div className="text-xs text-purple-600">
+                <div className="text-xs text-purple-600 dark:text-purple-400">
                   {getLoadFactor() > 0 && `${getLoadFactor().toFixed(1)}% load factor`}
                 </div>
               </div>
@@ -577,12 +577,12 @@ const CommercialUnits: React.FC<CommercialUnitsProps> = () => {
         )}
         
         {/* Info Box */}
-        <div className="bg-blue-50 rounded-xl p-3.5 border border-blue-200">
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3.5 border border-blue-200 dark:border-blue-700">
           <div className="flex items-start gap-2">
             <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-xs font-semibold text-blue-900 mb-1">Commercial Configuration</p>
-              <p className="text-xs text-blue-700 leading-relaxed">
+              <p className="text-xs font-semibold text-blue-900 dark:text-blue-100 mb-1">Commercial Configuration</p>
+              <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
                 Configure your {currentSpaceType.label.toLowerCase()} space as single or multi-tenant. 
                 Set individual rents and sizes for each unit. 
                 {leaseType === 'triple_net' && ' Tenants will be responsible for property expenses under NNN lease.'}

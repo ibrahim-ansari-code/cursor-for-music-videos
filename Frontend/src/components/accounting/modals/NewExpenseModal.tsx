@@ -273,7 +273,7 @@ const NewExpenseModal: React.FC<NewExpenseModalProps> = ({
   return (
     <Dialog.Root open={isOpen} onOpenChange={onClose}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50">
+        <Dialog.Overlay className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -289,32 +289,32 @@ const NewExpenseModal: React.FC<NewExpenseModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.3, type: 'spring', stiffness: 300, damping: 30 }}
-            className="w-[90vw] max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden relative flex flex-col"
+            className="w-[90vw] max-w-5xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden relative flex flex-col"
             style={{ maxHeight: '90vh' }}
           >
             {/* Clean Header matching NewPropertyModal */}
-            <div className="relative bg-white border-b border-gray-200 px-6 py-4">
+            <div className="relative bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-emerald-50 rounded-lg">
-                    <Receipt className="h-5 w-5 text-emerald-600" />
+                  <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                    <Receipt className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div>
-                    <Dialog.Title className="text-lg font-semibold text-gray-900">
+                    <Dialog.Title className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                       Create New Expense
                     </Dialog.Title>
-                    <Dialog.Description className="text-sm text-gray-500 mt-0.5">
+                    <Dialog.Description className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                       Track and categorize your property expenses
                     </Dialog.Description>
                   </div>
                 </div>
                 <Dialog.Close asChild>
                   <button
-                    className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
                     disabled={isSubmitting}
                     aria-label="Close"
                   >
-                    <X className="h-5 w-5 text-gray-500" />
+                    <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                   </button>
                 </Dialog.Close>
               </div>
@@ -322,7 +322,7 @@ const NewExpenseModal: React.FC<NewExpenseModalProps> = ({
 
              {/* Content area optimized for single-page */}
              <motion.div 
-               className="overflow-y-auto p-4 bg-gray-50/50"
+               className="overflow-y-auto p-4 bg-gray-50/50 dark:bg-gray-800/50"
                style={{ maxHeight: '70vh' }}
                initial={{ opacity: 0, y: 10 }}
                animate={{ opacity: 1, y: 0 }}
@@ -355,15 +355,15 @@ const NewExpenseModal: React.FC<NewExpenseModalProps> = ({
                     {/* Compact Loading State */}
                     {isLoadingData && (
                       <motion.div 
-                        className="flex flex-col items-center justify-center py-6 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg border border-emerald-200"
+                        className="flex flex-col items-center justify-center py-6 bg-gradient-to-br from-emerald-50 dark:from-emerald-900/20 to-emerald-100 dark:to-emerald-900/30 rounded-lg border border-emerald-200 dark:border-emerald-700"
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.3 }}
                       >
                         <div className="relative">
-                          <div className="w-6 h-6 border-2 border-emerald-200 rounded-full animate-spin border-t-emerald-600"></div>
+                          <div className="w-6 h-6 border-2 border-emerald-200 dark:border-emerald-700 rounded-full animate-spin border-t-emerald-600 dark:border-t-emerald-400"></div>
                         </div>
-                        <p className="text-emerald-700 font-medium mt-2 text-sm">Loading properties...</p>
+                        <p className="text-emerald-700 dark:text-emerald-300 font-medium mt-2 text-sm">Loading properties...</p>
                       </motion.div>
                     )}
 
@@ -410,16 +410,16 @@ const NewExpenseModal: React.FC<NewExpenseModalProps> = ({
             </motion.div>
 
             {/* Clean Footer matching NewPropertyModal */}
-            <div className="border-t px-6 py-3 flex justify-between items-center bg-white flex-shrink-0">
+            <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-3 flex justify-between items-center bg-white dark:bg-gray-800 flex-shrink-0">
               {/* Simplified Total Display */}
               {!isLoadingData && formData.amount ? (
                 <div className="flex items-baseline">
-                  <span className="text-sm font-medium text-gray-600">Total:</span>
-                  <span className="text-lg font-semibold text-emerald-600 ml-2">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Total:</span>
+                  <span className="text-lg font-semibold text-emerald-600 dark:text-emerald-400 ml-2">
                     ${calculatedTotals.grandTotal.toFixed(2)}
                   </span>
                   {calculatedTotals.totalTax.gt(0) && (
-                    <span className="text-sm text-gray-500 ml-2">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
                       (includes ${calculatedTotals.totalTax.toFixed(2)} tax)
                     </span>
                   )}
@@ -433,7 +433,7 @@ const NewExpenseModal: React.FC<NewExpenseModalProps> = ({
                   type="button"
                   onClick={onClose}
                   disabled={isSubmitting}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 transition-colors"
                 >
                   Cancel
                 </button>
@@ -442,10 +442,10 @@ const NewExpenseModal: React.FC<NewExpenseModalProps> = ({
                   type="submit"
                   onClick={handleSubmit}
                   disabled={isSubmitting || isLoadingData}
-                  className={`px-5 py-2 text-sm font-medium text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 ${
+                  className={`px-5 py-2 text-sm font-medium text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 ${
                     isSubmitting || isLoadingData 
-                      ? 'bg-gray-400' 
-                      : 'bg-emerald-600 hover:bg-emerald-700'
+                      ? 'bg-gray-400 dark:bg-gray-600' 
+                      : 'bg-emerald-600 dark:bg-emerald-700 hover:bg-emerald-700 dark:hover:bg-emerald-600'
                   }`}
                 >
                   {isSubmitting ? (

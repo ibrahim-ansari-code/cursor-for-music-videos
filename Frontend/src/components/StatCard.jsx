@@ -4,12 +4,12 @@ const StatCard = ({
   title,
   value,
   icon,
-  bgColor = "bg-gray-100",
-  textColor = "text-gray-900",
+  bgColor = "bg-gray-100 dark:bg-gray-700",
+  textColor = "text-gray-900 dark:text-gray-100",
   onClick,
 }) => (
   <div
-    className={`bg-white overflow-hidden shadow rounded-lg ${
+    className={`bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg ${
       onClick ? "cursor-pointer hover:shadow-md transition-shadow" : ""
     }`}
     onClick={onClick}
@@ -23,7 +23,7 @@ const StatCard = ({
         </div>
         <div className="ml-5 w-0 flex-1">
           <dl>
-            <dt className="text-sm font-medium text-gray-500 truncate">
+            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
               {title}
             </dt>
             <dd>

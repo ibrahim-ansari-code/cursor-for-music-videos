@@ -416,12 +416,12 @@ const PropertyDetail = () => {
 
   if (error)
     return (
-      <div className="p-6 text-center">
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 max-w-md mx-auto">
+      <div className="p-6 text-center bg-white dark:bg-gray-800 min-h-screen transition-colors duration-300">
+        <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 dark:border-red-400 p-4 mb-4 max-w-md mx-auto transition-colors duration-300">
           <div className="flex">
             <div className="flex-shrink-0">
               <svg
-                className="h-5 w-5 text-red-400"
+                className="h-5 w-5 text-red-400 dark:text-red-500"
                 viewBox="0 0 20 20"
                 fill="currentColor"
               >
@@ -433,13 +433,13 @@ const PropertyDetail = () => {
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm leading-5 text-red-700">{error}</p>
+              <p className="text-sm leading-5 text-red-700 dark:text-red-300 transition-colors duration-300">{error}</p>
             </div>
           </div>
         </div>
         <button
           onClick={() => window.location.reload()}
-          className="mt-2 px-4 py-2 border border-transparent text-sm leading-5 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-500 focus:outline-none focus:border-blue-700 focus:shadow-outline-blue active:bg-blue-700 transition ease-in-out duration-150"
+          className="mt-2 px-4 py-2 border border-transparent text-sm leading-5 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-500 dark:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:border-blue-700 focus:shadow-outline-blue active:bg-blue-700 transition ease-in-out duration-150"
         >
           Try Again
         </button>
@@ -447,34 +447,34 @@ const PropertyDetail = () => {
     );
 
   if (!property)
-    return <div className="p-6 text-center">Property not found.</div>;
+    return <div className="p-6 text-center dark:text-gray-100">Property not found.</div>;
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto">
+    <div className="p-6 max-w-[1600px] mx-auto bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
       {/* Breadcrumbs */}
       <div className="mb-6">
         <nav className="text-sm" aria-label="Breadcrumb">
           <ol className="list-none p-0 inline-flex space-x-2">
             <li className="flex items-center">
-              <Link to="/" className="text-gray-500 hover:text-gray-700">
+              <Link to="/" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-300">
                 <i className="fas fa-home"></i>
               </Link>
             </li>
             <li>
-              <span className="text-gray-400">/</span>
+              <span className="text-gray-400 dark:text-gray-500">/</span>
             </li>
             <li className="flex items-center">
               <Link
                 to="/properties"
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-300"
               >
                 Properties
               </Link>
             </li>
             <li>
-              <span className="text-gray-400">/</span>
+              <span className="text-gray-400 dark:text-gray-500">/</span>
             </li>
-            <li className="text-gray-700 font-medium" aria-current="page">
+            <li className="text-gray-700 dark:text-gray-200 font-medium transition-colors duration-300" aria-current="page">
               {property.name}
             </li>
           </ol>
@@ -500,31 +500,31 @@ const PropertyDetail = () => {
           title="Total units"
           value={property.stats?.total_units || 0}
           icon={<UnitIcon />}
-          bgColor="bg-blue-50"
-          textColor="text-blue-600"
+          bgColor="bg-blue-50 dark:bg-blue-900/20"
+          textColor="text-blue-600 dark:text-blue-400"
         />
         <StatCard
           title="Vacant units"
           value={property.stats?.vacant_units || 0}
           icon={<VacantIcon />}
-          bgColor="bg-yellow-50"
-          textColor="text-yellow-600"
+          bgColor="bg-yellow-50 dark:bg-yellow-900/20"
+          textColor="text-yellow-600 dark:text-yellow-400"
         />
         <StatCard
           title="Monthly Revenue"
           value={formatCurrency(property.stats?.monthly_revenue || 0)}
           icon={<RevenueIcon />}
-          bgColor="bg-green-50"
-          textColor="text-green-600"
+          bgColor="bg-green-50 dark:bg-green-900/20"
+          textColor="text-green-600 dark:text-green-400"
         />
       </div>
 
       {/* Units Section */}
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-center mb-4">
             <div className="w-1/3"></div>
-            <h2 className="text-lg font-medium text-center text-gray-800 w-1/3">
+            <h2 className="text-lg font-medium text-center text-gray-800 dark:text-gray-200 w-1/3">
               Units
             </h2>
             <div className="w-1/3 flex justify-end items-center gap-3">
@@ -560,14 +560,14 @@ const PropertyDetail = () => {
           </div>
 
           {bulkMode && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 transition-colors duration-300">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <span className="text-sm font-medium text-blue-900">
+                  <span className="text-sm font-medium text-blue-900 dark:text-blue-100 transition-colors duration-300">
                     {getSelectedUnitsCount()} unit{getSelectedUnitsCount() !== 1 ? 's' : ''} selected
                   </span>
                   {getSelectedUnitsCount() > 0 && (
-                    <span className="text-sm text-blue-700">
+                    <span className="text-sm text-blue-700 dark:text-blue-300 transition-colors duration-300">
                       ({getVacantSelectedUnits().length} vacant)
                     </span>
                   )}
@@ -577,14 +577,14 @@ const PropertyDetail = () => {
                     <>
                       <button
                         onClick={handleClearSelection}
-                        className="text-sm text-blue-600 hover:text-blue-800 underline"
+                        className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline transition-colors duration-300"
                       >
                         Clear Selection
                       </button>
                       <button
                         onClick={handleBulkAssign}
                         disabled={getVacantSelectedUnits().length === 0}
-                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors duration-300"
                       >
                         <i className="fas fa-user-plus text-xs"></i>
                         Assign Tenants ({getVacantSelectedUnits().length})

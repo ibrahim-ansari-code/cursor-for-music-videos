@@ -42,11 +42,11 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ isEditing: _ }) => {
       return (
         <div className="h-full flex items-center justify-center">
           <div className="text-center py-8">
-            <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-600 mb-2">
+            <AlertCircle className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-600 dark:text-gray-400 mb-2">
               Review configuration for {propertyType.toLowerCase().replace(/_/g, ' ')} properties
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Property will be created with basic information provided.
             </p>
           </div>
@@ -57,8 +57,8 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ isEditing: _ }) => {
       return (
         <div className="h-full flex items-center justify-center">
           <div className="text-center py-8">
-            <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-600">Please select a property type first</p>
+            <AlertCircle className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-600 dark:text-gray-400">Please select a property type first</p>
           </div>
         </div>
       );

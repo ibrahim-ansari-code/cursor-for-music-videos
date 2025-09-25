@@ -41,7 +41,7 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
   if (disabled) {
     return (
       <article
-        className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 overflow-hidden"
+        className="dark-panel dark-shadow rounded-lg dark-divider border mb-6 overflow-hidden"
         aria-labelledby="quickbooks-heading"
         aria-describedby="quickbooks-description"
       >
@@ -51,14 +51,14 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
                src="/Intuit_QuickBooks_logo.svg"
                alt="Intuit QuickBooks integration logo"
                loading="lazy"
-               className="h-8"
+               className="h-8 dark:invert dark:hue-rotate-180"
                role="img"
              />
             <div>
-              <h3 id="quickbooks-heading" className="text-lg font-semibold text-gray-800">
+              <h3 id="quickbooks-heading" className="text-lg font-semibold text-gray-800 dark:text-gray-100">
                 Intuit QuickBooks
               </h3>
-              <p id="quickbooks-description" className="text-xs text-gray-500 mt-0.5">
+              <p id="quickbooks-description" className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                 Sync payments, expenses and invoices with QuickBooks
               </p>
             </div>
@@ -66,7 +66,7 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
 
           <div className="flex items-center space-x-6">
             <div className="min-w-[120px] flex justify-center">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200">
                 <i className="fas fa-clock mr-2" aria-hidden="true" />
                 Coming Soon
               </span>
@@ -75,7 +75,7 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
               <button
                 type="button"
                 disabled
-                className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-gray-100 cursor-not-allowed"
+                className="inline-flex items-center justify-center px-4 py-2 dark-divider border text-sm font-medium rounded-md text-gray-500 dark:text-gray-400 dark-input cursor-not-allowed"
               >
                 <i className="fas fa-tools mr-2" aria-hidden="true" />
                 In Development
@@ -89,7 +89,7 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
 
   return (
     <article
-      className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 overflow-hidden"
+      className="dark-panel dark-shadow rounded-lg dark-divider border mb-6 overflow-hidden"
       aria-labelledby="quickbooks-heading"
       aria-describedby={`quickbooks-description ${connectionStatusId} ${isConnected && status?.connected_at ? connectionDateId : ''}`}
     >
@@ -103,10 +103,10 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
              role="img"
            />
           <div>
-            <h3 id="quickbooks-heading" className="text-lg font-semibold text-gray-800">
+            <h3 id="quickbooks-heading" className="text-lg font-semibold text-gray-800 dark:text-gray-100">
               Intuit QuickBooks
             </h3>
-            <p id="quickbooks-description" className="text-xs text-gray-500 mt-0.5">
+            <p id="quickbooks-description" className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               Sync payments, expenses and invoices with QuickBooks
             </p>
           </div>
@@ -117,7 +117,7 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
             {isConnected ? (
               <div className="flex flex-col items-center">
                 <span
-                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
                   role="status"
                   aria-label="QuickBooks integration status"
                   id={connectionStatusId}
@@ -126,7 +126,7 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
                   Connected
                 </span>
                 {status?.connected_at && (
-                  <p className="text-xs text-gray-500 mt-1 text-center" id={connectionDateId}>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center" id={connectionDateId}>
                     <span className="sr-only">Connected on: </span>
                     On: {new Date(status.connected_at).toLocaleDateString()}
                   </p>
@@ -135,7 +135,7 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
             ) : (
               <div className="flex justify-center">
                 <span
-                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800"
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-200"
                   role="status"
                   aria-label="QuickBooks integration status"
                   id={connectionStatusId}

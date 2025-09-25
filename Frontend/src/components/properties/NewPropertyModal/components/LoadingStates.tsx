@@ -4,8 +4,8 @@ import { motion } from 'framer-motion';
 // Skeleton loader for form fields
 export const FieldSkeleton: React.FC<{ className?: string }> = ({ className = '' }) => (
   <div className={`animate-pulse ${className}`}>
-    <div className="h-4 w-24 bg-gray-200 rounded mb-2"></div>
-    <div className="h-10 bg-gray-200 rounded"></div>
+    <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded mb-2 transition-colors"></div>
+    <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded transition-colors"></div>
   </div>
 );
 
@@ -13,15 +13,15 @@ export const FieldSkeleton: React.FC<{ className?: string }> = ({ className = ''
 export const LocationStepSkeleton: React.FC = () => (
   <div className="space-y-6">
     <div className="animate-pulse">
-      <div className="h-6 w-48 bg-gray-200 rounded mb-2"></div>
-      <div className="h-4 w-96 bg-gray-200 rounded"></div>
+      <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded mb-2 transition-colors"></div>
+      <div className="h-4 w-96 bg-gray-200 dark:bg-gray-700 rounded transition-colors"></div>
     </div>
     
     <FieldSkeleton />
     
     <div className="animate-pulse">
-      <div className="h-4 w-32 bg-gray-200 rounded mb-2"></div>
-      <div className="h-96 bg-gray-200 rounded-lg"></div>
+      <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded mb-2 transition-colors"></div>
+      <div className="h-96 bg-gray-200 dark:bg-gray-700 rounded-lg transition-colors"></div>
     </div>
     
     <div className="grid grid-cols-2 gap-4">
@@ -49,10 +49,10 @@ export const LoadingSpinner: React.FC<{
       <motion.div
         animate={{ rotate: 360 }}
         transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-        className={`border-2 border-blue-600 border-t-transparent rounded-full ${sizeClasses[size]}`}
+        className={`border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full ${sizeClasses[size]} transition-colors`}
       />
       {message && (
-        <p className="mt-3 text-sm text-gray-600">{message}</p>
+        <p className="mt-3 text-sm text-gray-600 dark:text-gray-400 transition-colors">{message}</p>
       )}
     </div>
   );
@@ -70,11 +70,11 @@ export const LoadingOverlay: React.FC<{
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center"
+      className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center transition-colors"
     >
-      <div className="bg-white rounded-xl shadow-lg p-6 flex items-center space-x-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 flex items-center space-x-4 border dark:border-gray-700 transition-colors">
         <LoadingSpinner size="md" />
-        <span className="text-gray-700 font-medium">{message}</span>
+        <span className="text-gray-700 dark:text-gray-200 font-medium transition-colors">{message}</span>
       </div>
     </motion.div>
   );
@@ -87,17 +87,17 @@ export const ProgressBar: React.FC<{
 }> = ({ progress, message }) => (
   <div className="w-full">
     {message && (
-      <p className="text-sm text-gray-600 mb-2">{message}</p>
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 transition-colors">{message}</p>
     )}
-    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden transition-colors">
       <motion.div
         initial={{ width: 0 }}
         animate={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
         transition={{ duration: 0.3 }}
-        className="h-full bg-gradient-to-r from-blue-500 to-blue-600"
+        className="h-full bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-400 dark:to-blue-500"
       />
     </div>
-    <p className="text-xs text-gray-500 mt-1">{Math.min(100, Math.max(0, Math.round(progress)))}% complete</p>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 transition-colors">{Math.min(100, Math.max(0, Math.round(progress)))}% complete</p>
   </div>
 );
 
@@ -133,12 +133,12 @@ export const EmptyStatePlaceholder: React.FC<{
   action?: React.ReactNode;
 }> = ({ icon, title, description, action }) => (
   <div className="text-center py-12">
-    <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+    <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full mb-4 transition-colors">
       {icon}
     </div>
-    <h3 className="text-lg font-medium text-gray-900 mb-2">{title}</h3>
+    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2 transition-colors">{title}</h3>
     {description && (
-      <p className="text-sm text-gray-500 mb-4">{description}</p>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 transition-colors">{description}</p>
     )}
     {action}
   </div>
@@ -149,11 +149,11 @@ export const ErrorState: React.FC<{
   error: Error | string;
   onRetry?: () => void;
 }> = ({ error, onRetry }) => (
-  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 transition-colors">
     <div className="flex items-start">
       <div className="flex-shrink-0">
         <svg
-          className="h-5 w-5 text-red-400"
+          className="h-5 w-5 text-red-400 dark:text-red-300"
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 20 20"
           fill="currentColor"
@@ -166,13 +166,13 @@ export const ErrorState: React.FC<{
         </svg>
       </div>
       <div className="ml-3 flex-1">
-        <h3 className="text-sm font-medium text-red-800">
+        <h3 className="text-sm font-medium text-red-800 dark:text-red-200 transition-colors">
           {typeof error === 'string' ? error : error.message}
         </h3>
         {onRetry && (
           <button
             onClick={onRetry}
-            className="mt-2 text-sm text-red-600 hover:text-red-700 underline"
+            className="mt-2 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline transition-colors"
           >
             Try again
           </button>
@@ -190,12 +190,12 @@ export const SuccessAnimation: React.FC<{ message?: string }> = ({ message = 'Su
     transition={{ type: 'spring', stiffness: 200, damping: 15 }}
     className="text-center"
   >
-    <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+    <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full mb-4 transition-colors">
       <motion.svg
         initial={{ pathLength: 0 }}
         animate={{ pathLength: 1 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="w-8 h-8 text-green-600"
+        className="w-8 h-8 text-green-600 dark:text-green-400"
         fill="none"
         stroke="currentColor"
         strokeWidth="3"
@@ -208,6 +208,6 @@ export const SuccessAnimation: React.FC<{ message?: string }> = ({ message = 'Su
         />
       </motion.svg>
     </div>
-    <p className="text-lg font-medium text-gray-900">{message}</p>
+    <p className="text-lg font-medium text-gray-900 dark:text-gray-100 transition-colors">{message}</p>
   </motion.div>
 );
