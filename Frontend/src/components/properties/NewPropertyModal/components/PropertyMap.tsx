@@ -3,8 +3,9 @@ import { GoogleMap } from '@react-google-maps/api';
 import { useFormContext } from 'react-hook-form';
 import { PropertyFormData } from '@/types/property';
 import { reverseGeocode } from '../hooks/useGoogleMaps';
-import { validateGoogleMapsEnvironment } from '@/utils/googleMapsLoader';
+import { useTheme } from '@/contexts/ThemeSwitch';
 import MapSkeleton from './MapSkeleton';
+
 
 // Global cache for marker library to avoid repeated imports
 let markerLibraryCache: {
@@ -58,13 +59,17 @@ const PropertyMap: React.FC<PropertyMapProps> = React.memo(({
   userLocation
 }) => {
   const { watch, setValue } = useFormContext<PropertyFormData>();
+  const { effectiveTheme } = useTheme();
   const mapRef = useRef<google.maps.Map | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const markerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const handleLocationUpdateRef = useRef<((lat: number, lng: number) => void) | null>(null);
   const markerLibraryRef = useRef<typeof markerLibraryCache>(null);
   const [mapCenter, setMapCenter] = useState({ lat: 43.6532, lng: -79.3832 }); // Toronto default
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const appliedBoundsRef = useRef<string | null>(null);
+  const [ColorScheme, setColorScheme] = useState<typeof google.maps.ColorScheme | null>(null);
+  const [isColorSchemeLoaded, setIsColorSchemeLoaded] = useState(false);
   
   const latitudeRaw = watch('latitude');
   const longitudeRaw = watch('longitude');
@@ -94,29 +99,59 @@ const PropertyMap: React.FC<PropertyMapProps> = React.memo(({
     }
   }, [latitude, longitude]);
 
-  // Map ID must be constant - define outside of useMemo to ensure consistency
+  // Single Map ID with both light and dark styles associated in Google Cloud Console
   const MAP_ID = import.meta.env.VITE_GOOGLE_MAP_ID || '235a15a8eb6db4dcd6108694';
-  
-  // Debug Google Maps configuration in production (runs once per component mount)
+
+  // Load ColorScheme from Google Maps Core library
   useEffect(() => {
-    const diagnostics = validateGoogleMapsEnvironment();
-    if (!diagnostics.isValid) {
-      console.error('Google Maps PropertyMap diagnostics:', diagnostics);
-    } else if (import.meta.env.DEV) {
-      console.info('Google Maps PropertyMap configuration valid:', diagnostics);
+    const loadColorScheme = async () => {
+      if (window.google?.maps) {
+        try {
+          const { ColorScheme: ColorSchemeEnum } = await google.maps.importLibrary('core') as google.maps.CoreLibrary;
+          setColorScheme(ColorSchemeEnum);
+          setIsColorSchemeLoaded(true);
+        } catch (error) {
+          console.warn('Failed to load Google Maps ColorScheme:', error);
+          // Set loaded to true anyway to prevent infinite loading
+          setIsColorSchemeLoaded(true);
+        }
+      }
+    };
+
+    if (isGoogleMapsLoaded) {
+      loadColorScheme();
     }
-  }, []);
+  }, [isGoogleMapsLoaded]);
+
   
-  const mapOptions: google.maps.MapOptions = useMemo(() => ({
-    mapId: MAP_ID, // Required for AdvancedMarkerElement
-    disableDefaultUI: false,
-    zoomControl: true,
-    streetViewControl: false,
-    mapTypeControl: false,
-    fullscreenControl: false,
-    clickableIcons: false,
-    gestureHandling: 'cooperative',
-  }), []); // Empty deps array is safe since MAP_ID is constant
+  const mapOptions: google.maps.MapOptions = useMemo(() => {
+    const options: google.maps.MapOptions = {
+      mapId: MAP_ID, // Single Map ID with contextual styling (light/dark) managed by Google Cloud Console
+      disableDefaultUI: false,
+      zoomControl: true,
+      streetViewControl: false,
+      mapTypeControl: true,
+      fullscreenControl: true,
+      clickableIcons: false,
+      gestureHandling: 'cooperative',
+    };
+
+    // Add colorScheme if available
+    if (ColorScheme) {
+      options.colorScheme = effectiveTheme === 'dark' ? ColorScheme.DARK : ColorScheme.LIGHT;
+    }
+
+    return options;
+  }, [MAP_ID, ColorScheme, effectiveTheme]);
+
+  // Dynamically update map theme without remounting for better performance
+  useEffect(() => {
+    if (mapRef.current && ColorScheme) {
+      mapRef.current.setOptions({
+        colorScheme: effectiveTheme === 'dark' ? ColorScheme.DARK : ColorScheme.LIGHT,
+      });
+    }
+  }, [effectiveTheme, ColorScheme]);
 
   const onMapLoad = useCallback(async (map: google.maps.Map) => {
     mapRef.current = map;
@@ -154,9 +189,10 @@ const PropertyMap: React.FC<PropertyMapProps> = React.memo(({
         
         const { AdvancedMarkerElement, PinElement } = markerLibraryRef.current;
         
+        // Use brand green color that works well in both light and dark themes
         const pinElement = new PinElement({
-          background: '#3B82F6',
-          borderColor: '#1E40AF',
+          background: '#10B981', // Green brand color
+          borderColor: '#059669',
           glyphColor: '#FFFFFF',
           scale: 1.2
         });
@@ -317,9 +353,6 @@ const PropertyMap: React.FC<PropertyMapProps> = React.memo(({
       }
 
       try {
-        // Load marker library using utility function
-        const { AdvancedMarkerElement, PinElement } = await getMarkerLibrary(markerLibraryRef);
-        
         if (!isMounted) return; // Check if component is still mounted
         
         // Update existing marker position if it exists
@@ -334,15 +367,16 @@ const PropertyMap: React.FC<PropertyMapProps> = React.memo(({
           return;
         }
         
-        // Create custom pin for better visibility
+        // Create AdvancedMarkerElement with brand color
+        const { AdvancedMarkerElement, PinElement } = await getMarkerLibrary(markerLibraryRef);
+        
         const pinElement = new PinElement({
-          background: '#3B82F6',
-          borderColor: '#1E40AF',
+          background: '#10B981', // Green brand color
+          borderColor: '#059669',
           glyphColor: '#FFFFFF',
           scale: 1.2
         });
         
-        // Create new AdvancedMarkerElement with custom pin
         const marker = new AdvancedMarkerElement({
           map: mapRef.current,
           position: new google.maps.LatLng(latitude, longitude),
@@ -352,14 +386,12 @@ const PropertyMap: React.FC<PropertyMapProps> = React.memo(({
           collisionBehavior: google.maps.CollisionBehavior.REQUIRED
         });
 
-        // Add drag end listener with proper position handling
         marker.addListener('dragend', () => {
           const position = marker.position;
           if (position && handleLocationUpdateRef.current) {
             if (position instanceof google.maps.LatLng) {
               handleLocationUpdateRef.current(position.lat(), position.lng());
             } else {
-              // Fallback for LatLngLiteral object
               const positionLiteral = position as google.maps.LatLngLiteral;
               handleLocationUpdateRef.current(positionLiteral.lat, positionLiteral.lng);
             }
@@ -392,17 +424,26 @@ const PropertyMap: React.FC<PropertyMapProps> = React.memo(({
     }
   }, [handleLocationUpdate]);
 
-  // Show loading skeleton if Google Maps isn't loaded or Map constructor isn't ready
+  // Show loading skeleton if Google Maps isn't loaded, Map constructor isn't ready, or ColorScheme isn't loaded
   // Add defensive inline fallback check for timing race conditions
   const mapCtorReady = isMapConstructorReady || !!(window.google?.maps?.Map);
-  if (!isGoogleMapsLoaded || !mapCtorReady) {
+  if (!isGoogleMapsLoaded || !mapCtorReady || !isColorSchemeLoaded) {
     return <MapSkeleton className={className} style={{ height }} />;
   }
 
   return (
-    <div className="relative h-full" role="application" aria-label="Property location map">
+    <div
+      ref={mapContainerRef}
+      className="relative h-full"
+      role="application"
+      aria-label="Property location map"
+    >
       <GoogleMap
-        mapContainerStyle={{ width: '100%', height }}
+        // Dynamic theme updates via setOptions for better performance
+        mapContainerStyle={{
+          width: '100%',
+          height
+        }}
         center={mapCenter}
         zoom={showEmptyState ? (userLocation ? 12 : 10) : 17}
         options={mapOptions}
