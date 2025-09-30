@@ -1,7 +1,23 @@
 import React, { memo, useRef, useEffect, useState } from "react";
 import { FixedSizeList as List } from "react-window";
-import { formatCurrency, getStatusColors } from "../utils/api/rentTracker";
+import { formatCurrency } from "../utils/api/rentTracker";
 import { sanitizeTenantName, sanitizePropertyName, sanitizeCurrency } from "../utils/sanitization";
+
+// Get status badge class - matches PaymentsTab styling
+const getStatusBadgeClass = (status) => {
+  switch (status) {
+    case "PAID":
+      return "badge-success";
+    case "PARTIAL":
+      return "badge-warning";
+    case "DUE":
+      return "badge-info";
+    case "OVERDUE":
+      return "badge-danger";
+    default:
+      return "badge-gray";
+  }
+};
 
 // Memoized row component for better performance
 const RentTrackerRow = memo(({ index, style, data }) => {
@@ -21,8 +37,6 @@ const RentTrackerRow = memo(({ index, style, data }) => {
       </div>
     );
   }
-  
-  const statusColors = getStatusColors(rent?.status || '');
   
   // Apply zebra striping
   const bgColor = index % 2 === 0 ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-700";
@@ -83,8 +97,8 @@ const RentTrackerRow = memo(({ index, style, data }) => {
           </div>
           {isSmallScreen && (
             <div className="flex flex-col space-y-1">
-              <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors.bg} ${statusColors.text}`}>
-                {rent?.status || ''}
+              <span className={`badge ${getStatusBadgeClass(rent?.status || '')}`}>
+                {rent?.status ? rent.status.charAt(0) + rent.status.slice(1).toLowerCase() : ''}
               </span>
               <button
                 onClick={() => handleRecordPayment(rent)}
@@ -127,8 +141,8 @@ const RentTrackerRow = memo(({ index, style, data }) => {
       {/* Status - Hidden on small screens */}
       {!isSmallScreen && columnWidthPercentages.status > 0 && (
         <div className="px-4 py-4 flex items-center justify-center" style={{ width: `${columnWidthPercentages.status}%`, boxSizing: 'border-box' }}>
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors.bg} ${statusColors.text}`}>
-            {rent?.status || ''}
+          <span className={`badge ${getStatusBadgeClass(rent?.status || '')}`}>
+            {rent?.status ? rent.status.charAt(0) + rent.status.slice(1).toLowerCase() : ''}
           </span>
         </div>
       )}

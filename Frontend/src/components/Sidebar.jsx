@@ -49,7 +49,7 @@ const Sidebar = () => {
         }}
         className={({ isActive }) =>
           `${isActive
-            ? "bg-teal-50 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 border-r-2 border-teal-600 dark:border-teal-400 dark-shadow"
+            ? "bg-green-50 dark:bg-green-900/50 text-green-700 dark:text-green-300 border-r-2 border-green-600 dark:border-green-400 dark-shadow"
             : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
           } 
           group flex items-center py-3 px-3 text-sm font-medium rounded-lg transition-all duration-200`

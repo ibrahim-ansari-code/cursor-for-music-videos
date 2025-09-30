@@ -4,6 +4,7 @@ import UpdateTenantModal from "../components/tenants/UpdateTenantModal";
 import TenantTable from "../components/tenants/TenantTable";
 import { TenantsTableSkeleton, StatusCardSkeleton } from "../components/ui/skeletons";
 import useDebounce from "../hooks/useDebounce";
+import useFilteredTenants from "../hooks/useFilteredTenants";
 import {
     countActiveLeases,
     getExpiringLeases,
@@ -25,6 +26,7 @@ const Tenants = () => {
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [notification, setNotification] = useState(null);
   const [actionMenuOpen, setActionMenuOpen] = useState(null);
+  const [activeFilter, setActiveFilter] = useState(null); // null, 'active_leases', 'expiring', 'overdue'
 
   // Build query parameters
   const tenantParams = useMemo(() => {
@@ -69,6 +71,9 @@ const Tenants = () => {
   }, [dashData, tenants.length, tenantsWithLeases, outstandingPayments]);
 
   const expiringLeases = useMemo(() => getExpiringLeases(tenantsWithLeases), [tenantsWithLeases]);
+
+  // Filter tenants based on active filter using custom hook
+  const filteredTenants = useFilteredTenants(tenantsWithLeases, activeFilter, expiringLeases, outstandingPayments);
 
   // Combined loading and error states
   const isLoading = tenantsLoading || leasesLoading || dashLoading || paymentsLoading;
@@ -146,14 +151,23 @@ Property Management`;
     setSearchTerm(e.target.value);
   };
 
+  // Handle filter card clicks
+  const handleFilterClick = (filterType) => {
+    if (activeFilter === filterType) {
+      setActiveFilter(null); // Clear filter if clicking the same one
+    } else {
+      setActiveFilter(filterType);
+    }
+  };
+
   return (
     <div className="p-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {/* Total Tenants */}
-        <div className="kpi-card">
+        <div className="kpi-card cursor-pointer" onClick={() => setActiveFilter(null)}>
           <div className="flex items-center">
-            <div className="flex-shrink-0 bg-indigo-100 dark:bg-indigo-900/50 rounded-md p-3">
+            <div className={`flex-shrink-0 ${activeFilter === null ? 'bg-indigo-100 dark:bg-indigo-900' : 'bg-indigo-50 dark:bg-indigo-900/50'} rounded-md p-3`}>
               <svg
                 className="h-6 w-6 text-indigo-600 dark:text-indigo-400"
                 xmlns="http://www.w3.org/2000/svg"
@@ -191,9 +205,9 @@ Property Management`;
         </div>
 
         {/* Active Leases */}
-        <div className="kpi-card">
+        <div className="kpi-card cursor-pointer" onClick={() => handleFilterClick('active_leases')}>
           <div className="flex items-center">
-            <div className="flex-shrink-0 bg-green-100 dark:bg-green-900/50 rounded-md p-3">
+            <div className={`flex-shrink-0 ${activeFilter === 'active_leases' ? 'bg-green-100 dark:bg-green-900' : 'bg-green-50 dark:bg-green-900/50'} rounded-md p-3`}>
               <svg
                 className="h-6 w-6 text-green-600 dark:text-green-400"
                 xmlns="http://www.w3.org/2000/svg"
@@ -231,9 +245,9 @@ Property Management`;
         </div>
 
         {/* Expiring Soon */}
-        <div className="kpi-card">
+        <div className="kpi-card cursor-pointer" onClick={() => handleFilterClick('expiring')}>
           <div className="flex items-center">
-            <div className="flex-shrink-0 bg-yellow-100 dark:bg-yellow-900/50 rounded-md p-3">
+            <div className={`flex-shrink-0 ${activeFilter === 'expiring' ? 'bg-yellow-100 dark:bg-yellow-900' : 'bg-yellow-50 dark:bg-yellow-900/50'} rounded-md p-3`}>
               <svg
                 className="h-6 w-6 text-yellow-600 dark:text-yellow-400"
                 xmlns="http://www.w3.org/2000/svg"
@@ -271,9 +285,9 @@ Property Management`;
         </div>
 
         {/* Overdue Payments */}
-        <div className="kpi-card">
+        <div className="kpi-card cursor-pointer" onClick={() => handleFilterClick('overdue')}>
           <div className="flex items-center">
-            <div className="flex-shrink-0 bg-red-100 dark:bg-red-900/50 rounded-md p-3">
+            <div className={`flex-shrink-0 ${activeFilter === 'overdue' ? 'bg-red-100 dark:bg-red-900' : 'bg-red-50 dark:bg-red-900/50'} rounded-md p-3`}>
               <svg
                 className="h-6 w-6 text-red-600 dark:text-red-400"
                 xmlns="http://www.w3.org/2000/svg"
@@ -443,7 +457,7 @@ Property Management`;
           <TenantsTableSkeleton rowCount={8} />
         ) : (
           <TenantTable
-          tenants={tenantsWithLeases}
+          tenants={filteredTenants}
           onEditTenant={handleEditTenant}
           onDeleteTenant={handleDeleteTenant}
           onAddTenant={handleAddTenant}

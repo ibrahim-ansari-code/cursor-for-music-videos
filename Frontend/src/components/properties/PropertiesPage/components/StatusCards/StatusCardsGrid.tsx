@@ -19,14 +19,14 @@ export const StatusCardsGrid: React.FC<StatusCardsGridProps> = ({
   isLoading,
   hasProperties,
 }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
     <StatusCard
       title="Active"
       count={statusCounts.ACTIVE}
       iconBgColor={statusFilter === 'ACTIVE' ? 'bg-green-100 dark:bg-green-900' : 'bg-green-50 dark:bg-green-900/50'}
-      textColor="text-green-600 dark:text-green-400"
       onClick={() => onStatusCardClick('ACTIVE')}
       isLoading={isLoading && !hasProperties}
+      sparklineColor="from-green-200 to-green-300 dark:from-green-800"
       icon={
         <svg
           className="h-6 w-6 text-green-600 dark:text-green-400"
@@ -50,9 +50,9 @@ export const StatusCardsGrid: React.FC<StatusCardsGridProps> = ({
       iconBgColor={
         statusFilter === 'INACTIVE' ? 'bg-orange-100 dark:bg-orange-900' : 'bg-orange-50 dark:bg-orange-900/50'
       }
-      textColor="text-orange-600 dark:text-orange-400"
       onClick={() => onStatusCardClick('INACTIVE')}
       isLoading={isLoading && !hasProperties}
+      sparklineColor="from-orange-200 to-orange-300 dark:from-orange-800"
       icon={
         <svg
           className="h-6 w-6 text-orange-600 dark:text-orange-400"
@@ -74,9 +74,9 @@ export const StatusCardsGrid: React.FC<StatusCardsGridProps> = ({
       title="Vacant"
       count={statusCounts.VACANT}
       iconBgColor={statusFilter === 'VACANT' ? 'bg-yellow-100 dark:bg-yellow-900' : 'bg-yellow-50 dark:bg-yellow-900/50'}
-      textColor="text-yellow-600 dark:text-yellow-400"
       onClick={() => onStatusCardClick('VACANT')}
       isLoading={isLoading && !hasProperties}
+      sparklineColor="from-yellow-200 to-yellow-300 dark:from-yellow-800"
       icon={
         <svg
           className="h-6 w-6 text-yellow-600 dark:text-yellow-400"
@@ -98,9 +98,9 @@ export const StatusCardsGrid: React.FC<StatusCardsGridProps> = ({
       title="Total"
       count={statusCounts.total}
       iconBgColor={statusFilter === null ? 'bg-indigo-100 dark:bg-indigo-900' : 'bg-indigo-50 dark:bg-indigo-900/50'}
-      textColor="text-indigo-600 dark:text-indigo-400"
       onClick={onClearFilters}
       isLoading={isLoading && !hasProperties}
+      sparklineColor="from-indigo-200 to-indigo-300 dark:from-indigo-800"
       icon={
         <svg
           className="h-6 w-6 text-indigo-600 dark:text-indigo-400"
