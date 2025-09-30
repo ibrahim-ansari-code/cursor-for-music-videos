@@ -5,7 +5,7 @@
 // Integration status types
 export type IntegrationStatus = 'connected' | 'not_connected' | 'connecting' | 'disconnecting' | 'error';
 
-export type SyncOperation = 'payments' | 'invoices' | 'expenses' | 'initial';
+export type SyncOperation = 'payments' | 'invoices' | 'expenses' | 'initial' | 'all';
 
 // QuickBooks API response types
 export interface QuickBooksStatus {
@@ -48,9 +48,7 @@ export interface QuickBooksCardProps {
   operationState: OperationState;
   onConnect: () => void;
   onDisconnect: () => void;
-  onSyncPayments: () => void;
-  onSyncInvoices: () => void;
-  onSyncExpenses: () => void;
+  onSyncAll: () => void;
   disabled?: boolean; // For temporarily disabling functionality
 }
 
@@ -85,9 +83,7 @@ export interface UseQuickBooksIntegrationReturn {
   handleDisconnect: () => void;
   handleConfirmDisconnect: () => Promise<void>;
   handleCancelDisconnect: () => void;
-  handleSyncPayments: () => Promise<void>;
-  handleSyncInvoices: () => Promise<void>;
-  handleSyncExpenses: () => Promise<void>;
+  handleSyncAll: () => Promise<void>;
 
   // Utilities
   refreshStatus: () => Promise<void>;

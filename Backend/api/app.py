@@ -123,6 +123,14 @@ async def shutdown_event():
     """Gracefully shutdown and clean up all resources."""
     logger.info("🛑 FastAPI application shutting down...")
     
+    # Close HTTP session pool
+    try:
+        from Backend.api.quickbooks.session_manager import close_shared_session
+        await close_shared_session()
+        logger.info("✅ HTTP session pool closed successfully")
+    except Exception as e:
+        logger.error(f"⚠️ Error closing HTTP session pool: {str(e)}")
+    
     # Close database connections
     from Backend.database import engine
     try:
@@ -146,8 +154,11 @@ app.add_middleware(
         "http://localhost:4173",
         "https://localhost:4173",
         "http://127.0.0.1:4173",
-        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5173", 
         "https://127.0.0.1:5173",
+        "http://[::1]:5173",
+        "https://[::1]:5173",
+        "http://[::1]:4173",
         "http://tenant.brikli.com",
         "https://tenant.brikli.com",
         "http://app.brikli.com",
@@ -156,8 +167,8 @@ app.add_middleware(
         "https://brikli-api-8919-151e4fdf-aa5gqdc5.onporter.run",
         "https://brikli-api-8919-7953fd68-fofj7ysk.onporter.run"
     ],
-    # Allow any Porter preview environment URL
-    allow_origin_regex=r"https://.*\.onporter\.run",
+    # Allow any Porter preview environment URL and ngrok dev tunnels
+    allow_origin_regex=r"https://.*\.onporter\.run|https?://.*\.ngrok\.io|https?://.*\.ngrok-free\.app|https?://.*\.ngrok-free\.dev",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -193,6 +204,8 @@ if not settings.TESTING:
             "api.brikli.com",
             "brikli.azurewebsites.net",
             "localhost",
+            "127.0.0.1",
+            "127.0.0.1:8000",
             "brikli-api-8919-7953fd68-fofj7ysk.onporter.run",
             "brikli-api-8919-151e4fdf-aa5gqdc5.onporter.run",
             "*.onporter.run",  # Allow all Porter preview environments

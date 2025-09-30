@@ -24,7 +24,7 @@ from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant, TenantStatus
 from Backend.models.user import User
 from Backend.utils.datetime_utils import create_audit_datetime
-from Backend.api.quickbooks.customers import link_or_create_qb_customer
+from Backend.api.quickbooks.services import CustomerService
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +233,10 @@ async def _safe_link_qb_customer(user: User, tenant_data: dict[str, Any]) -> Non
     Attempts to link or create a QuickBooks customer for the tenant, logging any exceptions without interrupting the main workflow.
     """
     try:
-        await link_or_create_qb_customer(user=user, tenant_data=tenant_data)
+        from Backend.database import async_session
+        async with async_session() as session:
+            customer_service = CustomerService(user, session)
+            await customer_service.link_or_create_qb_customer(tenant_data)
     except Exception as e:
         logger.warning("QuickBooks sync failed (non-fatal): %s", e, exc_info=True)
 

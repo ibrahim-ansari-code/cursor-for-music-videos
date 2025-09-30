@@ -5,13 +5,14 @@ from uuid import UUID
 
 from sqlalchemy import DateTime, String, Column, UniqueConstraint, Index, CheckConstraint, text, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, SQLModel, Relationship
 from pydantic import field_validator
 
 from .common import IntegrationStatus, IntegrationType
 
 if TYPE_CHECKING:
     from Backend.models.user import User
+    from Backend.models.accounting.quickbooks_integration import QuickBooksIntegration
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +43,6 @@ class Integration(SQLModel, table=True):
     # Integration details
     integration_type: IntegrationType = Field(sa_column=Column(SAEnum(IntegrationType, name="integration_type_enum"), nullable=False))
     status: IntegrationStatus = Field(default=IntegrationStatus.DISCONNECTED, sa_column=Column(SAEnum(IntegrationStatus, values_callable=lambda x: [e.value for e in x]), nullable=False))
-    
-    # Apideck specific fields
-    apideck_consumer_id: str | None = Field(default=None, sa_column=Column(String, nullable=True))
-    apideck_service_id: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     
     # Connection metadata
     connected_at: datetime | None = Field(
@@ -83,8 +80,18 @@ class Integration(SQLModel, table=True):
         )
     )
 
-    # Relationships
+    # Relationships using SQLModel Relationship (following property.py pattern)
     user: "User" = Relationship(back_populates="integrations")
+    
+    # Industry standard: One-to-one relationship to provider-specific details (unidirectional)
+    quickbooks_details: Optional["QuickBooksIntegration"] = Relationship(
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "uselist": False,  # Ensures 1:1 relationship
+            "lazy": "select",
+            "foreign_keys": "[QuickBooksIntegration.integration_id]"  # Explicit foreign key
+        }
+    )
 
     # Validators
     @field_validator('error_count', mode='before')
@@ -112,4 +119,5 @@ class Integration(SQLModel, table=True):
             return cls.MAX_ERROR_COUNT
         
         return max(0, v_int)  # Ensure non-negative
+
 

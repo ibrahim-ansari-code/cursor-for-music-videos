@@ -4,10 +4,7 @@ import {
   getQuickBooksStatus,
   connectToQuickBooks,
   disconnectQuickBooks,
-  initialQuickBooksSync,
-  syncQuickBooksPayments,
-  syncQuickBooksInvoices,
-  syncQuickBooksExpenses,
+  syncAllQuickBooksData,
 } from '../utils/api/quickbooks';
 import {
   QuickBooksStatus,
@@ -36,8 +33,8 @@ export const useQuickBooksIntegration = (): UseQuickBooksIntegrationReturn => {
     } catch (error: any) {
       console.error('Error fetching QuickBooks status:', error);
       const errorMessage = error?.message || 'Failed to load integration status. Please try again.';
-      setOperationState({ type: 'error', message: errorMessage });
       toast.error(errorMessage);
+      setOperationState({ type: 'idle' });
     }
   }, []);
 
@@ -53,19 +50,30 @@ export const useQuickBooksIntegration = (): UseQuickBooksIntegrationReturn => {
 
       const result = await apiFunc();
 
-      if (result.success) {
-        toast.success(result.message);
-        // Refresh status after successful sync
-        await refreshStatus();
+      // Validate result exists and has expected structure
+      if (result && typeof result === 'object') {
+        if (result.success === true) {
+          const message = result.message && typeof result.message === 'string'
+            ? result.message
+            : `${displayName} sync completed successfully`;
+          toast.success(message);
+          // Refresh status after successful sync
+          await refreshStatus();
+        } else {
+          const errorMessage = result.message && typeof result.message === 'string'
+            ? result.message
+            : `An unknown error occurred during ${displayName} sync.`;
+          toast.error(errorMessage);
+        }
       } else {
-        toast.error(result.message || `An unknown error occurred during ${displayName} sync.`);
-        setOperationState({ type: 'error', message: result.message || `Failed to sync ${displayName}` });
+        // Handle case where result is undefined or not an object
+        toast.success(`${displayName} sync completed`);
+        await refreshStatus();
       }
     } catch (error: any) {
       console.error(`Error syncing ${displayName}:`, error);
       const errorMessage = error?.message || `Failed to sync ${displayName}.`;
       toast.error(errorMessage);
-      setOperationState({ type: 'error', message: errorMessage });
     } finally {
       // Only set to idle if we're not in an error state
       setOperationState(prevState =>
@@ -74,27 +82,7 @@ export const useQuickBooksIntegration = (): UseQuickBooksIntegrationReturn => {
     }
   }, [operationState.type, refreshStatus]);
 
-  // Handle initial sync after OAuth redirect
-  const handleInitialSync = useCallback(async () => {
-    try {
-      setOperationState({ type: 'syncing', operation: 'initial' });
-      toast.info("Connection successful! Starting initial sync with QuickBooks...");
-
-      const syncResult = await initialQuickBooksSync();
-      toast.success(syncResult.message);
-      setOperationState({ type: 'idle' });
-    } catch (error: any) {
-      console.error('Error during initial sync:', error);
-      const errorMessage = error.message || "Initial sync failed. Please try again from the settings page.";
-      toast.error(errorMessage);
-      setOperationState({ type: 'error', message: errorMessage });
-    } finally {
-      // Always refresh status regardless of sync success/failure
-      await refreshStatus();
-      // Clean up URL params
-      window.history.replaceState({}, document.title, "/integrations");
-    }
-  }, [refreshStatus]);
+  // Note: Removed handleInitialSync function - initial sync should be triggered manually by user
 
   // Connect to QuickBooks
   const handleConnect = useCallback(async () => {
@@ -123,7 +111,7 @@ export const useQuickBooksIntegration = (): UseQuickBooksIntegrationReturn => {
       console.error('Error connecting to QuickBooks:', error);
       const errorMessage = error.message || 'Failed to initiate QuickBooks connection.';
       toast.error(errorMessage);
-      setOperationState({ type: 'error', message: errorMessage });
+      setOperationState({ type: 'idle' });
     }
   }, []);
 
@@ -144,7 +132,7 @@ export const useQuickBooksIntegration = (): UseQuickBooksIntegrationReturn => {
       console.error('Error disconnecting from QuickBooks:', error);
       const errorMessage = error.message || 'Failed to disconnect from QuickBooks.';
       toast.error(errorMessage);
-      setOperationState({ type: 'error', message: errorMessage });
+      setOperationState({ type: 'idle' });
     }
   }, [refreshStatus]);
 
@@ -153,42 +141,56 @@ export const useQuickBooksIntegration = (): UseQuickBooksIntegrationReturn => {
   }, []);
 
   // Sync handlers
-  const handleSyncPayments = useCallback(() =>
-    runSync(syncQuickBooksPayments, 'payments', 'payment'),
+  const handleSyncAll = useCallback(() =>
+    runSync(syncAllQuickBooksData, 'all', 'unified'),
     [runSync]
   );
 
-  const handleSyncInvoices = useCallback(() =>
-    runSync(syncQuickBooksInvoices, 'invoices', 'invoice'),
-    [runSync]
-  );
-
-  const handleSyncExpenses = useCallback(() =>
-    runSync(syncQuickBooksExpenses, 'expenses', 'expense'),
-    [runSync]
-  );
-
-  // Handle URL parameters for OAuth redirect
+  // Handle OAuth callback success/error from QuickBooksCallback page
   useEffect(() => {
-    const queryParams = new URLSearchParams(window.location.search);
-    const code = queryParams.get('code');
-    const oauthError = queryParams.get('error');
-    const errorDescription = queryParams.get('error_description');
+    const handleOAuthCallback = async () => {
+      console.log('Integration page loaded, checking for OAuth status...');
 
-    if (code) {
-      handleInitialSync();
-    } else if (oauthError) {
-      toast.error('OAuth authorization failed. Please try again.');
-      window.history.replaceState({}, document.title, "/integrations");
-    } else if (errorDescription) {
-      setOperationState({ type: 'error', message: errorDescription });
-      toast.error(errorDescription);
-      window.history.replaceState({}, document.title, "/integrations");
-    } else {
+      // Check for OAuth errors from callback page
+      const storedError = sessionStorage.getItem('qb_oauth_error');
+      if (storedError) {
+        try {
+          const { error, errorDescription } = JSON.parse(storedError);
+          console.log('OAuth error from callback:', { error, errorDescription });
+          toast.error(`QuickBooks authorization failed: ${errorDescription || error || 'Unknown error'}`);
+          sessionStorage.removeItem('qb_oauth_error');
+          refreshStatus(); // Refresh to show current status
+          return;
+        } catch (e) {
+          console.error('Error parsing stored OAuth error:', e);
+          sessionStorage.removeItem('qb_oauth_error');
+        }
+      }
+
+      // Check for OAuth success from callback page
+      const storedSuccess = sessionStorage.getItem('qb_oauth_success');
+      if (storedSuccess) {
+        try {
+          const successData = JSON.parse(storedSuccess);
+          console.log('OAuth success from callback:', successData);
+          toast.success(`Successfully connected to QuickBooks${successData.company_name ? ` (${successData.company_name})` : ''}!`);
+          sessionStorage.removeItem('qb_oauth_success');
+
+          // Refresh status to show connected state (no automatic sync)
+          await refreshStatus();
+          return;
+        } catch (e) {
+          console.error('Error parsing stored OAuth success:', e);
+          sessionStorage.removeItem('qb_oauth_success');
+        }
+      }
+
       // Normal page load - fetch status
       refreshStatus();
-    }
-  }, [handleInitialSync, refreshStatus]);
+    };
+
+    handleOAuthCallback();
+  }, [refreshStatus]);
 
   return {
     // State
@@ -201,9 +203,7 @@ export const useQuickBooksIntegration = (): UseQuickBooksIntegrationReturn => {
     handleDisconnect,
     handleConfirmDisconnect,
     handleCancelDisconnect,
-    handleSyncPayments,
-    handleSyncInvoices,
-    handleSyncExpenses,
+    handleSyncAll,
 
     // Utilities
     refreshStatus,

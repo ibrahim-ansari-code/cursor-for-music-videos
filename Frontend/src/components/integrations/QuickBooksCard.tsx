@@ -1,20 +1,22 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import { QuickBooksCardProps } from '../../types/integrations';
+import SimpleSyncPreview from './SimpleSyncPreview';
 
 const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
   status,
   operationState,
   onConnect,
   onDisconnect,
-  onSyncPayments,
-  onSyncInvoices,
-  onSyncExpenses,
+  onSyncAll,
   disabled = false
 }) => {
   const isConnected = status?.connected ?? false;
   const isLoading = operationState.type === 'loading';
   const isSyncing = operationState.type === 'syncing';
   const isAnyOperationInProgress = isLoading || isSyncing;
+
+  // Modal state
+  const [showSyncPreview, setShowSyncPreview] = useState(false);
 
   // Generate unique IDs for accessibility
   const connectionStatusId = useMemo(() => `quickbooks-status-${Math.random().toString(36).substring(2, 9)}`, []);
@@ -30,6 +32,7 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
         case 'payments': return 'Syncing Payments...';
         case 'invoices': return 'Syncing Invoices...';
         case 'expenses': return 'Syncing Expenses...';
+        case 'all': return 'Syncing All Data...';
         case 'initial': return 'Initial Sync...';
         default: return 'Syncing...';
       }
@@ -58,8 +61,8 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
               <h3 id="quickbooks-heading" className="text-lg font-semibold text-gray-800 dark:text-gray-100">
                 Intuit QuickBooks
               </h3>
-              <p id="quickbooks-description" className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Sync payments, expenses and invoices with QuickBooks
+              <p id="quickbooks-description" className="text-xs text-gray-500 mt-0.5">
+                Sync Tenants, Invoices, Payments, Expenses with QuickBooks
               </p>
             </div>
           </div>
@@ -106,8 +109,8 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
             <h3 id="quickbooks-heading" className="text-lg font-semibold text-gray-800 dark:text-gray-100">
               Intuit QuickBooks
             </h3>
-            <p id="quickbooks-description" className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Sync payments, expenses and invoices with QuickBooks
+            <p id="quickbooks-description" className="text-xs text-gray-500 mt-0.5">
+              Sync Tenants, Invoices, Payments, Expenses with QuickBooks
             </p>
           </div>
         </div>
@@ -152,55 +155,19 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
               <div className="flex items-center space-x-3">
                 <button
                   type="button"
-                  onClick={onSyncPayments}
+                  onClick={() => setShowSyncPreview(true)}
                   disabled={isAnyOperationInProgress}
-                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 transition-colors"
+                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900 disabled:opacity-50 transition-colors"
                 >
-                  {operationState.type === 'syncing' && operationState.operation === 'payments' ? (
+                  {operationState.type === 'syncing' && operationState.operation === 'all' ? (
                     <>
                       <i className="fas fa-spinner fa-spin mr-2" />
                       Syncing...
                     </>
                   ) : (
                     <>
-                      <i className="fas fa-sync-alt mr-2" />
-                      Sync Payments
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={onSyncInvoices}
-                  disabled={isAnyOperationInProgress}
-                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
-                >
-                  {operationState.type === 'syncing' && operationState.operation === 'invoices' ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin mr-2" />
-                      Syncing...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-file-invoice mr-2" />
-                      Sync Invoices
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={onSyncExpenses}
-                  disabled={isAnyOperationInProgress}
-                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 transition-colors"
-                >
-                  {operationState.type === 'syncing' && operationState.operation === 'expenses' ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin mr-2" />
-                      Syncing...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-receipt mr-2" />
-                      Sync Expenses
+                      <i className="fas fa-sync mr-2" />
+                      Sync
                     </>
                   )}
                 </button>
@@ -208,7 +175,7 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
                   type="button"
                   onClick={onDisconnect}
                   disabled={isAnyOperationInProgress}
-                  className="inline-flex items-center justify-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="inline-flex items-center justify-center px-4 py-2 border border-red-300 dark:border-red-600 text-sm font-medium rounded-md text-red-700 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 focus:bg-red-50 dark:focus:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   aria-describedby={connectionStatusId}
                   aria-label={isLoading ? "Disconnecting from QuickBooks" : "Disconnect from QuickBooks integration"}
                 >
@@ -228,7 +195,7 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
                 type="button"
                 onClick={onConnect}
                 disabled={isAnyOperationInProgress}
-                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 aria-describedby={connectionStatusId}
                 aria-label={isLoading ? "Connecting to QuickBooks" : "Connect to QuickBooks integration"}
               >
@@ -249,6 +216,18 @@ const QuickBooksCard: React.FC<QuickBooksCardProps> = memo(({
           </div>
         </div>
       </div>
+
+      {/* Sync Preview Modal */}
+      <SimpleSyncPreview
+        isOpen={showSyncPreview}
+        onClose={() => setShowSyncPreview(false)}
+        onSync={async () => onSyncAll()}
+        onSyncComplete={async () => {
+          setShowSyncPreview(false);
+          // Refresh the page to reload status
+          window.location.reload();
+        }}
+      />
     </article>
   );
 });

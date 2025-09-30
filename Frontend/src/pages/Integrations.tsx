@@ -1,7 +1,6 @@
 import React, { memo } from 'react';
 import * as Sentry from '@sentry/react';
 import IntegrationsSkeleton from '../components/ui/skeletons/IntegrationsSkeleton';
-import ErrorMessage from '../components/integrations/ErrorMessage';
 import QuickBooksCard from '../components/integrations/QuickBooksCard';
 import PlaceholderCard from '../components/integrations/PlaceholderCard';
 import ConfirmationModal from '../components/integrations/ConfirmationModal';
@@ -27,18 +26,16 @@ const Integrations: React.FC = memo(() => {
     handleDisconnect,
     handleConfirmDisconnect,
     handleCancelDisconnect,
-    handleSyncPayments,
-    handleSyncInvoices,
-    handleSyncExpenses,
+    handleSyncAll,
     refreshStatus,
     isOperationInProgress,
   } = useQuickBooksIntegration();
 
-  // Show loading skeleton while handling URL params or during operations
-  const isLoading = operationState.type === 'loading';
-  const isSyncing = operationState.type === 'syncing';
+  // Show loading skeleton only for initial loading operations (connecting/disconnecting)
+  // For syncing operations, show the normal page with QuickBooks card in loading state
+  const isInitialLoading = operationState.type === 'loading';
 
-  if (isLoading || isSyncing) {
+  if (isInitialLoading) {
     return (
       <Sentry.ErrorBoundary
         fallback={({ error, resetError }) => (
@@ -60,7 +57,7 @@ const Integrations: React.FC = memo(() => {
           scope.setTag('page', 'integrations');
         }}
       >
-        <IntegrationsSkeleton showPlaceholder={!isSyncing} />
+        <IntegrationsSkeleton showPlaceholder={true} />
       </Sentry.ErrorBoundary>
     );
   }
@@ -101,24 +98,14 @@ const Integrations: React.FC = memo(() => {
           </header>
 
           <div role="region" aria-label="Integration status and actions">
-            {/* Error Message */}
-            {operationState.type === 'error' && (
-              <ErrorMessage
-                error={operationState.message}
-                onRetry={refreshStatus}
-              />
-            )}
-
             {/* QuickBooks Integration Card - Temporarily Disabled */}
             <QuickBooksCard
               status={status}
               operationState={operationState}
               onConnect={handleConnect}
               onDisconnect={handleDisconnect}
-              onSyncPayments={handleSyncPayments}
-              onSyncInvoices={handleSyncInvoices}
-              onSyncExpenses={handleSyncExpenses}
-              disabled={true} // Temporarily disabled for production key finalization
+              onSyncAll={handleSyncAll}
+              disabled={false} // Production keys approved - integration enabled
             />
 
             {/* Placeholder for Future Integrations */}

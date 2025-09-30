@@ -1,9 +1,12 @@
 import os
 import warnings
+import logging
 
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
+
+logger = logging.getLogger(__name__)
 
 # Load from .env by default
 env_path = os.getenv("DOTENV_KEY", ".env")
@@ -46,11 +49,44 @@ class Settings(BaseSettings):
     BLOB_CONTAINER_RECEIPTS: str = os.getenv("BLOB_CONTAINER_RECEIPTS", "receipts")
     BLOB_CONTAINER_PAYMENTS: str = os.getenv("BLOB_CONTAINER_PAYMENTS", "payment-receipts")
 
-    # === Apideck API ===
-    APIDECK_API_KEY: str = os.getenv("APIDECK_API_KEY", "")
-    APIDECK_APP_ID: str = os.getenv("APIDECK_APP_ID", "")
-    APIDECK_ENVIRONMENT: str = os.getenv(
-        "APIDECK_ENVIRONMENT", "sandbox")  # sandbox or production
+
+    # === Intuit (QuickBooks Online) OAuth ===
+    INTUIT_CLIENT_ID: str = os.getenv("INTUIT_CLIENT_ID", "")
+    INTUIT_CLIENT_SECRET: str = os.getenv("INTUIT_CLIENT_SECRET", "")
+    INTUIT_REDIRECT_URI: str = os.getenv("INTUIT_REDIRECT_URI", "")
+    INTUIT_ENV: str = os.getenv("INTUIT_ENV", "sandbox")  # sandbox or production
+
+    # The following QuickBooks settings are intentionally hard-coded to avoid
+    # configuration sprawl. Update here only if Intuit changes their endpoints
+    # or if we intentionally bump versions/scopes.
+    @property
+    def INTUIT_AUTH_URL(self) -> str:  # OAuth authorize endpoint
+        return "https://appcenter.intuit.com/connect/oauth2"
+
+    @property
+    def INTUIT_TOKEN_URL(self) -> str:  # OAuth token endpoint
+        return "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
+
+    @property
+    def INTUIT_SCOPES(self) -> str:  # OAuth scopes
+        # QuickBooks automatically provides refresh tokens with these standard scopes
+        return "com.intuit.quickbooks.accounting com.intuit.quickbooks.payment"
+    @property
+    def QBO_MINOR_VERSION(self) -> int:  # QuickBooks API minor version
+        return 73
+
+    @property
+    def INTUIT_STATE_TTL_MINUTES(self) -> int:  # OAuth state lifetime
+        return 15
+
+    # Internal rate limits for connect flow protection (not env-driven)
+    @property
+    def QB_RATE_LIMIT_REQUESTS(self) -> int:
+        return 10
+
+    @property
+    def QB_RATE_LIMIT_WINDOW_HOURS(self) -> int:
+        return 1
 
     # === Supabase Webhook Security ===
     # This secret is used to secure webhook endpoints. It is required for production.
@@ -94,40 +130,31 @@ class Settings(BaseSettings):
             )
         return v
 
-    @field_validator('APIDECK_ENVIRONMENT')
+
+    @field_validator('INTUIT_ENV')
     @classmethod
-    def validate_apideck_environment(cls, v: str) -> str:
+    def validate_intuit_environment(cls, v: str) -> str:
         """
-        Validates that the APIDECK_ENVIRONMENT value is either 'sandbox' or 'production'.
-
-        Raises:
-            ValueError: If the provided value is not 'sandbox' or 'production'.
-
-        Returns:
-            The validated APIDECK_ENVIRONMENT value.
+        Validates that the INTUIT_ENV value is either 'sandbox' or 'production'.
         """
-        allowed_environments = {"sandbox", "production"}
-        if v not in allowed_environments:
+        allowed = {"sandbox", "production"}
+        if v not in allowed:
             raise ValueError(
-                f"Invalid APIDECK_ENVIRONMENT: '{v}'. Must be one of: 'sandbox', 'production'."
+                f"Invalid INTUIT_ENV: '{v}'. Must be one of: 'sandbox', 'production'."
             )
         return v
 
     def model_post_init(self, __context) -> None:
         """
-        Emits a runtime warning if Apideck API credentials are not configured.
-
-        A warning is issued if either `APIDECK_API_KEY` or `APIDECK_APP_ID` is missing, indicating that accounting integrations such as QuickBooks will be unavailable until both are set.
+        Validates configuration and emits warnings for missing critical settings.
         """
-        # Validate Apideck configuration (warning - optional feature)
-        if not self.APIDECK_API_KEY or not self.APIDECK_APP_ID:
+        # Warn if Intuit credentials are missing
+        if not self.INTUIT_CLIENT_ID or not self.INTUIT_CLIENT_SECRET or not self.INTUIT_REDIRECT_URI:
             warnings.warn(
-                "APIDECK_API_KEY and APIDECK_APP_ID are not configured. "
-                "QuickBooks and other accounting integrations will not work. "
-                "To enable these features, set both environment variables. "
-                "Get your credentials from https://app.apideck.com",
+                "INTUIT_CLIENT_ID/INTUIT_CLIENT_SECRET/INTUIT_REDIRECT_URI are not fully configured. "
+                "QuickBooks integration will not work until these are set.",
                 RuntimeWarning,
-                stacklevel=2
+                stacklevel=2,
             )
         # Validate Supabase webhook secret
         if not self.SUPABASE_WEBHOOK_SECRET:

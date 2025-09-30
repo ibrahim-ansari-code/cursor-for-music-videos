@@ -15,21 +15,24 @@ from . import maintenance
 from . import reports
 from . import agent
 
-# Initialize models to resolve circular dependencies if needed
+# Industry standard: Initialize models to resolve circular dependencies
 def initialize_models():
     """
     Configures SQLAlchemy mappers after all models have been imported.
     
-    This function ensures that all model relationships and mappings are properly set up,
-    resolving any circular dependencies before the ORM is used.
+    This is the industry standard approach for resolving circular dependencies
+    in complex model hierarchies with joined table inheritance.
     """
     try:
         from sqlalchemy.orm import configure_mappers
         configure_mappers()
-        print("SQLAlchemy mappers configured successfully.")
+        print("✅ SQLAlchemy mappers configured successfully.")
     except Exception as e:
-        print(f"Error configuring SQLAlchemy mappers: {e}")
+        print(f"❌ Error configuring SQLAlchemy mappers: {e}")
         raise
+
+# Auto-initialize when models module is imported  
+initialize_models()
 
 
 # SQLModel and Enum imports from local model files
@@ -47,6 +50,7 @@ from .accounting.invoice import Invoice
 from .accounting.invoice_tax_detail import InvoiceTaxDetail
 from .accounting.expense import Expense, ExpenseTaxDetail
 from .accounting.integration import Integration
+from .accounting.quickbooks_integration import QuickBooksIntegration
 
 # General Enums from enums.py
 from .enums import UserType, PropertyStatus # PropertyStatus is in enums.py
@@ -65,6 +69,7 @@ __all__ = [
     "FinancialTableRow",
     "IncomeByProperty",
     "Integration",
+    "QuickBooksIntegration",
     "IntegrationStatus",
     "IntegrationType",
     "Invoice",

@@ -452,7 +452,7 @@ const OverviewTab = () => {
         <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-6 h-full">
           <div className="flex items-center mb-4">
             <h2 className="text-lg font-medium text-gray-800 dark:text-gray-200">
-              Expense Breakdown
+              Expense Breakdown (Last 30 Days)
               {selectedProperty !== "all" && (
                 <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
                   (

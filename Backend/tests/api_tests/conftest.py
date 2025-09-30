@@ -128,14 +128,79 @@ def mock_recaptcha_bypass():
 
 
 @pytest.fixture(autouse=True)
-def auto_mock_recaptcha_for_api_tests(mock_recaptcha_success):
+def auto_mock_recaptcha_for_api_tests():
     """
-    Automatically mock reCAPTCHA for all API tests.
+    Automatically mock reCAPTCHA for all API tests by setting TESTING=True.
 
     This ensures API tests can run even when reCAPTCHA is enabled,
-    by automatically mocking successful verification.
+    by bypassing reCAPTCHA verification via the TESTING flag.
     """
-    pass
+    with patch('Backend.config.settings.TESTING', True):
+        yield
+
+
+@pytest.fixture(scope="function")
+async def cleanup_quickbooks_integration(current_user_id: str):
+    """
+    Clean up QuickBooks integrations for the test user.
+
+    Use this fixture when you need a clean slate for QuickBooks integration tests.
+    """
+    import asyncpg
+
+    # Connect directly to the database
+    conn = await asyncpg.connect(os.getenv("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:54322/postgres"))
+    try:
+        # Delete QuickBooks integrations for the test user
+        await conn.execute(
+            "DELETE FROM integrations WHERE user_id = $1 AND integration_type = 'QUICKBOOKS'",
+            current_user_id
+        )
+        yield
+    finally:
+        await conn.close()
+
+
+@pytest.fixture(scope="function")
+async def connected_quickbooks_integration(current_user_id: str, cleanup_quickbooks_integration):
+    """
+    Create a connected QuickBooks integration for the test user.
+
+    This fixture creates a fake but valid QuickBooks integration in the database.
+    """
+    import asyncpg
+    from uuid import uuid4
+
+    conn = await asyncpg.connect(os.getenv("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:54322/postgres"))
+    try:
+        # Create integration record
+        integration_id = await conn.fetchval(
+            """
+            INSERT INTO integrations (user_id, integration_type, status, connected_at, created_at, updated_at)
+            VALUES ($1, 'QUICKBOOKS', 'Connected', NOW(), NOW(), NOW())
+            RETURNING id
+            """,
+            current_user_id
+        )
+
+        # Create quickbooks_integrations record with fake encrypted tokens
+        await conn.execute(
+            """
+            INSERT INTO quickbooks_integrations (
+                integration_id, realm_id, access_token_encrypted, refresh_token_encrypted,
+                access_token_expires_at, created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, NOW() + INTERVAL '1 hour', NOW(), NOW())
+            """,
+            integration_id,
+            "test_realm_id_123",
+            "encrypted_access_token",
+            "encrypted_refresh_token"
+        )
+
+        yield integration_id
+    finally:
+        await conn.close()
 
 
 # API test specific markers

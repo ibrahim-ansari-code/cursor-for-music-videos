@@ -43,12 +43,16 @@ import Maintenance from "./pages/Maintenance";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Integrations from "./pages/Integrations";
+import QuickBooksCallback from "./pages/QuickBooksCallback";
 
 /**
  * Protected Route component
  */
 const ProtectedRoute = ({ children }) => {
-  const { user } = useContext(AuthContext);
+  const ctx = useContext(AuthContext);
+  const user = ctx?.user;
+  const loading = ctx?.loading;
+  if (loading) return null; // wait until auth is initialized
   return user ? children : <Navigate to="/login" />;
 };
 
@@ -81,6 +85,8 @@ const AppRoutes = () => {
 
   return (
     <Routes>
+      {/* Public OAuth callback route (no auth gate) */}
+      <Route path="/oauth/quickbooks/callback" element={<QuickBooksCallback />} />
       <Route
         path="/"
         element={<ProtectedRoute><Layout /></ProtectedRoute>}
@@ -150,7 +156,14 @@ function App() {
           >
             <AuthProvider>
               <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-                <ToastContainer position="top-right" autoClose={5000} />
+                <ToastContainer
+                  position="top-right"
+                  autoClose={5000}
+                  theme="colored"
+                  toastClassName="!bg-white !text-gray-900 dark:!bg-gray-800 dark:!text-gray-100"
+                  bodyClassName="!text-gray-900 dark:!text-gray-100"
+                  progressClassName="!bg-blue-500"
+                />
                 <AppRoutes />
                 <div className="recaptcha-notice">
                   Protected by reCAPTCHA v3 —

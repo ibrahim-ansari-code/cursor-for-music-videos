@@ -23,9 +23,19 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
     port: 5173,
     open: true,
     middlewareMode: false,
+    allowedHosts: [
+      '.ngrok.io',
+      '.ngrok-free.app',
+      '.ngrok-free.dev',
+    ],
+    hmr: {
+      // Ensure HMR works over HTTPS tunnels like ngrok
+      clientPort: 443,
+    },
     watch: {
       usePolling: true,
     },
@@ -39,6 +49,11 @@ export default defineConfig({
   preview: {
     port: 4173,
     strictPort: true,
+    allowedHosts: [
+      '.ngrok.io',
+      '.ngrok-free.app',
+      '.ngrok-free.dev',
+    ],
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

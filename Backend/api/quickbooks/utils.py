@@ -1,89 +1,111 @@
 import asyncio
 import logging
-from uuid import uuid4
+import random
 from datetime import datetime, timedelta, UTC
-from typing import Callable, Any, Awaitable, Optional
-from enum import Enum
+from typing import Callable, Any, Awaitable, Optional, Dict, List, Union, Tuple
+from uuid import uuid4
 from sqlalchemy import desc
 from sqlmodel import col
 
-import apideck_unify
-from apideck_unify import Apideck
-from apideck_unify.models import AccountingCompanyInfoOneResponse
 from cachetools import TTLCache
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, SQLModel
 from fastapi import HTTPException, status
 
 from Backend.config import settings
 from Backend.models.user import User
 from Backend.models.accounting.integration import Integration, IntegrationStatus, IntegrationType
+from Backend.models.accounting.quickbooks_integration import QuickBooksIntegration
 from Backend.models.tenant import Tenant
 from Backend.models.lease import Lease, LeaseStatus
+from Backend.utils.datetime_utils import create_audit_datetime
+from .intuit_client import get_intuit_client_for_user
+from .crypto_utils import encrypt_token, decrypt_token
 logger = logging.getLogger(__name__)
 
 # === Configuration ===
-APIDECK_SERVICE_ID = getattr(settings, 'APIDECK_SERVICE_ID', 'quickbooks')
-RATE_LIMIT_REQUESTS = 5
-RATE_LIMIT_WINDOW_HOURS = 1
+RATE_LIMIT_REQUESTS = settings.QB_RATE_LIMIT_REQUESTS
+RATE_LIMIT_WINDOW_HOURS = settings.QB_RATE_LIMIT_WINDOW_HOURS
 
-# === Startup Validation ===
-def validate_apideck_config() -> None:
-    """
-    Checks that Apideck API credentials are present in the environment at startup.
-    
-    Raises:
-        ValueError: If either APIDECK_API_KEY or APIDECK_APP_ID is missing.
-    """
-    if not settings.APIDECK_API_KEY or not settings.APIDECK_APP_ID:
-        raise ValueError(
-            "Apideck configuration is incomplete. Both APIDECK_API_KEY and APIDECK_APP_ID "
-            "environment variables must be set for QuickBooks integration to work."
-        )
-    logger.info("Apideck configuration validated successfully")
 
-# === Operation Handlers ===
-class ApideckOperation(Enum):
-    """Enum for supported Apideck operations"""
-    COMPANY_INFO = "company_info"
-    # Add more operations as needed
-    # EXPENSES_CREATE = "expenses_create"
-    # INVOICES_CREATE = "invoices_create"
-    # CUSTOMERS_LIST = "customers_list"
+# === Error Message Sanitization ===
+def sanitize_error_message(error_message: str) -> str:
+    """Sanitize error messages for safe user display."""
+    # Import from auth service to avoid duplication
+    from .services.auth_service import QuickBooksAuthService
+    return QuickBooksAuthService.sanitize_error(error_message)
 
-async def _handle_company_info_operation(client: Apideck, service_id: str) -> AccountingCompanyInfoOneResponse:
+# === Structured Logging ===
+def log_quickbooks_operation(
+    operation: str,
+    user_id: str,
+    level: str = "info",
+    **context
+) -> None:
     """
-    Asynchronously retrieves company information from the accounting service via the Apideck client.
-    
-    Waits up to 30 seconds for the operation to complete before timing out.
-    
+    Logs QuickBooks operations with structured business context for Sentry.
+
     Args:
-        service_id: Identifier of the accounting service to query.
-    
-    Returns:
-        An AccountingCompanyInfoOneResponse containing the company's information.
-    
-    Raises:
-        asyncio.TimeoutError: If the request does not complete within 30 seconds.
+        operation: The operation being performed (e.g., "sync_payments", "create_expense")
+        user_id: The user ID performing the operation
+        level: Log level (info, warning, error, critical)
+        **context: Additional context to include in the log
     """
-    return await asyncio.wait_for(
-        asyncio.to_thread(
-            client.accounting.company_info.get,
-            service_id=service_id
-        ),
-        timeout=30.0
-    )
+    try:
+        # Import here to avoid circular imports
+        import sentry_sdk
 
-# Operation mapping dictionary
-OPERATION_HANDLERS: dict[ApideckOperation, Callable[..., Awaitable[Any]]] = {
-     ApideckOperation.COMPANY_INFO: _handle_company_info_operation,
- }
+        # Base context for all QuickBooks operations
+        base_context = {
+            "feature": "quickbooks_integration",
+            "service": "intuit",
+            "operation": operation,
+            "user_id": user_id,
+        }
+
+        # Merge with additional context
+        log_context = {**base_context, **context}
+
+        # Create structured log message
+        message = f"QuickBooks {operation.replace('_', ' ').title()}"
+        if context.get("status"):
+            message += f" - {context['status']}"
+
+        # Log with appropriate level
+        log_method = getattr(logger, level.lower(), logger.info)
+        log_method(message, extra={"context": log_context})
+
+        # Also send to Sentry with structured context
+        with sentry_sdk.configure_scope() as scope:
+            scope.set_tag("feature", "quickbooks_integration")
+            scope.set_tag("operation", operation)
+            scope.set_context("quickbooks", log_context)
+
+            if level.lower() == "error":
+                sentry_sdk.capture_message(message, level="error")
+            elif level.lower() == "warning":
+                sentry_sdk.capture_message(message, level="warning")
+            else:
+                # For info level, just add breadcrumb
+                sentry_sdk.add_breadcrumb(
+                    message=message,
+                    category="quickbooks",
+                    level="info",
+                    data=log_context
+                )
+
+    except Exception as e:
+        # Fallback to regular logging if Sentry logging fails
+        logger.error(f"Failed to log QuickBooks operation {operation}: {e}")
+        logger.info(f"QuickBooks {operation}: user_id={user_id}, context={context}")
 
 # === Rate Limiting ===
-# TTL-based rate limiting (prevents memory leaks from inactive users)
-# TODO: Implement Redis-based rate limiting for distributed deployments
-user_request_cache: TTLCache[str, list[datetime]] = TTLCache(
-    maxsize=10000,  # Maximum number of users to track
+# Memory-based rate limiting with TTL cache
+from cachetools import TTLCache
+from datetime import datetime, UTC
+
+user_request_cache: TTLCache[str, List[datetime]] = TTLCache(
+    maxsize=1000,  # Maximum number of users to track
     ttl=RATE_LIMIT_WINDOW_HOURS * 3600  # TTL in seconds
 )
 rate_limit_lock = asyncio.Lock()
@@ -91,8 +113,15 @@ rate_limit_lock = asyncio.Lock()
 async def check_rate_limit(user_id: str) -> bool:
     """
     Determines if a user is within the allowed number of requests for the current rate limit window.
-    
-    Tracks recent request timestamps per user in an in-memory cache. Returns True if the user has made fewer than the maximum allowed requests in the configured time window; otherwise, returns False. Not suitable for distributed or multi-process environments.
+
+    Tracks recent request timestamps per user in an in-memory cache with TTL. Returns True if the user
+    has made fewer than the maximum allowed requests in the configured time window.
+
+    Args:
+        user_id: Unique user identifier
+
+    Returns:
+        True if request is allowed, False if rate limited
     """
     async with rate_limit_lock:
         now = datetime.now(UTC)
@@ -117,138 +146,25 @@ async def check_rate_limit(user_id: str) -> bool:
         
         return True
 
-# === Circuit Breaker ===
-class SimpleCircuitBreaker:
-    """Simple circuit breaker for external API calls - thread-safe for async use"""
-    
-    def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 60) -> None:
-        """
-        Initializes the circuit breaker with a failure threshold and recovery timeout.
-        
-        Args:
-            failure_threshold: Number of consecutive failures required to open the circuit.
-            recovery_timeout: Seconds to wait before allowing operations after the circuit opens.
-        """
-        self.failure_threshold = failure_threshold
-        self.recovery_timeout = recovery_timeout
-        self.failure_count = 0
-        self.last_failure_time: datetime | None = None
-        self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
-        self._lock = asyncio.Lock()  # Protect shared state
-    
-    async def can_execute(self) -> bool:
-        """
-        Checks if the circuit breaker currently allows an operation to proceed.
-        
-        Returns:
-            True if execution is permitted based on the circuit state and recovery timeout; otherwise, False.
-        """
-        async with self._lock:
-            if self.state == "CLOSED":
-                return True
-            if self.state == "OPEN":
-                if (self.last_failure_time and 
-                    (datetime.now(UTC) - self.last_failure_time).total_seconds() > self.recovery_timeout):
-                    self.state = "HALF_OPEN"
-                    return True
-                return False
-            else:  # HALF_OPEN
-                return True
-    
-    async def record_success(self) -> None:
-        """
-        Resets the circuit breaker state to CLOSED after a successful operation.
-        
-        Sets the failure count to zero and transitions the circuit breaker to the CLOSED state.
-        """
-        async with self._lock:
-            self.failure_count = 0
-            self.state = "CLOSED"
-    
-    async def record_failure(self) -> None:
-        """
-        Records a failure and transitions the circuit breaker to OPEN if the threshold is reached.
-        
-        Increments the failure count and updates the last failure time. If the number of failures meets or exceeds the configured threshold, the circuit breaker state is set to OPEN to prevent further operations until recovery.
-        """
-        async with self._lock:
-            self.failure_count += 1
-            self.last_failure_time = datetime.now(UTC)
-            
-            if self.failure_count >= self.failure_threshold:
-                self.state = "OPEN"
-
-# Global circuit breaker instance
-apideck_circuit_breaker = SimpleCircuitBreaker()
 
 # === Helper Functions ===
-def get_apideck_client(consumer_id: str) -> Apideck:
+async def get_quickbooks_client(user: User, session: AsyncSession):
     """
-    Returns an Apideck client configured with API key, app ID, and the specified consumer ID.
-    
-    Raises:
-        RuntimeError: If Apideck API credentials are missing from the environment.
-    """
-    # Guard clause to ensure credentials are configured
-    if not settings.APIDECK_API_KEY or not settings.APIDECK_APP_ID:
-        raise RuntimeError(
-            "Apideck credentials are not configured. Both APIDECK_API_KEY and APIDECK_APP_ID "
-            "environment variables must be set. QuickBooks operations are disabled."
-        )
-    
-    return Apideck(
-        api_key=settings.APIDECK_API_KEY,
-        consumer_id=consumer_id,
-        app_id=settings.APIDECK_APP_ID,
-    )
+    Returns an Intuit QuickBooks client for the given user.
 
-async def get_or_create_integration(
-    user: User, 
-    session: AsyncSession,
-    integration_type: IntegrationType = IntegrationType.QUICKBOOKS,
-    service_id: str = APIDECK_SERVICE_ID
-) -> Integration:
+    Raises:
+        HTTPException: If QuickBooks integration is not configured or credentials are missing.
     """
-    Retrieves an existing integration for a user and integration type, or creates and returns a new one if none exists.
-    
-    If no integration is found, creates a new Integration record with a generated Apideck consumer ID, the specified service ID, and a disconnected status. The new integration is committed to the database and returned.
-    """
-    integration = await session.scalar(
-        select(Integration).where(
-            Integration.user_id == user.id,
-            Integration.integration_type == integration_type
+    try:
+        return await get_intuit_client_for_user(user.id, session)
+    except Exception as e:
+        logger.error(f"Failed to get QuickBooks client for user {user.id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="QuickBooks integration is not configured properly."
         )
-    )
-    
-    if not integration:
-        # Generate a shorter consumer_id using 12 characters for better length management
-        consumer_id = f"brikli-{user.id}-{integration_type.value.lower()}-{uuid4().hex}"
-        
-        integration = Integration(
-            user_id=user.id,
-            integration_type=integration_type,
-            apideck_consumer_id=consumer_id,
-            apideck_service_id=service_id,  # Configurable service identifier
-            status=IntegrationStatus.DISCONNECTED
-        )
-        session.add(integration)
-        await session.flush()
-        await session.refresh(integration)
-    else:
-        # Backfill missing consumer_id/service_id for legacy rows
-        needs_update = False
-        if integration.apideck_consumer_id is None or integration.apideck_consumer_id == "":
-            integration.apideck_consumer_id = f"brikli-{user.id}-{integration_type.value.lower()}-{uuid4().hex}"
-            needs_update = True
-        if integration.apideck_service_id is None or integration.apideck_service_id == "":
-            integration.apideck_service_id = service_id
-            needs_update = True
-        if needs_update:
-            session.add(integration)
-            await session.flush()
-            await session.refresh(integration)
-    
-    return integration
+
+# Removed get_or_create_integration - use QuickBooksAuthService instead
 
 async def get_user_integration(
     user: User,
@@ -268,98 +184,9 @@ async def get_user_integration(
         )
     )
 
-async def call_apideck_with_circuit_breaker(client: Apideck, service_id: str, operation: str) -> Any:
-    """
-    Executes an Apideck operation with circuit breaker protection and error handling.
-    
-    Checks the circuit breaker state before executing the requested operation. Validates the operation name, retrieves the corresponding handler, and executes it asynchronously. On failure or timeout, records the failure and raises an HTTPException with an appropriate status code. On success, records the success and returns the operation result.
-    
-    Args:
-        service_id: The Apideck service identifier.
-        operation: The name of the Apideck operation to execute.
-    
-    Returns:
-        The result of the executed Apideck operation.
-    
-    Raises:
-        HTTPException: If the circuit breaker is open, the operation is unsupported or not implemented, or if the Apideck API call fails.
-    """
-    if not await apideck_circuit_breaker.can_execute():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Apideck service temporarily unavailable (circuit breaker open)"
-        )
-    
-    try:
-        # Convert string to enum for safe lookup
-        try:
-            operation_enum = ApideckOperation(operation)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Unsupported operation: '{operation}'. Allowed: {[op.value for op in ApideckOperation]}",
-            )
+# Apideck functions removed - replaced with direct Intuit integration
 
-        # Look up operation handler from the mapping
-        handler = OPERATION_HANDLERS.get(operation_enum)
-        if not handler:
-            raise HTTPException(
-                status_code=status.HTTP_501_NOT_IMPLEMENTED,
-                detail=f"Operation '{operation}' is defined but not implemented.",
-            )
-        
-        # Execute the operation using the appropriate handler
-        result = await handler(client, service_id)
-        
-    except asyncio.TimeoutError:
-        # Log with full traceback for better debugging
-        logger.exception("Apideck API call timed out for operation: %s", operation)
-        # Record failure only once before raising the exception
-        await apideck_circuit_breaker.record_failure()
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail=f"Upstream service timed out during '{operation}' operation."
-        )
-    except Exception as e:
-        await apideck_circuit_breaker.record_failure()
-        
-        # Enhanced exception handling with structured logging for Apideck errors
-        exception_type = type(e).__name__
-        
-        # Check for Apideck-specific error attributes for better observability
-        if hasattr(e, 'status') and hasattr(e, 'body'):
-            # This looks like an Apideck API exception
-            status_code = getattr(e, 'status', 'Unknown')
-            reason = getattr(e, 'reason', 'Unknown reason')
-            body = getattr(e, 'body', {})
-            headers = getattr(e, 'headers', {})
-            
-            logger.error(
-                "Apideck API error for operation %s: Type=%s, Status=%s, Reason='%s', Body=%s, Headers=%s",
-                operation, exception_type, status_code, reason, body, headers,
-                exc_info=True
-            )
-        elif 'apideck' in exception_type.lower() or 'api' in exception_type.lower():
-            # Likely an API-related exception even without status/body
-            logger.error(
-                "API exception for operation %s: Type=%s, Message='%s'",
-                operation, exception_type, str(e),
-                exc_info=True
-            )
-        else:
-            # Generic exception
-            logger.error("Unexpected error for operation %s: Type=%s, Message='%s'", operation, exception_type, str(e))
-        
-        # Surface a controlled error to the client
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Upstream QuickBooks service failed"
-        ) from e
-    else:
-        await apideck_circuit_breaker.record_success()
-        return result
-
-def normalize_qb_datetime(date_str: str | None) -> datetime:
+def normalize_qb_datetime(date_str: Optional[str]) -> datetime:
     """
     Parses a date or datetime string from QuickBooks into a timezone-aware datetime object.
     Defaults to the current UTC time if the input is None or invalid.
@@ -380,7 +207,7 @@ def normalize_qb_datetime(date_str: str | None) -> datetime:
         logger.warning("Could not parse date string '%s'. Defaulting to now().", date_str)
         return datetime.now(UTC)
 
-async def resolve_tenant_and_lease_from_qb_object(session: AsyncSession, qb_object: Any) -> tuple[Optional[Tenant], Optional[Lease]]:
+async def resolve_tenant_and_lease_from_qb_object(session: AsyncSession, qb_object: object) -> Tuple[Optional[Tenant], Optional[Lease]]:
     """
     Finds the Brikli tenant and their active lease from a QuickBooks object (e.g., invoice, payment).
     """
@@ -410,9 +237,354 @@ async def resolve_tenant_and_lease_from_qb_object(session: AsyncSession, qb_obje
     
     return tenant, lease
 
-async def is_already_synced(session: AsyncSession, qb_id: str, model: Any) -> bool:
+async def is_already_synced(session: AsyncSession, qb_id: str, model_class: type[SQLModel]) -> bool:
     """Checks if a QuickBooks entity with a given ID has already been synced."""
-    query = select(model).where(col(model.quickbooks_id) == qb_id)
+    # Use string-based column access to avoid static type issues
+    query = select(model_class).where(col(getattr(model_class, 'quickbooks_id')) == qb_id)
     result = await session.scalar(query)
     return result is not None
+
+async def check_quickbooks_connection_health(
+    user: User,
+    session: AsyncSession,
+    perform_deep_check: bool = False
+) -> Dict[str, Any]:
+    """Simple QuickBooks connection health check."""
+    integration = await get_user_integration(user, session, IntegrationType.QUICKBOOKS)
+
+    if not integration:
+        return {
+            "is_healthy": False,
+            "status": "not_configured",
+            "issues": ["QuickBooks integration not found"]
+        }
+
+    is_connected = integration.status == IntegrationStatus.CONNECTED
+    issues = []
+
+    if not is_connected:
+        issues.append("Not connected to QuickBooks")
+
+    if perform_deep_check and is_connected:
+        try:
+            intuit_client = await get_intuit_client_for_user(user.id, session)
+            await asyncio.wait_for(intuit_client.get_company_info(), timeout=10.0)
+        except Exception:
+            issues.append("API connectivity test failed")
+
+    return {
+        "is_healthy": is_connected and not issues,
+        "status": "healthy" if is_connected and not issues else "unhealthy",
+        "issues": issues
+    }
+
+
+async def validate_quickbooks_configuration(
+    user: User,
+    session: AsyncSession
+) -> Dict[str, Any]:
+    """Simple QuickBooks configuration validation."""
+    integration = await get_user_integration(user, session, IntegrationType.QUICKBOOKS)
+
+    if not integration or integration.status != IntegrationStatus.CONNECTED:
+        return {
+            "is_valid": False,
+            "missing_config": ["QuickBooks integration not connected"],
+            "warnings": [],
+            "account_info": {},
+            "item_info": {}
+        }
+
+    try:
+        await get_intuit_client_for_user(user.id, session)
+        return {
+            "is_valid": True,
+            "missing_config": [],
+            "warnings": [],
+            "account_info": {},
+            "item_info": {}
+        }
+    except Exception:
+        return {
+            "is_valid": False,
+            "missing_config": ["QuickBooks client connection failed"],
+            "warnings": [],
+            "account_info": {},
+            "item_info": {}
+        }
+
+
+async def resolve_default_accounts_intuit(
+    intuit_client,
+    integration: Integration,
+    session: AsyncSession
+) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Resolve and cache default QuickBooks account IDs for expenses.
+
+    Strategy:
+      1) Try cached values in integration.connection_metadata
+      2) Fallback: list accounts via Intuit API and pick first matching types
+      3) Cache results back into integration.connection_metadata
+
+    Returns:
+        Tuple (paid_from_account_id, default_expense_account_id)
+    """
+    try:
+        metadata = integration.connection_metadata or {}
+        paid_from_account_id = metadata.get("paid_from_account_id")
+        default_expense_account_id = metadata.get("default_expense_account_id")
+
+        if paid_from_account_id and default_expense_account_id:
+            return paid_from_account_id, default_expense_account_id
+
+        # Get accounts from QuickBooks
+        accounts_response = await intuit_client.list_accounts(max_results=200)
+
+        if not accounts_response or "QueryResponse" not in accounts_response:
+            return paid_from_account_id, default_expense_account_id
+
+        accounts = accounts_response["QueryResponse"].get("Account", [])
+
+        candidate_paid_from = None
+        candidate_expense = None
+
+        for account in accounts:
+            account_type = account.get("AccountType", "").upper()
+            account_subtype = account.get("AccountSubType", "").upper()
+            account_name = account.get("Name", "").lower()
+            account_id = account.get("Id")
+
+            # Look for bank/credit card accounts (for paying expenses)
+            if not candidate_paid_from and (
+                account_type in {"BANK", "CREDIT_CARD", "CASH"} or
+                account_subtype in {"CHECKING", "SAVINGS", "CASH_ON_HAND", "CREDIT_CARD"} or
+                any(word in account_name for word in ["bank", "checking", "cash", "credit"])
+            ):
+                candidate_paid_from = account_id
+
+            # Look for expense accounts (for categorizing expenses)
+            if not candidate_expense and (
+                account_type in {"EXPENSE", "COST_OF_GOODS_SOLD"} or
+                account_subtype in {"OPERATING_EXPENSES", "EXPENSE"} or
+                "expense" in account_name
+            ):
+                candidate_expense = account_id
+
+            if candidate_paid_from and candidate_expense:
+                break
+
+        # Cache the results if found
+        updated = False
+        if candidate_paid_from and not paid_from_account_id:
+            metadata["paid_from_account_id"] = candidate_paid_from
+            updated = True
+        if candidate_expense and not default_expense_account_id:
+            metadata["default_expense_account_id"] = candidate_expense
+            updated = True
+
+        if updated:
+            integration.connection_metadata = metadata
+            session.add(integration)
+            await session.commit()
+
+        return (
+            candidate_paid_from or paid_from_account_id,
+            candidate_expense or default_expense_account_id,
+        )
+
+    except Exception as e:
+        logger.exception("Failed to resolve default QuickBooks accounts via Intuit API")
+        return None, None
+
+
+# === Batch Processing Utilities ===
+async def process_in_batches(
+    items: List[object],
+    batch_processor: Callable[[List[object]], Awaitable[Dict[str, Union[int, float, str, List[str]]]]],
+    batch_size: int = 100,
+    delay_between_batches: float = 0.5
+) -> Dict[str, Union[int, float, str, List[str]]]:
+    """
+    Process a list of items in batches with configurable batch size and delays.
+
+    Args:
+        items: List of items to process
+        batch_processor: Async function that processes a batch and returns results
+        batch_size: Number of items to process in each batch
+        delay_between_batches: Delay in seconds between batches to respect rate limits
+
+    Returns:
+        Dictionary with aggregated results from all batches
+    """
+    total_processed = 0
+    total_errors: List[str] = []
+    total_results: Dict[str, Union[int, float, str, List[str]]] = {}
+
+    # Process items in chunks
+    for i in range(0, len(items), batch_size):
+        batch = items[i:i + batch_size]
+        batch_number = (i // batch_size) + 1
+        total_batches = (len(items) + batch_size - 1) // batch_size
+
+        logger.info(f"Processing batch {batch_number}/{total_batches} ({len(batch)} items)")
+
+        try:
+            batch_result = await batch_processor(batch)
+
+            # Aggregate results
+            if isinstance(batch_result, dict):
+                for key, value in batch_result.items():
+                    if key == "errors" and isinstance(value, list):
+                        total_errors.extend(value)
+                    elif isinstance(value, (int, float)):
+                        existing_value = total_results.get(key, 0)
+                        if isinstance(existing_value, (int, float)) and isinstance(value, (int, float)):
+                            total_results[key] = existing_value + value  # type: ignore[operator]
+                        else:
+                            total_results[key] = value
+                    elif key not in total_results:
+                        total_results[key] = value
+
+            total_processed += len(batch)
+
+            # Add delay between batches to respect rate limits
+            if i + batch_size < len(items) and delay_between_batches > 0:
+                await asyncio.sleep(delay_between_batches)
+
+        except Exception as e:
+            logger.error(f"Error processing batch {batch_number}: {e}", exc_info=True)
+            total_errors.append(f"Batch {batch_number} failed: {str(e)[:100]}")
+
+    # Add error list to results if there were any errors
+    if total_errors:
+        total_results["errors"] = total_errors
+
+    total_results["total_processed"] = total_processed
+    return total_results
+
+
+async def batch_database_operations(
+    session: AsyncSession,
+    operations: List[Callable[[], Awaitable[object]]],
+    batch_size: int = 50,
+    commit_each_batch: bool = True
+) -> List[object]:
+    """
+    Execute database operations in batches for better performance.
+
+    Args:
+        session: Database session
+        operations: List of async functions that perform database operations
+        batch_size: Number of operations to execute before committing
+        commit_each_batch: Whether to commit after each batch
+
+    Returns:
+        List of results from all operations
+    """
+    results: List[object] = []
+
+    for i in range(0, len(operations), batch_size):
+        batch_ops = operations[i:i + batch_size]
+        batch_results = []
+
+        try:
+            # Execute all operations in the batch
+            for operation in batch_ops:
+                result = await operation()
+                batch_results.append(result)
+
+            # Commit the batch if requested
+            if commit_each_batch:
+                await session.commit()
+
+            results.extend(batch_results)
+            logger.debug(f"Completed database batch {(i // batch_size) + 1} with {len(batch_ops)} operations")
+
+        except Exception as e:
+            # Rollback on error
+            await session.rollback()
+            logger.error(f"Database batch failed, rolled back: {e}", exc_info=True)
+            raise
+
+    return results
+
+
+# === Retry Logic ===
+async def retry_with_exponential_backoff(
+    func: Callable[[], Awaitable[object]],
+    max_retries: int = 3,
+    base_delay: float = 1.0,
+    max_delay: float = 60.0,
+    exponential_base: float = 2.0,
+    jitter: bool = True,
+    retryable_exceptions: Tuple[type[Exception], ...] = (
+        ConnectionError,
+        TimeoutError,
+        OSError,
+    ),
+    operation_name: str = "operation"
+) -> object:
+    """
+    Retry an async function with exponential backoff.
+
+    Args:
+        func: Async function to retry
+        max_retries: Maximum number of retry attempts
+        base_delay: Initial delay between retries in seconds
+        max_delay: Maximum delay between retries in seconds
+        exponential_base: Base for exponential backoff calculation
+        jitter: Whether to add random jitter to delays
+        retryable_exceptions: Tuple of exceptions that should trigger a retry
+        operation_name: Name of the operation for logging
+
+    Returns:
+        Result of the function call
+
+    Raises:
+        The last exception if all retries are exhausted
+    """
+    last_exception = None
+
+    for attempt in range(max_retries + 1):  # +1 for initial attempt
+        try:
+            result = await func()
+
+            if attempt > 0:
+                logger.info(f"QuickBooks {operation_name} succeeded after {attempt} retries")
+
+            return result
+
+        except Exception as e:
+        # Check if the exception is one of the retryable types
+            if not isinstance(e, retryable_exceptions):
+                # Non-retryable exception, fail immediately
+                logger.error(f"QuickBooks {operation_name} failed with non-retryable error: {e}")
+                raise
+            
+            last_exception = e
+
+            if attempt == max_retries:
+                logger.error(f"QuickBooks {operation_name} failed after {max_retries} retries: {e}")
+                break
+
+            # Calculate delay with exponential backoff
+            delay = min(base_delay * (exponential_base ** attempt), max_delay)
+
+            # Add jitter to prevent thundering herd
+            if jitter:
+                delay += random.uniform(0, delay * 0.1)
+
+            logger.warning(
+                f"QuickBooks {operation_name} attempt {attempt + 1} failed: {e}. "
+                f"Retrying in {delay:.2f} seconds..."
+            )
+
+            await asyncio.sleep(delay)
+
+    # All retries exhausted
+    if last_exception:
+        raise last_exception
+    else:
+        raise RuntimeError(f"QuickBooks {operation_name} failed: maximum retries exceeded")
 
