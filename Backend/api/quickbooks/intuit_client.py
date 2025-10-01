@@ -38,6 +38,13 @@ class IntuitClient:
     async def _ensure_token_valid(self) -> None:
         # Refresh a minute before expiry
         if self.qbi.access_token_expires_at <= datetime.now(UTC) + timedelta(seconds=60):
+            # Check if we have a refresh token before attempting refresh
+            if not self.qbi.refresh_token_encrypted:
+                logger.warning("Access token expired and no refresh token available. User must re-authorize.")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="QuickBooks session expired. Please reconnect your QuickBooks account."
+                )
             self.qbi = await refresh_access_token(self.session, self.qbi)
             self.access_token = decrypt_token(self.qbi.access_token_encrypted)
 

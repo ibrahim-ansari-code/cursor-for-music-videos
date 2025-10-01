@@ -178,8 +178,16 @@ async def get_quickbooks_diagnostics(
             "scopes_configured": settings.INTUIT_SCOPES,
             "has_offline_access": "offline_access" in settings.INTUIT_SCOPES,
             "redirect_uri": settings.INTUIT_REDIRECT_URI,
-            "integration_exists": integration is not None
+            "integration_exists": integration is not None,
+            "has_refresh_token": False
         }
+        
+        # Check if refresh token exists for connected integrations
+        if integration and integration.status == IntegrationStatus.CONNECTED:
+            from Backend.models.accounting.quickbooks_integration import QuickBooksIntegration
+            qbi = await session.get(QuickBooksIntegration, integration.id)
+            if qbi:
+                diagnostics["has_refresh_token"] = bool(qbi.refresh_token_encrypted)
         
         # If connected, try a simple API call to verify authorization
         if integration and integration.status == IntegrationStatus.CONNECTED:
@@ -532,12 +540,11 @@ async def preview_quickbooks_sync(
             "total": len(all_items)
         }
 
-        # Combine warnings
-        combined_warnings = (
-            expense_preview.warnings +
-            invoice_preview.warnings +
-            payment_preview.warnings
-        )
+        # Combine warnings - handle Optional[List[str]] from preview objects
+        expense_warnings: list[str] = list(expense_preview.warnings) if expense_preview.warnings else []
+        invoice_warnings: list[str] = list(invoice_preview.warnings) if invoice_preview.warnings else []
+        payment_warnings: list[str] = list(payment_preview.warnings) if payment_preview.warnings else []
+        combined_warnings: list[str] = expense_warnings + invoice_warnings + payment_warnings
 
         # Convert preview to response model
         items = [

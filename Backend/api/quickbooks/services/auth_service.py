@@ -302,8 +302,8 @@ class QuickBooksAuthService:
         expires_in = int(token_response.get("expires_in", 3600))
         refresh_expires_in = token_response.get("x_refresh_token_expires_in")
 
-        if not access_token or not refresh_token:
-            raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Invalid token response")
+        if not access_token:
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Invalid token response: missing access_token")
 
         access_expiry = datetime.now(UTC) + timedelta(seconds=expires_in)
         refresh_expiry = (
@@ -313,25 +313,16 @@ class QuickBooksAuthService:
 
         qbi = await self.session.get(QuickBooksIntegration, integration_id)
         if not qbi:
-            qbi = QuickBooksIntegration(
-                integration_id=integration_id,
-                realm_id=realm_id,
-                access_token_encrypted=encrypt_token(access_token),
-                refresh_token_encrypted=encrypt_token(refresh_token),
-                access_token_expires_at=access_expiry,
-                refresh_token_expires_at=refresh_expiry,
-                scope=token_response.get("scope"),
-                last_token_refresh_at=create_audit_datetime(),
-            )
+            qbi = QuickBooksIntegration(integration_id=integration_id)
             self.session.add(qbi)
-        else:
-            qbi.realm_id = realm_id
-            qbi.access_token_encrypted = encrypt_token(access_token)
-            qbi.refresh_token_encrypted = encrypt_token(refresh_token)
-            qbi.access_token_expires_at = access_expiry
-            qbi.refresh_token_expires_at = refresh_expiry
-            qbi.scope = token_response.get("scope")
-            qbi.last_token_refresh_at = create_audit_datetime()
+
+        qbi.realm_id = realm_id
+        qbi.access_token_encrypted = encrypt_token(access_token)
+        qbi.refresh_token_encrypted = encrypt_token(refresh_token) if refresh_token else None
+        qbi.access_token_expires_at = access_expiry
+        qbi.refresh_token_expires_at = refresh_expiry
+        qbi.scope = token_response.get("scope")
+        qbi.last_token_refresh_at = create_audit_datetime()
 
         await self.session.flush()
         return qbi
@@ -360,8 +351,12 @@ class QuickBooksAuthService:
 
         return None
 
-    async def _revoke_token_safe(self, encrypted_refresh_token: str) -> None:
+    async def _revoke_token_safe(self, encrypted_refresh_token: Optional[str]) -> None:
         """Safely revoke refresh token (best effort)."""
+        if not encrypted_refresh_token:
+            logger.info("No refresh token to revoke (accounting-only scope)")
+            return
+            
         try:
             refresh_token = decrypt_token(encrypted_refresh_token)
             basic_auth = self._b64_basic_auth(settings.INTUIT_CLIENT_ID, settings.INTUIT_CLIENT_SECRET)

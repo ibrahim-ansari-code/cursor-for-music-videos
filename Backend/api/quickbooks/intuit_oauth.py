@@ -74,6 +74,14 @@ def _b64_basic_auth(client_id: str, client_secret: str) -> str:
 
 
 async def refresh_access_token(session: AsyncSession, qbi: QuickBooksIntegration) -> QuickBooksIntegration:
+    # Check if refresh token exists (accounting-only scope may not provide one)
+    if not qbi.refresh_token_encrypted:
+        logger.warning("No refresh token available for QuickBooks integration. User must re-authorize.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="QuickBooks session expired. Please reconnect your QuickBooks account."
+        )
+
     token_url = settings.INTUIT_TOKEN_URL
     basic = _b64_basic_auth(settings.INTUIT_CLIENT_ID, settings.INTUIT_CLIENT_SECRET)
     headers = {
@@ -96,7 +104,10 @@ async def refresh_access_token(session: AsyncSession, qbi: QuickBooksIntegration
             if resp.status >= 400:
                 body = await resp.text()
                 logger.error("Intuit token refresh failed: %s %s", resp.status, body)
-                raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Token refresh failed")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="QuickBooks token refresh failed. Please reconnect your QuickBooks account."
+                )
             payload = await resp.json()
 
     access_token = payload.get("access_token")

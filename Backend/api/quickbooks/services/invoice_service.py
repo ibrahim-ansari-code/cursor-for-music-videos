@@ -130,7 +130,7 @@ class InvoiceService(BaseQuickBooksService):
                             entity_name=f"Invoice for {tenant.first_name} {tenant.last_name}" if tenant else f"QB Invoice {qb_invoice_id}",
                             action=SyncAction.CREATE,
                             details={
-                                "amount": float(new_invoice.total_amount) if new_invoice.total_amount else 0,
+                                "amount": float(new_invoice.amount) if new_invoice.amount else 0,
                                 "due_date": new_invoice.due_date.isoformat() if new_invoice.due_date else None,
                                 "tenant": f"{tenant.first_name} {tenant.last_name}" if tenant else "Unknown",
                                 "tax_details_count": len(tax_details)
@@ -232,7 +232,7 @@ class InvoiceService(BaseQuickBooksService):
                             entity_name=f"Invoice for {tenant.first_name} {tenant.last_name}" if tenant else f"Invoice {invoice.id}",
                             action=SyncAction.CREATE,
                             details={
-                                "amount": float(invoice.total_amount) if invoice.total_amount else 0,
+                                "amount": float(invoice.amount) if invoice.amount else 0,
                                 "due_date": invoice.due_date.isoformat() if invoice.due_date else None,
                                 "tenant": f"{tenant.first_name} {tenant.last_name}" if tenant else "Unknown",
                                 "destination": "QuickBooks"

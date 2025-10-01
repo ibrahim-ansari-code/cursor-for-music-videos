@@ -69,8 +69,9 @@ class Settings(BaseSettings):
 
     @property
     def INTUIT_SCOPES(self) -> str:  # OAuth scopes
-        # QuickBooks automatically provides refresh tokens with these standard scopes
-        return "com.intuit.quickbooks.accounting com.intuit.quickbooks.payment"
+        # Using accounting-only scope to avoid forced QuickBooks Payments onboarding
+        # This is especially important for Canadian users who may not be eligible for Payments
+        return "com.intuit.quickbooks.accounting"
     @property
     def QBO_MINOR_VERSION(self) -> int:  # QuickBooks API minor version
         return 73

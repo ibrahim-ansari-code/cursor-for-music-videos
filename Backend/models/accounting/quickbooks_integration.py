@@ -34,7 +34,10 @@ class QuickBooksIntegration(SQLModel, table=True):
     # Intuit/QBO identifiers and tokens (encrypted at rest via app utilities)
     realm_id: str = Field(sa_column=Column(String, nullable=False))
     access_token_encrypted: str = Field(sa_column=Column(String, nullable=False))
-    refresh_token_encrypted: str = Field(sa_column=Column(String, nullable=False))
+    refresh_token_encrypted: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String, nullable=True)
+    )
     access_token_expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     refresh_token_expires_at: Optional[datetime] = Field(
         default=None,
