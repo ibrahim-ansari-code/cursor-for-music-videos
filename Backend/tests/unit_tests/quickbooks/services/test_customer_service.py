@@ -39,7 +39,7 @@ def create_test_user(user_id=None, email="test@example.com"):
     )
 
 
-def create_test_tenant(tenant_id=None, user_id=None, email="tenant@example.com", quickbooks_id=None):
+def create_test_tenant(tenant_id=None, user_id=None, email="tenant@example.com", quickbooks_customer_id=None):
     """Helper function to create a test tenant."""
     return Tenant(
         id=tenant_id or uuid4(),
@@ -48,10 +48,10 @@ def create_test_tenant(tenant_id=None, user_id=None, email="tenant@example.com",
         first_name="John",
         last_name="Doe",
         phone="555-123-4567",
-        quickbooks_id=quickbooks_id,
+        quickbooks_customer_id=quickbooks_customer_id,
         created_at=FIXED_DATETIME,
         updated_at=FIXED_DATETIME,
-        last_synced_at=FIXED_DATETIME if quickbooks_id else None
+        last_synced_at=FIXED_DATETIME if quickbooks_customer_id else None
     )
 
 
@@ -205,8 +205,8 @@ class TestPullAndLinkCustomers:
 
         assert result["linked_count"] == 2
         assert result["errors"] == []
-        assert tenant1.quickbooks_id == "1"
-        assert tenant2.quickbooks_id == "2"
+        assert tenant1.quickbooks_customer_id == "1"
+        assert tenant2.quickbooks_customer_id == "2"
         assert mock_session.commit.called
 
     @pytest.mark.asyncio
@@ -251,8 +251,8 @@ class TestPullAndLinkCustomers:
         result = await customer_service._pull_and_link_customers()
 
         assert result["linked_count"] == 1
-        assert tenant_no_email.quickbooks_id is None
-        assert tenant_with_email.quickbooks_id == "1"
+        assert tenant_no_email.quickbooks_customer_id is None
+        assert tenant_with_email.quickbooks_customer_id == "1"
 
     @pytest.mark.asyncio
     async def test_pull_and_link_exception_handling(self, customer_service):
@@ -283,7 +283,7 @@ class TestPushUnlinkedTenants:
 
         assert result["pushed_count"] == 1
         assert result["errors"] == []
-        assert tenant.quickbooks_id == "new_qb_id"
+        assert tenant.quickbooks_customer_id == "new_qb_id"
         assert mock_session.commit.called
 
     @pytest.mark.asyncio
@@ -300,9 +300,9 @@ class TestPushUnlinkedTenants:
 
         assert result["pushed_count"] == 1
         assert result["errors"] == []
-        assert tenant.quickbooks_id == "existing_qb_id"
+        assert tenant.quickbooks_customer_id == "existing_qb_id"
         # The service may still attempt to create, so just verify linking worked
-        assert tenant.quickbooks_id == "existing_qb_id"
+        assert tenant.quickbooks_customer_id == "existing_qb_id"
 
     @pytest.mark.asyncio
     async def test_push_unlinked_tenants_creation_failure(self, customer_service, mock_session):
@@ -344,7 +344,7 @@ class TestPushCustomerUpdates:
     @pytest.mark.asyncio
     async def test_push_customer_updates_success(self, customer_service, mock_session, mock_client):
         """Test successful customer updates."""
-        tenant = create_test_tenant(quickbooks_id="qb123")
+        tenant = create_test_tenant(quickbooks_customer_id="qb123")
         tenant.last_synced_at = datetime.now(UTC) - timedelta(hours=2)  # Old enough to update
 
         mock_scalars = AsyncMock()
@@ -367,7 +367,7 @@ class TestPushCustomerUpdates:
     @pytest.mark.asyncio
     async def test_push_customer_updates_no_update_needed(self, customer_service, mock_session, mock_client):
         """Test when no update is needed."""
-        tenant = create_test_tenant(quickbooks_id="qb123")
+        tenant = create_test_tenant(quickbooks_customer_id="qb123")
         tenant.last_synced_at = datetime.now(UTC) - timedelta(hours=2)
 
         mock_scalars = AsyncMock()
@@ -389,7 +389,7 @@ class TestPushCustomerUpdates:
     @pytest.mark.asyncio
     async def test_push_customer_updates_recently_synced(self, customer_service, mock_session):
         """Test skipping recently synced customers."""
-        tenant = create_test_tenant(quickbooks_id="qb123")
+        tenant = create_test_tenant(quickbooks_customer_id="qb123")
         tenant.last_synced_at = datetime.now(UTC) - timedelta(minutes=30)  # Recently synced
 
         mock_scalars = AsyncMock()
@@ -406,7 +406,7 @@ class TestPushCustomerUpdates:
     @pytest.mark.asyncio
     async def test_push_customer_updates_missing_customer(self, customer_service, mock_session, mock_client):
         """Test handling when customer doesn't exist in QuickBooks."""
-        tenant = create_test_tenant(quickbooks_id="missing123")
+        tenant = create_test_tenant(quickbooks_customer_id="missing123")
         tenant.last_synced_at = datetime.now(UTC) - timedelta(hours=2)
 
         mock_scalars = AsyncMock()
@@ -531,7 +531,7 @@ class TestUpdateCustomerInQuickBooks:
         # Mock initialization to avoid QB integration check
         customer_service.initialize = AsyncMock()
         
-        tenant = create_test_tenant(quickbooks_id="qb123")
+        tenant = create_test_tenant(quickbooks_customer_id="qb123")
 
         mock_client.get_customer.return_value = {
             "Customer": {"Id": "qb123", "SyncToken": "2", "Name": "Old Name"}
@@ -562,7 +562,7 @@ class TestUpdateCustomerInQuickBooks:
     @pytest.mark.asyncio
     async def test_update_customer_not_found(self, customer_service, mock_client):
         """Test update when customer not found in QuickBooks."""
-        tenant = create_test_tenant(quickbooks_id="missing123")
+        tenant = create_test_tenant(quickbooks_customer_id="missing123")
 
         mock_client.get_customer.return_value = None
 
@@ -573,7 +573,7 @@ class TestUpdateCustomerInQuickBooks:
     @pytest.mark.asyncio
     async def test_update_customer_no_sync_token(self, customer_service, mock_client):
         """Test update when customer missing SyncToken."""
-        tenant = create_test_tenant(quickbooks_id="qb123")
+        tenant = create_test_tenant(quickbooks_customer_id="qb123")
 
         mock_client.get_customer.return_value = {
             "Customer": {"Id": "qb123", "Name": "John Doe"}  # Missing SyncToken
@@ -589,7 +589,7 @@ class TestUpdateCustomerInQuickBooks:
         # Mock initialization
         customer_service.initialize = AsyncMock()
         
-        tenant = create_test_tenant(quickbooks_id="qb123")
+        tenant = create_test_tenant(quickbooks_customer_id="qb123")
 
         mock_client.get_customer.return_value = {
             "Customer": {"Id": "qb123", "SyncToken": "2", "Name": "Current Name"}
@@ -606,7 +606,7 @@ class TestUpdateCustomerInQuickBooks:
     @pytest.mark.asyncio
     async def test_update_customer_exception(self, customer_service, mock_client):
         """Test exception handling in customer update."""
-        tenant = create_test_tenant(quickbooks_id="qb123")
+        tenant = create_test_tenant(quickbooks_customer_id="qb123")
 
         mock_client.get_customer.side_effect = Exception("API error")
 
@@ -619,7 +619,7 @@ class TestLinkOrCreateQBCustomer:
     """Test the link_or_create_qb_customer method."""
 
     @pytest.mark.asyncio
-    async def test_link_or_create_customer_success(self, test_user, mock_session, mock_client):
+    async def test_link_or_create_customer_success(self, customer_service, test_user, mock_session, mock_client):
         """Test successful customer linking/creation."""
         tenant_data = {
             "id": str(uuid4()),
@@ -628,21 +628,307 @@ class TestLinkOrCreateQBCustomer:
             "last_name": "Doe"
         }
 
-        # Mock the async_session context manager
+        # Mock the async_session context manager and the internal service creation
         with patch('Backend.api.quickbooks.services.customer_service.async_session') as mock_async_session:
             mock_session_instance = AsyncMock()
             mock_session_instance._client = mock_client
             mock_async_session.return_value.__aenter__.return_value = mock_session_instance
 
-            # Create properly initialized service
-            service = CustomerService(test_user, mock_session_instance)
-            service._client = mock_client
-            service.initialize = AsyncMock()
-            service._find_existing_customer_by_email = AsyncMock(return_value="existing123")
+            # Mock _find_existing_customer_by_email directly on the service
+            customer_service._find_existing_customer_by_email = AsyncMock(return_value="existing123")
 
-            # Patch CustomerService creation in link_or_create_qb_customer
-            with patch.object(CustomerService, '__new__', return_value=service):
-                with patch.object(CustomerService, '__init__', return_value=None):
-                    result = await service.link_or_create_qb_customer(tenant_data)
+            # Mock the internal CustomerService creation in link_or_create_qb_customer
+            internal_service = AsyncMock()
+            internal_service.initialize = AsyncMock()
+            internal_service._find_existing_customer_by_email = AsyncMock(return_value="existing123")
 
-                    assert result == "existing123"
+            with patch('Backend.api.quickbooks.services.customer_service.CustomerService', return_value=internal_service):
+                result = await customer_service.link_or_create_qb_customer(tenant_data)
+
+                assert result == "existing123"
+
+
+class TestPreviewMode:
+    """Test customer service preview mode functionality."""
+
+    @pytest.mark.asyncio
+    async def test_preview_mode_pull_and_link(self, test_user, mock_session, mock_client):
+        """Test preview mode in _pull_and_link_customers."""
+        # Create service in preview mode
+        service = CustomerService(test_user, mock_session, preview_mode=True)
+        service._client = mock_client
+        service.initialize = AsyncMock()
+
+        # Mock tenants without QB IDs
+        tenant1 = create_test_tenant(tenant_id=1, email="test1@example.com")
+        tenant2 = create_test_tenant(tenant_id=2, email="test2@example.com")
+
+        mock_scalars = AsyncMock()
+        mock_scalars.__iter__ = MagicMock(return_value=iter([tenant1, tenant2]))
+        mock_session.scalars.return_value = mock_scalars
+
+        # Mock QB customers
+        mock_client.list_customers.return_value = {
+            "QueryResponse": {
+                "Customer": [
+                    {"Id": "qb1", "PrimaryEmailAddr": {"Address": "test1@example.com"}, "DisplayName": "Test 1"}
+                ]
+            }
+        }
+
+        result = await service._pull_and_link_customers()
+
+        # In preview mode, should not commit
+        mock_session.commit.assert_not_called()
+        assert result["linked_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_preview_mode_push_unlinked_create(self, test_user, mock_session, mock_client):
+        """Test preview mode in _push_unlinked_tenants for customer_create."""
+        # Create service in preview mode
+        service = CustomerService(test_user, mock_session, preview_mode=True)
+        service._client = mock_client
+        service.initialize = AsyncMock()
+        service._find_existing_customer_by_email = AsyncMock(return_value=None)
+
+        # Mock unlinked tenants
+        tenant = create_test_tenant(email="newcustomer@example.com")
+
+        mock_scalars = AsyncMock()
+        mock_scalars.__iter__ = MagicMock(return_value=iter([tenant]))
+        mock_session.scalars.return_value = mock_scalars
+
+        result = await service._push_unlinked_tenants()
+
+        # In preview mode, should not actually create or commit
+        mock_session.commit.assert_not_called()
+        assert result["pushed_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_preview_mode_push_unlinked_link(self, test_user, mock_session, mock_client):
+        """Test preview mode in _push_unlinked_tenants for customer_link."""
+        # Create service in preview mode
+        service = CustomerService(test_user, mock_session, preview_mode=True)
+        service._client = mock_client
+        service.initialize = AsyncMock()
+        service._find_existing_customer_by_email = AsyncMock(return_value="qb_existing_123")
+
+        # Mock unlinked tenants
+        tenant = create_test_tenant(email="existing@example.com")
+
+        mock_scalars = AsyncMock()
+        mock_scalars.__iter__ = MagicMock(return_value=iter([tenant]))
+        mock_session.scalars.return_value = mock_scalars
+
+        result = await service._push_unlinked_tenants()
+
+        # In preview mode, should not commit
+        mock_session.commit.assert_not_called()
+        assert result["pushed_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_preview_mode_push_updates(self, test_user, mock_session, mock_client):
+        """Test preview mode in _push_customer_updates."""
+        # Create service in preview mode
+        service = CustomerService(test_user, mock_session, preview_mode=True)
+        service._client = mock_client
+        service.initialize = AsyncMock()
+
+        # Mock tenants with QB IDs and recent sync
+        tenant = create_test_tenant(quickbooks_customer_id="qb123")
+        tenant.last_synced_at = datetime.now(UTC) - timedelta(hours=2)
+
+        mock_scalars = AsyncMock()
+        mock_scalars.__iter__ = MagicMock(return_value=iter([tenant]))
+        mock_session.scalars.return_value = mock_scalars
+
+        # Mock QB customer response
+        mock_client.get_customer.return_value = {
+            "Customer": {"Id": "qb123", "SyncToken": "2", "Name": "Old Name"}
+        }
+
+        with patch('Backend.api.quickbooks.schemas.customer.CustomerSchema.needs_update', return_value=True):
+            result = await service._push_customer_updates()
+
+        # In preview mode, should not commit
+        mock_session.commit.assert_not_called()
+        assert result["updated_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_preview_customers_method(self, test_user, mock_session, mock_client):
+        """Test the preview_customers method."""
+        # Create non-preview service
+        service = CustomerService(test_user, mock_session)
+        service._client = mock_client
+        service.initialize = AsyncMock()
+
+        # Mock the sync_customers to return preview data
+        with patch('Backend.api.quickbooks.services.customer_service.CustomerService') as mock_service_class:
+            mock_preview_service = AsyncMock()
+            mock_preview_service.initialize = AsyncMock()
+            mock_preview_service.sync_customers = AsyncMock()
+            mock_preview_service._generate_preview = MagicMock(return_value={
+                "items": [],
+                "summary": {"create": 0, "update": 0, "skip": 0, "error": 0},
+                "warnings": []
+            })
+            mock_service_class.return_value = mock_preview_service
+
+            result = await service.preview_customers()
+
+            # Should return preview data structure
+            assert "items" in result or "summary" in result
+
+    @pytest.mark.asyncio
+    async def test_push_customer_updates_failure(self, test_user, mock_session, mock_client):
+        """Test error handling in _push_customer_updates when update fails."""
+        service = CustomerService(test_user, mock_session)
+        service._client = mock_client
+        service.initialize = AsyncMock()
+
+        # Mock tenant with QB ID
+        tenant = create_test_tenant(quickbooks_customer_id="qb123")
+        tenant.last_synced_at = datetime.now(UTC) - timedelta(hours=2)
+
+        mock_scalars = AsyncMock()
+        mock_scalars.__iter__ = MagicMock(return_value=iter([tenant]))
+        mock_session.scalars.return_value = mock_scalars
+
+        # Mock QB customer response
+        mock_client.get_customer.return_value = {
+            "Customer": {"Id": "qb123", "SyncToken": "2", "Name": "Old Name"}
+        }
+
+        # Mock update_customer_in_quickbooks to return False (failure)
+        with patch.object(service, 'update_customer_in_quickbooks', return_value=False), \
+             patch('Backend.api.quickbooks.schemas.customer.CustomerSchema.needs_update', return_value=True):
+
+            result = await service._push_customer_updates()
+
+        # Should have error for failed update
+        assert result["updated_count"] == 0
+        assert len(result["errors"]) == 1
+        assert "Failed to update" in result["errors"][0]
+
+
+class TestSessionManagerAndUtils:
+    """Test session_manager and utils coverage."""
+
+    @pytest.mark.asyncio
+    async def test_session_manager_with_ssl_context(self):
+        """Test session manager creates session with SSL context."""
+        from Backend.api.quickbooks.session_manager import SessionPoolManager
+        from unittest.mock import patch, AsyncMock, MagicMock
+
+        manager = SessionPoolManager()
+
+        # Mock _create_ssl_context to return a custom SSL context
+        mock_ssl_context = MagicMock()
+
+        with patch('Backend.api.quickbooks.intuit_oauth._create_ssl_context', return_value=mock_ssl_context):
+            with patch('aiohttp.TCPConnector') as mock_connector_class:
+                with patch('aiohttp.ClientSession') as mock_session_class:
+                    mock_connector = MagicMock()
+                    mock_connector.closed = False
+                    mock_connector_class.return_value = mock_connector
+
+                    mock_session = AsyncMock()
+                    mock_session.closed = False
+                    mock_session_class.return_value = mock_session
+
+                    await manager._create_session()
+
+                    # Verify TCPConnector was called with SSL context
+                    mock_connector_class.assert_called_once()
+                    call_kwargs = mock_connector_class.call_args[1]
+                    assert 'ssl' in call_kwargs
+                    assert call_kwargs['ssl'] == mock_ssl_context
+
+    @pytest.mark.asyncio
+    async def test_session_manager_without_ssl_context(self):
+        """Test session manager creates session without SSL context when None."""
+        from Backend.api.quickbooks.session_manager import SessionPoolManager
+        from unittest.mock import patch, AsyncMock, MagicMock
+
+        manager = SessionPoolManager()
+
+        # Mock _create_ssl_context to return None
+        with patch('Backend.api.quickbooks.intuit_oauth._create_ssl_context', return_value=None):
+            with patch('aiohttp.TCPConnector') as mock_connector_class:
+                with patch('aiohttp.ClientSession') as mock_session_class:
+                    mock_connector = MagicMock()
+                    mock_connector.closed = False
+                    mock_connector_class.return_value = mock_connector
+
+                    mock_session = AsyncMock()
+                    mock_session.closed = False
+                    mock_session_class.return_value = mock_session
+
+                    await manager._create_session()
+
+                    # Verify TCPConnector was called without SSL context
+                    mock_connector_class.assert_called_once()
+                    call_kwargs = mock_connector_class.call_args[1]
+                    assert 'ssl' not in call_kwargs
+
+    @pytest.mark.asyncio
+    async def test_resolve_tenant_and_lease_from_qb_object(self, mock_session):
+        """Test utils.resolve_tenant_and_lease_from_qb_object with valid customer."""
+        from Backend.api.quickbooks.utils import resolve_tenant_and_lease_from_qb_object
+        from unittest.mock import MagicMock
+
+        # Create mock QB object with customer reference
+        qb_object = MagicMock()
+        customer_ref = MagicMock()
+        customer_ref.id = "QB_CUSTOMER_123"
+        qb_object.customer = customer_ref
+
+        # Mock tenant
+        tenant = create_test_tenant(quickbooks_customer_id="QB_CUSTOMER_123")
+
+        # Mock session.scalar to return tenant
+        mock_session.scalar = AsyncMock(return_value=tenant)
+
+        result_tenant, result_lease = await resolve_tenant_and_lease_from_qb_object(mock_session, qb_object)
+
+        # Should find tenant
+        assert result_tenant == tenant
+        # Scalar was called to find tenant
+        assert mock_session.scalar.called
+
+    @pytest.mark.asyncio
+    async def test_resolve_tenant_and_lease_from_qb_object_no_customer_id(self, mock_session):
+        """Test utils.resolve_tenant_and_lease_from_qb_object without customer ID."""
+        from Backend.api.quickbooks.utils import resolve_tenant_and_lease_from_qb_object
+        from unittest.mock import MagicMock
+
+        # Create mock QB object without customer reference
+        qb_object = MagicMock()
+        qb_object.customer = None
+
+        result_tenant, result_lease = await resolve_tenant_and_lease_from_qb_object(mock_session, qb_object)
+
+        # Should return None, None
+        assert result_tenant is None
+        assert result_lease is None
+
+    @pytest.mark.asyncio
+    async def test_resolve_tenant_and_lease_from_qb_object_tenant_not_found(self, mock_session):
+        """Test utils.resolve_tenant_and_lease_from_qb_object when tenant not found."""
+        from Backend.api.quickbooks.utils import resolve_tenant_and_lease_from_qb_object
+        from unittest.mock import MagicMock
+
+        # Create mock QB object with customer reference
+        qb_object = MagicMock()
+        customer_ref = MagicMock()
+        customer_ref.id = "QB_UNKNOWN_CUSTOMER"
+        qb_object.customer = customer_ref
+
+        # Mock session.scalar to return None (tenant not found)
+        mock_session.scalar = AsyncMock(return_value=None)
+
+        result_tenant, result_lease = await resolve_tenant_and_lease_from_qb_object(mock_session, qb_object)
+
+        # Should return None, None
+        assert result_tenant is None
+        assert result_lease is None

@@ -67,7 +67,7 @@ def create_mock_tenant(tenant_id=1, **kwargs):
     mock_tenant.status = kwargs.get('status', TenantStatus.ACTIVE)
     mock_tenant.landlord_id = kwargs.get('landlord_id', uuid4())
     mock_tenant.profile_image_url = kwargs.get('profile_image_url', None)
-    mock_tenant.quickbooks_id = kwargs.get('quickbooks_id', None)
+    mock_tenant.quickbooks_customer_id = kwargs.get('quickbooks_customer_id', None)
     mock_tenant.created_at = kwargs.get('created_at', datetime.now(timezone.utc))
     mock_tenant.updated_at = kwargs.get('updated_at', datetime.now(timezone.utc))
     return mock_tenant

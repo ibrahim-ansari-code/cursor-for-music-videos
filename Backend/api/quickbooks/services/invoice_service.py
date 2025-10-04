@@ -191,7 +191,7 @@ class InvoiceService(BaseQuickBooksService):
                 .where(
                     col(Invoice.property_id).in_(property_ids),  # Use Invoice.property_id directly
                     col(Invoice.quickbooks_id).is_(None),
-                    col(Tenant.quickbooks_id).is_not(None)  # Tenant must be synced first
+                    col(Tenant.quickbooks_customer_id).is_not(None)  # Tenant must be synced first
                 ).limit(50)  # Limit to avoid timeout
             )
             unsynced_invoices_list = list(unsynced_invoices)
@@ -213,7 +213,7 @@ class InvoiceService(BaseQuickBooksService):
                 try:
                     # Get tenant from prefetched data
                     tenant = tenants_by_id.get(invoice.tenant_id)
-                    if not tenant or not tenant.quickbooks_id:
+                    if not tenant or not tenant.quickbooks_customer_id:
                         errors.append(f"Invoice {invoice.id}: Tenant not synced to QuickBooks")
                         continue
 
@@ -223,7 +223,7 @@ class InvoiceService(BaseQuickBooksService):
                     # In preview mode, collect item for preview
                     if self.preview_mode:
                         warnings = []
-                        if not tenant.quickbooks_id:
+                        if not tenant.quickbooks_customer_id:
                             warnings.append("Tenant not synced to QuickBooks")
 
                         self._add_preview_item(
@@ -290,8 +290,8 @@ class InvoiceService(BaseQuickBooksService):
         # Find tenant by QuickBooks customer ID
         tenant = await self.session.scalar(
             select(Tenant).where(
-                col(Tenant.quickbooks_id) == qb_customer_id,
-                col(Tenant.user_id) == self.user.id
+                col(Tenant.quickbooks_customer_id) == qb_customer_id,
+                col(Tenant.landlord_id) == self.user.id
             )
         )
 
@@ -313,8 +313,8 @@ class InvoiceService(BaseQuickBooksService):
         # Get all user's tenants with QuickBooks IDs
         tenants = await self.session.scalars(
             select(Tenant).where(
-                col(Tenant.user_id) == self.user.id,
-                col(Tenant.quickbooks_id).is_not(None)
+                col(Tenant.landlord_id) == self.user.id,
+                col(Tenant.quickbooks_customer_id).is_not(None)
             )
         )
         tenants_list = list(tenants)
@@ -342,9 +342,9 @@ class InvoiceService(BaseQuickBooksService):
         # Create customer ID to tenant+lease mapping
         result = {}
         for tenant in tenants_list:
-            if tenant.quickbooks_id and tenant.id is not None:
+            if tenant.quickbooks_customer_id and tenant.id is not None:
                 active_lease = lease_by_tenant.get(tenant.id)
-                result[tenant.quickbooks_id] = (tenant, active_lease)
+                result[tenant.quickbooks_customer_id] = (tenant, active_lease)
 
         return result
 

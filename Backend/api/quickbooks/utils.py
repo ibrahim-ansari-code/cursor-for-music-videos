@@ -217,7 +217,7 @@ async def resolve_tenant_and_lease_from_qb_object(session: AsyncSession, qb_obje
     if not customer_id:
         return None, None
 
-    tenant = await session.scalar(select(Tenant).where(col(Tenant.quickbooks_id) == customer_id))
+    tenant = await session.scalar(select(Tenant).where(col(Tenant.quickbooks_customer_id) == customer_id))
     if not tenant:
         logger.warning("Could not find Brikli tenant for QB Customer ID %s", customer_id)
         return None, None

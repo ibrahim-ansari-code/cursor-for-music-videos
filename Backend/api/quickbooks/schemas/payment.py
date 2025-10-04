@@ -57,7 +57,7 @@ class PaymentSchema:
                 "TotalAmt": total_amt,
                 "TxnDate": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else datetime.now().strftime("%Y-%m-%d"),
                 "CustomerRef": {
-                    "value": tenant.quickbooks_id
+                    "value": tenant.quickbooks_customer_id
                 },
                 "PaymentMethodRef": {
                     "name": qb_payment_method
@@ -237,7 +237,7 @@ class PaymentSchema:
         if not payment.payment_date:
             errors["payment_date"] = "Payment date is required"
 
-        if not tenant.quickbooks_id:
+        if not tenant.quickbooks_customer_id:
             errors["tenant"] = "Tenant must be synced to QuickBooks first"
 
         # Validate payment method

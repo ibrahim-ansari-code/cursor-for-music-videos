@@ -22,12 +22,13 @@ poetry run alembic downgrade -1
 supabase db diff --use-migra -f migration_name
 supabase db push
 
-# Run tests
+# Run tests (ALWAYS use poetry)
 cd Backend/tests
+poetry run pytest unit_tests/ -v
+poetry run pytest api_tests/ -v
+poetry run pytest integration_tests/ -v
+# Or run all tests
 python run_all_api_tests_pytest.py
-python -m pytest api_tests/ -v
-python -m pytest integration_tests/ -v
-python -m pytest unit_tests/ -v
 ```
 
 ### Frontend Development
@@ -135,7 +136,8 @@ supabase db reset
 
 ### Testing Requirements
 
-- Backend API server must be running for tests
+- **ALWAYS use Poetry to run backend tests**: `poetry run pytest` not `python -m pytest`
+- Backend API server must be running for API tests
 - Use session-scoped authentication tokens for efficiency
 - Run tests from `Backend/tests` directory
 - Configure test credentials in `.test_credentials.json`

@@ -105,7 +105,7 @@ class InvoiceSchema:
                 "DocNumber": invoice.invoice_number,
                 "TxnDate": invoice.issue_date.strftime("%Y-%m-%d") if invoice.issue_date else datetime.now().strftime("%Y-%m-%d"),
                 "CustomerRef": {
-                    "value": tenant.quickbooks_id
+                    "value": tenant.quickbooks_customer_id
                 },
                 "Line": lines
             }
@@ -340,7 +340,7 @@ class InvoiceSchema:
         if not invoice.invoice_number or not invoice.invoice_number.strip():
             errors["invoice_number"] = "Invoice number is required"
 
-        if not tenant.quickbooks_id:
+        if not tenant.quickbooks_customer_id:
             errors["tenant"] = "Tenant must be synced to QuickBooks first"
 
         # Validate due date is after issue date

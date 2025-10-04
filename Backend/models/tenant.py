@@ -99,7 +99,7 @@ class Tenant(SQLModel, table=True):
     )
 
     # QuickBooks specific fields
-    quickbooks_id: str | None = Field(
+    quickbooks_customer_id: str | None = Field(
         default=None, sa_column=Column(String, nullable=True)
     )
     last_synced_at: datetime | None = Field(

@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
+import sentry_sdk
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -86,6 +87,13 @@ class SyncItemResponse(BaseModel):
     action: str
     details: dict
     warnings: list[str] = []
+
+class ApplySyncItem(BaseModel):
+    """Payload model for applying selected sync operations."""
+    entity_type: str
+    entity_id: str
+    action: str
+    details: dict | None = None
 
 class SyncPreviewResponse(BaseModel):
     """Response model for sync preview."""
@@ -502,17 +510,21 @@ async def preview_quickbooks_sync(
         expense_service = ExpenseService(current_user, session)
         invoice_service = InvoiceService(current_user, session)
         payment_service = PaymentService(current_user, session)
+        from .services.customer_service import CustomerService
+        customer_service = CustomerService(current_user, session, preview_mode=True)
 
         # Run all previews
         expense_preview = await expense_service.preview_expenses()
         invoice_preview = await invoice_service.preview_invoices()
         payment_preview = await payment_service.preview_payments()
+        customer_preview = await customer_service.preview_customers()
 
         # Combine all items
         all_items = (
             expense_preview.items +
             invoice_preview.items +
-            payment_preview.items
+            payment_preview.items +
+            customer_preview.items
         )
 
         # Combine summaries
@@ -520,22 +532,26 @@ async def preview_quickbooks_sync(
             "create": sum([
                 expense_preview.summary.get("create", 0),
                 invoice_preview.summary.get("create", 0),
-                payment_preview.summary.get("create", 0)
+                payment_preview.summary.get("create", 0),
+                customer_preview.summary.get("create", 0)
             ]),
             "update": sum([
                 expense_preview.summary.get("update", 0),
                 invoice_preview.summary.get("update", 0),
-                payment_preview.summary.get("update", 0)
+                payment_preview.summary.get("update", 0),
+                customer_preview.summary.get("update", 0)
             ]),
             "skip": sum([
                 expense_preview.summary.get("skip", 0),
                 invoice_preview.summary.get("skip", 0),
-                payment_preview.summary.get("skip", 0)
+                payment_preview.summary.get("skip", 0),
+                customer_preview.summary.get("skip", 0)
             ]),
             "error": sum([
                 expense_preview.summary.get("error", 0),
                 invoice_preview.summary.get("error", 0),
-                payment_preview.summary.get("error", 0)
+                payment_preview.summary.get("error", 0),
+                customer_preview.summary.get("error", 0)
             ]),
             "total": len(all_items)
         }
@@ -544,7 +560,8 @@ async def preview_quickbooks_sync(
         expense_warnings: list[str] = list(expense_preview.warnings) if expense_preview.warnings else []
         invoice_warnings: list[str] = list(invoice_preview.warnings) if invoice_preview.warnings else []
         payment_warnings: list[str] = list(payment_preview.warnings) if payment_preview.warnings else []
-        combined_warnings: list[str] = expense_warnings + invoice_warnings + payment_warnings
+        customer_warnings: list[str] = list(customer_preview.warnings) if customer_preview.warnings else []
+        combined_warnings: list[str] = expense_warnings + invoice_warnings + payment_warnings + customer_warnings
 
         # Convert preview to response model
         items = [
@@ -689,12 +706,188 @@ async def validate_quickbooks_configuration_endpoint(
             item_info=validation_result["item_info"],
             company_info=validation_result.get("company_info")
         )
-
     except Exception as e:
         logger.error(f"Error validating QuickBooks configuration for user {current_user.id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to validate QuickBooks configuration"
+        )
+
+@router.post("/sync/apply", response_model=QuickBooksSyncResponse)
+async def apply_quickbooks_sync(
+    items: list[ApplySyncItem],
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+) -> QuickBooksSyncResponse:
+    """
+    Apply selected sync operations from the preview (customer link/create/update only).
+
+    Frontend sends selected items; we perform the confirmed operations and return a summary.
+    """
+    if current_user.user_type != UserType.LANDLORD and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only landlords and admins can apply sync operations."
+        )
+
+    try:
+        from .services.customer_service import CustomerService
+
+        customer_service = CustomerService(current_user, session)
+        await customer_service.initialize()
+
+        total = 0
+        errors: list[str] = []
+
+        for item in items:
+            try:
+                # Validate entity type/action before processing
+                valid_types = {"customer_link", "customer_create", "customer_update"}
+                valid_actions = {"create", "update"}
+                
+                if item.entity_type not in valid_types:
+                    errors.append(f"Invalid entity_type: {item.entity_type}. Expected one of: {', '.join(valid_types)}")
+                    continue
+                
+                if item.action not in valid_actions:
+                    errors.append(f"Invalid action: {item.action}. Expected one of: {', '.join(valid_actions)}")
+                    continue
+
+                if item.entity_type in {"customer_link", "customer_create"} and item.action in {"create", "update"}:
+                    tenant_id = int(item.entity_id)
+                    from ...models.tenant import Tenant as TenantModel
+                    tenant = await session.get(TenantModel, tenant_id)
+                    if not tenant:
+                        errors.append(f"Tenant {tenant_id} not found")
+                        continue
+
+                    if item.entity_type == "customer_link":
+                        qb_customer_id = (item.details or {}).get("qb_customer_id")
+                        if not qb_customer_id:
+                            errors.append(f"Missing qb_customer_id for tenant {tenant_id}")
+                            continue
+
+                        # Idempotency check: Skip if already linked to this QB customer
+                        if tenant.quickbooks_customer_id == qb_customer_id:
+                            logger.info(f"Tenant {tenant_id} already linked to QuickBooks customer {qb_customer_id}, skipping")
+                            total += 1  # Count as successful (no-op)
+                            continue
+
+                        # Check if another tenant is already using this QuickBooks customer ID
+                        from sqlmodel import select, col
+                        existing_link = await session.scalar(
+                            select(TenantModel).where(
+                                col(TenantModel.landlord_id) == current_user.id,
+                                col(TenantModel.quickbooks_customer_id) == qb_customer_id,
+                                col(TenantModel.id) != tenant_id
+                            )
+                        )
+                        if existing_link:
+                            errors.append(f"QuickBooks customer {qb_customer_id} is already linked to another tenant (ID: {existing_link.id})")
+                            continue
+
+                        tenant.quickbooks_customer_id = qb_customer_id
+                        tenant.last_synced_at = create_audit_datetime()
+                        session.add(tenant)
+                        total += 1
+                        logger.info(f"Linked tenant {tenant_id} to QuickBooks customer {qb_customer_id}")
+                    elif item.entity_type == "customer_create":
+                        # Idempotency check: Skip if tenant already has a QB customer ID
+                        if tenant.quickbooks_customer_id:
+                            logger.info(f"Tenant {tenant_id} already has QuickBooks customer ID {tenant.quickbooks_customer_id}, skipping create")
+                            total += 1  # Count as successful (no-op)
+                            continue
+
+                        # Check if customer already exists by email
+                        if tenant.email:
+                            existing_customer_id = await customer_service._find_existing_customer_by_email(tenant.email)
+                            if existing_customer_id:
+                                # Found a customer in QB. Check if it's already linked to another tenant.
+                                from sqlmodel import select, col
+                                existing_link = await session.scalar(
+                                    select(TenantModel).where(
+                                        col(TenantModel.landlord_id) == current_user.id,
+                                        col(TenantModel.quickbooks_customer_id) == existing_customer_id
+                                    )
+                                )
+                                if existing_link:
+                                    errors.append(f"A QuickBooks customer with email '{tenant.email}' already exists and is linked to another tenant (ID: {existing_link.id})")
+                                    continue
+
+                                # Link to existing customer instead of creating new one
+                                tenant.quickbooks_customer_id = existing_customer_id
+                                tenant.last_synced_at = create_audit_datetime()
+                                session.add(tenant)
+                                total += 1
+                                logger.info(f"Linked tenant {tenant_id} to existing QuickBooks customer {existing_customer_id} (found by email)")
+                                continue
+
+                        # Create new customer
+                        created_id = await customer_service._create_customer_in_quickbooks(tenant)
+                        if created_id:
+                            tenant.quickbooks_customer_id = created_id
+                            tenant.last_synced_at = create_audit_datetime()
+                            session.add(tenant)
+                            total += 1
+                            logger.info(f"Created QuickBooks customer {created_id} for tenant {tenant_id}")
+                        else:
+                            errors.append(f"Failed to create QuickBooks customer for tenant {tenant_id}")
+                elif item.entity_type == "customer_update" and item.action == "update":
+                    tenant_id = int(item.entity_id)
+                    from ...models.tenant import Tenant as TenantModel
+                    tenant = await session.get(TenantModel, tenant_id)
+                    if not tenant:
+                        errors.append(f"Tenant {tenant_id} not found")
+                        continue
+                    success = await customer_service.update_customer_in_quickbooks(tenant)
+                    if success:
+                        total += 1
+                    else:
+                        errors.append(f"Failed to update QuickBooks customer for tenant {tenant_id}")
+            except Exception as e:
+                error_msg = f"Error processing {item.entity_type} for tenant {item.entity_id}: {str(e)}"
+                errors.append(error_msg)
+                logger.error(error_msg, exc_info=True)
+                # Capture in Sentry with context
+                sentry_sdk.capture_exception(e, extras={
+                    "entity_type": item.entity_type,
+                    "entity_id": item.entity_id,
+                    "action": item.action,
+                    "user_id": str(current_user.id),
+                    "details": item.details
+                })
+
+        # Atomic behavior: if any errors occurred, roll back the entire batch
+        if errors:
+            await session.rollback()
+            return QuickBooksSyncResponse(
+                success=False,
+                message=f"Failed to apply operations. {len(errors)} error(s) occurred. No changes were saved.",
+                items_synced=0,
+                errors=errors
+            )
+
+        if total > 0:
+            await session.commit()
+
+        return QuickBooksSyncResponse(
+            success=True,
+            message=f"Successfully applied {total} customer operations.",
+            items_synced=total,
+            errors=None
+        )
+
+    except Exception as e:
+        logger.error(f"Error applying QuickBooks sync for user {current_user.id}: {e}", exc_info=True)
+        # Capture in Sentry with context
+        sentry_sdk.capture_exception(e, extras={
+            "user_id": str(current_user.id),
+            "items_count": len(items),
+            "operation": "apply_quickbooks_sync"
+        })
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to apply sync operations"
         )
 
 

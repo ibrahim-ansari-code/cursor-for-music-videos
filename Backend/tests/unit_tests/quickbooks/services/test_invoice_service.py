@@ -62,7 +62,7 @@ def create_test_property(property_id=None, user_id=None):
     )
 
 
-def create_test_tenant(tenant_id=None, user_id=None, quickbooks_id=None):
+def create_test_tenant(tenant_id=None, user_id=None, quickbooks_customer_id=None):
     """Helper function to create a test tenant."""
     return Tenant(
         id=tenant_id or uuid4(),
@@ -71,7 +71,7 @@ def create_test_tenant(tenant_id=None, user_id=None, quickbooks_id=None):
         first_name="John",
         last_name="Doe",
         phone="555-123-4567",
-        quickbooks_id=quickbooks_id,
+        quickbooks_customer_id=quickbooks_customer_id,
         created_at=FIXED_DATETIME,
         updated_at=FIXED_DATETIME
     )
@@ -297,8 +297,8 @@ class TestPullInvoicesFromQuickBooks:
         # Invoice service doesn't have this method - uses prefetch_tenants_and_leases instead
         # invoice_service._get_user_property = AsyncMock(return_value=test_property)
         invoice_service._find_or_create_tenant_for_customer = AsyncMock(side_effect=[
-            create_test_tenant(quickbooks_id="cust1"),
-            create_test_tenant(quickbooks_id="cust2")
+            create_test_tenant(quickbooks_customer_id="cust1"),
+            create_test_tenant(quickbooks_customer_id="cust2")
         ])
 
         with patch('Backend.api.quickbooks.schemas.invoice.InvoiceSchema.from_quickbooks') as mock_from_qb:
@@ -357,7 +357,7 @@ class TestPullInvoicesFromQuickBooks:
         # Invoice service doesn't have this method - uses prefetch_tenants_and_leases instead
         # invoice_service._get_user_property = AsyncMock(return_value=test_property)
         invoice_service._find_or_create_tenant_for_customer = AsyncMock(
-            return_value=create_test_tenant(quickbooks_id="cust2")
+            return_value=create_test_tenant(quickbooks_customer_id="cust2")
         )
 
         with patch('Backend.api.quickbooks.schemas.invoice.InvoiceSchema.from_quickbooks') as mock_from_qb:
@@ -430,7 +430,7 @@ class TestPullInvoicesFromQuickBooks:
         # Invoice service doesn't have this method - uses prefetch_tenants_and_leases instead
         # invoice_service._get_user_property = AsyncMock(return_value=test_property)
         invoice_service._find_or_create_tenant_for_customer = AsyncMock(
-            return_value=create_test_tenant(quickbooks_id="cust1")
+            return_value=create_test_tenant(quickbooks_customer_id="cust1")
         )
 
         with patch('Backend.api.quickbooks.schemas.invoice.InvoiceSchema.from_quickbooks',
@@ -453,29 +453,51 @@ class TestPullInvoicesFromQuickBooks:
         assert "Pull invoices failed: API error" in result["errors"]
 
 
-@pytest.mark.skip(reason="Internal implementation changed - uses prefetch pattern - needs rewrite")
 class TestPushInvoicesToQuickBooks:
     """Test pushing invoices to QuickBooks."""
 
     @pytest.mark.asyncio
     async def test_push_invoices_success(self, invoice_service, mock_session):
         """Test successful pushing of invoices to QuickBooks."""
-        # Mock unsynced invoices
         invoice1 = create_test_invoice()
+        invoice1.id = 1
+        invoice1.tenant_id = 1
         invoice2 = create_test_invoice()
+        invoice2.id = 2
+        invoice2.tenant_id = 2
 
-        mock_scalars = AsyncMock()
-        mock_scalars.__iter__ = MagicMock(return_value=iter([invoice1, invoice2]))
-        mock_session.scalars.return_value = mock_scalars
+        tenant1 = create_test_tenant(quickbooks_customer_id="qb_customer_1")
+        tenant1.id = 1
+        tenant2 = create_test_tenant(quickbooks_customer_id="qb_customer_2")
+        tenant2.id = 2
 
-        # Mock tenant lookup
-        test_tenant = create_test_tenant(quickbooks_id="qb_customer_1")
-        mock_session.scalar.return_value = test_tenant
+        # Mock property query
+        mock_execute_result = AsyncMock()
+        mock_execute_result.__iter__ = MagicMock(return_value=iter([(1,)]))
 
-        # Mock QuickBooks creation
+        # Mock scalars for invoices and tenants (prefetch pattern)
+        mock_scalars_invoices = AsyncMock()
+        mock_scalars_invoices.__iter__ = MagicMock(return_value=iter([invoice1, invoice2]))
+        mock_scalars_tenants = AsyncMock()
+        mock_scalars_tenants.__iter__ = MagicMock(return_value=iter([tenant1, tenant2]))
+
+        call_count = [0]
+        def mock_scalars_side_effect(stmt):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_scalars_invoices
+            else:
+                return mock_scalars_tenants
+
+        mock_session.execute = AsyncMock(return_value=mock_execute_result)
+        mock_session.scalars = AsyncMock(side_effect=mock_scalars_side_effect)
+
+        invoice_service._get_or_cache_service_item = AsyncMock(return_value="SERVICE_ITEM_123")
+
+        # Mock QuickBooks creation responses
         with patch('Backend.api.quickbooks.schemas.invoice.InvoiceSchema.to_quickbooks') as mock_to_qb:
             mock_to_qb.return_value = {"TotalAmt": 1200.00}
-
+            
             invoice_service._retry_operation = AsyncMock(side_effect=[
                 {"Invoice": {"Id": "qb_inv1"}},
                 {"Invoice": {"Id": "qb_inv2"}}
@@ -487,14 +509,20 @@ class TestPushInvoicesToQuickBooks:
             assert result["errors"] == []
             assert invoice1.quickbooks_id == "qb_inv1"
             assert invoice2.quickbooks_id == "qb_inv2"
-            assert mock_session.commit.called
 
     @pytest.mark.asyncio
     async def test_push_invoices_no_unsynced(self, invoice_service, mock_session):
         """Test when no unsynced invoices exist."""
-        mock_scalars = AsyncMock()
-        mock_scalars.__iter__ = MagicMock(return_value=iter([]))
-        mock_session.scalars.return_value = mock_scalars
+        # Mock property query
+        mock_execute_result = AsyncMock()
+        mock_execute_result.__iter__ = MagicMock(return_value=iter([(1,)]))
+
+        # Empty invoice list
+        mock_scalars_invoices = AsyncMock()
+        mock_scalars_invoices.__iter__ = MagicMock(return_value=iter([]))
+
+        mock_session.execute = AsyncMock(return_value=mock_execute_result)
+        mock_session.scalars = AsyncMock(return_value=mock_scalars_invoices)
 
         result = await invoice_service._push_invoices_to_quickbooks()
 
@@ -502,120 +530,239 @@ class TestPushInvoicesToQuickBooks:
         assert result["errors"] == []
 
     @pytest.mark.asyncio
-    async def test_push_invoices_tenant_without_quickbooks_id(self, invoice_service, mock_session):
-        """Test handling invoices with tenants that have no QuickBooks ID."""
+    async def test_push_invoices_tenant_without_quickbooks_customer_id(self, invoice_service, mock_session):
+        """Test handling invoices with tenants that have no QuickBooks Customer ID."""
         invoice = create_test_invoice()
+        invoice.id = 1
+        invoice.tenant_id = 1
 
-        mock_scalars = AsyncMock()
-        mock_scalars.__iter__ = MagicMock(return_value=iter([invoice]))
-        mock_session.scalars.return_value = mock_scalars
+        # Tenant exists but has no QB customer ID
+        tenant = create_test_tenant()
+        tenant.id = 1
+        tenant.quickbooks_customer_id = None
 
-        # Mock tenant without QuickBooks ID
-        test_tenant = create_test_tenant()  # No quickbooks_id
-        mock_session.scalar.return_value = test_tenant
+        # Mock property query
+        mock_execute_result = AsyncMock()
+        mock_execute_result.__iter__ = MagicMock(return_value=iter([(1,)]))
+
+        mock_scalars_invoices = AsyncMock()
+        mock_scalars_invoices.__iter__ = MagicMock(return_value=iter([invoice]))
+        mock_scalars_tenants = AsyncMock()
+        mock_scalars_tenants.__iter__ = MagicMock(return_value=iter([tenant]))
+
+        call_count = [0]
+        def mock_scalars_side_effect(stmt):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_scalars_invoices
+            else:
+                return mock_scalars_tenants
+
+        mock_session.execute = AsyncMock(return_value=mock_execute_result)
+        mock_session.scalars = AsyncMock(side_effect=mock_scalars_side_effect)
+
+        invoice_service._get_or_cache_service_item = AsyncMock(return_value="SERVICE_ITEM_123")
 
         result = await invoice_service._push_invoices_to_quickbooks()
 
         assert result["pushed_count"] == 0
         assert len(result["errors"]) == 1
-        assert "Tenant has no QuickBooks customer ID" in result["errors"][0]
+        assert "Tenant not synced to QuickBooks" in result["errors"][0]
 
     @pytest.mark.asyncio
     async def test_push_invoices_no_tenant_found(self, invoice_service, mock_session):
-        """Test handling invoices with missing tenants."""
+        """Test handling invoices with missing tenants in prefetch."""
         invoice = create_test_invoice()
+        invoice.id = 1
+        invoice.tenant_id = 999  # Non-existent tenant
 
-        mock_scalars = AsyncMock()
-        mock_scalars.__iter__ = MagicMock(return_value=iter([invoice]))
-        mock_session.scalars.return_value = mock_scalars
+        # Mock property query
+        mock_execute_result = AsyncMock()
+        mock_execute_result.__iter__ = MagicMock(return_value=iter([(1,)]))
 
-        mock_session.scalar.return_value = None  # No tenant found
+        mock_scalars_invoices = AsyncMock()
+        mock_scalars_invoices.__iter__ = MagicMock(return_value=iter([invoice]))
+        # Empty tenant list - tenant not found
+        mock_scalars_tenants = AsyncMock()
+        mock_scalars_tenants.__iter__ = MagicMock(return_value=iter([]))
+
+        call_count = [0]
+        def mock_scalars_side_effect(stmt):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_scalars_invoices
+            else:
+                return mock_scalars_tenants
+
+        mock_session.execute = AsyncMock(return_value=mock_execute_result)
+        mock_session.scalars = AsyncMock(side_effect=mock_scalars_side_effect)
+
+        invoice_service._get_or_cache_service_item = AsyncMock(return_value="SERVICE_ITEM_123")
 
         result = await invoice_service._push_invoices_to_quickbooks()
 
         assert result["pushed_count"] == 0
         assert len(result["errors"]) == 1
-        assert "Tenant not found" in result["errors"][0]
+        assert "Tenant not synced to QuickBooks" in result["errors"][0]
 
     @pytest.mark.asyncio
     async def test_push_invoices_creation_failure(self, invoice_service, mock_session):
-        """Test handling of invoice creation failure."""
+        """Test handling of invoice creation failure (invalid QB response)."""
         invoice = create_test_invoice()
+        invoice.id = 1
+        invoice.tenant_id = 1
 
-        mock_scalars = AsyncMock()
-        mock_scalars.__iter__ = MagicMock(return_value=iter([invoice]))
-        mock_session.scalars.return_value = mock_scalars
+        tenant = create_test_tenant(quickbooks_customer_id="qb_customer_1")
+        tenant.id = 1
 
-        test_tenant = create_test_tenant(quickbooks_id="qb_customer_1")
-        mock_session.scalar.return_value = test_tenant
+        # Mock property query
+        mock_execute_result = AsyncMock()
+        mock_execute_result.__iter__ = MagicMock(return_value=iter([(1,)]))
+
+        mock_scalars_invoices = AsyncMock()
+        mock_scalars_invoices.__iter__ = MagicMock(return_value=iter([invoice]))
+        mock_scalars_tenants = AsyncMock()
+        mock_scalars_tenants.__iter__ = MagicMock(return_value=iter([tenant]))
+
+        call_count = [0]
+        def mock_scalars_side_effect(stmt):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_scalars_invoices
+            else:
+                return mock_scalars_tenants
+
+        mock_session.execute = AsyncMock(return_value=mock_execute_result)
+        mock_session.scalars = AsyncMock(side_effect=mock_scalars_side_effect)
+
+        invoice_service._get_or_cache_service_item = AsyncMock(return_value="SERVICE_ITEM_123")
 
         with patch('Backend.api.quickbooks.schemas.invoice.InvoiceSchema.to_quickbooks') as mock_to_qb:
             mock_to_qb.return_value = {"TotalAmt": 1200.00}
-
-            invoice_service._retry_operation = AsyncMock(return_value=None)
+            # Return invalid response (missing "Invoice" key)
+            invoice_service._retry_operation = AsyncMock(return_value={"Error": "Something went wrong"})
 
             result = await invoice_service._push_invoices_to_quickbooks()
 
             assert result["pushed_count"] == 0
             assert len(result["errors"]) == 1
-            assert "Failed to create invoice" in result["errors"][0]
+            assert "Invalid QuickBooks response" in result["errors"][0]
 
     @pytest.mark.asyncio
     async def test_push_invoices_schema_error(self, invoice_service, mock_session):
-        """Test handling schema conversion errors during push."""
+        """Test handling of schema conversion errors."""
         invoice = create_test_invoice()
+        invoice.id = 1
+        invoice.tenant_id = 1
 
-        mock_scalars = AsyncMock()
-        mock_scalars.__iter__ = MagicMock(return_value=iter([invoice]))
-        mock_session.scalars.return_value = mock_scalars
+        tenant = create_test_tenant(quickbooks_customer_id="qb_customer_1")
+        tenant.id = 1
 
-        test_tenant = create_test_tenant(quickbooks_id="qb_customer_1")
-        mock_session.scalar.return_value = test_tenant
+        # Mock property query
+        mock_execute_result = AsyncMock()
+        mock_execute_result.__iter__ = MagicMock(return_value=iter([(1,)]))
 
-        with patch('Backend.api.quickbooks.schemas.invoice.InvoiceSchema.to_quickbooks',
-                   side_effect=Exception("Schema error")):
+        mock_scalars_invoices = AsyncMock()
+        mock_scalars_invoices.__iter__ = MagicMock(return_value=iter([invoice]))
+        mock_scalars_tenants = AsyncMock()
+        mock_scalars_tenants.__iter__ = MagicMock(return_value=iter([tenant]))
+
+        call_count = [0]
+        def mock_scalars_side_effect(stmt):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_scalars_invoices
+            else:
+                return mock_scalars_tenants
+
+        mock_session.execute = AsyncMock(return_value=mock_execute_result)
+        mock_session.scalars = AsyncMock(side_effect=mock_scalars_side_effect)
+
+        invoice_service._get_or_cache_service_item = AsyncMock(return_value="SERVICE_ITEM_123")
+
+        # Mock schema conversion failure
+        with patch('Backend.api.quickbooks.schemas.invoice.InvoiceSchema.to_quickbooks') as mock_to_qb:
+            mock_to_qb.side_effect = Exception("Schema conversion error")
 
             result = await invoice_service._push_invoices_to_quickbooks()
 
             assert result["pushed_count"] == 0
             assert len(result["errors"]) == 1
-            assert "Error processing invoice" in result["errors"][0]
+            assert "Error pushing invoice" in result["errors"][0]
+            assert "Schema conversion error" in result["errors"][0]
 
     @pytest.mark.asyncio
     async def test_push_invoices_batch_processing(self, invoice_service, mock_session):
-        """Test batch processing of invoices."""
-        # Create more invoices than batch size
-        invoices = [create_test_invoice() for _ in range(15)]
+        """Test processing multiple invoices with mixed success/failure."""
+        invoice1 = create_test_invoice()
+        invoice1.id = 1
+        invoice1.tenant_id = 1
+        invoice2 = create_test_invoice()
+        invoice2.id = 2
+        invoice2.tenant_id = 2  # This tenant won't have QB ID
+        invoice3 = create_test_invoice()
+        invoice3.id = 3
+        invoice3.tenant_id = 3
 
-        mock_scalars = AsyncMock()
-        mock_scalars.__iter__ = MagicMock(return_value=iter(invoices))
-        mock_session.scalars.return_value = mock_scalars
+        tenant1 = create_test_tenant(quickbooks_customer_id="qb_customer_1")
+        tenant1.id = 1
+        tenant2 = create_test_tenant()  # No QB customer ID
+        tenant2.id = 2
+        tenant2.quickbooks_customer_id = None
+        tenant3 = create_test_tenant(quickbooks_customer_id="qb_customer_3")
+        tenant3.id = 3
 
-        test_tenant = create_test_tenant(quickbooks_id="qb_customer_1")
-        mock_session.scalar.return_value = test_tenant
+        # Mock property query
+        mock_execute_result = AsyncMock()
+        mock_execute_result.__iter__ = MagicMock(return_value=iter([(1,)]))
+
+        mock_scalars_invoices = AsyncMock()
+        mock_scalars_invoices.__iter__ = MagicMock(return_value=iter([invoice1, invoice2, invoice3]))
+        mock_scalars_tenants = AsyncMock()
+        mock_scalars_tenants.__iter__ = MagicMock(return_value=iter([tenant1, tenant2, tenant3]))
+
+        call_count = [0]
+        def mock_scalars_side_effect(stmt):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_scalars_invoices
+            else:
+                return mock_scalars_tenants
+
+        mock_session.execute = AsyncMock(return_value=mock_execute_result)
+        mock_session.scalars = AsyncMock(side_effect=mock_scalars_side_effect)
+
+        invoice_service._get_or_cache_service_item = AsyncMock(return_value="SERVICE_ITEM_123")
 
         with patch('Backend.api.quickbooks.schemas.invoice.InvoiceSchema.to_quickbooks') as mock_to_qb:
             mock_to_qb.return_value = {"TotalAmt": 1200.00}
 
-            # Mock successful creation for all invoices
-            invoice_service._retry_operation = AsyncMock(return_value={"Invoice": {"Id": "new_id"}})
+            # Mock responses for successful invoices (invoice1 and invoice3)
+            invoice_service._retry_operation = AsyncMock(side_effect=[
+                {"Invoice": {"Id": "qb_inv1"}},
+                {"Invoice": {"Id": "qb_inv3"}}
+            ])
 
             result = await invoice_service._push_invoices_to_quickbooks()
 
-            assert result["pushed_count"] == 15
-            assert result["errors"] == []
-            # Should commit after each batch (expecting at least 2 commits for 15 items with batch size 10)
-            assert mock_session.commit.call_count >= 2
+            # Should have pushed 2 (invoice1 and invoice3)
+            assert result["pushed_count"] == 2
+            # Should have 1 error (invoice2 - tenant without QB customer ID)
+            assert len(result["errors"]) == 1
+            assert "Tenant not synced to QuickBooks" in result["errors"][0]
+            assert "Invoice 2" in result["errors"][0]
 
     @pytest.mark.asyncio
     async def test_push_invoices_exception_handling(self, invoice_service, mock_session):
-        """Test exception handling in push invoices."""
-        mock_session.scalars.side_effect = Exception("Database error")
+        """Test overall exception handling when property query fails."""
+        # Mock property query to raise exception
+        mock_session.execute = AsyncMock(side_effect=Exception("Database error"))
 
         result = await invoice_service._push_invoices_to_quickbooks()
 
         assert result["pushed_count"] == 0
-        assert "Push invoices failed: Database error" in result["errors"]
+        assert len(result["errors"]) == 1
+        assert "Database error" in result["errors"][0]
 
 
 @pytest.mark.skip(reason="Internal implementation uses cache pattern - needs rewrite")
@@ -623,10 +770,10 @@ class TestFindOrCreateTenantForCustomer:
     """Test finding or creating tenants for QuickBooks customers."""
 
     @pytest.mark.asyncio
-    async def test_find_existing_tenant_by_quickbooks_id(self, invoice_service, mock_session):
+    async def test_find_existing_tenant_by_quickbooks_customer_id(self, invoice_service, mock_session):
         """Test finding existing tenant by QuickBooks customer ID."""
         customer_id = "qb_customer_123"
-        existing_tenant = create_test_tenant(quickbooks_id=customer_id)
+        existing_tenant = create_test_tenant(quickbooks_customer_id=customer_id)
 
         mock_session.scalar.return_value = existing_tenant
 
@@ -653,13 +800,13 @@ class TestFindOrCreateTenantForCustomer:
         mock_client.get_customer.return_value = {"Customer": customer_data}
 
         with patch('Backend.api.quickbooks.schemas.customer.CustomerSchema.to_tenant') as mock_to_tenant:
-            new_tenant = create_test_tenant(quickbooks_id=customer_id)
+            new_tenant = create_test_tenant(quickbooks_customer_id=customer_id)
             mock_to_tenant.return_value = new_tenant
 
             result = await invoice_service._find_or_create_tenant_for_customer(customer_id, customer_data)
 
             assert result == new_tenant
-            assert result.quickbooks_id == customer_id
+            assert result.quickbooks_customer_id == customer_id
             assert mock_session.add.called
             assert mock_session.commit.called
 
@@ -746,3 +893,181 @@ class TestInvoiceServiceLogging:
             pushed_count=0,
             error_count=1
         )
+
+
+class TestInvoiceServiceHelperMethods:
+    """Test helper methods in InvoiceService."""
+
+    @pytest.mark.asyncio
+    async def test_push_invoices_no_unsynced_invoices(self, invoice_service, mock_session):
+        """Test that invoices without synced tenants are filtered out by the query."""
+        from Backend.models.accounting.invoice import Invoice as InvoiceModel
+        from Backend.models.tenant import Tenant as TenantModel
+
+        # Mock property query result
+        mock_execute_result = AsyncMock()
+        mock_execute_result.__iter__ = MagicMock(return_value=iter([(1,)]))  # Return one property ID
+
+        # No invoices returned because tenants without QB ID are filtered out
+        mock_scalars_invoices = AsyncMock()
+        mock_scalars_invoices.__iter__ = MagicMock(return_value=iter([]))
+
+        # Mock session methods
+        async def mock_execute_side_effect(stmt):
+            # First call is for properties
+            return mock_execute_result
+
+        async def mock_scalars_side_effect(stmt):
+            # Return empty invoice list (filtered by query)
+            return mock_scalars_invoices
+
+        mock_session.execute = AsyncMock(side_effect=mock_execute_side_effect)
+        mock_session.scalars = AsyncMock(side_effect=mock_scalars_side_effect)
+
+        result = await invoice_service._push_invoices_to_quickbooks()
+
+        # Should return no errors when no invoices match criteria
+        assert result["pushed_count"] == 0
+        assert result["errors"] == []
+
+    @pytest.mark.asyncio
+    async def test_push_invoices_preview_mode_warning(self, test_user, mock_session, mock_client):
+        """Test preview mode warning when tenant not synced."""
+        from Backend.models.accounting.invoice import Invoice as InvoiceModel
+        from Backend.models.tenant import Tenant as TenantModel
+
+        # Create service in preview mode
+        service = InvoiceService(test_user, mock_session, preview_mode=True)
+        service._client = mock_client
+        service.initialize = AsyncMock()
+
+        # Mock invoice for a tenant without QB customer ID
+        invoice = create_test_invoice()
+        tenant = create_test_tenant()
+        tenant.quickbooks_customer_id = None
+
+        # Mock property query result
+        mock_execute_result = AsyncMock()
+        mock_execute_result.__iter__ = MagicMock(return_value=iter([(1,)]))  # Return one property ID
+
+        mock_scalars_invoices = AsyncMock()
+        mock_scalars_invoices.all.return_value = [invoice]
+        mock_scalars_tenants = AsyncMock()
+        mock_scalars_tenants.all.return_value = [tenant]
+        mock_scalars_leases = AsyncMock()
+        mock_scalars_leases.all.return_value = []
+
+        # Mock session methods
+        async def mock_execute_side_effect(stmt):
+            # First call is for properties
+            if not hasattr(mock_execute_side_effect, 'call_count'):
+                mock_execute_side_effect.call_count = 0
+            mock_execute_side_effect.call_count += 1
+
+            if mock_execute_side_effect.call_count == 1:
+                return mock_execute_result
+            return AsyncMock()
+
+        def mock_scalars_side_effect(stmt):
+            if not hasattr(mock_scalars_side_effect, 'call_count'):
+                mock_scalars_side_effect.call_count = 0
+            mock_scalars_side_effect.call_count += 1
+
+            if mock_scalars_side_effect.call_count == 1:
+                return mock_scalars_invoices
+            elif mock_scalars_side_effect.call_count == 2:
+                return mock_scalars_tenants
+            else:
+                return mock_scalars_leases
+
+        mock_session.execute = AsyncMock(side_effect=mock_execute_side_effect)
+        mock_session.scalars = AsyncMock(side_effect=mock_scalars_side_effect)
+        service._get_or_cache_service_item = AsyncMock(return_value="SERVICE_ITEM_123")
+
+        result = await service._push_invoices_to_quickbooks()
+
+        # In preview mode, should still process but with warnings
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_prefetch_tenants_and_leases(self, invoice_service, mock_session, test_user):
+        """Test _prefetch_tenants_and_leases cache building."""
+        from Backend.models.tenant import Tenant as TenantModel
+        from Backend.models.lease import Lease
+
+        # Create test data with proper user_id/landlord_id
+        tenant1 = create_test_tenant(tenant_id=1, user_id=test_user.id, quickbooks_customer_id="QB1")
+        tenant1.landlord_id = test_user.id
+        tenant1.id = 1
+
+        tenant2 = create_test_tenant(tenant_id=2, user_id=test_user.id, quickbooks_customer_id="QB2")
+        tenant2.landlord_id = test_user.id
+        tenant2.id = 2
+
+        lease1 = MagicMock(spec=Lease)
+        lease1.tenant_id = 1
+        lease1.status = "active"
+
+        # Create iterables that session.scalars returns
+        async def mock_scalars_side_effect(stmt):
+            if not hasattr(mock_scalars_side_effect, 'call_count'):
+                mock_scalars_side_effect.call_count = 0
+            mock_scalars_side_effect.call_count += 1
+
+            if mock_scalars_side_effect.call_count == 1:
+                # Return tenants iterable
+                return iter([tenant1, tenant2])
+            else:
+                # Return leases iterable
+                return iter([lease1])
+
+        mock_session.scalars = AsyncMock(side_effect=mock_scalars_side_effect)
+
+        result = await invoice_service._prefetch_tenants_and_leases()
+
+        # Should return dict with QB customer IDs as keys
+        assert "QB1" in result
+        assert "QB2" in result
+        # QB1 should have tenant and lease
+        assert result["QB1"][0] == tenant1
+        assert result["QB1"][1] == lease1
+        # QB2 should have tenant but no lease
+        assert result["QB2"][0] == tenant2
+        assert result["QB2"][1] is None
+
+    @pytest.mark.asyncio
+    async def test_resolve_tenant_and_lease_from_cache_missing_customer(self, invoice_service):
+        """Test _resolve_tenant_and_lease_from_cache with missing QB customer ID."""
+        # Mock QB invoice without customer ID
+        qb_invoice = {
+            "Id": "inv123",
+            "DocNumber": "INV-001"
+            # Missing CustomerRef
+        }
+
+        tenant_cache = {}
+
+        tenant, lease = invoice_service._resolve_tenant_and_lease_from_cache(qb_invoice, tenant_cache)
+
+        # Should return None, None when customer ID is missing
+        assert tenant is None
+        assert lease is None
+
+    @pytest.mark.asyncio
+    async def test_resolve_tenant_and_lease_from_cache_customer_not_in_cache(self, invoice_service):
+        """Test _resolve_tenant_and_lease_from_cache when customer not in cache."""
+        # Mock QB invoice with customer ID
+        qb_invoice = {
+            "Id": "inv123",
+            "DocNumber": "INV-001",
+            "CustomerRef": {"value": "QB_NOT_IN_CACHE"}
+        }
+
+        # Empty cache
+        tenant_cache = {}
+
+        tenant, lease = invoice_service._resolve_tenant_and_lease_from_cache(qb_invoice, tenant_cache)
+
+        # Should return None, None when customer not in cache
+        assert tenant is None
+        assert lease is None

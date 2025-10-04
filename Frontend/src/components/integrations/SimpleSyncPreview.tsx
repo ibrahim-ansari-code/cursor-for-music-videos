@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { previewQuickBooksSync } from '../../utils/api/quickbooks';
+import * as Sentry from '@sentry/react';
+import { previewQuickBooksSync, applyQuickBooksSync } from '../../utils/api/quickbooks';
 
 interface SyncItem {
   entity_type: string;
@@ -80,7 +81,21 @@ const SimpleSyncPreview: React.FC<SimpleSyncPreviewProps> = ({
   const handleSync = async () => {
     try {
       setSyncing(true);
-      const result = await onSync();
+      // Build payload from selected items
+      const itemsToApply = (preview?.items || [])
+        .filter(item => selectedItems.has(`${item.entity_type}-${item.entity_id}`))
+        .map(item => ({
+          entity_type: item.entity_type,
+          entity_id: item.entity_id,
+          action: item.action,
+          details: item.details || {},
+        }));
+
+      // First apply customer operations (link/create/update) before running any additional sync
+      let result = { success: true, message: '' } as any;
+      if (itemsToApply.length > 0) {
+        result = await applyQuickBooksSync(itemsToApply);
+      }
 
       // Handle the response properly
       if (result && typeof result === 'object') {
@@ -89,6 +104,29 @@ const SimpleSyncPreview: React.FC<SimpleSyncPreviewProps> = ({
             ? result.message
             : 'Sync completed successfully!';
           toast.success(successMessage);
+          // Optionally run the broader sync flow if provided by parent
+          if (onSync) {
+            try {
+              await onSync();
+            } catch (e: any) {
+              // Report follow-up sync failures instead of swallowing
+              console.error('Follow-up sync failed:', e);
+              Sentry.captureException(e, {
+                tags: { 
+                  component: 'SimpleSyncPreview', 
+                  action: 'follow_up_sync',
+                  integration: 'quickbooks',
+                },
+                contexts: {
+                  sync: {
+                    itemCount: preview?.items?.length || 0,
+                    hasOnSyncCallback: true,
+                  },
+                },
+              });
+              toast.error(e?.message || 'Follow-up sync failed');
+            }
+          }
           onSyncComplete();
         } else {
           const errorMessage = result.message && typeof result.message === 'string'

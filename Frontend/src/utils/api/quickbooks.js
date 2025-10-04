@@ -64,6 +64,13 @@ export const previewQuickBooksSync = async () => {
   return apiRequest("/quickbooks/sync/preview");
 };
 
+export const applyQuickBooksSync = async (items) => {
+  return apiRequest("/quickbooks/sync/apply", {
+    method: "POST",
+    body: items,
+  });
+};
+
 export const getQuickBooksAccounts = async () => {
   return apiRequest("/quickbooks/accounts");
 }; 

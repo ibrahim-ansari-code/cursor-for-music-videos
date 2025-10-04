@@ -48,7 +48,7 @@ def create_test_tenant(**kwargs):
         "first_name": "John",
         "last_name": "Doe",
         "email": "john@example.com",
-        "quickbooks_id": "qb_customer_123",
+        "quickbooks_customer_id": "qb_customer_123",
         "created_at": FIXED_DATETIME,
         "updated_at": FIXED_DATETIME
     }
@@ -71,7 +71,7 @@ class TestInvoiceValidation:
     def test_validate_invoice_missing_customer_id(self):
         """Test validation with tenant missing QuickBooks ID."""
         invoice = create_test_invoice()
-        tenant = create_test_tenant(quickbooks_id=None)
+        tenant = create_test_tenant(quickbooks_customer_id=None)
 
         errors = InvoiceSchema.validate_for_quickbooks(invoice, tenant)
         # Should have tenant error
@@ -155,7 +155,7 @@ class TestFromQuickBooks:
             created_at=FIXED_DATETIME,
             updated_at=FIXED_DATETIME
         )
-        tenant = create_test_tenant(quickbooks_id="cust_123")
+        tenant = create_test_tenant(quickbooks_customer_id="cust_123")
 
         # Actual signature: from_quickbooks(qb_invoice, lease, tenant, tax_code_mapping)
         invoice, tax_details = InvoiceSchema.from_quickbooks(qb_invoice, lease, tenant)

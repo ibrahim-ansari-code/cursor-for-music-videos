@@ -50,7 +50,7 @@ class TestPaymentValidation:
             email="test@example.com",
             first_name="Test",
             last_name="User",
-            quickbooks_id="qb_123",
+            quickbooks_customer_id="qb_123",
             created_at=FIXED_DATETIME,
             updated_at=FIXED_DATETIME
         )
@@ -68,7 +68,7 @@ class TestPaymentValidation:
             email="test@example.com",
             first_name="Test",
             last_name="User",
-            quickbooks_id="qb_123",
+            quickbooks_customer_id="qb_123",
             created_at=FIXED_DATETIME,
             updated_at=FIXED_DATETIME
         )
@@ -90,7 +90,7 @@ class TestToQuickBooks:
             email="test@example.com",
             first_name="Test",
             last_name="User",
-            quickbooks_id="qb_customer_123",
+            quickbooks_customer_id="qb_customer_123",
             created_at=FIXED_DATETIME,
             updated_at=FIXED_DATETIME
         )

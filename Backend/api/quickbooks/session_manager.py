@@ -7,7 +7,8 @@ and memory leaks from creating new HTTP sessions for each request.
 
 import asyncio
 import logging
-from typing import Optional, Any
+import ssl
+from typing import Optional, Any, Dict
 import aiohttp
 
 logger = logging.getLogger(__name__)
@@ -65,7 +66,8 @@ class SessionPoolManager:
         # Optimized connection pool settings with SSL context for development
         ssl_context = _create_ssl_context()
 
-        connector_kwargs = {
+        # Build connector kwargs
+        connector_kwargs: Dict[str, Any] = {
             'limit': 100,                    # Total connection pool size
             'limit_per_host': 30,            # Max connections per host (QuickBooks API)
             'ttl_dns_cache': 300,           # DNS cache TTL (5 minutes)
@@ -73,11 +75,13 @@ class SessionPoolManager:
             'enable_cleanup_closed': True,   # Clean up closed connections
             'keepalive_timeout': 30         # Keep-alive timeout
         }
-
+        
         # Add SSL context if available (for development certificate handling)
-        if ssl_context:
+        # Only pass ssl parameter if we have a custom context, otherwise use default
+        if ssl_context is not None:
             connector_kwargs['ssl'] = ssl_context
 
+        # Create connector with optimized connection pool settings
         self._connector = aiohttp.TCPConnector(**connector_kwargs)
         
         # Create session with proper timeout and connector

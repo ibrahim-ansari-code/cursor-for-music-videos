@@ -9,7 +9,7 @@ from Backend.models.user import User
 from Backend.models.tenant import Tenant
 from Backend.database import async_session
 from ..schemas.customer import CustomerSchema
-from .base_service import BaseQuickBooksService
+from .base_service import BaseQuickBooksService, SyncAction
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +40,8 @@ class CustomerService(BaseQuickBooksService):
             total_synced += update_result.get("updated_count", 0)
             all_errors.extend(update_result.get("errors", []))
 
-            # Update integration sync time on success
-            if total_synced > 0 and len(all_errors) == 0:
+            # Update integration sync time on success (skip in preview)
+            if total_synced > 0 and len(all_errors) == 0 and self._should_execute_action():
                 await self._update_integration_sync_time()
 
             self._log_operation(
@@ -78,8 +78,8 @@ class CustomerService(BaseQuickBooksService):
             # Get all user's tenants that don't have QuickBooks IDs in one query
             unlinked_tenants = await self.session.scalars(
                 select(Tenant).where(
-                    col(Tenant.user_id) == self.user.id,
-                    col(Tenant.quickbooks_id).is_(None)
+                    col(Tenant.landlord_id) == self.user.id,
+                    col(Tenant.quickbooks_customer_id).is_(None)
                 )
             )
             unlinked_tenants_list = list(unlinked_tenants)
@@ -102,13 +102,27 @@ class CustomerService(BaseQuickBooksService):
 
                 qb_customer = qb_customers_by_email.get(tenant.email.lower())
                 if qb_customer:
-                    tenant.quickbooks_id = qb_customer.get("Id")
-                    tenant.last_synced_at = datetime.now(UTC)
-                    self.session.add(tenant)
+                    qb_id = qb_customer.get("Id")
                     linked_count += 1
-                    logger.info(f"Linked tenant {tenant.id} to QuickBooks customer {tenant.quickbooks_id}")
+                    if self.preview_mode:
+                        self._add_preview_item(
+                            entity_type="customer_link",
+                            entity_id=str(tenant.id),
+                            entity_name=f"{tenant.first_name or tenant.company_name or ''} {tenant.last_name or ''}".strip() or "Tenant",
+                            action=SyncAction.UPDATE,
+                            details={
+                                "qb_customer_id": qb_id,
+                                "qb_display_name": qb_customer.get("DisplayName"),
+                            },
+                            warnings=[]
+                        )
+                    else:
+                        tenant.quickbooks_customer_id = qb_id
+                        tenant.last_synced_at = datetime.now(UTC)
+                        self.session.add(tenant)
+                        logger.info(f"Linked tenant {tenant.id} to QuickBooks customer {tenant.quickbooks_customer_id}")
 
-            if linked_count > 0:
+            if linked_count > 0 and self._should_execute_action():
                 await self.session.commit()
 
         except Exception as e:
@@ -126,8 +140,8 @@ class CustomerService(BaseQuickBooksService):
             # Get tenants that haven't been synced to QuickBooks
             unlinked_tenants = await self.session.scalars(
                 select(Tenant).where(
-                    col(Tenant.user_id) == self.user.id,
-                    col(Tenant.quickbooks_id).is_(None),
+                    col(Tenant.landlord_id) == self.user.id,
+                    col(Tenant.quickbooks_customer_id).is_(None),
                     col(Tenant.email).is_not(None)
                 )
             )
@@ -141,22 +155,47 @@ class CustomerService(BaseQuickBooksService):
 
                     if existing_customer_id:
                         # Link to existing customer
-                        tenant.quickbooks_id = existing_customer_id
-                        tenant.last_synced_at = datetime.now(UTC)
-                        self.session.add(tenant)
                         pushed_count += 1
-                        logger.info(f"Linked tenant {tenant.id} to existing QuickBooks customer {existing_customer_id}")
-                    else:
-                        # Create new customer
-                        customer_id = await self._create_customer_in_quickbooks(tenant)
-                        if customer_id:
-                            tenant.quickbooks_id = customer_id
+                        if self.preview_mode:
+                            self._add_preview_item(
+                                entity_type="customer_link",
+                                entity_id=str(tenant.id),
+                                entity_name=f"{tenant.first_name or tenant.company_name or ''} {tenant.last_name or ''}".strip() or "Tenant",
+                                action=SyncAction.UPDATE,
+                                details={
+                                    "qb_customer_id": existing_customer_id,
+                                },
+                                warnings=[]
+                            )
+                        else:
+                            tenant.quickbooks_customer_id = existing_customer_id
                             tenant.last_synced_at = datetime.now(UTC)
                             self.session.add(tenant)
+                            logger.info(f"Linked tenant {tenant.id} to existing QuickBooks customer {existing_customer_id}")
+                    else:
+                        # Create new customer (synthesize in preview, real create otherwise)
+                        if self.preview_mode:
+                            self._add_preview_item(
+                                entity_type="customer_create",
+                                entity_id=str(tenant.id),
+                                entity_name=f"{tenant.first_name or tenant.company_name or ''} {tenant.last_name or ''}".strip() or "Tenant",
+                                action=SyncAction.CREATE,
+                                details={
+                                    "destination": "QuickBooks",
+                                },
+                                warnings=[]
+                            )
                             pushed_count += 1
-                            logger.info(f"Created QuickBooks customer {customer_id} for tenant {tenant.id}")
                         else:
-                            errors.append(f"Failed to create QuickBooks customer for tenant {tenant.id}")
+                            customer_id = await self._create_customer_in_quickbooks(tenant)
+                            if customer_id:
+                                tenant.quickbooks_customer_id = customer_id
+                                tenant.last_synced_at = datetime.now(UTC)
+                                self.session.add(tenant)
+                                pushed_count += 1
+                                logger.info(f"Created QuickBooks customer {customer_id} for tenant {tenant.id}")
+                            else:
+                                errors.append(f"Failed to create QuickBooks customer for tenant {tenant.id}")
 
                 except Exception as e:
                     error_msg = f"Error processing tenant {tenant.id}: {str(e)}"
@@ -164,7 +203,7 @@ class CustomerService(BaseQuickBooksService):
                     logger.error(error_msg, exc_info=True)
 
             # Commit all successful updates
-            if pushed_count > 0:
+            if pushed_count > 0 and self._should_execute_action():
                 await self.session.commit()
 
         except Exception as e:
@@ -182,8 +221,8 @@ class CustomerService(BaseQuickBooksService):
             # Get tenants that have QuickBooks IDs (already linked)
             linked_tenants = await self.session.scalars(
                 select(Tenant).where(
-                    col(Tenant.user_id) == self.user.id,
-                    col(Tenant.quickbooks_id).is_not(None)
+                    col(Tenant.landlord_id) == self.user.id,
+                    col(Tenant.quickbooks_customer_id).is_not(None)
                 )
             )
             linked_tenants_list = list(linked_tenants)
@@ -204,21 +243,34 @@ class CustomerService(BaseQuickBooksService):
                             continue
 
                         # Get current customer data from QuickBooks
-                        current_customer = await self.client.get_customer(tenant.quickbooks_id)
+                        current_customer = await self.client.get_customer(tenant.quickbooks_customer_id)
                         if not current_customer or "Customer" not in current_customer:
-                            logger.warning(f"Could not retrieve QuickBooks customer {tenant.quickbooks_id} for tenant {tenant.id}")
+                            logger.warning(f"Could not retrieve QuickBooks customer {tenant.quickbooks_customer_id} for tenant {tenant.id}")
                             continue
 
                         qb_customer = current_customer["Customer"]
 
                         # Check if update is needed
                         if CustomerSchema.needs_update(qb_customer, tenant):
-                            success = await self.update_customer_in_quickbooks(tenant)
-                            if success:
+                            if self.preview_mode:
+                                self._add_preview_item(
+                                    entity_type="customer_update",
+                                    entity_id=str(tenant.id),
+                                    entity_name=f"{tenant.first_name or tenant.company_name or ''} {tenant.last_name or ''}".strip() or "Tenant",
+                                    action=SyncAction.UPDATE,
+                                    details={
+                                        "destination": "QuickBooks",
+                                    },
+                                    warnings=[]
+                                )
                                 updated_count += 1
-                                logger.info(f"Updated QuickBooks customer {tenant.quickbooks_id} for tenant {tenant.id}")
                             else:
-                                errors.append(f"Failed to update QuickBooks customer for tenant {tenant.id}")
+                                success = await self.update_customer_in_quickbooks(tenant)
+                                if success:
+                                    updated_count += 1
+                                    logger.info(f"Updated QuickBooks customer {tenant.quickbooks_customer_id} for tenant {tenant.id}")
+                                else:
+                                    errors.append(f"Failed to update QuickBooks customer for tenant {tenant.id}")
                         else:
                             # No update needed, but refresh sync timestamp
                             tenant.last_synced_at = datetime.now(UTC)
@@ -230,13 +282,21 @@ class CustomerService(BaseQuickBooksService):
                         logger.error(error_msg, exc_info=True)
 
                 # Commit after each batch
-                await self.session.commit()
+                if self._should_execute_action():
+                    await self.session.commit()
 
         except Exception as e:
             logger.error(f"Error pushing customer updates to QuickBooks: {e}", exc_info=True)
             errors.append(f"Push customer updates failed: {str(e)}")
 
         return {"updated_count": updated_count, "errors": errors}
+
+    async def preview_customers(self):
+        """Preview what would happen during customer synchronization."""
+        preview_service = CustomerService(self.user, self.session, preview_mode=True)
+        await preview_service.initialize()
+        await preview_service.sync_customers()
+        return preview_service._generate_preview()
 
     async def _find_existing_customer_by_email(self, email: str) -> Optional[str]:
         """Find existing QuickBooks customer by email."""
@@ -302,39 +362,39 @@ class CustomerService(BaseQuickBooksService):
         Returns:
             True if update successful, False otherwise
         """
-        if not tenant.quickbooks_id:
-            logger.warning(f"Cannot update customer: tenant {tenant.id} has no QuickBooks ID")
+        if not tenant.quickbooks_customer_id:
+            logger.warning(f"Cannot update customer: tenant {tenant.id} has no QuickBooks Customer ID")
             return False
 
         try:
             await self.initialize()
 
             # First, get the current customer data from QuickBooks to get the SyncToken
-            current_customer = await self.client.get_customer(tenant.quickbooks_id)
+            current_customer = await self.client.get_customer(tenant.quickbooks_customer_id)
             if not current_customer or "Customer" not in current_customer:
-                logger.error(f"Could not retrieve QuickBooks customer {tenant.quickbooks_id} for update")
+                logger.error(f"Could not retrieve QuickBooks customer {tenant.quickbooks_customer_id} for update")
                 return False
 
             qb_customer = current_customer["Customer"]
             sync_token = qb_customer.get("SyncToken")
             if not sync_token:
-                logger.error(f"Missing SyncToken for QuickBooks customer {tenant.quickbooks_id}")
+                logger.error(f"Missing SyncToken for QuickBooks customer {tenant.quickbooks_customer_id}")
                 return False
 
             # Check if update is actually needed
             if not CustomerSchema.needs_update(qb_customer, tenant):
-                logger.info(f"No update needed for QuickBooks customer {tenant.quickbooks_id}")
+                logger.info(f"No update needed for QuickBooks customer {tenant.quickbooks_customer_id}")
                 tenant.last_synced_at = datetime.now(UTC)
                 self.session.add(tenant)
                 await self.session.commit()
                 return True
 
             # Prepare update data
-            update_data = CustomerSchema.to_quickbooks_update(tenant, tenant.quickbooks_id, sync_token)
+            update_data = CustomerSchema.to_quickbooks_update(tenant, tenant.quickbooks_customer_id, sync_token)
 
             # Perform the update with retry
             async def update_operation():
-                return await self.client.update_customer(tenant.quickbooks_id, update_data)
+                return await self.client.update_customer(tenant.quickbooks_customer_id, update_data)
 
             response = await self._retry_operation(
                 update_operation,
@@ -348,14 +408,14 @@ class CustomerService(BaseQuickBooksService):
                 self.session.add(tenant)
                 await self.session.commit()
 
-                logger.info(f"Successfully updated QuickBooks customer {tenant.quickbooks_id} for tenant {tenant.id}")
+                logger.info(f"Successfully updated QuickBooks customer {tenant.quickbooks_customer_id} for tenant {tenant.id}")
 
                 self._log_operation(
                     operation="update_customer",
                     level="info",
                     status="success",
                     tenant_id=tenant.id,
-                    customer_id=tenant.quickbooks_id
+                    customer_id=tenant.quickbooks_customer_id
                 )
                 return True
             else:
@@ -369,7 +429,7 @@ class CustomerService(BaseQuickBooksService):
                 level="error",
                 status="failed",
                 tenant_id=tenant.id,
-                customer_id=tenant.quickbooks_id,
+                customer_id=tenant.quickbooks_customer_id,
                 error=str(e)
             )
             return False
