@@ -26,20 +26,26 @@ const validateProperty = (data: unknown): data is Property => {
 };
 
 export const usePropertiesActions = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Separate state for create and edit modals
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentProperty, setCurrentProperty] = useState<Property | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+
+  // Delete confirmation modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
+
   const deletePropertyMutation = useDeleteProperty();
 
   const handleEditProperty = async (propertyId: number) => {
     try {
       const property = await fetchPropertyById(propertyId);
-      
+
       // Runtime validation instead of type assertion
       if (!validateProperty(property)) {
         const error = new Error('Invalid property data received from API');
         console.error('Invalid property data received from API. Property ID: ', propertyId);
-        
+
         // Report property data validation errors with data sanitization
         reportError(error, {
           component: 'usePropertiesActions',
@@ -54,17 +60,16 @@ export const usePropertiesActions = () => {
             }
           },
         }, 'error');
-        
+
         toast.error('Invalid property data received. Please try again.');
         return;
       }
-      
+
       setCurrentProperty(property);
-      setIsEditing(true);
-      setIsModalOpen(true);
+      setIsEditModalOpen(true);
     } catch (error) {
       console.error('Error fetching property details:', error);
-      
+
       // Report property fetch errors with proper error handling
       reportError(error instanceof Error ? error : new Error(String(error)), {
         component: 'usePropertiesActions',
@@ -75,53 +80,98 @@ export const usePropertiesActions = () => {
           }
         },
       }, 'error');
-      
+
       toast.error('Failed to load property details');
     }
   };
 
-  const handleDeleteProperty = async (propertyId: number) => {
+  // Open delete confirmation modal
+  const handleDeleteClick = (property: Property) => {
+    setPropertyToDelete(property);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Confirm deletion
+  const handleConfirmDelete = async () => {
+    if (!propertyToDelete?.id) {
+      const error = new Error('Property ID is missing for deletion');
+      console.error('Property ID is missing');
+      
+      reportError(error, {
+        component: 'usePropertiesActions',
+        action: 'delete_property_validation',
+        tags: {
+          validation: true,
+        },
+      }, 'error');
+      
+      return;
+    }
+
     try {
-      await deletePropertyMutation.mutateAsync(propertyId);
+      await deletePropertyMutation.mutateAsync(propertyToDelete.id);
       toast.success('Property was successfully deleted');
+      setIsDeleteModalOpen(false);
+      setPropertyToDelete(null);
     } catch (error) {
       console.error('Error deleting property:', error);
-      
-      // Report property deletion errors with proper error handling  
+
+      // Report property deletion errors with proper error handling
       reportError(error instanceof Error ? error : new Error(String(error)), {
         component: 'usePropertiesActions',
         action: 'delete_property',
         extra: {
           property: {
-            propertyId,
+            propertyId: propertyToDelete.id,
           }
         },
       }, 'error');
-      
+
       toast.error(error instanceof Error ? error.message : 'Failed to delete property. Please try again.');
     }
   };
 
-  const handleAddProperty = () => {
-    setCurrentProperty(null);
-    setIsEditing(false);
-    setIsModalOpen(true);
+  // Cancel deletion
+  const handleCancelDelete = () => {
+    setIsDeleteModalOpen(false);
+    setPropertyToDelete(null);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
+  const handleAddProperty = () => {
     setCurrentProperty(null);
-    setIsEditing(false);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCloseCreateModal = () => {
+    setIsCreateModalOpen(false);
+    setCurrentProperty(null);
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setCurrentProperty(null);
   };
 
   return {
-    isModalOpen,
+    // Create modal state
+    isCreateModalOpen,
+    handleCloseCreateModal,
+
+    // Edit modal state
+    isEditModalOpen,
     currentProperty,
-    isEditing,
+    handleCloseEditModal,
+
+    // Delete modal state
+    isDeleteModalOpen,
+    propertyToDelete,
+    handleCancelDelete,
+    handleConfirmDelete,
+
+    // Actions
     deletePropertyMutation,
     handleEditProperty,
-    handleDeleteProperty,
+    handleDeleteClick,
     handleAddProperty,
-    handleCloseModal,
   };
 };

@@ -165,7 +165,7 @@ export const usePropertyImages = (options: UsePropertyImagesOptions = {}): UsePr
     // Display validation errors
     errors.forEach(error => {
       toast.error(`${error.filename}: ${error.message}`, {
-        position: 'bottom-right',
+        position: 'top-right',
         autoClose: 5000
       });
       onUploadError?.(error);
@@ -286,7 +286,7 @@ export const usePropertyImages = (options: UsePropertyImagesOptions = {}): UsePr
       if (successfulUploads.length > 0) {
         toast.success(
           `Successfully uploaded ${successfulUploads.length} of ${imagesToUpload.length} images`,
-          { position: 'bottom-right', autoClose: 3000 }
+          { position: 'top-right', autoClose: 3000 }
         );
         onUploadComplete?.(successfulUploads);
       }
@@ -296,7 +296,7 @@ export const usePropertyImages = (options: UsePropertyImagesOptions = {}): UsePr
       if (failedCount > 0) {
         toast.error(
           `${failedCount} images failed to upload. Click retry to try again.`,
-          { position: 'bottom-right', autoClose: 5000 }
+          { position: 'top-right', autoClose: 5000 }
         );
       }
 
@@ -312,7 +312,7 @@ export const usePropertyImages = (options: UsePropertyImagesOptions = {}): UsePr
       };
       
       toast.error(`Upload failed: ${uploadError.message}`, {
-        position: 'bottom-right',
+        position: 'top-right',
         autoClose: 5000
       });
       
@@ -373,7 +373,7 @@ export const usePropertyImages = (options: UsePropertyImagesOptions = {}): UsePr
                 // Notify user of the failure
                 const { toast } = require('react-toastify');
                 toast.error('Failed to update primary image. Please try again.', {
-                  position: 'bottom-right',
+                  position: 'top-right',
                   autoClose: 4000
                 });
               });
@@ -384,7 +384,7 @@ export const usePropertyImages = (options: UsePropertyImagesOptions = {}): UsePr
       });
 
       toast.success('Image deleted successfully', {
-        position: 'bottom-right',
+        position: 'top-right',
         autoClose: 3000
       });
 
@@ -400,7 +400,7 @@ export const usePropertyImages = (options: UsePropertyImagesOptions = {}): UsePr
       };
       
       toast.error(`Failed to delete image: ${deleteError.message}`, {
-        position: 'bottom-right',
+        position: 'top-right',
         autoClose: 5000
       });
       
@@ -445,7 +445,7 @@ export const usePropertyImages = (options: UsePropertyImagesOptions = {}): UsePr
           })));
 
           toast.success('Primary image updated', {
-            position: 'bottom-right',
+            position: 'top-right',
             autoClose: 3000
           });
         }
@@ -455,7 +455,7 @@ export const usePropertyImages = (options: UsePropertyImagesOptions = {}): UsePr
         console.error('Failed to set primary image:', error);
         
         toast.error('Failed to set primary image', {
-          position: 'bottom-right',
+          position: 'top-right',
           autoClose: 5000
         });
         
@@ -514,7 +514,7 @@ export const usePropertyImages = (options: UsePropertyImagesOptions = {}): UsePr
       console.error('Failed to reorder images:', error);
       
       toast.error('Failed to reorder images', {
-        position: 'bottom-right',
+        position: 'top-right',
         autoClose: 5000
       });
       
@@ -551,7 +551,7 @@ export const usePropertyImages = (options: UsePropertyImagesOptions = {}): UsePr
     setImages(prev => prev.filter(img => !isPendingImage(img)));
     
     toast.info('Pending images cleared', {
-      position: 'bottom-right',
+      position: 'top-right',
       autoClose: 2000
     });
   }, [images]);

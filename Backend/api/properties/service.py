@@ -284,14 +284,59 @@ class PropertyService:
             if apt_existing:
                 # Update existing
                 update_data = details.model_dump(exclude_unset=True, exclude={'property_type'})
+
+                # Transform individual unit fields into unit_mix dictionary
+                unit_fields = ['studio_units', 'one_bed_units', 'two_bed_units', 'three_bed_units', 'penthouse_units']
+                unit_mix = {}
+                for field in unit_fields:
+                    if field in update_data:
+                        count = update_data.pop(field)  # Remove from update_data
+                        if count > 0:  # Only add if count is positive
+                            # Map field names to unit_mix keys
+                            key_map = {
+                                'studio_units': 'studio',
+                                'one_bed_units': '1br',
+                                'two_bed_units': '2br',
+                                'three_bed_units': '3br',
+                                'penthouse_units': 'penthouse'
+                            }
+                            unit_mix[key_map[field]] = count
+
+                # Add unit_mix to update_data if any units were specified
+                if unit_mix:
+                    update_data['unit_mix'] = unit_mix
+
                 for key, value in update_data.items():
                     setattr(apt_existing, key, value)
                 apt_existing.updated_at = create_audit_datetime()
             else:
                 # Create new
+                create_data = details.model_dump(exclude_unset=True, exclude={'property_type'})
+
+                # Transform individual unit fields into unit_mix dictionary
+                unit_fields = ['studio_units', 'one_bed_units', 'two_bed_units', 'three_bed_units', 'penthouse_units']
+                unit_mix = {}
+                for field in unit_fields:
+                    if field in create_data:
+                        count = create_data.pop(field)  # Remove from create_data
+                        if count > 0:  # Only add if count is positive
+                            # Map field names to unit_mix keys
+                            key_map = {
+                                'studio_units': 'studio',
+                                'one_bed_units': '1br',
+                                'two_bed_units': '2br',
+                                'three_bed_units': '3br',
+                                'penthouse_units': 'penthouse'
+                            }
+                            unit_mix[key_map[field]] = count
+
+                # Add unit_mix to create_data if any units were specified
+                if unit_mix:
+                    create_data['unit_mix'] = unit_mix
+
                 new_apt = PropertyApartmentComplex(
                     property_id=property_id,
-                    **details.model_dump(exclude_unset=True, exclude={'property_type'})
+                    **create_data
                 )
                 session.add(new_apt)
                 

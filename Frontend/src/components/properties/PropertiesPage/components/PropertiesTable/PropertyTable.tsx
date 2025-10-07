@@ -7,7 +7,7 @@ interface PropertyTableProps {
   properties: Property[];
   loading: boolean;
   error: string | null;
-  onDelete: (propertyId: number) => void;
+  onDelete: (property: Property) => void;
   onEdit: (propertyId: number) => void;
   onRetry?: () => void;
 }

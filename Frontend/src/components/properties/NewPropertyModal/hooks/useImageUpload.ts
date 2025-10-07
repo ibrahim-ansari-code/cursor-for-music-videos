@@ -104,14 +104,14 @@ export const useImageUpload = (options: UseImageUploadOptions = {}) => {
       if (successfulUploads.length > 0) {
         toast.success(
           `Successfully uploaded ${successfulUploads.length} of ${files.length} images`,
-          { position: 'bottom-right', autoClose: 3000 }
+          { position: 'top-right', autoClose: 3000 }
         );
       }
 
       if (failedUploads.length > 0) {
         toast.error(
           `Failed to upload ${failedUploads.length} images`,
-          { position: 'bottom-right', autoClose: 5000 }
+          { position: 'top-right', autoClose: 5000 }
         );
       }
 
@@ -125,7 +125,7 @@ export const useImageUpload = (options: UseImageUploadOptions = {}) => {
       console.error('Batch upload failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Upload failed';
       toast.error(`Upload failed: ${errorMessage}`, {
-        position: 'bottom-right',
+        position: 'top-right',
         autoClose: 5000
       });
       
@@ -153,7 +153,7 @@ export const useImageUpload = (options: UseImageUploadOptions = {}) => {
       setUploadedImages(prev => prev.filter(img => img.id !== imageId));
       
       toast.success('Image deleted successfully', {
-        position: 'bottom-right',
+        position: 'top-right',
         autoClose: 3000
       });
       
@@ -162,7 +162,7 @@ export const useImageUpload = (options: UseImageUploadOptions = {}) => {
       console.error('Failed to delete image:', error);
       const errorMessage = error instanceof Error ? error.message : 'Delete failed';
       toast.error(`Failed to delete image: ${errorMessage}`, {
-        position: 'bottom-right',
+        position: 'top-right',
         autoClose: 5000
       });
       
@@ -188,7 +188,7 @@ export const useImageUpload = (options: UseImageUploadOptions = {}) => {
       })));
       
       toast.success('Primary image updated', {
-        position: 'bottom-right',
+        position: 'top-right',
         autoClose: 3000
       });
       
@@ -197,7 +197,7 @@ export const useImageUpload = (options: UseImageUploadOptions = {}) => {
       console.error('Failed to set primary image:', error);
       const errorMessage = error instanceof Error ? error.message : 'Update failed';
       toast.error(`Failed to set primary image: ${errorMessage}`, {
-        position: 'bottom-right',
+        position: 'top-right',
         autoClose: 5000
       });
       
@@ -222,7 +222,7 @@ export const useImageUpload = (options: UseImageUploadOptions = {}) => {
       console.error('Failed to reorder images:', error);
       const errorMessage = error instanceof Error ? error.message : 'Reorder failed';
       toast.error(`Failed to reorder images: ${errorMessage}`, {
-        position: 'bottom-right',
+        position: 'top-right',
         autoClose: 5000
       });
       

@@ -12,7 +12,7 @@ import UnitTable from "../components/units/UnitTable"; // Import UnitTable
 import NewUnitModal from "../components/units/NewUnitModal"; // Import NewUnitModal
 import EditUnitModal from "../components/units/EditUnitModal"; // Import EditUnitModal
 import PropertyDetailSkeleton from "../components/ui/skeletons/PropertyDetailSkeleton";
-import { ToastContainer, toast } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import AssignTenantModal from "../components/units/AssignTenantModal"; // Import AssignTenantModal
 import BulkAssignTenantModal from "../components/units/BulkAssignTenantModal";
@@ -480,19 +480,6 @@ const PropertyDetail = () => {
           </ol>
         </nav>
       </div>
-
-      {/* Notification */}
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

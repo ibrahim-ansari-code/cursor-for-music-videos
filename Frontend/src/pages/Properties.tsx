@@ -1,9 +1,10 @@
 import React, { useMemo, useEffect } from 'react';
-import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import useProperties from '../hooks/useProperties';
 import { preloadGoogleMaps } from '../utils/googleMapsLoader';
 import NewPropertyModal from '../components/properties/NewPropertyModal';
+import EditPropertyModal from '../components/properties/EditPropertyModal';
+import { DeletePropertyConfirmation } from '../components/properties/DeletePropertyConfirmation';
 
 import { StatusCardsGrid } from '../components/properties/PropertiesPage/components/StatusCards/StatusCardsGrid';
 import { PropertyTable } from '../components/properties/PropertiesPage/components/PropertiesTable/PropertyTable';
@@ -101,31 +102,37 @@ const Properties: React.FC = () => {
           properties={sortedProperties}
           loading={loading || actionsState.deletePropertyMutation.isPending}
           error={error}
-          onDelete={actionsState.handleDeleteProperty}
+          onDelete={actionsState.handleDeleteClick}
           onEdit={actionsState.handleEditProperty}
           onRetry={refetch}
         />
       </div>
 
+      {/* Create Property Modal */}
       <NewPropertyModal
-        isOpen={actionsState.isModalOpen}
-        onClose={actionsState.handleCloseModal}
-        propertyData={actionsState.currentProperty as Record<string, unknown> | null}
-        isEditing={actionsState.isEditing}
+        isOpen={actionsState.isCreateModalOpen}
+        onClose={actionsState.handleCloseCreateModal}
+        propertyData={null}
+        isEditing={false}
       />
 
-      {/* Toast Notifications */}
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
+      {/* Edit Property Modal */}
+      {actionsState.currentProperty && (
+        <EditPropertyModal
+          isOpen={actionsState.isEditModalOpen}
+          onClose={actionsState.handleCloseEditModal}
+          propertyData={actionsState.currentProperty}
+          onSuccess={refetch}
+        />
+      )}
+
+      {/* Delete Property Confirmation Modal */}
+      <DeletePropertyConfirmation
+        isOpen={actionsState.isDeleteModalOpen}
+        onClose={actionsState.handleCancelDelete}
+        onConfirm={actionsState.handleConfirmDelete}
+        property={actionsState.propertyToDelete}
+        isDeleting={actionsState.deletePropertyMutation.isPending}
       />
     </div>
   );

@@ -140,7 +140,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
       
       // Show toast with error summary
       toast.error('Please review and fix the highlighted errors in the form', {
-        position: 'bottom-right',
+        position: 'top-right',
         autoClose: 4000,
       });
       
@@ -173,7 +173,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
             });
           });
           toast.error('Please complete all required basic information', {
-            position: 'bottom-right',
+            position: 'top-right',
             autoClose: 3000,
           });
           return;
@@ -185,7 +185,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
           return;
         } else {
           toast.error('Please select a property type first', {
-            position: 'bottom-right',
+            position: 'top-right',
             autoClose: 3000,
           });
           return;
@@ -207,7 +207,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
             });
           });
           toast.error('Please complete required property information', {
-            position: 'bottom-right',
+            position: 'top-right',
             autoClose: 3000,
           });
           return;
@@ -707,7 +707,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
       if (data.images_to_upload && Array.isArray(data.images_to_upload) && data.images_to_upload.length > 0) {
         try {
           toast.info('Uploading images...', {
-            position: 'bottom-right',
+            position: 'top-right',
             autoClose: 2000,
           });
           
@@ -724,7 +724,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
             toast.success(
               `Property ${isEditing ? 'updated' : 'created'} with ${uploadResults.length} images!`,
               {
-                position: 'bottom-right',
+                position: 'top-right',
                 autoClose: 3000,
               }
             );
@@ -732,7 +732,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
             toast.warning(
               `Property ${isEditing ? 'updated' : 'created'} but image upload failed. You can add images later.`,
               {
-                position: 'bottom-right',
+                position: 'top-right',
                 autoClose: 4000,
               }
             );
@@ -742,7 +742,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
           toast.warning(
             `Property ${isEditing ? 'updated' : 'created'} but image upload failed. You can add images later.`,
             {
-              position: 'bottom-right',
+              position: 'top-right',
               autoClose: 4000,
             }
           );
@@ -751,7 +751,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
         toast.success(
           `Property ${isEditing ? 'updated' : 'created'} successfully!`,
           {
-            position: 'bottom-right',
+            position: 'top-right',
             autoClose: 3000,
           }
         );
@@ -812,7 +812,7 @@ const NewPropertyModal: React.FC<NewPropertyModalProps> = ({
       toast.error(
         `Unable to ${isEditing ? 'update' : 'create'} property: ${errorMessage}`,
         {
-          position: 'bottom-right',
+          position: 'top-right',
           autoClose: 5000,
         }
       );

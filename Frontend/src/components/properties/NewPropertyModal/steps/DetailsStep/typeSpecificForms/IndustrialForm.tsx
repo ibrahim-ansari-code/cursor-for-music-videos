@@ -50,9 +50,9 @@ const IndustrialForm: React.FC = () => {
   const handleArrayCheckbox = (fieldName: string, value: string, checked: boolean) => {
     const currentValues = watch(`type_specific_details.${fieldName}`) || [];
     if (checked) {
-      setValue(`type_specific_details.${fieldName}`, [...currentValues, value]);
+      setValue(`type_specific_details.${fieldName}`, [...currentValues, value], { shouldDirty: true });
     } else {
-      setValue(`type_specific_details.${fieldName}`, currentValues.filter((v: string) => v !== value));
+      setValue(`type_specific_details.${fieldName}`, currentValues.filter((v: string) => v !== value), { shouldDirty: true });
     }
   };
 
@@ -76,11 +76,11 @@ const IndustrialForm: React.FC = () => {
       const autoValue = Math.max(0, totalSquareFeet - otherFieldsTotal);
       
       if (autoCalculateMode === 'warehouse') {
-        setValue('type_specific_details.warehouse_square_feet', autoValue);
+        setValue('type_specific_details.warehouse_square_feet', autoValue, { shouldDirty: true });
       } else if (autoCalculateMode === 'office') {
-        setValue('type_specific_details.office_square_feet', autoValue);
+        setValue('type_specific_details.office_square_feet', autoValue, { shouldDirty: true });
       } else if (autoCalculateMode === 'manufacturing') {
-        setValue('type_specific_details.manufacturing_square_feet', autoValue);
+        setValue('type_specific_details.manufacturing_square_feet', autoValue, { shouldDirty: true });
       }
     }
   }, [totalSquareFeet, warehouseSquareFeet, officeSquareFeet, manufacturingSquareFeet, autoCalculateMode, setValue]);
@@ -130,9 +130,9 @@ const IndustrialForm: React.FC = () => {
       // Add remainder to the largest component
       components[0].value += remainder;
       
-      setValue('type_specific_details.warehouse_square_feet', components.find(c => c.key === 'warehouse')?.value || 0);
-      setValue('type_specific_details.office_square_feet', components.find(c => c.key === 'office')?.value || 0);
-      setValue('type_specific_details.manufacturing_square_feet', components.find(c => c.key === 'manufacturing')?.value || 0);
+      setValue('type_specific_details.warehouse_square_feet', components.find(c => c.key === 'warehouse')?.value || 0, { shouldDirty: true });
+      setValue('type_specific_details.office_square_feet', components.find(c => c.key === 'office')?.value || 0, { shouldDirty: true });
+      setValue('type_specific_details.manufacturing_square_feet', components.find(c => c.key === 'manufacturing')?.value || 0, { shouldDirty: true });
       setAutoCalculateMode(null);
       trigger('type_specific_details');
     }
@@ -151,7 +151,7 @@ const IndustrialForm: React.FC = () => {
               key={type.value}
               type="button"
               onClick={() => {
-                setValue('type_specific_details.industrial_type', type.value);
+                setValue('type_specific_details.industrial_type', type.value, { shouldDirty: true });
                 if (getFieldError('industrial_type')) {
                   clearErrors('type_specific_details.industrial_type');
                 }

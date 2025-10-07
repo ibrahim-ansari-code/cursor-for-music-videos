@@ -43,9 +43,9 @@ const CommercialForm: React.FC = () => {
   const handleArrayCheckbox = (fieldName: string, value: string, checked: boolean) => {
     const currentValues = watch(`type_specific_details.${fieldName}`) || [];
     if (checked) {
-      setValue(`type_specific_details.${fieldName}`, [...currentValues, value]);
+      setValue(`type_specific_details.${fieldName}`, [...currentValues, value], { shouldDirty: true });
     } else {
-      setValue(`type_specific_details.${fieldName}`, currentValues.filter((v: string) => v !== value));
+      setValue(`type_specific_details.${fieldName}`, currentValues.filter((v: string) => v !== value), { shouldDirty: true });
     }
   };
 
@@ -80,7 +80,7 @@ const CommercialForm: React.FC = () => {
             <button
               key={type.value}
               type="button"
-              onClick={() => setValue('type_specific_details.space_type', type.value)}
+              onClick={() => setValue('type_specific_details.space_type', type.value, { shouldDirty: true })}
               className={`
                 relative p-3 rounded-xl border-2 transition-all duration-200 group
                 ${spaceType === type.value 
@@ -256,8 +256,8 @@ const CommercialForm: React.FC = () => {
               key={num}
               type="button"
               onClick={() => {
-                setValue('type_specific_details.floor_count', num);
-                setValue('type_specific_details.floor_count_custom', undefined);
+                setValue('type_specific_details.floor_count', num, { shouldDirty: true });
+                setValue('type_specific_details.floor_count_custom', undefined, { shouldDirty: true });
               }}
               className={`
                 flex-1 py-2 px-3 rounded-lg font-medium text-sm transition-all
@@ -275,9 +275,9 @@ const CommercialForm: React.FC = () => {
               onChange: (e) => {
                 const value = parseInt(e.target.value);
                 if (value >= 4) {
-                  setValue('type_specific_details.floor_count', value);
+                  setValue('type_specific_details.floor_count', value, { shouldDirty: true });
                 } else if (!e.target.value) {
-                  setValue('type_specific_details.floor_count', undefined);
+                  setValue('type_specific_details.floor_count', undefined, { shouldDirty: true });
                 }
               }
             })}
@@ -304,7 +304,7 @@ const CommercialForm: React.FC = () => {
             <button
               key={lease.value}
               type="button"
-              onClick={() => setValue('type_specific_details.lease_type', lease.value)}
+              onClick={() => setValue('type_specific_details.lease_type', lease.value, { shouldDirty: true })}
               className={`
                 w-full p-3 rounded-lg border-2 text-left transition-all duration-200
                 ${leaseType === lease.value 

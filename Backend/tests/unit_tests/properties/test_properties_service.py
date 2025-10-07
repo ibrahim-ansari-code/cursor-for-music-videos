@@ -729,3 +729,143 @@ async def test_discriminator_validation_errors():
         )
     assert exc_info.value.status_code == 422
     assert "Invalid schema type" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_apartment_complex_unit_field_transformation_with_existing_record():
+    """Test that individual unit fields are transformed to unit_mix when updating existing record."""
+    session = AsyncMock()
+    property_id = 123
+
+    # Mock existing apartment complex record
+    existing_apt = PropertyApartmentComplex(
+        property_id=property_id,
+        complex_style="midrise",
+        total_units=40
+    )
+
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = existing_apt
+    session.execute.return_value = mock_result
+
+    # Create a callable that returns a fresh dict each time (to allow pop() modifications)
+    def mock_model_dump(**kwargs):
+        return {
+            "studio_units": 10,
+            "one_bed_units": 20,
+            "two_bed_units": 15,
+            "three_bed_units": 5,
+            "penthouse_units": 0  # Should not be included (count is 0)
+        }
+
+    # Create details with individual unit fields
+    details = MagicMock(spec=ApartmentComplexPropertyDetailsUpdate)
+    details.property_type = "Apartment Complex"
+    details.model_dump = mock_model_dump
+
+    await PropertyService._update_type_specific_details(
+        property_id, PropertyType.APARTMENT_COMPLEX, details, session
+    )
+
+    # Verify unit_mix was set correctly on existing object
+    expected_unit_mix = {
+        'studio': 10,
+        '1br': 20,
+        '2br': 15,
+        '3br': 5
+    }
+    assert existing_apt.unit_mix == expected_unit_mix
+
+    # Verify individual unit fields were not set
+    assert not hasattr(existing_apt, 'studio_units')
+    assert not hasattr(existing_apt, 'one_bed_units')
+
+
+@pytest.mark.asyncio
+async def test_apartment_complex_unit_field_transformation_creates_new_record():
+    """Test that individual unit fields are transformed to unit_mix when creating new record."""
+    session = AsyncMock()
+    property_id = 123
+
+    # Mock no existing record
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    session.execute.return_value = mock_result
+
+    # Create a callable that returns a fresh dict each time (to allow pop() modifications)
+    def mock_model_dump(**kwargs):
+        return {
+            "complex_style": "garden",
+            "total_units": 30,
+            "studio_units": 8,
+            "one_bed_units": 12,
+            "two_bed_units": 10,
+            "three_bed_units": 0,  # Should not be included
+            "penthouse_units": 0  # Should not be included
+        }
+
+    # Create update details with individual unit fields
+    details = MagicMock(spec=ApartmentComplexPropertyDetailsUpdate)
+    details.property_type = "Apartment Complex"
+    details.model_dump = mock_model_dump
+
+    await PropertyService._update_type_specific_details(
+        property_id, PropertyType.APARTMENT_COMPLEX, details, session
+    )
+
+    # Verify session.add was called to create new record
+    session.add.assert_called_once()
+
+    # Get the PropertyApartmentComplex object that was added
+    added_obj = session.add.call_args[0][0]
+    assert isinstance(added_obj, PropertyApartmentComplex)
+
+    # Verify unit_mix was set correctly
+    expected_unit_mix = {
+        'studio': 8,
+        '1br': 12,
+        '2br': 10
+    }
+    assert added_obj.unit_mix == expected_unit_mix
+
+
+@pytest.mark.asyncio
+async def test_apartment_complex_unit_field_transformation_all_zero():
+    """Test that all zero unit counts result in empty unit_mix on update."""
+    session = AsyncMock()
+    property_id = 123
+
+    # Mock existing record
+    existing_apt = PropertyApartmentComplex(
+        property_id=property_id,
+        complex_style="midrise",
+        total_units=40
+    )
+
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = existing_apt
+    session.execute.return_value = mock_result
+
+    # Create a callable that returns a fresh dict each time
+    def mock_model_dump(**kwargs):
+        return {
+            "studio_units": 0,
+            "one_bed_units": 0,
+            "two_bed_units": 0,
+            "three_bed_units": 0,
+            "penthouse_units": 0
+        }
+
+    # Create details with all zero unit counts
+    details = MagicMock(spec=ApartmentComplexPropertyDetailsUpdate)
+    details.property_type = "Apartment Complex"
+    details.model_dump = mock_model_dump
+
+    await PropertyService._update_type_specific_details(
+        property_id, PropertyType.APARTMENT_COMPLEX, details, session
+    )
+
+    # Verify unit_mix was not set (stays empty) since all counts were 0
+    # When all counts are 0, no keys are added to unit_mix
+    # The existing object should not have unit_mix set
+    assert not hasattr(existing_apt, 'unit_mix') or existing_apt.unit_mix == {}

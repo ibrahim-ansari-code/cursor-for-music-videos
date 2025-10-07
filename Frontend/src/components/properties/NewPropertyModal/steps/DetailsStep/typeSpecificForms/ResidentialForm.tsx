@@ -59,7 +59,7 @@ const ResidentialForm: React.FC = () => {
             <button
               key={type.value}
               type="button"
-              onClick={() => setValue('type_specific_details.property_subtype', type.value)}
+              onClick={() => setValue('type_specific_details.property_subtype', type.value, { shouldDirty: true })}
               className={`
                 relative p-3 rounded-xl border-2 transition-all duration-200 group
                 ${propertySubtype === type.value 
@@ -270,8 +270,8 @@ const ResidentialForm: React.FC = () => {
       </div>
 
       {/* Layout - Building Stories */}
-      <div className="bg-white rounded-xl p-3.5 border border-gray-200 hover:shadow-sm transition-all">
-        <label className="text-xs font-medium text-gray-700 mb-2 flex items-center">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-3.5 border border-gray-200 dark:border-gray-600 hover:shadow-sm transition-all">
+        <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
           <Layers className="h-3.5 w-3.5 mr-1.5 text-purple-500" />
           Building Stories
         </label>
@@ -281,8 +281,8 @@ const ResidentialForm: React.FC = () => {
               key={num}
               type="button"
               onClick={() => {
-                setValue('type_specific_details.stories', num);
-                setValue('type_specific_details.stories_custom', undefined);
+                setValue('type_specific_details.stories', num, { shouldDirty: true });
+                setValue('type_specific_details.stories_custom', undefined, { shouldDirty: true });
               }}
               className={`
                 flex-1 py-2 px-3 rounded-lg font-medium text-sm transition-all
@@ -300,12 +300,12 @@ const ResidentialForm: React.FC = () => {
               onChange: (e) => {
                 const value = parseInt(e.target.value);
                 if (value >= 4) {
-                  setValue('type_specific_details.stories', value);
+                  setValue('type_specific_details.stories', value, { shouldDirty: true });
                 } else if (!e.target.value) {
-                  setValue('type_specific_details.stories', undefined);
+                  setValue('type_specific_details.stories', undefined, { shouldDirty: true });
                 } else if (value < 4) {
                   // Clear stories field if custom value is invalid but keep custom input
-                  setValue('type_specific_details.stories', undefined);
+                  setValue('type_specific_details.stories', undefined, { shouldDirty: true });
                 }
               }
             })}
@@ -335,7 +335,7 @@ const ResidentialForm: React.FC = () => {
               <button
                 key={num}
                 type="button"
-                onClick={() => setValue('type_specific_details.garage_spaces', num)}
+                onClick={() => setValue('type_specific_details.garage_spaces', num, { shouldDirty: true })}
                 className={`
                   flex-1 py-2 px-2 rounded-lg font-medium text-sm transition-all
                   ${garageSpaces === num 

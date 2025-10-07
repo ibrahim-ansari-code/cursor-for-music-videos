@@ -94,16 +94,16 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
 
   // Array checkbox handler
   const handleArrayCheckbox = useCallback((
-    fieldName: 'shared_amenities', 
-    value: SharedAmenity, 
+    fieldName: 'shared_amenities',
+    value: SharedAmenity,
     checked: boolean
   ) => {
     const currentValues = (typedDetails[fieldName] as SharedAmenity[]) || [];
-    const newValues = checked 
+    const newValues = checked
       ? [...currentValues, value]
       : currentValues.filter((v: SharedAmenity) => v !== value);
-    
-    setValue(`type_specific_details.${fieldName}`, newValues);
+
+    setValue(`type_specific_details.${fieldName}`, newValues, { shouldDirty: true });
     trigger(`type_specific_details.${fieldName}`);
   }, [setValue, typedDetails, trigger]);
 
@@ -146,17 +146,17 @@ const ApartmentComplexForm: React.FC = React.memo(() => {
 
   // Stable event handlers to prevent re-renders
   const handleComplexStyleSelect = useCallback((style: ComplexStyle) => {
-    setValue('type_specific_details.complex_style', style);
+    setValue('type_specific_details.complex_style', style, { shouldDirty: true });
   }, [setValue]);
 
   const handleFloorCountSelect = useCallback((num: number) => {
-    setValue('type_specific_details.floor_count', num);
-    setValue('type_specific_details.floor_count_custom', undefined);
+    setValue('type_specific_details.floor_count', num, { shouldDirty: true });
+    setValue('type_specific_details.floor_count_custom', undefined, { shouldDirty: true });
   }, [setValue]);
 
   const handleElevatorCountSelect = useCallback((num: number) => {
-    setValue('type_specific_details.elevator_count', num);
-    setValue('type_specific_details.elevator_count_custom', undefined);
+    setValue('type_specific_details.elevator_count', num, { shouldDirty: true });
+    setValue('type_specific_details.elevator_count_custom', undefined, { shouldDirty: true });
   }, [setValue]);
 
   return (

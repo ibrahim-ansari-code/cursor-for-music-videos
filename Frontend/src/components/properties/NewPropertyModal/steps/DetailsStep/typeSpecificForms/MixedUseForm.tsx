@@ -63,9 +63,9 @@ const MixedUseForm: React.FC = () => {
   const handleArrayCheckbox = (fieldName: string, value: string, checked: boolean) => {
     const currentValues = watch(`type_specific_details.${fieldName}`) || [];
     if (checked) {
-      setValue(`type_specific_details.${fieldName}`, [...currentValues, value]);
+      setValue(`type_specific_details.${fieldName}`, [...currentValues, value], { shouldDirty: true });
     } else {
-      setValue(`type_specific_details.${fieldName}`, currentValues.filter((v: string) => v !== value));
+      setValue(`type_specific_details.${fieldName}`, currentValues.filter((v: string) => v !== value), { shouldDirty: true });
     }
   };
 
@@ -91,7 +91,7 @@ const MixedUseForm: React.FC = () => {
             <button
               key={type.value}
               type="button"
-              onClick={() => setValue('type_specific_details.mixed_use_type', type.value)}
+              onClick={() => setValue('type_specific_details.mixed_use_type', type.value, { shouldDirty: true })}
               className={`
                 relative p-3 rounded-xl border-2 transition-all duration-200 group
                 ${mixedUseType === type.value 
@@ -236,7 +236,7 @@ const MixedUseForm: React.FC = () => {
         <div className={`bg-white dark:bg-gray-700 rounded-lg p-3 border mb-3 transition-all ${
           !isResidentialUnitMixValid && residentialUnitsCount > 0 ? 'border-red-300 dark:border-red-500 shadow-sm' : 'border-gray-200 dark:border-gray-600'
         }`}>
-          <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 block flex items-center justify-between transition-colors duration-300">
+          <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center justify-between transition-colors duration-300">
             <span>Residential Unit Mix</span>
             {residentialUnitsCount > 0 && (
               <span className={`text-xs font-medium ${

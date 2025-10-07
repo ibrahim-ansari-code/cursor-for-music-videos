@@ -36,106 +36,114 @@ export const FilterDropdown = React.forwardRef<HTMLDivElement, FilterDropdownPro
       </button>
 
       {showFilterMenu && (
-        <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black dark:ring-gray-600 ring-opacity-5 divide-y divide-gray-100 dark:divide-gray-600 focus:outline-none z-10 transition-colors duration-300">
-          <div className="p-2">
-            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-3 pt-1 transition-colors duration-300">
-              Property Type
-            </h3>
-            <div className="space-y-1">
-              {PROPERTY_TYPES.map((type) => (
-                <button
-                  key={type}
-                  onClick={() => onFilterSelect('propertyType', type)}
-                  className={`group flex items-center w-full px-3 py-2 text-sm rounded-md transition-colors duration-300 ${
-                    filterOptions.propertyType === type
-                      ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  {filterOptions.propertyType === type && (
-                    <svg
-                      className="mr-2 h-4 w-4 text-blue-500 dark:text-blue-400"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
+        <div className="origin-top-right absolute right-0 mt-2 w-[600px] rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black dark:ring-gray-600 ring-opacity-5 focus:outline-none z-50 transition-colors duration-300">
+          <div className="p-4">
+            {/* Property Type and Status in a grid */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              {/* Property Type */}
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 transition-colors duration-300">
+                  Property Type
+                </h3>
+                <div className="space-y-1">
+                  {PROPERTY_TYPES.map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => onFilterSelect('propertyType', type)}
+                      className={`group flex items-center w-full px-3 py-2 text-sm rounded-md transition-colors duration-300 ${
+                        filterOptions.propertyType === type
+                          ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
                     >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  )}
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
+                      {filterOptions.propertyType === type && (
+                        <svg
+                          className="mr-2 h-4 w-4 text-blue-500 dark:text-blue-400"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <div className="p-2">
-            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-3 pt-1 transition-colors duration-300">
-              Status
-            </h3>
-            <div className="space-y-1">
-              {PROPERTY_STATUSES.map((status) => (
-                <button
-                  key={status}
-                  onClick={() => onFilterSelect('status', status)}
-                  className={`group flex items-center w-full px-3 py-2 text-sm rounded-md transition-colors duration-300 ${
-                    filterOptions.status === status
-                      ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  {filterOptions.status === status && (
-                    <svg
-                      className="mr-2 h-4 w-4 text-blue-500 dark:text-blue-400"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
+              {/* Status */}
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 transition-colors duration-300">
+                  Status
+                </h3>
+                <div className="space-y-1">
+                  {PROPERTY_STATUSES.map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => onFilterSelect('status', status)}
+                      className={`group flex items-center w-full px-3 py-2 text-sm rounded-md transition-colors duration-300 ${
+                        filterOptions.status === status
+                          ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
                     >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  )}
-                  {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}
-                </button>
-              ))}
+                      {filterOptions.status === status && (
+                        <svg
+                          className="mr-2 h-4 w-4 text-blue-500 dark:text-blue-400"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                      {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div className="p-2">
-            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-3 pt-1 transition-colors duration-300">
-              Date Added
-            </h3>
-            <div className="space-y-1">
-              {DATE_FILTER_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() => onFilterSelect('dateAdded', option.id)}
-                  className={`group flex items-center w-full px-3 py-2 text-sm rounded-md transition-colors duration-300 ${
-                    filterOptions.dateAdded === option.id
-                      ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  {filterOptions.dateAdded === option.id && (
-                    <svg
-                      className="mr-2 h-4 w-4 text-blue-500 dark:text-blue-400"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  )}
-                  {option.label}
-                </button>
-              ))}
+            {/* Date Added - Full Width */}
+            <div className="border-t border-gray-100 dark:border-gray-600 pt-3">
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 transition-colors duration-300">
+                Date Added
+              </h3>
+              <div className="grid grid-cols-2 gap-1">
+                {DATE_FILTER_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => onFilterSelect('dateAdded', option.id)}
+                    className={`group flex items-center w-full px-3 py-2 text-sm rounded-md transition-colors duration-300 ${
+                      filterOptions.dateAdded === option.id
+                        ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {filterOptions.dateAdded === option.id && (
+                      <svg
+                        className="mr-2 h-4 w-4 text-blue-500 dark:text-blue-400"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    )}
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

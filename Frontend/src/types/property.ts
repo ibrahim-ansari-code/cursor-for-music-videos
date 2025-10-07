@@ -63,6 +63,23 @@ export interface Property {
   formatted_address?: string | null;
   google_maps_data?: GoogleMapsData | null;
   
+  /**
+   * Property type-specific details containing additional fields based on property_type.
+   * 
+   * Backend schemas (see Backend/models/property_types/):
+   * - Residential: bedrooms, bathrooms, square_feet, lot_size, stories, garage_spaces, heating_type, etc.
+   * - Commercial: space_type, usable_square_feet, lease_type, zoning_code, ceiling_height, loading_docks_count, etc.
+   * - Industrial: warehouse_type, total_space_sqft, clear_height, loading_docks, power_capacity, etc.
+   * - Apartment Complex: total_units, number_of_buildings, unit_mix, amenities, occupancy_rate, etc.
+   * - Mixed-Use: residential_units, commercial_units, space_allocation, etc.
+   * - Land: lot_size_sqft, zoning, topography, utilities_available, etc.
+   * - Special Purpose: special_purpose_type, additional_details
+   * - Other: custom_type, additional_details
+   * 
+   * @see Backend/models/property_types/ for complete backend schema definitions
+   */
+  type_specific_details?: Record<string, unknown>;
+  
   // Relations
   units?: PropertyUnit[];
   images?: PropertyImage[];

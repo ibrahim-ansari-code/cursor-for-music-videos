@@ -6,7 +6,7 @@ import { StatusBadge } from './StatusBadge';
 interface PropertyRowProps {
   property: Property;
   onEdit: (propertyId: number) => void;
-  onDelete: (propertyId: number) => void;
+  onDelete: (property: Property) => void;
   index: number;
 }
 
@@ -53,12 +53,10 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({
   const handleDelete = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     if (!property.id) {
-      console.error('Property ID is missing');
+      console.error('Cannot delete property: missing property ID');
       return;
     }
-    if (window.confirm('Are you sure you want to delete this property?')) {
-      onDelete(property.id);
-    }
+    onDelete(property);
   };
 
   // The data-table CSS class now handles zebra striping automatically
