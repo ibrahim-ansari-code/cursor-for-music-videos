@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchInvoices } from "../utils/api/index.js";
+import { fetchInvoices } from "../utils/api";
 import { QUERY_KEYS } from "./queryKeys";
 
 // Fetch top due invoices (Pending/Overdue), filtered by property and date window

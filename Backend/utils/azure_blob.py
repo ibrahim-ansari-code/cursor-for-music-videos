@@ -1,16 +1,17 @@
 import logging
 import uuid
 import functools
-import ssl
 from uuid import UUID as PythonUUID
+from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 from azure.core.exceptions import ResourceExistsError
 from azure.storage.blob.aio import BlobServiceClient
-from azure.storage.blob import ContentSettings
+from azure.storage.blob import ContentSettings, generate_blob_sas, BlobSasPermissions
 from fastapi import UploadFile
-import aiohttp
 
 from Backend.config import settings
+from Backend.utils.datetime_utils import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,8 @@ logger = logging.getLogger(__name__)
 blob_service_client = None
 if settings.AZURE_STORAGE_CONNECTION_STRING:
     try:
-        # Use proper SSL verification - Azure Storage provides valid certificates
+        # For local development SSL issues, set environment variable: PYTHONHTTPSVERIFY=0
+        # Or install certificates: pip install --upgrade certifi
         blob_service_client = BlobServiceClient.from_connection_string(
             settings.AZURE_STORAGE_CONNECTION_STRING
         )
@@ -355,3 +357,183 @@ async def delete_blob_by_url(blob_url: str) -> bool:
     except Exception:
         logger.exception("Failed to delete blob '%s'", blob_url)
         return False
+
+
+# ==================== SAS TOKEN GENERATION FOR SECURE DOCUMENT ACCESS ====================
+
+
+def extract_blob_info_from_url(blob_url: str) -> tuple[str, str]:
+    """
+    Extract container name and blob name from full Azure blob URL.
+    
+    Args:
+        blob_url: Full Azure Blob URL (e.g., https://account.blob.core.windows.net/container/blob/path)
+        
+    Returns:
+        Tuple of (container_name, blob_name)
+        
+    Raises:
+        ValueError: If URL format is invalid
+        
+    Example:
+        Input: "https://storage.blob.core.windows.net/lease-uploads/user_123/doc.pdf"
+        Output: ("lease-uploads", "user_123/doc.pdf")
+    """
+    try:
+        parsed_url = urlparse(blob_url)
+        # Remove leading slash and split on first slash to separate container from blob
+        path_parts = parsed_url.path.lstrip('/').split('/', 1)
+        
+        if len(path_parts) < 2:
+            raise ValueError(f"Invalid blob URL format: {blob_url}")
+        
+        container_name = path_parts[0]
+        blob_name = path_parts[1]
+        
+        logger.debug(f"Extracted from URL - Container: {container_name}, Blob: {blob_name[:50]}...")
+        return container_name, blob_name
+        
+    except Exception as e:
+        logger.error(f"Failed to parse blob URL '{blob_url}': {e}")
+        raise ValueError(f"Could not parse blob URL: {str(e)}")
+
+
+def generate_sas_token_for_blob(
+    blob_url: str,
+    expires_in_hours: int = 1,
+    allowed_ip: str | None = None
+) -> tuple[str, datetime]:
+    """
+    Generate a time-limited SAS (Shared Access Signature) token for secure blob access.
+    
+    This implements the industry-standard pattern for secure document access used by
+    Dropbox, Box, SharePoint, and other major SaaS platforms.
+    
+    Args:
+        blob_url: Full Azure Blob URL (must start with AZURE_BLOB_PUBLIC_URL)
+        expires_in_hours: Token expiration time in hours (default: 1 hour)
+        allowed_ip: Optional IP address restriction for enhanced security
+        
+    Returns:
+        Tuple of (sas_token, expiry_time) - Token string and its expiration datetime
+        
+    Raises:
+        ValueError: If Azure credentials not configured or URL is invalid
+        
+    Security Features:
+        - Read-only permission (no write/delete)
+        - HTTPS protocol enforced
+        - Time-limited access (auto-expires)
+        - Optional IP whitelisting
+        
+    Example:
+        token, expiry = generate_sas_token_for_blob(
+            "https://storage.blob.core.windows.net/lease-uploads/doc.pdf",
+            expires_in_hours=1
+        )
+        # Returns: ("sv=2021-06-08&se=...", datetime(2024, 10, 9, 19, 30, 0))
+    """
+    # Validate required settings
+    if not settings.AZURE_STORAGE_ACCOUNT_NAME:
+        raise ValueError(
+            "AZURE_STORAGE_ACCOUNT_NAME not configured. Cannot generate SAS tokens."
+        )
+    
+    if not settings.AZURE_STORAGE_ACCOUNT_KEY:
+        raise ValueError(
+            "AZURE_STORAGE_ACCOUNT_KEY not configured. Cannot generate SAS tokens."
+        )
+    
+    # Extract container and blob name from URL
+    container_name, blob_name = extract_blob_info_from_url(blob_url)
+    
+    # Calculate expiry time once (using codebase-standard UTC function)
+    expiry_time = utc_now() + timedelta(hours=expires_in_hours)
+    
+    # Generate SAS token with minimal permissions (read only)
+    sas_token = generate_blob_sas(
+        account_name=settings.AZURE_STORAGE_ACCOUNT_NAME,
+        account_key=settings.AZURE_STORAGE_ACCOUNT_KEY,
+        container_name=container_name,
+        blob_name=blob_name,
+        permission=BlobSasPermissions(read=True),  # Read-only permission
+        expiry=expiry_time,
+        protocol='https',  # Enforce HTTPS only
+        ip=allowed_ip  # Optional IP restriction (None = allow any IP)
+    )
+    
+    logger.info(
+        f"Generated SAS token for {container_name}/{blob_name[:50]}... "
+        f"(expires: {expiry_time.isoformat()}, IP: {allowed_ip or 'any'})"
+    )
+    
+    return sas_token, expiry_time
+
+
+async def generate_secure_document_url(
+    blob_url: str,
+    user_id: PythonUUID,
+    document_id: int,
+    expires_in_hours: int | None = None,
+    client_ip: str | None = None
+) -> dict:
+    """
+    Generate a secure, time-limited URL for document access with audit logging.
+    
+    This is the main function for generating secure document URLs. It:
+    1. Generates a SAS token with configurable expiry
+    2. Creates a complete secure URL
+    3. Logs the access for audit trail (if enabled)
+    
+    Args:
+        blob_url: Original Azure Blob URL (without SAS token)
+        user_id: UUID of user requesting access
+        document_id: ID of document being accessed
+        expires_in_hours: Token expiration (default: from config)
+        client_ip: Optional client IP for restriction
+        
+    Returns:
+        Dictionary with:
+            - secure_url: Full URL with SAS token
+            - expires_at: ISO datetime string
+            - expires_in_seconds: Seconds until expiration
+            
+    Example:
+        result = await generate_secure_document_url(
+            "https://storage.blob.core.windows.net/lease-uploads/doc.pdf",
+            user_id="123e4567-e89b-12d3-a456-426614174000",
+            document_id=42
+        )
+        # Returns:
+        # {
+        #     "secure_url": "https://...?sv=2021-06-08&se=...",
+        #     "expires_at": "2024-10-09T19:30:00",
+        #     "expires_in_seconds": 3600
+        # }
+    """
+    # Use configured default if not specified
+    if expires_in_hours is None:
+        expires_in_hours = settings.DOCUMENT_SAS_EXPIRY_HOURS
+    
+    # Generate SAS token and get its expiry time (single source of truth)
+    sas_token, expiry_time = generate_sas_token_for_blob(
+        blob_url=blob_url,
+        expires_in_hours=expires_in_hours,
+        allowed_ip=client_ip
+    )
+    
+    # Build complete secure URL
+    secure_url = f"{blob_url}?{sas_token}"
+    
+    # Audit logging (if enabled)
+    if settings.DOCUMENT_ACCESS_LOGGING_ENABLED:
+        logger.info(
+            f"[AUDIT] User {user_id} generated secure URL for document {document_id}. "
+            f"Expires: {expiry_time.isoformat()}, IP: {client_ip or 'unrestricted'}"
+        )
+    
+    return {
+        "secure_url": secure_url,
+        "expires_at": expiry_time.isoformat() + "Z",  # Add Z for UTC
+        "expires_in_seconds": expires_in_hours * 3600
+    }

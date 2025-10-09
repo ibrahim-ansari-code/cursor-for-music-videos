@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
 import { 
   fetchLeases, 
   createLease, 
@@ -9,9 +8,26 @@ import {
   uploadLeaseDocument,
 } from "../utils/api/leases";
 import { QUERY_KEYS } from "./queryKeys";
+import type {
+  Lease,
+  LeaseCreate,
+  LeaseUpdate,
+  LeaseDocument,
+  LeasesQueryParams,
+} from "../types/lease";
+
+// Error type for API errors
+interface ApiError {
+  status?: number;
+  statusText?: string;
+  data?: {
+    detail?: string;
+  };
+  message?: string;
+}
 
 // Main leases hook for Leases page
-export const useLeases = (params = {}) => {
+export const useLeases = (params: LeasesQueryParams = {}): UseQueryResult<Lease[], ApiError> => {
   return useQuery({
     queryKey: QUERY_KEYS.leases.all(params),
     queryFn: () => fetchLeases(params),
@@ -20,26 +36,38 @@ export const useLeases = (params = {}) => {
 };
 
 // Lease documents hook
-export const useLeaseDocuments = (leaseId) => {
+export const useLeaseDocuments = (leaseId: number | null): UseQueryResult<LeaseDocument[], ApiError> => {
   return useQuery({
     queryKey: QUERY_KEYS.leases.documents(leaseId),
-    queryFn: () => fetchLeaseDocuments(leaseId),
+    queryFn: () => {
+      if (leaseId === null) {
+        throw new Error('Lease ID is required');
+      }
+      return fetchLeaseDocuments(leaseId);
+    },
     enabled: !!leaseId,
     staleTime: 5 * 60 * 1000, // 5 minutes for documents
   });
 };
 
 // Enhanced leases hook that includes documents
-export const useLeasesWithDocuments = (params = {}) => {
+interface LeaseWithDocuments extends Lease {
+  documents: LeaseDocument[];
+  file_url: string | null;
+}
+
+export const useLeasesWithDocuments = (
+  params: LeasesQueryParams = {}
+): UseQueryResult<LeaseWithDocuments[], ApiError> => {
   const { data: leases = [], isLoading: leasesLoading, error: leasesError } = useLeases(params);
   
-  const { data: leasesWithDocuments, isLoading: documentsLoading, error: documentsError } = useQuery({
+  const result = useQuery({
     queryKey: QUERY_KEYS.leases.withDocuments(params),
-    queryFn: async () => {
+    queryFn: async (): Promise<LeaseWithDocuments[]> => {
       if (!leases.length) return [];
       
       const leasesWithDocs = await Promise.allSettled(
-        leases.map(async (lease) => {
+        leases.map(async (lease): Promise<LeaseWithDocuments> => {
           try {
             const documents = await fetchLeaseDocuments(lease.id);
             const contractDoc = documents.find(
@@ -64,21 +92,22 @@ export const useLeasesWithDocuments = (params = {}) => {
       // Filter out rejected promises and only return fulfilled lease objects
       return leasesWithDocs
         .filter(result => result.status === 'fulfilled')
-        .map(result => result.value);
+        .map(result => (result as PromiseFulfilledResult<LeaseWithDocuments>).value);
     },
     enabled: !!leases.length,
     staleTime: 3 * 60 * 1000, // 3 minutes
   });
 
   return {
-    data: leasesWithDocuments || [],
-    isLoading: leasesLoading || documentsLoading,
-    error: leasesError || documentsError,
-  };
+    ...result,
+    data: result.data || [],
+    isLoading: leasesLoading || result.isLoading,
+    error: (leasesError || result.error) as ApiError,
+  } as UseQueryResult<LeaseWithDocuments[], ApiError>;
 };
 
 // Mutation hooks for lease operations
-export const useCreateLease = () => {
+export const useCreateLease = (): UseMutationResult<Lease, ApiError, LeaseCreate> => {
   const queryClient = useQueryClient();
   
   return useMutation({
@@ -89,18 +118,23 @@ export const useCreateLease = () => {
   });
 };
 
-export const useUpdateLease = () => {
+interface UpdateLeaseVariables {
+  leaseId: number;
+  leaseData: LeaseUpdate;
+}
+
+export const useUpdateLease = (): UseMutationResult<Lease, ApiError, UpdateLeaseVariables> => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ leaseId, leaseData }) => updateLease(leaseId, leaseData),
+    mutationFn: ({ leaseId, leaseData }: UpdateLeaseVariables) => updateLease(leaseId, leaseData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.leases.all() });
     },
   });
 };
 
-export const useDeleteLease = () => {
+export const useDeleteLease = (): UseMutationResult<void, ApiError, number> => {
   const queryClient = useQueryClient();
   
   return useMutation({
@@ -111,12 +145,22 @@ export const useDeleteLease = () => {
   });
 };
 
-export const useUploadLeaseDocument = () => {
+interface UploadLeaseDocumentVariables {
+  leaseId: number;
+  formData: FormData;
+}
+
+export const useUploadLeaseDocument = (): UseMutationResult<
+  LeaseDocument,
+  ApiError,
+  UploadLeaseDocumentVariables
+> => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ leaseId, formData }) => uploadLeaseDocument(leaseId, formData),
-    onSuccess: (data, variables) => {
+    mutationFn: ({ leaseId, formData }: UploadLeaseDocumentVariables) => 
+      uploadLeaseDocument(leaseId, formData),
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.leases.all() });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.leases.documents(variables.leaseId) });
     },
@@ -124,3 +168,4 @@ export const useUploadLeaseDocument = () => {
 };
 
 export default useLeases;
+

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchDashboardData } from "../utils/api/index.js";
+import { fetchDashboardData } from "../utils/api";
 import { getPresetRange, toIsoDate, startOfMonth, startOfQuarter, startOfYear } from "../utils/dateRanges";
 import { QUERY_KEYS } from "./queryKeys";
 

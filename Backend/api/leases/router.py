@@ -2,7 +2,7 @@
 import logging
 
 # Third-party imports
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Local application imports
@@ -18,12 +18,14 @@ from .schemas import (
     LeaseResponse,
     LeaseUpdate,
     LeaseUploadResponse,
+    SecureDocumentUrlResponse,
 )
 from .service import (
     analyze_lease,
     create_lease,
     delete_lease,
     get_lease,
+    get_lease_document_by_id,
     get_lease_documents,
     get_leases,
     parse_lease,
@@ -33,6 +35,7 @@ from .service import (
     upload_lease_document,
     validate_lease,
 )
+from Backend.utils.azure_blob import generate_secure_document_url
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -276,6 +279,93 @@ async def upload_lease_document_endpoint(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save document record: {str(e)}"
+        )
+
+
+@router.get("/{lease_id}/documents/{document_id}/secure-url", response_model=SecureDocumentUrlResponse)
+async def get_document_secure_url(
+    lease_id: int,
+    document_id: int,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Generate a time-limited, authenticated URL for secure document preview.
+    
+    This endpoint implements the industry-standard SAS (Shared Access Signature) pattern
+    used by Dropbox, Box, SharePoint, and other major SaaS platforms.
+    
+    Security Features:
+        - Requires JWT authentication
+        - Verifies lease access permission
+        - Generates 1-hour expiring SAS token
+        - Read-only access (no write/delete)
+        - HTTPS enforced
+        - Optional IP restriction
+        - Audit logging enabled
+    
+    Args:
+        lease_id: The ID of the lease containing the document
+        document_id: The ID of the document to access
+        request: FastAPI Request object (for client IP)
+        
+    Returns:
+        SecureDocumentUrlResponse containing:
+            - secure_url: Azure Blob URL with SAS token appended
+            - expires_at: ISO 8601 UTC datetime when URL expires
+            - expires_in_seconds: Seconds until expiration (3600 for 1 hour)
+            
+    Raises:
+        HTTPException 403: If user lacks permission to access the lease
+        HTTPException 404: If lease or document not found
+        HTTPException 500: If SAS token generation fails
+        
+    Example Response:
+        {
+            "secure_url": "https://storage.blob.core.windows.net/lease-uploads/doc.pdf?sv=2021...",
+            "expires_at": "2024-10-09T20:30:00Z",
+            "expires_in_seconds": 3600
+        }
+    """
+    try:
+        # Get document and verify it belongs to the specified lease
+        document = await get_lease_document_by_id(
+            lease_id=lease_id,
+            document_id=document_id,
+            current_user=current_user,
+            session=session
+        )
+        
+        # Get client IP for optional restriction (currently not enforced)
+        client_ip = request.client.host if request.client else None
+        
+        # Generate secure URL with SAS token
+        # Note: document.id is guaranteed to exist (primary key from database)
+        secure_url_data = await generate_secure_document_url(
+            blob_url=document.file_path,
+            user_id=current_user.id,
+            document_id=document.id or document_id,  # Fallback for type checker
+            expires_in_hours=None,  # Use config default (1 hour)
+            client_ip=None  # Set to client_ip to enable IP restriction
+        )
+        
+        return secure_url_data
+        
+    except HTTPException:
+        # Re-raise HTTPExceptions as-is
+        raise
+    except ValueError as ve:
+        logger.error(f"Configuration error generating SAS token: {ve}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Server configuration error. Please contact support."
+        )
+    except Exception:
+        logger.exception(f"Error generating secure URL for document {document_id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate secure URL. Please contact support."
         )
 
 

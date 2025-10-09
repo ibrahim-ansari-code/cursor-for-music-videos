@@ -25,6 +25,31 @@ class Settings(BaseSettings):
     # === Azure Storage ===
     AZURE_STORAGE_CONNECTION_STRING: str = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "")
     AZURE_BLOB_PUBLIC_URL: str = os.getenv("AZURE_BLOB_PUBLIC_URL", "")
+    
+    # Document security settings
+    DOCUMENT_SAS_EXPIRY_HOURS: int = int(os.getenv("DOCUMENT_SAS_EXPIRY_HOURS", "1"))
+    DOCUMENT_ACCESS_LOGGING_ENABLED: bool = os.getenv("DOCUMENT_ACCESS_LOGGING_ENABLED", "true").lower() == "true"
+    
+    # Parse account name and key from connection string for SAS token generation
+    @property
+    def AZURE_STORAGE_ACCOUNT_NAME(self) -> str:
+        """Extract account name from connection string"""
+        if not self.AZURE_STORAGE_CONNECTION_STRING:
+            return ""
+        for part in self.AZURE_STORAGE_CONNECTION_STRING.split(';'):
+            if part.startswith('AccountName='):
+                return part.split('=', 1)[1]
+        return ""
+    
+    @property
+    def AZURE_STORAGE_ACCOUNT_KEY(self) -> str:
+        """Extract account key from connection string"""
+        if not self.AZURE_STORAGE_CONNECTION_STRING:
+            return ""
+        for part in self.AZURE_STORAGE_CONNECTION_STRING.split(';'):
+            if part.startswith('AccountKey='):
+                return part.split('=', 1)[1]
+        return ""
 
     # === OpenAI API ===
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")

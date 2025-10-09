@@ -3,14 +3,15 @@ import { toast } from "react-toastify";
 import { reportError } from "../utils/error-reporting";
 import ImportLeaseModal from "../components/leases/ImportLeaseModal";
 import UpdateLeaseStatusModal from "../components/leases/UpdateLeaseStatusModal";
+import UploadLeaseDocumentModal from "../components/leases/UploadLeaseDocumentModal";
 import FilePreviewModal from "../components/FilePreviewModal";
 import EditLeaseModal from "../components/leases/EditLeaseModal";
 import { LeasesTableSkeleton } from "../components/ui/skeletons";
 import { 
   useLeasesWithDocuments, 
-  useDeleteLease, 
-  useUploadLeaseDocument 
+  useDeleteLease
 } from "../hooks/useLeases";
+import { getSecureDocumentUrl } from "../utils/api/leases";
 
 const Leases = () => {
   // Local UI state
@@ -18,8 +19,6 @@ const Leases = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
-  const [uploadFile, setUploadFile] = useState(null);
-  const [uploadDocumentType, setUploadDocumentType] = useState("contract");
   const [openDocumentDropdown, setOpenDocumentDropdown] = useState(null);
   const [dropdownPositionClass, setDropdownPositionClass] = useState("top-full mt-2");
   const documentButtonRefs = useRef({});
@@ -40,7 +39,6 @@ const Leases = () => {
   // TanStack Query hooks
   const { data: leases = [], isLoading: loading, error } = useLeasesWithDocuments(queryParams);
   const deleteLeaseMutation = useDeleteLease();
-  const uploadDocumentMutation = useUploadLeaseDocument();
 
   // Helper function for dropdown positioning
   const calculateDropdownPosition = (
@@ -99,41 +97,9 @@ const Leases = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedLease(null);
-    setUploadFile(null);
-    setUploadDocumentType("contract");
     setShowFilePreviewModal(false);
     setFileToPreviewUrl(null);
     setFilePreviewName("");
-  };
-
-  const handleFileChange = (e) => {
-    const files = e.target?.files;
-    if (files && files.length > 0) {
-      setUploadFile(files[0]);
-    } else {
-      setUploadFile(null);
-    }
-  };
-
-  const handleUploadDocument = async (e) => {
-    e.preventDefault();
-
-    if (!uploadFile || !selectedLease) return;
-
-    try {
-      const formData = new FormData();
-      formData.append("file", uploadFile);
-      formData.append("document_type", uploadDocumentType);
-
-      await uploadDocumentMutation.mutateAsync({ 
-        leaseId: selectedLease.id, 
-        formData 
-      });
-
-      handleCloseModal();
-    } catch (err) {
-      console.error("Error uploading document:", err);
-    }
   };
 
   const getStatusBadgeClass = (status) => {
@@ -199,41 +165,73 @@ const Leases = () => {
     }
   };
 
-  const handlePreviewDocument = (lease, document) => {
-    if (!document || !document.file_path) {
+  const handlePreviewDocument = async (lease, document) => {
+    if (!document || !document.id) {
       console.error(
-        "[handlePreviewDocument] Document or file_path is missing:",
+        "[handlePreviewDocument] Document or ID is missing:",
         document
       );
-      const errorMessage = "Cannot preview document: file path is missing.";
-      setError(errorMessage);
+      toast.error("Cannot preview document: document information is missing.");
+      setOpenDocumentDropdown(null);
+      return;
+    }
+
+    try {
+      // Show loading toast
+      const loadingToast = toast.info("Generating secure preview link...", {
+        autoClose: false,
+      });
+
+      console.log('[handlePreviewDocument] Fetching secure URL for document:', document.id);
+      
+      // Fetch secure, time-limited URL with authentication
+      const { secure_url, expires_at } = await getSecureDocumentUrl(
+        lease.id,
+        document.id
+      );
+      
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
+      
+      console.log(`[handlePreviewDocument] Secure URL generated, expires at: ${expires_at}`);
+      
+      // Open the preview modal with the secure URL
+      setFileToPreviewUrl(secure_url);
+      const tenantName = getTenantName(lease.tenant) || "N/A";
+      const propertyName =
+        lease.property?.name || `Property #${lease.property_id}`;
+      const docType =
+        document.document_type.charAt(0).toUpperCase() +
+        document.document_type.slice(1);
+      setFilePreviewName(`${docType}: ${tenantName} - ${propertyName}`);
+      setShowFilePreviewModal(true);
+      setOpenDocumentDropdown(null);
+      
+    } catch (error) {
+      console.error('[handlePreviewDocument] Failed to generate secure URL:', error);
+      
+      const errorMessage =
+        error?.data?.detail ||
+        error?.message ||
+        'Unable to preview document. Please try downloading instead.';
+      
       toast.error(errorMessage);
+      
+      reportError(error, {
+        component: 'Leases',
+        action: 'preview_document',
+        tags: { 
+          feature: "leases", 
+          operation: "preview_document" 
+        },
+        extra: { 
+          leaseId: lease.id,
+          documentId: document.id 
+        },
+      }, 'error');
+      
       setOpenDocumentDropdown(null);
-      return;
     }
-
-    const fileUrl = document.file_path;
-    console.log('[handlePreviewDocument] Attempting to preview URL:', fileUrl);
-    
-    // Check if the URL is just the backend URL without a proper file path
-    if (fileUrl === window.location.origin || fileUrl === import.meta.env.VITE_API_URL || fileUrl.includes('localhost:') || fileUrl === fileUrl.match(/^https?:\/\/[^\/]+\/?$/)) {
-      console.error('Invalid file URL - appears to be just the backend URL:', fileUrl);
-      toast.error('Document URL is invalid. Please re-upload the document.');
-      setOpenDocumentDropdown(null);
-      return;
-    }
-
-    // Open the preview modal with the document
-    setFileToPreviewUrl(document.file_path);
-    const tenantName = getTenantName(lease.tenant) || "N/A";
-    const propertyName =
-      lease.property?.name || `Property #${lease.property_id}`;
-    const docType =
-      document.document_type.charAt(0).toUpperCase() +
-      document.document_type.slice(1);
-    setFilePreviewName(`${docType}: ${tenantName} - ${propertyName}`);
-    setShowFilePreviewModal(true);
-    setOpenDocumentDropdown(null);
   };
 
   const toggleDocumentDropdown = (event, lease) => {
@@ -591,69 +589,12 @@ const Leases = () => {
 
       {/* Upload Document Modal */}
       {showModal && modalType === "upload" && selectedLease && (
-        <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black bg-opacity-50"></div>
-          <div className="glassmorphism relative rounded-lg max-w-md w-full mx-auto p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Upload Lease Document</h3>
-              <button
-                onClick={handleCloseModal}
-                className="text-gray-400 hover:text-gray-500"
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-
-            <form onSubmit={handleUploadDocument}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Document Type
-                </label>
-                <select
-                  className="dark-input block w-full py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  value={uploadDocumentType}
-                  onChange={(e) => setUploadDocumentType(e.target.value)}
-                  required
-                >
-                  <option value="contract">Lease Contract</option>
-                  <option value="addendum">Addendum</option>
-                  <option value="notice">Notice</option>
-                  <option value="inspection">Inspection Report</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  File
-                </label>
-                <input
-                  type="file"
-                  className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 dark:file:bg-blue-900/20 file:text-blue-700 dark:file:text-blue-400 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/30"
-                  onChange={handleFileChange}
-                  required
-                />
-              </div>
-
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!uploadFile || uploadDocumentMutation.isPending}
-                  className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  {uploadDocumentMutation.isPending ? "Uploading..." : "Upload"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <UploadLeaseDocumentModal
+          isOpen={true}
+          onClose={handleCloseModal}
+          lease={selectedLease}
+          onUploadSuccess={handleCloseModal}
+        />
       )}
 
       {/* Status Change Modal - Using the new component */}

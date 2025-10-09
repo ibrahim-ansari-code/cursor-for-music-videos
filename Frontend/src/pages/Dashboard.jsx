@@ -5,7 +5,7 @@ import FinancialSummary from "../components/dashboard/FinancialSummary";
 import DuePanel from "../components/dashboard/DuePanel";
 import PortfolioOverview from "../components/dashboard/PortfolioOverview";
 import RevenueTrendsCard from "../components/dashboard/RevenueTrendsCard";
-import { fetchDashboardData } from "../utils/api/index.js";
+import { fetchDashboardData } from "../utils/api";
 import usePreviousPeriodData from "../hooks/usePreviousPeriodData";
 import { getPresetRange, toIsoDate } from "../utils/dateRanges";
 import { getAvatarColor, getInitials, percentChange, computeDelta, humanizePeriodLabel } from "../utils/formatters";

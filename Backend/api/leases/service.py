@@ -516,6 +516,59 @@ async def get_lease_documents(lease_id: int, current_user: User, session: AsyncS
     return documents
 
 
+async def get_lease_document_by_id(
+    lease_id: int,
+    document_id: int,
+    current_user: User,
+    session: AsyncSession
+) -> LeaseDocument:
+    """
+    Retrieve a specific lease document by ID after verifying permissions.
+    
+    Args:
+        lease_id: ID of the lease that should contain the document
+        document_id: ID of the document to retrieve
+        current_user: Current authenticated user
+        session: Database session
+        
+    Returns:
+        LeaseDocument object
+        
+    Raises:
+        HTTPException 403: If user lacks permission to access the lease
+        HTTPException 404: If document not found or doesn't belong to the lease
+    """
+    # First check if user has permission to access this lease
+    await check_lease_permission(lease_id, session, current_user, action="view documents for")
+    
+    # Query for the document, ensuring it belongs to the specified lease
+    query = select(LeaseDocument).where(
+        and_(
+            col(LeaseDocument.id) == document_id,
+            col(LeaseDocument.lease_id) == lease_id
+        )
+    )
+    result = await session.execute(query)
+    document = result.scalar_one_or_none()
+    
+    if not document:
+        logger.warning(
+            f"Document {document_id} not found for lease {lease_id} "
+            f"(requested by user {current_user.id})"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document {document_id} not found for lease {lease_id}"
+        )
+    
+    logger.info(
+        f"Retrieved document {document_id} for lease {lease_id} "
+        f"(user: {current_user.id})"
+    )
+    
+    return document
+
+
 async def analyze_lease(file: UploadFile, current_user: User):
     if current_user.user_type not in [UserType.ADMIN.value, UserType.LANDLORD.value]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to analyze leases")

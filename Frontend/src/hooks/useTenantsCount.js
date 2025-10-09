@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchTenants, fetchTenantsByProperty } from "../utils/api/index.js";
+import { fetchTenants, fetchTenantsByProperty } from "../utils/api";
 import { QUERY_KEYS } from "./queryKeys";
 
 export default function useTenantsCount(selectedProperty, fallbackOccupiedUnits = 0) {

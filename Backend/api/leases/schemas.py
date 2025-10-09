@@ -97,5 +97,14 @@ class LeaseUploadResponse(BaseModel):
     file_url: str
 
 
+class SecureDocumentUrlResponse(BaseModel):
+    """Response schema for secure, time-limited document URLs"""
+    secure_url: str
+    expires_at: str  # ISO 8601 datetime string
+    expires_in_seconds: int
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Rebuild the LeaseResponse model to resolve forward references
 LeaseResponse.model_rebuild()

@@ -53,6 +53,7 @@ dependencies = [
     "types-cachetools (>=6.2.0.20250827,<7.0.0.0)",
     "intuit-oauth (>=1.2.6,<2.0.0)",
     "redis (>=6.4.0,<7.0.0)",
+    "certifi (>=2025.10.5,<2026.0.0)",
 ]
 
 
