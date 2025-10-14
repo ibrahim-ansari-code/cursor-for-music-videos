@@ -111,7 +111,7 @@ class PaymentUpdate(BaseModel):
 
 class PaymentResponse(BaseModel):
     id: int
-    lease_id: int
+    lease_id: int | None = None  # Optional - some payments may not have lease_id
     tenant_id: int | None = None
     amount: Decimal
     payment_date: datetime | None = None
