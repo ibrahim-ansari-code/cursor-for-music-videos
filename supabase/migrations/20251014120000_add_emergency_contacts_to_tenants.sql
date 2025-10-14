@@ -58,119 +58,45 @@ END $$;
 
 -- Constraint 2: Ensure only one primary emergency contact
 -- Prevents race conditions when multiple contacts are marked primary simultaneously
+-- Note: PostgreSQL doesn't allow subqueries in CHECK constraints, so we use a trigger function
+CREATE OR REPLACE FUNCTION validate_emergency_contacts_primary()
+RETURNS TRIGGER AS $$
+DECLARE
+  primary_count INTEGER;
+BEGIN
+  -- Count primary contacts
+  SELECT COUNT(*)
+  INTO primary_count
+  FROM jsonb_array_elements(NEW.emergency_contacts) AS elem
+  WHERE (elem->>'is_primary')::boolean = true;
+  
+  -- Ensure only one primary contact
+  IF primary_count > 1 THEN
+    RAISE EXCEPTION 'Only one emergency contact can be marked as primary';
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger only if it doesn't exist
 DO $$ 
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints 
-    WHERE constraint_schema = 'public' 
-    AND table_name = 'tenants' 
-    AND constraint_name = 'chk_tenants_single_primary_emergency_contact'
+    SELECT 1 FROM pg_trigger 
+    WHERE tgname = 'trg_validate_emergency_contacts_primary'
   ) THEN
-    ALTER TABLE "public"."tenants"
-    ADD CONSTRAINT "chk_tenants_single_primary_emergency_contact"
-    CHECK (
-      (SELECT COUNT(*)
-       FROM jsonb_array_elements(emergency_contacts) AS elem
-       WHERE (elem->>'is_primary')::boolean = true) <= 1
-    );
+    CREATE TRIGGER trg_validate_emergency_contacts_primary
+    BEFORE INSERT OR UPDATE ON "public"."tenants"
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_emergency_contacts_primary();
   END IF;
 END $$;
 
--- Constraint 3: Validate required fields in each contact
--- Ensures name, phone, and relationship are present and non-empty
--- Note: This is a defensive check; primary validation happens in Pydantic
-DO $$ 
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints 
-    WHERE constraint_schema = 'public' 
-    AND table_name = 'tenants' 
-    AND constraint_name = 'chk_tenants_emergency_contact_required_fields'
-  ) THEN
-    ALTER TABLE "public"."tenants"
-    ADD CONSTRAINT "chk_tenants_emergency_contact_required_fields"
-    CHECK (
-      -- All elements must have required fields
-      NOT EXISTS (
-        SELECT 1
-        FROM jsonb_array_elements(emergency_contacts) AS elem
-        WHERE
-          -- name is required and must not be empty after trimming
-          (elem->>'name' IS NULL OR TRIM(elem->>'name') = '')
-          OR
-          -- phone is required and must not be empty after trimming
-          (elem->>'phone' IS NULL OR TRIM(elem->>'phone') = '')
-          OR
-          -- relationship is required and must not be empty after trimming
-          (elem->>'relationship' IS NULL OR TRIM(elem->>'relationship') = '')
-      )
-    );
-  END IF;
-END $$;
+-- Note: Additional validation (required fields, email format) is handled by:
+-- 1. Pydantic validators in Backend/models/tenant.py (primary defense)
+-- 2. Pydantic schemas in Backend/api/tenants/schemas.py (API layer)
+-- We rely on application-layer validation for these checks rather than complex DB triggers
 
--- Constraint 4: Validate email format if provided
--- Uses PostgreSQL regex pattern for basic email validation
--- Prevents obviously malformed email addresses at the database level
-DO $$ 
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints 
-    WHERE constraint_schema = 'public' 
-    AND table_name = 'tenants' 
-    AND constraint_name = 'chk_tenants_emergency_contact_email_format'
-  ) THEN
-    ALTER TABLE "public"."tenants"
-    ADD CONSTRAINT "chk_tenants_emergency_contact_email_format"
-    CHECK (
-      NOT EXISTS (
-        SELECT 1
-        FROM jsonb_array_elements(emergency_contacts) AS elem
-        WHERE
-          -- If email is provided, it must match a basic email pattern
-          elem->>'email' IS NOT NULL
-          AND TRIM(elem->>'email') != ''
-          AND elem->>'email' !~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
-      )
-    );
-  END IF;
-END $$;
-
--- Add comments documenting all constraints for reference
-DO $$ 
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.table_constraints 
-    WHERE constraint_schema = 'public' 
-    AND table_name = 'tenants' 
-    AND constraint_name = 'chk_tenants_max_emergency_contacts'
-  ) THEN
-    COMMENT ON CONSTRAINT "chk_tenants_max_emergency_contacts" ON "public"."tenants" IS 'Limits emergency contacts to maximum of 5 per tenant for security and performance';
-  END IF;
-  
-  IF EXISTS (
-    SELECT 1 FROM information_schema.table_constraints 
-    WHERE constraint_schema = 'public' 
-    AND table_name = 'tenants' 
-    AND constraint_name = 'chk_tenants_single_primary_emergency_contact'
-  ) THEN
-    COMMENT ON CONSTRAINT "chk_tenants_single_primary_emergency_contact" ON "public"."tenants" IS 'Ensures only one contact can be marked as primary to prevent ambiguity';
-  END IF;
-  
-  IF EXISTS (
-    SELECT 1 FROM information_schema.table_constraints 
-    WHERE constraint_schema = 'public' 
-    AND table_name = 'tenants' 
-    AND constraint_name = 'chk_tenants_emergency_contact_required_fields'
-  ) THEN
-    COMMENT ON CONSTRAINT "chk_tenants_emergency_contact_required_fields" ON "public"."tenants" IS 'Validates that all contacts have required fields: name, phone, and relationship';
-  END IF;
-  
-  IF EXISTS (
-    SELECT 1 FROM information_schema.table_constraints 
-    WHERE constraint_schema = 'public' 
-    AND table_name = 'tenants' 
-    AND constraint_name = 'chk_tenants_emergency_contact_email_format'
-  ) THEN
-    COMMENT ON CONSTRAINT "chk_tenants_emergency_contact_email_format" ON "public"."tenants" IS 'Validates email format when provided to prevent malformed data';
-  END IF;
-END $$;
+-- Add comment documenting the constraint
+COMMENT ON CONSTRAINT "chk_tenants_max_emergency_contacts" ON "public"."tenants" IS 'Limits emergency contacts to maximum of 5 per tenant for security and performance';
