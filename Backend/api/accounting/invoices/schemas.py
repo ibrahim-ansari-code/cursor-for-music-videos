@@ -6,7 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional, List
 
-from pydantic import BaseModel, ConfigDict, field_validator, Field
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator, Field
 from Backend.models.accounting.common import PaymentStatus
 from Backend.models.accounting.invoice_tax_detail import (
     InvoiceTaxDetailCreate, InvoiceTaxDetailResponse
@@ -127,6 +127,54 @@ class InvoiceResponse(BaseModel):
     updated_at: datetime
     property: Optional[PropertyInfo] = None
     tenant: Optional[TenantInfo] = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def convert_nested_objects(cls, data):
+        """
+        Convert SQLModel ORM objects to Pydantic schema objects for nested relationships.
+        
+        Handles conversion of:
+        - Property ORM object → PropertyInfo schema
+        - Tenant ORM object → TenantInfo schema
+        
+        This allows seamless use of model_validate() with ORM objects from database queries.
+        """
+        if isinstance(data, dict):
+            return data
+            
+        # Convert the SQLModel object to a dictionary
+        result = {}
+        for field in cls.model_fields:
+            value = getattr(data, field, None)
+            
+            # Handle nested property object
+            if field == 'property' and value is not None:
+                result[field] = {
+                    'id': value.id,
+                    'name': value.name
+                }
+            # Handle nested tenant object
+            elif field == 'tenant' and value is not None:
+                # TenantInfo expects 'full_name' not first/last
+                if hasattr(value, 'tenant_type'):
+                    if value.tenant_type.value == 'Company':
+                        full_name = value.company_name or 'Company Tenant'
+                    else:
+                        first = getattr(value, 'first_name', '') or ''
+                        last = getattr(value, 'last_name', '') or ''
+                        full_name = f"{first} {last}".strip() or 'Tenant'
+                else:
+                    full_name = 'Unknown Tenant'
+                    
+                result[field] = {
+                    'id': value.id,
+                    'full_name': full_name
+                }
+            else:
+                result[field] = value
+                
+        return result
 
 
 # === CSV Import Models ===

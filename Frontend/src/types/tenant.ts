@@ -135,17 +135,17 @@ export enum TenantStatus {
 }
 
 export enum MaintenancePriority {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  URGENT = 'URGENT'
+  LOW = 'Low',
+  MEDIUM = 'Medium',
+  HIGH = 'High',
+  URGENT = 'Urgent'
 }
 
 export enum MaintenanceStatus {
-  PENDING = 'PENDING',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED'
+  PENDING = 'Pending',
+  IN_PROGRESS = 'In Progress',
+  COMPLETED = 'Completed',
+  CANCELLED = 'Cancelled'
 }
 
 export enum LeaseStatus {
@@ -273,6 +273,7 @@ export interface MaintenanceRequest {
   assigned_to?: string;
   property?: Property;
   unit?: PropertyUnit;
+  tenant?: Tenant;  // Populated by backend when loading maintenance requests
 }
 
 // Payment Interface
@@ -335,4 +336,59 @@ export interface TenantTableProps {
   onDeleteTenant: (tenantId: number) => void;
   onAddTenant: () => void;
   isLoading: boolean;
+}
+
+// Maintenance Form Types
+export interface MaintenanceFormData {
+  issue_title: string;
+  description?: string;
+  priority: MaintenancePriority | 'Low' | 'Medium' | 'High';
+  status: MaintenanceStatus | 'Pending' | 'In Progress' | 'Scheduled' | 'Completed' | 'Cancelled';
+  property_id: string;
+  unit_id?: string;
+  tenant_id?: string;
+  assigned_to?: string;
+  scheduled_date?: string;
+  estimated_cost?: string;
+  photos?: string[];
+}
+
+// Photo Upload Types
+export interface PhotoFileWithId {
+  id: string;
+  file: File;
+  name: string;
+  size: number;
+}
+
+export interface PhotoUploadProgress {
+  id: string;
+  status: 'pending' | 'uploading' | 'done' | 'error';
+  error?: string;
+}
+
+export interface MaintenancePhotoState {
+  selectedFiles: PhotoFileWithId[];
+  uploadingPhotos: boolean;
+  uploadProgress: PhotoUploadProgress[];
+  uploadError: string | null;
+}
+
+// Maintenance Summary Type
+export interface MaintenanceSummary {
+  total_requests: number;
+  pending: number;
+  in_progress: number;
+  completed: number;
+  cancelled: number;
+}
+
+// Table Props
+export interface MaintenanceTableProps {
+  requests: MaintenanceRequest[];
+  onEdit: (request: MaintenanceRequest) => void;
+  onDelete: (requestId: number) => void;
+  onView: (request: MaintenanceRequest) => void;
+  currentPage?: number;
+  pageSize?: number;
 }

@@ -13,6 +13,8 @@ import TenantProfileHeader from '../components/tenants/TenantProfile/ProfileHead
 import FilePreviewModal from '../components/FilePreviewModal';
 import NewPaymentModal from '../components/accounting/modals/NewPaymentModal';
 import EmergencyContactModal from '../components/tenants/modals/EmergencyContactModal';
+import MaintenanceRequestModal from '../components/maintenance/MaintenanceRequestModal.tsx';
+import { createMaintenanceRequest } from '../utils/api';
 
 const TenantProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -32,12 +34,25 @@ const TenantProfile: React.FC = () => {
   const [showEmergencyContactModal, setShowEmergencyContactModal] = useState(false);
   const [editingContact, setEditingContact] = useState<any>(undefined);
 
-  // Fetch tenant data
-  const { data: tenant, isLoading, error, refetch } = useQuery<EnrichedTenant>({
+  // Maintenance Request modal state (lifted to this level for proper fixed positioning and z-index)
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [maintenanceModalData, setMaintenanceModalData] = useState<any>(null);
+  const [isSubmittingMaintenance, setIsSubmittingMaintenance] = useState(false);
+
+  // Fetch tenant data with optimized caching strategy
+  // - staleTime: 2 minutes (allows tab switching without refetch)
+  // - refetchOnMount: false (don't refetch if data is fresh)
+  // - refetchOnWindowFocus: false (don't refetch on window focus)
+  // This prevents "Loading..." states during tab navigation while still
+  // allowing mutations to invalidate and refetch immediately
+  const { data: tenant, isLoading, isFetching, error, refetch } = useQuery<EnrichedTenant>({
     queryKey: QUERY_KEYS.tenants.detail(Number(id)),
     queryFn: () => fetchTenant(Number(id)),
     enabled: !!id,
-    staleTime: 1 * 60 * 1000, // 1 minute
+    staleTime: 2 * 60 * 1000, // 2 minutes - optimized for tab switching without refetch
+    gcTime: 10 * 60 * 1000, // 10 minutes - keep in memory for back/forward navigation
+    refetchOnMount: false, // Don't refetch if data is still fresh
+    refetchOnWindowFocus: false, // Don't refetch on window focus (prevents loading states)
   });
 
   // Determine active tab from URL
@@ -142,6 +157,32 @@ const TenantProfile: React.FC = () => {
     }
   };
 
+  const openMaintenanceModal = (initialData: any = null) => {
+    setMaintenanceModalData(initialData);
+    setShowMaintenanceModal(true);
+  };
+
+  const closeMaintenanceModal = () => {
+    setShowMaintenanceModal(false);
+    setMaintenanceModalData(null);
+  };
+
+  const handleSubmitMaintenanceRequest = async (requestData: any) => {
+    setIsSubmittingMaintenance(true);
+    try {
+      await createMaintenanceRequest(requestData);
+      await refetch();
+      closeMaintenanceModal();
+      toast.success('Maintenance request created successfully!');
+    } catch (error: any) {
+      console.error('Failed to create maintenance request:', error);
+      toast.error(error?.message || 'Failed to create maintenance request');
+      throw error; // Let modal handle error display
+    } finally {
+      setIsSubmittingMaintenance(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
@@ -203,7 +244,13 @@ const TenantProfile: React.FC = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onRefresh={handleRefresh}
+        onNewTicket={openMaintenanceModal}
       />
+
+      {/* Fetching Indicator - Subtle loading bar when refetching in background */}
+      {isFetching && (
+        <div className="h-1 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-500 animate-pulse" />
+      )}
 
       {/* Tab Navigation */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
@@ -233,7 +280,7 @@ const TenantProfile: React.FC = () => {
 
       {/* Main Content */}
       <div className="p-6 max-w-[1600px] mx-auto">
-        <Outlet context={{ tenant, refetch, openFilePreviewModal, closeFilePreviewModal, openPaymentModal, openEmergencyContactModal }} />
+        <Outlet context={{ tenant, refetch, openFilePreviewModal, closeFilePreviewModal, openPaymentModal, openEmergencyContactModal, openMaintenanceModal }} />
       </div>
 
       {/* File Preview Modal - Rendered at root level for proper fixed positioning */}
@@ -266,6 +313,16 @@ const TenantProfile: React.FC = () => {
           existingContacts={tenant.emergency_contacts || []}
         />
       )}
+
+      {/* Maintenance Request Modal - Rendered at root level for proper fixed positioning and z-index */}
+      <MaintenanceRequestModal
+        isOpen={showMaintenanceModal}
+        onClose={closeMaintenanceModal}
+        onSubmit={handleSubmitMaintenanceRequest}
+        request={maintenanceModalData}
+        isViewing={false}
+        isSubmitting={isSubmittingMaintenance}
+      />
     </div>
   );
 };

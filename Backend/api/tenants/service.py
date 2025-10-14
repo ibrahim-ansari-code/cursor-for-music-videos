@@ -21,6 +21,9 @@ from Backend.api.tenants.schemas import (
     TenantResponse,
     UnitResponseSimple,
 )
+from Backend.api.maintenance.schemas import MaintenanceRequestResponse
+from Backend.api.accounting.payments.schemas import PaymentResponse
+from Backend.api.accounting.invoices.schemas import InvoiceResponse
 from Backend.models.enums import UserType
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.property import Property
@@ -376,13 +379,94 @@ async def enrich_tenants_with_details(
 ) -> list["TenantResponse"]:
     """
     Transforms a list of Tenant ORM objects into TenantResponse models enriched with related property, unit, and lease details.
-    
+
+    PERFORMANCE OPTIMIZED: Uses bulk fetching to avoid N+1 queries.
+    - Fetches all related data in 6 queries total (regardless of tenant count)
+    - Maps results by tenant_id for O(1) lookup
+
     For each tenant, loads:
     1. Latest assigned property unit and its property information (from current_property_id)
     2. All leases with their associated property and unit details
-    
+    3. Maintenance requests
+    4. Payments
+    5. Invoices
+
     Returns only tenants with valid IDs.
     """
+    from collections import defaultdict
+    from Backend.models.maintenance import MaintenanceRequest
+    from Backend.models.accounting.payment import Payment
+    from Backend.models.accounting.invoice import Invoice
+
+    if not tenants:
+        return []
+
+    # Extract tenant IDs for bulk queries
+    tenant_ids = [tenant.id for tenant in tenants]
+
+    # ============================================================================
+    # BULK FETCH ALL RELATED DATA (6 queries total, not 3N queries)
+    # ============================================================================
+
+    # 1. Bulk fetch maintenance requests for all tenants
+    maintenance_query = (
+        select(MaintenanceRequest)
+        .options(
+            selectinload(getattr(MaintenanceRequest, "property")),
+            selectinload(getattr(MaintenanceRequest, "unit")),
+            selectinload(getattr(MaintenanceRequest, "tenant"))
+        )
+        .where(col(MaintenanceRequest.tenant_id).in_(tenant_ids))
+        .order_by(col(MaintenanceRequest.request_date).desc())
+    )
+    maintenance_result = await session.execute(maintenance_query)
+    all_maintenance = maintenance_result.scalars().all()
+
+    # Group maintenance by tenant_id
+    maintenance_map = defaultdict(list)
+    for req in all_maintenance:
+        maintenance_map[req.tenant_id].append(req)
+
+    # 2. Bulk fetch payments for all tenants
+    payment_query = (
+        select(Payment)
+        .options(
+            selectinload(getattr(Payment, "lease")).selectinload(getattr(Lease, "property")),
+            selectinload(getattr(Payment, "tenant"))
+        )
+        .where(col(Payment.tenant_id).in_(tenant_ids))
+        .order_by(col(Payment.payment_date).desc())
+    )
+    payment_result = await session.execute(payment_query)
+    all_payments = payment_result.scalars().all()
+
+    # Group payments by tenant_id
+    payments_map = defaultdict(list)
+    for payment in all_payments:
+        payments_map[payment.tenant_id].append(payment)
+
+    # 3. Bulk fetch invoices for all tenants
+    invoice_query = (
+        select(Invoice)
+        .options(
+            selectinload(getattr(Invoice, "property")),
+            selectinload(getattr(Invoice, "tenant"))
+        )
+        .where(col(Invoice.tenant_id).in_(tenant_ids))
+        .order_by(col(Invoice.issue_date).desc())
+    )
+    invoice_result = await session.execute(invoice_query)
+    all_invoices = invoice_result.scalars().all()
+
+    # Group invoices by tenant_id
+    invoices_map = defaultdict(list)
+    for invoice in all_invoices:
+        invoices_map[invoice.tenant_id].append(invoice)
+
+    # ============================================================================
+    # PROCESS EACH TENANT WITH O(1) LOOKUPS (no additional queries)
+    # ============================================================================
+
     response_data = []
     for tenant in tenants:
         # Convert tenant to dict using model_dump, excluding problematic relationships
@@ -458,6 +542,31 @@ async def enrich_tenants_with_details(
             lease_responses.append(lease_response)
 
         tenant_response.leases = lease_responses
+
+        # ====================================================================
+        # ASSIGN PRE-FETCHED DATA FROM BULK QUERIES (O(1) lookups, no queries)
+        # ====================================================================
+
+        # Assign maintenance requests from bulk-fetched map
+        maintenance_requests_orm = maintenance_map.get(tenant.id, [])
+        if maintenance_requests_orm:
+            tenant_response.maintenance_requests = [
+                MaintenanceRequestResponse.model_validate(req) for req in maintenance_requests_orm
+            ]
+
+        # Assign payments from bulk-fetched map
+        payments_orm = payments_map.get(tenant.id, [])
+        if payments_orm:
+            tenant_response.payments = [
+                PaymentResponse.model_validate(payment) for payment in payments_orm
+            ]
+
+        # Assign invoices from bulk-fetched map
+        invoices_orm = invoices_map.get(tenant.id, [])
+        if invoices_orm:
+            tenant_response.invoices = [
+                InvoiceResponse.model_validate(invoice) for invoice in invoices_orm
+            ]
 
         # If tenant has no current property/unit assignment but has active leases,
         # use the most recent active lease for property/unit info

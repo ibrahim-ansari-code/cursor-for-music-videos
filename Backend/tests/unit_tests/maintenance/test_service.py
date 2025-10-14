@@ -361,6 +361,15 @@ async def test_create_maintenance_request_success():
     mock_property = MagicMock()
     mock_property.id = 1
     
+    # Mock re-query after commit (new pattern)
+    mock_created_request = MagicMock()
+    mock_created_request.id = 1
+    mock_requery_result = MagicMock()
+    mock_requery_result.scalar_one.return_value = mock_created_request
+    
+    # session.execute will be called twice: once for re-query
+    mock_session.execute.return_value = mock_requery_result
+    
     with patch.object(MaintenanceService, '_validate_and_load_entities') as mock_validate:
         mock_validate.return_value = (mock_property, None, None)
         
@@ -375,7 +384,8 @@ async def test_create_maintenance_request_success():
             
             mock_session.add.assert_called_once()
             mock_session.commit.assert_called_once()
-            mock_session.refresh.assert_called_once()
+            # We now re-query instead of refresh
+            mock_session.execute.assert_called_once()
             assert result is not None
 
 

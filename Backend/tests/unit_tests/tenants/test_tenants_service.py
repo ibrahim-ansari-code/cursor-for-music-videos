@@ -423,8 +423,23 @@ async def test_enrich_tenants_with_details_success(mock_session, mock_tenant, mo
     lease_result = MagicMock()
     lease_result.scalars.return_value.all.return_value = [mock_lease]
     
+    # Mock empty results for new queries (maintenance, payments, invoices)
+    empty_maintenance = MagicMock()
+    empty_maintenance.scalars.return_value.all.return_value = []
+    empty_payments = MagicMock()
+    empty_payments.scalars.return_value.all.return_value = []
+    empty_invoices = MagicMock()
+    empty_invoices.scalars.return_value.all.return_value = []
+    
     # Configure session execute to return different results for different queries
-    mock_session.execute.side_effect = [unit_result, property_result, lease_result]
+    # Order: unit_query, lease_query, maintenance_query, payment_query, invoice_query
+    mock_session.execute.side_effect = [
+        unit_result,          # For unit query
+        lease_result,         # For lease query
+        empty_maintenance,    # For maintenance query
+        empty_payments,       # For payment query
+        empty_invoices,       # For invoice query
+    ]
     
     # Mock model_dump for tenant
     mock_tenant.model_dump.return_value = {
@@ -453,12 +468,18 @@ async def test_enrich_tenants_with_details_success(mock_session, mock_tenant, mo
     # Patch the schema validation to avoid MagicMock issues
     with patch('Backend.api.tenants.service.PropertyResponseSimple.model_validate') as mock_prop_validate, \
          patch('Backend.api.tenants.service.UnitResponseSimple.model_validate') as mock_unit_validate, \
-         patch('Backend.api.tenants.service.LeaseResponseSimple.model_validate') as mock_lease_validate:
+         patch('Backend.api.tenants.service.LeaseResponseSimple.model_validate') as mock_lease_validate, \
+         patch('Backend.api.tenants.service.MaintenanceRequestResponse.model_validate') as mock_maint_validate, \
+         patch('Backend.api.tenants.service.PaymentResponse.model_validate') as mock_pay_validate, \
+         patch('Backend.api.tenants.service.InvoiceResponse.model_validate') as mock_inv_validate:
         
         # Mock validation returns
         mock_prop_validate.return_value = MagicMock(id=1, name="Test Property")
         mock_unit_validate.return_value = MagicMock(id=1, name="Unit A", property=MagicMock(id=1, name="Test Property"))
         mock_lease_validate.return_value = MagicMock(id=1, start_date=datetime.now().date(), end_date=datetime.now().date())
+        mock_maint_validate.return_value = []  # Return empty lists for new data
+        mock_pay_validate.return_value = []
+        mock_inv_validate.return_value = []
         
         # Act
         result = await enrich_tenants_with_details([mock_tenant], mock_session)
@@ -479,7 +500,21 @@ async def test_enrich_tenants_with_details_no_current_property(mock_session, moc
     lease_result = MagicMock()
     lease_result.scalars.return_value.all.return_value = [mock_lease]
     
-    mock_session.execute.return_value = lease_result
+    # Mock empty results for new queries (maintenance, payments, invoices)
+    empty_maintenance = MagicMock()
+    empty_maintenance.scalars.return_value.all.return_value = []
+    empty_payments = MagicMock()
+    empty_payments.scalars.return_value.all.return_value = []
+    empty_invoices = MagicMock()
+    empty_invoices.scalars.return_value.all.return_value = []
+    
+    # Order: lease_query, maintenance_query, payment_query, invoice_query
+    mock_session.execute.side_effect = [
+        lease_result,         # For lease query
+        empty_maintenance,    # For maintenance query
+        empty_payments,       # For payment query
+        empty_invoices,       # For invoice query
+    ]
     
     # Mock model_dump for tenant
     mock_tenant.model_dump.return_value = {
@@ -515,7 +550,10 @@ async def test_enrich_tenants_with_details_no_current_property(mock_session, moc
     # Patch the schema validation to avoid MagicMock issues
     with patch('Backend.api.tenants.service.LeaseResponseSimple.model_validate') as mock_lease_validate, \
          patch('Backend.api.tenants.service.PropertyResponseSimple.model_validate') as mock_prop_validate, \
-         patch('Backend.api.tenants.service.UnitResponseSimple.model_validate') as mock_unit_validate:
+         patch('Backend.api.tenants.service.UnitResponseSimple.model_validate') as mock_unit_validate, \
+         patch('Backend.api.tenants.service.MaintenanceRequestResponse.model_validate') as mock_maint_validate, \
+         patch('Backend.api.tenants.service.PaymentResponse.model_validate') as mock_pay_validate, \
+         patch('Backend.api.tenants.service.InvoiceResponse.model_validate') as mock_inv_validate:
         
         # Mock validation returns
         mock_lease_validate.return_value = MagicMock(id=1, start_date=datetime.now().date(), end_date=datetime.now().date(), status="ACTIVE")
@@ -622,7 +660,10 @@ async def test_enrich_tenants_with_details_no_active_lease_fallback(mock_session
     # Patch the schema validation to avoid MagicMock issues
     with patch('Backend.api.tenants.service.LeaseResponseSimple.model_validate') as mock_lease_validate, \
          patch('Backend.api.tenants.service.PropertyResponseSimple.model_validate') as mock_prop_validate, \
-         patch('Backend.api.tenants.service.UnitResponseSimple.model_validate') as mock_unit_validate:
+         patch('Backend.api.tenants.service.UnitResponseSimple.model_validate') as mock_unit_validate, \
+         patch('Backend.api.tenants.service.MaintenanceRequestResponse.model_validate') as mock_maint_validate, \
+         patch('Backend.api.tenants.service.PaymentResponse.model_validate') as mock_pay_validate, \
+         patch('Backend.api.tenants.service.InvoiceResponse.model_validate') as mock_inv_validate:
         
         # Mock validation returns
         mock_lease_validate.return_value = MagicMock(id=1, start_date=datetime.now().date(), end_date=datetime.now().date(), status="EXPIRED")
@@ -801,8 +842,23 @@ async def test_enrich_tenants_with_details_unit_assignment_from_lease(mock_sessi
     lease_result = MagicMock()
     lease_result.scalars.return_value.all.return_value = [mock_lease]
     
+    # Mock empty results for new queries (maintenance, payments, invoices)
+    empty_maintenance = MagicMock()
+    empty_maintenance.scalars.return_value.all.return_value = []
+    empty_payments = MagicMock()
+    empty_payments.scalars.return_value.all.return_value = []
+    empty_invoices = MagicMock()
+    empty_invoices.scalars.return_value.all.return_value = []
+    
     # Configure execute to return different results for different queries
-    mock_session.execute.side_effect = [unit_result, property_result, lease_result]
+    # Order: unit_query, lease_query, maintenance_query, payment_query, invoice_query
+    mock_session.execute.side_effect = [
+        unit_result,          # For unit query
+        lease_result,         # For lease query
+        empty_maintenance,    # For maintenance query
+        empty_payments,       # For payment query
+        empty_invoices,       # For invoice query
+    ]
     
     # Mock model_dump for tenant
     mock_tenant.model_dump.return_value = {

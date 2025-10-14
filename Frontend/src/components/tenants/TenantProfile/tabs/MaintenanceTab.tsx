@@ -6,11 +6,46 @@ import { formatDate } from '../../../../utils/tenantUtils';
 interface OutletContext {
   tenant: EnrichedTenant;
   refetch: () => void;
+  openMaintenanceModal: (initialData: any) => void;
 }
 
 const MaintenanceTab: React.FC = () => {
-  const { tenant } = useOutletContext<OutletContext>();
+  const context = useOutletContext<OutletContext>();
   const [statusFilter, setStatusFilter] = useState<MaintenanceStatus | 'ALL'>('ALL');
+
+  // Guard: Handle undefined context gracefully (occurs during refetch or initial load)
+  if (!context || !context.tenant) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin" />
+          <p className="text-sm text-gray-500 dark:text-gray-400">Loading maintenance requests...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { tenant, openMaintenanceModal } = context;
+
+  // Handle creating new maintenance request
+  const handleNewRequest = () => {
+    // Get active lease to extract property and unit info
+    const activeLease = tenant.leases?.find(lease => lease.status === 'ACTIVE');
+    
+    // Ensure all IDs are strings (modal expects strings for select inputs)
+    const propertyId = activeLease?.property_id || tenant.current_property_id;
+    const unitId = activeLease?.unit_id || tenant.unit?.id;
+    
+    const initialData = {
+      tenant_id: tenant.id,
+      property_id: propertyId ? String(propertyId) : '',
+      unit_id: unitId ? String(unitId) : '',
+      priority: MaintenancePriority.MEDIUM,  // Uses enum for type safety
+      status: MaintenanceStatus.PENDING,     // Uses enum for type safety
+    };
+
+    openMaintenanceModal(initialData);
+  };
 
   const maintenanceRequests = tenant.maintenance_requests || [];
 
@@ -22,13 +57,13 @@ const MaintenanceTab: React.FC = () => {
     const baseClasses = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold';
 
     switch (status) {
-      case 'PENDING':
+      case MaintenanceStatus.PENDING:
         return `${baseClasses} bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200`;
-      case 'IN_PROGRESS':
+      case MaintenanceStatus.IN_PROGRESS:
         return `${baseClasses} bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200`;
-      case 'COMPLETED':
+      case MaintenanceStatus.COMPLETED:
         return `${baseClasses} bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200`;
-      case 'CANCELLED':
+      case MaintenanceStatus.CANCELLED:
         return `${baseClasses} bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-200`;
       default:
         return `${baseClasses} bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-200`;
@@ -37,7 +72,7 @@ const MaintenanceTab: React.FC = () => {
 
   const getPriorityBadge = (priority: MaintenancePriority) => {
     switch (priority) {
-      case 'URGENT':
+      case MaintenancePriority.URGENT:
         return (
           <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400">
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -46,11 +81,11 @@ const MaintenanceTab: React.FC = () => {
             Urgent
           </span>
         );
-      case 'HIGH':
+      case MaintenancePriority.HIGH:
         return <span className="text-xs font-medium text-orange-600 dark:text-orange-400">High</span>;
-      case 'MEDIUM':
+      case MaintenancePriority.MEDIUM:
         return <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400">Medium</span>;
-      case 'LOW':
+      case MaintenancePriority.LOW:
         return <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Low</span>;
       default:
         return <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{priority}</span>;
@@ -86,7 +121,10 @@ const MaintenanceTab: React.FC = () => {
                   <option value="CANCELLED">Cancelled</option>
                 </select>
               )}
-              <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <button
+                onClick={handleNewRequest}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>

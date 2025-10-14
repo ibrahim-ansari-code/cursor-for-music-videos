@@ -48,8 +48,10 @@ class UnitInfo(BaseModel):
 
 class TenantInfo(BaseModel):
     id: int
-    first_name: str
-    last_name: str
+    first_name: str | None = None
+    last_name: str | None = None
+    company_name: str | None = None
+    tenant_type: str | None = None
 
 
 class MaintenanceRequestResponse(BaseModel):
@@ -76,34 +78,61 @@ class MaintenanceRequestResponse(BaseModel):
     @model_validator(mode='before')
     @classmethod
     def convert_nested_objects(cls, data):
-        """Convert SQLModel objects to schema objects for nested relationships."""
+        """
+        Convert SQLModel ORM objects to Pydantic schema for nested relationships.
+        
+        Only accesses specific nested fields to avoid triggering lazy loading.
+        All relationships must be eager-loaded with selectinload() before validation.
+        """
         if isinstance(data, dict):
             return data
+        
+        # Build result dict by directly accessing known fields
+        # This is simpler and more explicit than iterating over all schema fields
+        result = {
+            'id': data.id,
+            'issue_title': data.issue_title,
+            'description': data.description,
+            'request_date': data.request_date,
+            'priority': data.priority,
+            'status': data.status,
+            'scheduled_date': getattr(data, 'scheduled_date', None),
+            'completed_date': getattr(data, 'completed_date', None),
+            'estimated_cost': getattr(data, 'estimated_cost', None),
+            'actual_cost': getattr(data, 'actual_cost', None),
+            'photos': getattr(data, 'photos', None),
+            'created_at': data.created_at,
+            'updated_at': data.updated_at,
+            'assigned_to': getattr(data, 'assigned_to', None),
+        }
+        
+        # Handle nested relationships (must be eager-loaded)
+        if hasattr(data, 'property') and data.property is not None:
+            result['property'] = {
+                'id': data.property.id,
+                'name': data.property.name
+            }
+        else:
+            result['property'] = None
             
-        # Convert the SQLModel object to a dictionary
-        result = {}
-        for field in cls.model_fields:
-            value = getattr(data, field, None)
+        if hasattr(data, 'unit') and data.unit is not None:
+            result['unit'] = {
+                'id': data.unit.id,
+                'name': data.unit.name
+            }
+        else:
+            result['unit'] = None
             
-            # Handle nested objects
-            if field == 'property' and value is not None:
-                result[field] = {
-                    'id': value.id,
-                    'name': value.name
-                }
-            elif field == 'unit' and value is not None:
-                result[field] = {
-                    'id': value.id,
-                    'name': value.name
-                }
-            elif field == 'tenant' and value is not None:
-                result[field] = {
-                    'id': value.id,
-                    'first_name': value.first_name,
-                    'last_name': value.last_name
-                }
-            else:
-                result[field] = value
+        if hasattr(data, 'tenant') and data.tenant is not None:
+            result['tenant'] = {
+                'id': data.tenant.id,
+                'first_name': getattr(data.tenant, 'first_name', None),
+                'last_name': getattr(data.tenant, 'last_name', None),
+                'company_name': getattr(data.tenant, 'company_name', None),
+                'tenant_type': data.tenant.tenant_type.value if hasattr(data.tenant, 'tenant_type') else None
+            }
+        else:
+            result['tenant'] = None
                 
         return result
 

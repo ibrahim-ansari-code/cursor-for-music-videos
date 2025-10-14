@@ -148,11 +148,19 @@ def test_unit_info():
 
 def test_tenant_info():
     """Test TenantInfo creation."""
-    tenant_info = TenantInfo(id=1, first_name="John", last_name="Doe")
+    tenant_info = TenantInfo(
+        id=1, 
+        first_name="John", 
+        last_name="Doe",
+        company_name=None,
+        tenant_type="Individual"
+    )
     
     assert tenant_info.id == 1
     assert tenant_info.first_name == "John"
     assert tenant_info.last_name == "Doe"
+    assert tenant_info.company_name is None
+    assert tenant_info.tenant_type == "Individual"
 
 
 # =============================================================================
@@ -167,7 +175,13 @@ def test_maintenance_request_response_from_dict():
         "description": "Test description",
         "property": {"id": 1, "name": "Test Property"},
         "unit": {"id": 101, "name": "Unit 101"},
-        "tenant": {"id": 1, "first_name": "John", "last_name": "Doe"},
+        "tenant": {
+            "id": 1, 
+            "first_name": "John", 
+            "last_name": "Doe",
+            "company_name": None,
+            "tenant_type": "Individual"
+        },
         "request_date": datetime(2024, 3, 15, 10, 0),
         "priority": MaintenancePriority.MEDIUM,
         "status": MaintenanceStatus.PENDING,
@@ -189,6 +203,7 @@ def test_maintenance_request_response_from_dict():
     assert response.property.name == "Test Property"
     assert response.unit.id == 101
     assert response.tenant.first_name == "John"
+    assert response.tenant.last_name == "Doe"
 
 
 def test_maintenance_request_response_convert_nested_objects():
@@ -202,10 +217,16 @@ def test_maintenance_request_response_convert_nested_objects():
     mock_unit.id = 101
     mock_unit.name = "Unit 101"
     
+    # Mock tenant with tenant_type enum
+    mock_tenant_type = MagicMock()
+    mock_tenant_type.value = "Individual"
+    
     mock_tenant = MagicMock()
     mock_tenant.id = 1
     mock_tenant.first_name = "John"
     mock_tenant.last_name = "Doe"
+    mock_tenant.company_name = None
+    mock_tenant.tenant_type = mock_tenant_type
     
     # Create mock SQLModel maintenance request
     mock_request = MagicMock()
@@ -237,6 +258,8 @@ def test_maintenance_request_response_convert_nested_objects():
     assert response.tenant.id == 1
     assert response.tenant.first_name == "John"
     assert response.tenant.last_name == "Doe"
+    assert response.tenant.company_name is None
+    assert response.tenant.tenant_type == "Individual"
 
 
 def test_maintenance_request_response_none_relationships():

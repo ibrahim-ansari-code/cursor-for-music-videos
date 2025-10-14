@@ -601,8 +601,8 @@ class UnitService:
                 detail="You don't have permission to assign tenants to units in this property"
             )
 
-        errors = []
-        created_leases = []
+        errors: list[CSVAssignmentError] = []
+        created_leases: list[int] = []  # Type annotation ensures only ints
         successful_assignments = 0
 
         for row_idx, assignment in enumerate(csv_data.assignments, start=1):
@@ -673,7 +673,8 @@ class UnitService:
 
                     # Create the lease
                     created_lease = cast(Lease, await create_lease(lease_data, current_user, session))
-                    created_leases.append(created_lease.id)
+                    if created_lease.id is not None:
+                        created_leases.append(created_lease.id)
                     successful_assignments += 1
 
                     logger.info(
@@ -748,8 +749,8 @@ class UnitService:
                 detail=f"Tenant with ID {bulk_data.tenant_id} not found"
             )
 
-        errors = []
-        created_leases = []
+        errors: list[CSVAssignmentError] = []
+        created_leases: list[int] = []  # Type annotation ensures only ints
         successful_assignments = 0
 
         for unit_id in bulk_data.unit_ids:
@@ -812,7 +813,8 @@ class UnitService:
 
                     # Create the lease
                     created_lease = cast(Lease, await create_lease(lease_data, current_user, session))
-                    created_leases.append(created_lease.id)
+                    if created_lease.id is not None:
+                        created_leases.append(created_lease.id)
                     successful_assignments += 1
 
                     logger.info(

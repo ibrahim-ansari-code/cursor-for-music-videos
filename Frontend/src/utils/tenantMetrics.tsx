@@ -8,7 +8,7 @@
  * Invoices are optional and used for miscellaneous charges.
  */
 
-import { EnrichedTenant, Lease, Payment } from '../types/tenant';
+import { EnrichedTenant, Lease, Payment, MaintenanceStatus } from '../types/tenant';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -331,12 +331,12 @@ export const calculateTicketResolution = (
   }
 
   const completedRequests = tenant.maintenance_requests.filter(
-    req => req.status === 'COMPLETED' && req.completed_date
+    req => req.status === MaintenanceStatus.COMPLETED && req.completed_date
   );
 
   const totalCount = tenant.maintenance_requests.length;
   const pendingCount = tenant.maintenance_requests.filter(
-    req => req.status === 'PENDING' || req.status === 'IN_PROGRESS'
+    req => req.status === MaintenanceStatus.PENDING || req.status === MaintenanceStatus.IN_PROGRESS
   ).length;
 
   if (completedRequests.length === 0) {
@@ -507,7 +507,7 @@ export const generateUpcomingEvents = (
   // 5. SCHEDULED MAINTENANCE (within next 30 days)
   if (tenant.maintenance_requests && tenant.maintenance_requests.length > 0) {
     const scheduledRequests = tenant.maintenance_requests.filter(req => {
-      if (!req.scheduled_date || req.status === 'COMPLETED' || req.status === 'CANCELLED') {
+      if (!req.scheduled_date || req.status === MaintenanceStatus.COMPLETED || req.status === MaintenanceStatus.CANCELLED) {
         return false;
       }
 

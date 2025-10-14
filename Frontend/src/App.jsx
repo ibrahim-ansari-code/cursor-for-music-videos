@@ -50,7 +50,7 @@ const TenantMessagingTab = React.lazy(() => import("./components/tenants/TenantP
 const TenantBackgroundTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/BackgroundTab"));
 const TenantAssetsTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/AssetsTab"));
 const TenantSettingsTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/SettingsTab"));
-import Maintenance from "./pages/Maintenance";
+import Maintenance from "./pages/Maintenance.tsx";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Integrations from "./pages/Integrations";

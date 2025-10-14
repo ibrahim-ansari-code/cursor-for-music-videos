@@ -28,13 +28,27 @@ interface OutletContext {
 }
 
 const OverviewTab: React.FC = () => {
-  const { tenant, refetch, openFilePreviewModal, openPaymentModal, openEmergencyContactModal } = useOutletContext<OutletContext>();
+  const context = useOutletContext<OutletContext>();
 
   // State for delete confirmation and loading
   // Using array index instead of contactId for more reliable deletion
   const [deletingContactIndex, setDeletingContactIndex] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [contactIndexToDelete, setContactIndexToDelete] = useState<number | null>(null);
+
+  // Guard: Handle undefined context gracefully (occurs during refetch or initial load)
+  if (!context || !context.tenant) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin" />
+          <p className="text-sm text-gray-500 dark:text-gray-400">Loading tenant overview...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { tenant, refetch, openFilePreviewModal, openPaymentModal, openEmergencyContactModal } = context;
 
   // Helper function to safely format currency
   const formatCurrency = (value: number | string | undefined | null): string => {
@@ -299,7 +313,7 @@ const OverviewTab: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {metrics.ticketResolution.completedCount > 0
+                {metrics.ticketResolution.totalCount > 0
                   ? `${metrics.ticketResolution.completedCount} completed, ${metrics.ticketResolution.pendingCount} pending`
                   : 'No maintenance requests'}
               </p>

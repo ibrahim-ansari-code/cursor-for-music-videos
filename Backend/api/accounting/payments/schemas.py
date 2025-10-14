@@ -129,6 +129,48 @@ class PaymentResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    @model_validator(mode='before')
+    @classmethod
+    def convert_nested_objects(cls, data):
+        """
+        Convert SQLModel ORM objects to Pydantic schema objects for nested relationships.
+        
+        Handles conversion of:
+        - Lease ORM object → Extract property_name and tenant_name
+        - Tenant ORM object → Extract tenant_name
+        
+        This allows seamless use of model_validate() with ORM objects from database queries.
+        Payment gets property info through the lease relationship, not directly.
+        """
+        if isinstance(data, dict):
+            return data
+            
+        # Convert the SQLModel object to a dictionary
+        result = {}
+        for field in cls.model_fields:
+            value = getattr(data, field, None)
+            result[field] = value
+        
+        # Extract tenant_name from tenant relationship if available
+        if hasattr(data, 'tenant') and data.tenant is not None:
+            tenant = data.tenant
+            if hasattr(tenant, 'tenant_type'):
+                # Handle both Individual and Company tenants
+                if tenant.tenant_type.value == 'Company':
+                    result['tenant_name'] = tenant.company_name or 'Company Tenant'
+                else:
+                    first = getattr(tenant, 'first_name', '') or ''
+                    last = getattr(tenant, 'last_name', '') or ''
+                    result['tenant_name'] = f"{first} {last}".strip() or 'Tenant'
+            
+        # Extract property_name from lease.property relationship if available
+        if hasattr(data, 'lease') and data.lease is not None:
+            lease = data.lease
+            if hasattr(lease, 'property') and lease.property is not None:
+                result['property_name'] = lease.property.name
+                
+        return result
+
 class PaginatedPaymentsResponse(BaseModel):
     items: list[PaymentResponse]
     has_more: bool

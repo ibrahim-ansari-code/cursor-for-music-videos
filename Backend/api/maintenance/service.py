@@ -211,13 +211,27 @@ class MaintenanceService:
             session.add(db_request)
             await session.commit()
             
-            # Efficiently load all relationships in a single refresh
-            await session.refresh(
-                db_request,
-                attribute_names=["property", "unit", "tenant"]
+            # After commit, re-query to get fresh object with all relationships loaded
+            # This avoids any lazy loading issues in async context
+            result = await session.execute(
+                select(MaintenanceRequest)
+                .options(
+                    selectinload(getattr(MaintenanceRequest, "property")),
+                    selectinload(getattr(MaintenanceRequest, "unit")),
+                    selectinload(getattr(MaintenanceRequest, "tenant"))
+                )
+                .where(col(MaintenanceRequest.id) == db_request.id)
             )
+            created_request = result.scalar_one_or_none()
             
-            return MaintenanceRequestResponse.model_validate(db_request)
+            if created_request is None:
+                # Edge case: Record not found after commit (shouldn't happen but defensive)
+                raise HTTPException(
+                    status_code=500,
+                    detail="Created maintenance request not found after commit"
+                )
+            
+            return MaintenanceRequestResponse.model_validate(created_request)
 
         except HTTPException:
             raise
@@ -269,7 +283,11 @@ class MaintenanceService:
         """
         result = await session.execute(
             select(MaintenanceRequest)
-            .options(selectinload(getattr(MaintenanceRequest, "property")))
+            .options(
+                selectinload(getattr(MaintenanceRequest, "property")),
+                selectinload(getattr(MaintenanceRequest, "unit")),
+                selectinload(getattr(MaintenanceRequest, "tenant"))
+            )
             .where(col(MaintenanceRequest.id) == request_id)
         )
         req = result.scalar_one_or_none()
@@ -308,13 +326,27 @@ class MaintenanceService:
         session.add(req)
         await session.commit()
         
-        # Efficiently refresh with all relationships instead of re-querying
-        await session.refresh(
-            req,
-            attribute_names=["property", "unit", "tenant"]
+        # After commit, all attributes are expired. Re-query with fresh session to get updated data
+        # This is the industry-standard pattern (Stripe, Airbnb, etc.)
+        result = await session.execute(
+            select(MaintenanceRequest)
+            .options(
+                selectinload(getattr(MaintenanceRequest, "property")),
+                selectinload(getattr(MaintenanceRequest, "unit")),
+                selectinload(getattr(MaintenanceRequest, "tenant"))
+            )
+            .where(col(MaintenanceRequest.id) == request_id)
         )
+        updated_req = result.scalar_one_or_none()
         
-        return MaintenanceRequestResponse.model_validate(req)
+        if updated_req is None:
+            # Edge case: Record deleted between update and re-query (race condition)
+            raise HTTPException(
+                status_code=404,
+                detail="Maintenance request not found after update"
+            )
+        
+        return MaintenanceRequestResponse.model_validate(updated_req)
 
     @staticmethod
     async def delete_maintenance_request(

@@ -1,38 +1,40 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import MaintenanceTable from "../components/maintenance/MaintenanceTable";
-import MaintenanceRequestModal from "../components/maintenance/MaintenanceRequestModal";
-import StatusCard from "../components/maintenance/StatusCard";
-import MaintenanceSkeleton, { MaintenanceTableSkeleton } from "../components/ui/skeletons/MaintenanceSkeleton";
+import React, { useState, useEffect, useMemo } from 'react';
+import { toast } from 'react-toastify';
+import MaintenanceTable from '../components/maintenance/MaintenanceTable';
+import MaintenanceRequestModal from '../components/maintenance/MaintenanceRequestModal';
+import StatusCard from '../components/maintenance/StatusCard';
+import MaintenanceSkeleton, { MaintenanceTableSkeleton } from '../components/ui/skeletons/MaintenanceSkeleton';
 import {
   useMaintenanceSummary,
   useMaintenanceRequests,
   useCreateMaintenanceRequest,
   useUpdateMaintenanceRequest,
   useDeleteMaintenanceRequest,
-} from "../hooks/useMaintenanceQueries";
+} from '../hooks/useMaintenanceQueries';
+import type { MaintenanceRequest } from '../types/tenant';
 
-const Maintenance = () => {
+const Maintenance: React.FC = () => {
   // Local UI state
-  const [statusFilter, setStatusFilter] = useState("All Requests");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(20);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRequest, setEditingRequest] = useState(null);
-  const [viewingRequest, setViewingRequest] = useState(null);
+  const [statusFilter, setStatusFilter] = useState<string>('All Requests');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize] = useState<number>(20);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [editingRequest, setEditingRequest] = useState<MaintenanceRequest | null>(null);
+  const [viewingRequest, setViewingRequest] = useState<MaintenanceRequest | null>(null);
 
   // Build query parameters
   const queryParams = useMemo(() => {
-    const params = {
+    const params: Record<string, any> = {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
     };
 
     // Add status filter if not "All Requests"
-    if (statusFilter !== "All Requests") {
-      const statusMap = {
-        Pending: "pending",
-        "In Progress": "in_progress", 
-        Completed: "completed",
+    if (statusFilter !== 'All Requests') {
+      const statusMap: Record<string, string> = {
+        Pending: 'pending',
+        'In Progress': 'in_progress',
+        Completed: 'completed',
       };
       params.req_status = statusMap[statusFilter] ?? statusFilter;
     }
@@ -42,8 +44,13 @@ const Maintenance = () => {
 
   // TanStack Query hooks
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useMaintenanceSummary();
-  const { data: requestsData, isLoading: requestsLoading, error: requestsError, refetch } = useMaintenanceRequests(queryParams);
-  
+  const {
+    data: requestsData,
+    isLoading: requestsLoading,
+    error: requestsError,
+    refetch: _refetch,
+  } = useMaintenanceRequests(queryParams);
+
   // Mutation hooks
   const createRequestMutation = useCreateMaintenanceRequest();
   const updateRequestMutation = useUpdateMaintenanceRequest();
@@ -52,7 +59,7 @@ const Maintenance = () => {
   // Extract data from query response
   const requests = useMemo(() => requestsData?.results || requestsData || [], [requestsData]);
   const hasMore = useMemo(() => {
-    if (typeof requestsData?.total === "number") {
+    if (typeof requestsData?.total === 'number') {
       return currentPage * pageSize < requestsData.total;
     }
     return (requestsData?.results || requestsData || []).length === pageSize;
@@ -70,74 +77,70 @@ const Maintenance = () => {
     setCurrentPage(1);
   }, [statusFilter]);
 
-  const handleModalSubmit = async (formData) => {
+  const handleModalSubmit = async (formData: any) => {
     try {
       const payload = {
         ...formData,
-        property_id: formData.property_id
-          ? Number(formData.property_id)
-          : undefined,
-        unit_id:
-          formData.unit_id && formData.unit_id !== ""
-            ? Number.parseInt(formData.unit_id, 10)
-            : null,
-        tenant_id: formData.tenant_id
-          ? Number.parseInt(formData.tenant_id, 10)
-          : null,
-        estimated_cost: formData.estimated_cost
-          ? Number.parseFloat(formData.estimated_cost)
-          : null,
+        property_id: formData.property_id ? Number(formData.property_id) : undefined,
+        unit_id: formData.unit_id && formData.unit_id !== '' ? Number.parseInt(formData.unit_id, 10) : null,
+        tenant_id: formData.tenant_id ? Number.parseInt(formData.tenant_id, 10) : null,
+        estimated_cost: formData.estimated_cost ? Number.parseFloat(formData.estimated_cost) : null,
       };
 
       if (editingRequest) {
-        await updateRequestMutation.mutateAsync({ 
-          requestId: editingRequest.id, 
-          requestData: payload 
+        await updateRequestMutation.mutateAsync({
+          requestId: editingRequest.id,
+          requestData: payload,
         });
+        toast.success('Maintenance request updated successfully!');
       } else {
         await createRequestMutation.mutateAsync(payload);
+        toast.success('Maintenance request created successfully!');
       }
       closeModal();
       setCurrentPage(1); // Reset to first page after creating/editing
-    } catch (error) {
-      console.error("Failed to save request:", error);
+    } catch (error: any) {
+      console.error('Failed to save request:', error);
+      toast.error(error?.message || 'Failed to save maintenance request');
       throw error; // Let the modal handle the error
     }
   };
 
-  const handleEdit = (request) => {
+  const handleEdit = (request: MaintenanceRequest) => {
     setEditingRequest(request);
     setViewingRequest(null);
     setIsModalOpen(true);
   };
 
-  const handleView = (request) => {
+  const handleView = (request: MaintenanceRequest) => {
     setViewingRequest(request);
     setEditingRequest(null);
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (requestId) => {
-    if (window.confirm("Are you sure you want to delete this request?")) {
+  const handleDelete = async (requestId: number) => {
+    if (window.confirm('Are you sure you want to delete this request?')) {
       try {
         await deleteRequestMutation.mutateAsync(requestId);
-      } catch (error) {
-        console.error("Failed to delete request:", error);
+        toast.success('Maintenance request deleted successfully!');
+      } catch (error: any) {
+        console.error('Failed to delete request:', error);
+        toast.error(error?.message || 'Failed to delete maintenance request');
       }
     }
   };
 
-  const handleStatusFilterChange = (newStatus) => {
+  const handleStatusFilterChange = (newStatus: string) => {
     setStatusFilter(newStatus);
     setCurrentPage(1); // Reset to first page when changing filters
   };
 
-  const handlePageChange = (newPage) => {
+  const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
   };
 
   const handleLoadMore = () => {
-    setCurrentPage(prev => prev + 1);
+    setCurrentPage((prev) => prev + 1);
   };
 
   const openModalForNew = () => {
@@ -152,53 +155,56 @@ const Maintenance = () => {
     setViewingRequest(null);
   };
 
-  const TABS = ["All Requests", "Pending", "In Progress", "Completed"];
+  const TABS = ['All Requests', 'Pending', 'In Progress', 'Completed'];
 
-  if (loading && !summary)
-    return <MaintenanceSkeleton />;
+  if (loading && !summary) return <MaintenanceSkeleton />;
   if (error && !summary)
-    return <div className="p-6 text-center text-red-500">Error: {error}</div>;
+    return (
+      <div className="p-6 text-center text-red-500">
+        Error: {error instanceof Error ? error.message : String(error)}
+      </div>
+    );
 
   return (
     <div className="p-6 min-h-screen dark-bg transition-colors duration-300">
       {error && (
         <div className="p-4 mb-4 text-center bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg border border-red-200 dark:border-red-700 transition-colors duration-300">
-          {error}
+          {error instanceof Error ? error.message : String(error)}
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatusCard
           title="Total Requests"
-          count={summary?.total_requests ?? (loading ? "..." : 0)}
+          count={summary?.total_requests ?? (loading ? '...' : 0)}
           icon="fa-tools"
           color="gray"
-          onClick={() => handleStatusFilterChange("All Requests")}
-          active={statusFilter === "All Requests"}
+          onClick={() => handleStatusFilterChange('All Requests')}
+          active={statusFilter === 'All Requests'}
         />
         <StatusCard
           title="Pending"
-          count={summary?.pending ?? (loading ? "..." : 0)}
+          count={summary?.pending ?? (loading ? '...' : 0)}
           icon="fa-hourglass-start"
           color="yellow"
-          onClick={() => handleStatusFilterChange("Pending")}
-          active={statusFilter === "Pending"}
+          onClick={() => handleStatusFilterChange('Pending')}
+          active={statusFilter === 'Pending'}
         />
         <StatusCard
           title="In Progress"
-          count={summary?.in_progress ?? (loading ? "..." : 0)}
+          count={summary?.in_progress ?? (loading ? '...' : 0)}
           icon="fa-tasks"
           color="blue"
-          onClick={() => handleStatusFilterChange("In Progress")}
-          active={statusFilter === "In Progress"}
+          onClick={() => handleStatusFilterChange('In Progress')}
+          active={statusFilter === 'In Progress'}
         />
         <StatusCard
           title="Completed"
-          count={summary?.completed ?? (loading ? "..." : 0)}
+          count={summary?.completed ?? (loading ? '...' : 0)}
           icon="fa-check-circle"
           color="green"
-          onClick={() => handleStatusFilterChange("Completed")}
-          active={statusFilter === "Completed"}
+          onClick={() => handleStatusFilterChange('Completed')}
+          active={statusFilter === 'Completed'}
         />
       </div>
 
@@ -212,18 +218,18 @@ const Maintenance = () => {
                 onClick={() => handleStatusFilterChange(tab)}
                 className={`px-4 py-2 mr-1 rounded-md text-sm font-medium transition-colors duration-150 ${
                   statusFilter === tab
-                    ? "bg-blue-600 dark:bg-blue-500 text-white shadow-sm"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                    ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
                 }`}
               >
                 {tab} (
-                {tab === "All Requests"
+                {tab === 'All Requests'
                   ? summary?.total_requests ?? 0
-                  : tab === "Pending"
+                  : tab === 'Pending'
                   ? summary?.pending ?? 0
-                  : tab === "In Progress"
+                  : tab === 'In Progress'
                   ? summary?.in_progress ?? 0
-                  : tab === "Completed"
+                  : tab === 'Completed'
                   ? summary?.completed ?? 0
                   : 0}
                 )
@@ -249,7 +255,7 @@ const Maintenance = () => {
         ) : (
           <>
             <MaintenanceTable
-              requests={requests}
+              requests={requests as MaintenanceRequest[]}
               onEdit={handleEdit}
               onDelete={handleDelete}
               onView={handleView}
@@ -261,13 +267,9 @@ const Maintenance = () => {
             <div className="px-6 py-4 flex items-center justify-between dark-divider border-t dark-input transition-colors duration-300">
               <div className="text-sm text-gray-700 dark:text-gray-300">
                 Showing page {currentPage} ({requests.length} items)
-                {typeof totalCount === "number" && totalCount > 0 && (
-                  <span className="ml-2">of {totalCount} total</span>
-                )}
-                {statusFilter !== "All Requests" && (
-                  <span className="ml-2 text-blue-600 dark:text-blue-400">
-                    Filtered by: {statusFilter}
-                  </span>
+                {typeof totalCount === 'number' && totalCount > 0 && <span className="ml-2">of {totalCount} total</span>}
+                {statusFilter !== 'All Requests' && (
+                  <span className="ml-2 text-blue-600 dark:text-blue-400">Filtered by: {statusFilter}</span>
                 )}
               </div>
               <div className="flex items-center space-x-2">
@@ -294,7 +296,7 @@ const Maintenance = () => {
                     disabled={loading}
                     className="ml-4 px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-600 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-300"
                   >
-                    {loading ? "Loading..." : "Load More"}
+                    {loading ? 'Loading...' : 'Load More'}
                   </button>
                 )}
               </div>

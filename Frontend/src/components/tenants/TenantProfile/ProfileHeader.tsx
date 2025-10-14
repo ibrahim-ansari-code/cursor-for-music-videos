@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { EnrichedTenant, TenantStatus } from '../../../types/tenant';
+import { EnrichedTenant, TenantStatus, MaintenancePriority, MaintenanceStatus } from '../../../types/tenant';
 import { getInitials } from '../../../utils/tenantUtils';
 
 interface TenantProfileHeaderProps {
@@ -7,6 +7,7 @@ interface TenantProfileHeaderProps {
   onEdit: () => void;
   onDelete: () => void;
   onRefresh: () => void;
+  onNewTicket?: (initialData: any) => void;
 }
 
 const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
@@ -14,6 +15,7 @@ const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
   onEdit,
   onDelete,
   onRefresh,
+  onNewTicket,
 }) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
@@ -57,8 +59,24 @@ const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
   };
 
   const handleNewTicket = () => {
-    // TODO: Implement new maintenance ticket
-    console.log('New ticket');
+    if (!onNewTicket) return;
+    
+    // Get active lease to extract property and unit info
+    const activeLease = tenant.leases?.find(lease => lease.status === 'ACTIVE');
+    
+    // Ensure all IDs are strings (modal expects strings for select inputs)
+    const propertyId = activeLease?.property_id || tenant.current_property_id;
+    const unitId = activeLease?.unit_id || tenant.unit?.id;
+    
+    const initialData = {
+      tenant_id: tenant.id,
+      property_id: propertyId ? String(propertyId) : '',
+      unit_id: unitId ? String(unitId) : '',
+      priority: MaintenancePriority.MEDIUM,  // Uses enum for type safety
+      status: MaintenanceStatus.PENDING,     // Uses enum for type safety
+    };
+
+    onNewTicket(initialData);
   };
 
   const handleUpload = () => {
