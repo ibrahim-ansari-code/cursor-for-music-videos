@@ -39,6 +39,17 @@ import Messages from "./pages/Messages";
 import Properties from "./pages/Properties";
 import PropertyDetail from "./pages/PropertyDetail";
 import Tenants from "./pages/Tenants";
+import TenantProfile from "./pages/TenantProfile";
+// Tenant Profile Tabs (lazy-loaded)
+const TenantOverviewTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/OverviewTab"));
+const TenantLeasesTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/LeasesTab"));
+const TenantDocumentsTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/DocumentsTab"));
+const TenantMaintenanceTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/MaintenanceTab"));
+const TenantPaymentsTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/PaymentsTab"));
+const TenantMessagingTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/MessagingTab"));
+const TenantBackgroundTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/BackgroundTab"));
+const TenantAssetsTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/AssetsTab"));
+const TenantSettingsTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/SettingsTab"));
 import Maintenance from "./pages/Maintenance";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
@@ -107,6 +118,17 @@ const AppRoutes = () => {
         </Route>
         <Route path="messages" element={<Messages />} />
         <Route path="tenants" element={<Tenants />} />
+        <Route path="tenants/:id" element={<TenantProfile />}>
+          <Route index element={<Suspense fallback={<div>Loading...</div>}><TenantOverviewTab /></Suspense>} />
+          <Route path="leases" element={<Suspense fallback={<div>Loading...</div>}><TenantLeasesTab /></Suspense>} />
+          <Route path="documents" element={<Suspense fallback={<div>Loading...</div>}><TenantDocumentsTab /></Suspense>} />
+          <Route path="maintenance" element={<Suspense fallback={<div>Loading...</div>}><TenantMaintenanceTab /></Suspense>} />
+          <Route path="payments" element={<Suspense fallback={<div>Loading...</div>}><TenantPaymentsTab /></Suspense>} />
+          <Route path="messaging" element={<Suspense fallback={<div>Loading...</div>}><TenantMessagingTab /></Suspense>} />
+          <Route path="background" element={<Suspense fallback={<div>Loading...</div>}><TenantBackgroundTab /></Suspense>} />
+          <Route path="assets" element={<Suspense fallback={<div>Loading...</div>}><TenantAssetsTab /></Suspense>} />
+          <Route path="settings" element={<Suspense fallback={<div>Loading...</div>}><TenantSettingsTab /></Suspense>} />
+        </Route>
         <Route path="maintenance" element={<Maintenance />} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />

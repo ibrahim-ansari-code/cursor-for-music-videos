@@ -1,11 +1,17 @@
 import React, { useContext } from "react";
-import { Outlet, useLocation, Link } from "react-router-dom";
+import { Outlet, useLocation, Link, useParams } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import { AuthContext } from "../contexts/AuthContext";
 
 const Layout = () => {
   const { user, signOut } = useContext(AuthContext);
   const location = useLocation();
+  const params = useParams();
+
+  // Note: Removed redundant tenant data fetching
+  // The TenantProfile page is responsible for fetching its own data.
+  // This improves separation of concerns and prevents duplicate API calls.
+  const isTenantProfile = location.pathname.includes('/tenants/') && params.id;
 
   // Map routes to page titles
   const getPageTitle = (pathname) => {
@@ -43,20 +49,36 @@ const Layout = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="dark-panel dark-divider border-b z-10 h-16 transition-colors duration-300 dark-shadow">
+        <header className="dark-panel dark-divider border-b z-10 h-12 transition-colors duration-300 dark-shadow">
           <div className="px-6 h-full flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors duration-300">
-              {getPageTitle(location.pathname)}
-            </h1>
+            {/* Page Title or Breadcrumb */}
+            {isTenantProfile ? (
+              <div className="flex items-center space-x-2 text-xl font-bold">
+                <Link
+                  to="/tenants"
+                  className="text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
+                  Tenants
+                </Link>
+                <span className="text-gray-400 dark:text-gray-500">/</span>
+                <span className="text-gray-900 dark:text-white">
+                  Tenant Profile
+                </span>
+              </div>
+            ) : (
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white transition-colors duration-300">
+                {getPageTitle(location.pathname)}
+              </h1>
+            )}
 
             {/* User dropdown area */}
             <div className="flex items-center space-x-3">
               {/* Link the avatar and name to settings */}
               <Link
                 to="/settings"
-                className="flex items-center space-x-3 cursor-pointer group"
+                className="flex items-center space-x-2.5 cursor-pointer group"
               >
-                <div className="h-8 w-8 rounded-full bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center text-teal-700 dark:text-teal-300 overflow-hidden group-hover:ring-2 group-hover:ring-teal-500 group-hover:ring-offset-2 dark:group-hover:ring-offset-gray-800 transition-all">
+                <div className="h-7 w-7 rounded-full bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center text-teal-700 dark:text-teal-300 overflow-hidden group-hover:ring-2 group-hover:ring-teal-500 group-hover:ring-offset-1 dark:group-hover:ring-offset-gray-800 transition-all">
                   {user?.profile_image_url ? (
                     <img
                       key={user.profile_image_url}
@@ -75,7 +97,7 @@ const Layout = () => {
                       }}
                     />
                   ) : (
-                    <span className="text-xs font-medium">
+                    <span className="text-[10px] font-medium">
                       {getInitials(user?.first_name, user?.last_name)}
                     </span>
                   )}
@@ -84,17 +106,17 @@ const Layout = () => {
                   <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
                     {user?.first_name} {user?.last_name}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize transition-colors duration-300">
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 capitalize transition-colors duration-300">
                     {user?.user_type}
                   </p>
                 </div>
               </Link>
               {/* Logout Button */}
               <button
-                className="text-sm text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center"
+                className="text-sm text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center"
                 onClick={signOut}
               >
-                <i className="fas fa-sign-out-alt mr-2"></i> Logout
+                <i className="fas fa-sign-out-alt mr-1.5"></i> Logout
               </button>
             </div>
           </div>

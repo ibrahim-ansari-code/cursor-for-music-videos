@@ -19,6 +19,7 @@ export const QUERY_KEYS = {
   // Tenants domain
   tenants: {
     all: (params) => ["tenants", "list", params],
+    detail: (id) => ["tenants", "detail", id],
     count: (propertyId) => ["tenants", "count", propertyId],
     byProperty: (propertyId) => ["tenants", "byProperty", propertyId],
   },

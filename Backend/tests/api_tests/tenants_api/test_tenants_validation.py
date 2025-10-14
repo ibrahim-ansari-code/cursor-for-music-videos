@@ -441,6 +441,266 @@ def test_computed_field_display_name_company():
     
     # Test computed field display_name
     assert tenant_response.display_name == "Tech Corp"
-    
+
     # Test computed field full_name
     assert tenant_response.full_name == "Tech Corp (Contact: Jane Smith)"
+
+
+# =============================================================================
+# Emergency Contact Schema Validation Tests
+# =============================================================================
+
+def test_emergency_contact_missing_name():
+    """Test validation error for missing name - covers schemas.py:31-33"""
+    from Backend.api.tenants.schemas import EmergencyContactCreate
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError) as exc_info:
+        EmergencyContactCreate(
+            # name is missing
+            relationship="Brother",
+            phone="555-1234567"
+        )
+
+    errors = exc_info.value.errors()
+    assert any("name" in str(error) for error in errors)
+
+
+def test_emergency_contact_missing_relationship():
+    """Test validation error for missing relationship - covers schemas.py:31-33"""
+    from Backend.api.tenants.schemas import EmergencyContactCreate
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError) as exc_info:
+        EmergencyContactCreate(
+            name="John Emergency",
+            # relationship is missing
+            phone="555-1234567"
+        )
+
+    errors = exc_info.value.errors()
+    assert any("relationship" in str(error) for error in errors)
+
+
+def test_emergency_contact_missing_phone():
+    """Test validation error for missing phone - covers schemas.py:31-33"""
+    from Backend.api.tenants.schemas import EmergencyContactCreate
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError) as exc_info:
+        EmergencyContactCreate(
+            name="John Emergency",
+            relationship="Brother"
+            # phone is missing
+        )
+
+    errors = exc_info.value.errors()
+    assert any("phone" in str(error) for error in errors)
+
+
+def test_emergency_contact_phone_too_short():
+    """Test validation error for phone too short - covers schemas.py:39-40, 42-45"""
+    from Backend.api.tenants.schemas import EmergencyContactCreate
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError) as exc_info:
+        EmergencyContactCreate(
+            name="John Emergency",
+            relationship="Brother",
+            phone="123"  # Too short (less than 10 digits)
+        )
+
+    errors = exc_info.value.errors()
+    assert any("Phone number must contain 10-15 digits" in str(error) for error in errors)
+
+
+def test_emergency_contact_phone_too_long():
+    """Test validation error for phone too long - covers schemas.py:42-45"""
+    from Backend.api.tenants.schemas import EmergencyContactCreate
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError) as exc_info:
+        EmergencyContactCreate(
+            name="John Emergency",
+            relationship="Brother",
+            phone="1234567890123456789012"  # Too long (more than 20 characters)
+        )
+
+    errors = exc_info.value.errors()
+    assert any("Phone number must contain 10-15 digits" in str(error) for error in errors)
+
+
+def test_emergency_contact_invalid_email_format():
+    """Test validation error for invalid email format - covers schemas.py:51-56"""
+    from Backend.api.tenants.schemas import EmergencyContactCreate
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError) as exc_info:
+        EmergencyContactCreate(
+            name="John Emergency",
+            relationship="Brother",
+            phone="555-1234567",
+            email="invalid-email-format"  # Invalid email
+        )
+
+    errors = exc_info.value.errors()
+    assert any("email" in str(error).lower() for error in errors)
+
+
+def test_emergency_contact_valid_phone_formats():
+    """Test various valid phone formats pass validation"""
+    from Backend.api.tenants.schemas import EmergencyContactCreate
+
+    valid_phones = [
+        "5551234567",           # 10 digits
+        "555-123-4567",         # With dashes
+        "(555) 123-4567",       # With parentheses
+        "+1 555 123 4567",      # With country code
+        "555.123.4567",         # With dots
+    ]
+
+    for phone in valid_phones:
+        contact = EmergencyContactCreate(
+            name="John Emergency",
+            relationship="Brother",
+            phone=phone
+        )
+        assert contact.phone == phone
+
+
+def test_emergency_contact_optional_fields_none():
+    """Test that optional fields can be None"""
+    from Backend.api.tenants.schemas import EmergencyContactCreate
+
+    contact = EmergencyContactCreate(
+        name="John Emergency",
+        relationship="Brother",
+        phone="555-1234567"
+        # email, notes, is_primary are optional
+    )
+
+    assert contact.email is None
+    assert contact.notes is None
+    assert contact.is_primary is False  # Default value
+
+
+def test_emergency_contact_update_name_validation():
+    """Test EmergencyContactUpdate name validation - covers schemas.py:77-79"""
+    from Backend.api.tenants.schemas import EmergencyContactUpdate
+
+    # Valid: name can be provided
+    update = EmergencyContactUpdate(name="Updated Name")
+    assert update.name == "Updated Name"
+
+    # Valid: name can be None (not updating)
+    update = EmergencyContactUpdate(phone="555-9999999")
+    assert update.name is None
+
+
+def test_emergency_contact_update_relationship_validation():
+    """Test EmergencyContactUpdate relationship validation - covers schemas.py:77-79"""
+    from Backend.api.tenants.schemas import EmergencyContactUpdate
+
+    # Valid: relationship can be provided
+    update = EmergencyContactUpdate(relationship="Sister")
+    assert update.relationship == "Sister"
+
+    # Valid: relationship can be None (not updating)
+    update = EmergencyContactUpdate(phone="555-9999999")
+    assert update.relationship is None
+
+
+def test_emergency_contact_update_phone_validation():
+    """Test EmergencyContactUpdate phone validation - covers schemas.py:85-92"""
+    from Backend.api.tenants.schemas import EmergencyContactUpdate
+    from pydantic import ValidationError
+
+    # Valid: phone can be provided
+    update = EmergencyContactUpdate(phone="555-9999999")
+    assert update.phone == "555-9999999"
+
+    # Invalid: phone too short
+    with pytest.raises(ValidationError) as exc_info:
+        EmergencyContactUpdate(phone="123")
+
+    errors = exc_info.value.errors()
+    assert any("Phone number must contain 10-15 digits" in str(error) for error in errors)
+
+
+def test_emergency_contact_update_email_validation():
+    """Test EmergencyContactUpdate email validation - covers schemas.py:98-103"""
+    from Backend.api.tenants.schemas import EmergencyContactUpdate
+    from pydantic import ValidationError
+
+    # Valid: email can be provided
+    update = EmergencyContactUpdate(email="newemail@example.com")
+    assert update.email == "newemail@example.com"
+
+    # Valid: email can be None (not updating)
+    update = EmergencyContactUpdate(phone="555-9999999")
+    assert update.email is None
+
+    # Invalid: email format
+    with pytest.raises(ValidationError) as exc_info:
+        EmergencyContactUpdate(email="invalid-email")
+
+    errors = exc_info.value.errors()
+    assert any("email" in str(error).lower() for error in errors)
+
+
+def test_emergency_contact_update_all_fields_none():
+    """Test EmergencyContactUpdate with all fields as None (empty update)"""
+    from Backend.api.tenants.schemas import EmergencyContactUpdate
+
+    # This is valid - partial update with no changes specified
+    update = EmergencyContactUpdate()
+    assert update.name is None
+    assert update.relationship is None
+    assert update.phone is None
+    assert update.email is None
+    assert update.notes is None
+    assert update.is_primary is None
+
+
+def test_emergency_contact_create_with_all_fields():
+    """Test creating emergency contact with all fields populated"""
+    from Backend.api.tenants.schemas import EmergencyContactCreate
+
+    contact = EmergencyContactCreate(
+        name="John Emergency",
+        relationship="Brother",
+        phone="555-1234567",
+        email="john@example.com",
+        notes="Call after 6pm only",
+        is_primary=True
+    )
+
+    assert contact.name == "John Emergency"
+    assert contact.relationship == "Brother"
+    assert contact.phone == "555-1234567"
+    assert contact.email == "john@example.com"
+    assert contact.notes == "Call after 6pm only"
+    assert contact.is_primary is True
+
+
+def test_emergency_contact_response_schema():
+    """Test EmergencyContactResponse schema"""
+    from Backend.api.tenants.schemas import EmergencyContactResponse
+
+    response = EmergencyContactResponse(
+        id="test-uuid-123",
+        name="John Emergency",
+        relationship="Brother",
+        phone="555-1234567",
+        email="john@example.com",
+        is_primary=True,
+        notes="Call after 6pm"
+    )
+
+    assert response.id == "test-uuid-123"
+    assert response.name == "John Emergency"
+    assert response.relationship == "Brother"
+    assert response.phone == "555-1234567"
+    assert response.email == "john@example.com"
+    assert response.is_primary is True
+    assert response.notes == "Call after 6pm"

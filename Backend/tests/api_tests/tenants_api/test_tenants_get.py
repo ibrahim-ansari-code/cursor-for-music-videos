@@ -459,3 +459,108 @@ def test_search_tenants_by_company_name():
         mock_build_query.assert_called_once()
         call_args, _ = mock_build_query.call_args
         assert call_args[2] == search_term
+
+
+# =============================================================================
+# GET TENANT METRICS TESTS - covers router.py:514,521,527
+# =============================================================================
+
+def test_get_tenant_metrics_success():
+    """Test successfully retrieving tenant metrics - covers router.py:514,521,527"""
+    # Arrange
+    tenant_id = 1
+    landlord_id = uuid4()
+    mock_user = create_test_user(user_id=landlord_id)
+
+    # Mock tenant ORM
+    mock_tenant_orm = Tenant(
+        id=tenant_id,
+        first_name="John",
+        last_name="Doe",
+        email="john.doe@example.com",
+        phone=None,
+        status=TenantStatus.ACTIVE,
+        landlord_id=landlord_id,
+        current_property_id=None,
+        created_at=datetime.now(),
+        updated_at=datetime.now()
+    )
+
+    with patch("Backend.api.tenants.router.check_tenant_permission", new_callable=AsyncMock) as mock_check_permission:
+        mock_check_permission.return_value = mock_tenant_orm
+
+        # Override dependencies
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+
+        with TestClientWithHost(app) as client:
+            # Act
+            response = client.get(f"/api/tenants/{tenant_id}/metrics")
+
+        # Assert
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        # Verify metrics response structure
+        assert "payment_performance" in data
+        assert "open_balance" in data
+        assert "ticket_resolution" in data
+        assert "upcoming_events" in data
+        
+        # Verify payment performance structure
+        assert data["payment_performance"]["rate"] is None
+        assert data["payment_performance"]["status"] == "no_data"
+        
+        # Verify open balance structure
+        assert data["open_balance"]["total_balance"] == "0"
+        assert data["open_balance"]["is_overdue"] is False
+
+
+def test_get_tenant_metrics_tenant_not_found():
+    """Test getting metrics for non-existent tenant"""
+    # Arrange
+    tenant_id = 999
+    mock_user = create_test_user()
+
+    with patch("Backend.api.tenants.router.check_tenant_permission", new_callable=AsyncMock) as mock_check_permission:
+        mock_check_permission.side_effect = HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tenant not found"
+        )
+
+        # Override dependencies
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+
+        with TestClientWithHost(app) as client:
+            # Act
+            response = client.get(f"/api/tenants/{tenant_id}/metrics")
+
+        # Assert
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert "Tenant not found" in response.json()["detail"]
+
+
+def test_get_tenant_metrics_forbidden():
+    """Test getting metrics without permission"""
+    # Arrange
+    tenant_id = 1
+    mock_user = create_test_user(email="unauthorized@example.com")
+
+    with patch("Backend.api.tenants.router.check_tenant_permission", new_callable=AsyncMock) as mock_check_permission:
+        mock_check_permission.side_effect = HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view this tenant"
+        )
+
+        # Override dependencies
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+
+        with TestClientWithHost(app) as client:
+            # Act
+            response = client.get(f"/api/tenants/{tenant_id}/metrics")
+
+        # Assert
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert "Not authorized" in response.json()["detail"]

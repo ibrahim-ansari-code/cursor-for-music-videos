@@ -27,7 +27,6 @@ const Integrations: React.FC = memo(() => {
     handleConfirmDisconnect,
     handleCancelDisconnect,
     handleSyncAll,
-    refreshStatus,
     isOperationInProgress,
   } = useQuickBooksIntegration();
 

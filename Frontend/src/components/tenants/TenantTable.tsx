@@ -1,9 +1,13 @@
 import React from "react";
-import { getInitials, formatDate, getStatusBadgeClass } from "../../utils/tenantUtils";
+import { useNavigate } from "react-router-dom";
+import { getInitials, formatDate } from "../../utils/tenantUtils";
+import { TenantTableProps, EnrichedTenant } from "../../types/tenant";
 
-const TenantTable = ({ tenants, onEditTenant, onDeleteTenant, onAddTenant, isLoading }) => {
+const TenantTable: React.FC<TenantTableProps> = ({ tenants, onEditTenant, onDeleteTenant, onAddTenant, isLoading }) => {
+  const navigate = useNavigate();
+
   // Helper function to get tenant display name
-  const getTenantDisplayName = (tenant) => {
+  const getTenantDisplayName = (tenant: EnrichedTenant): string => {
     if (tenant.tenant_type === "Company") {
       return tenant.company_name || "Company Tenant";
     } else {
@@ -12,7 +16,7 @@ const TenantTable = ({ tenants, onEditTenant, onDeleteTenant, onAddTenant, isLoa
   };
 
   // Helper function to get tenant subtitle (for companies, show contact person)
-  const getTenantSubtitle = (tenant) => {
+  const getTenantSubtitle = (tenant: EnrichedTenant): string | null => {
     if (tenant.tenant_type === "Company" && tenant.contact_person) {
       return `Contact: ${tenant.contact_person}`;
     }
@@ -20,7 +24,7 @@ const TenantTable = ({ tenants, onEditTenant, onDeleteTenant, onAddTenant, isLoa
   };
 
   // Helper function to get lease duration display (returns string for combined column)
-  const getLeaseDuration = (tenant) => {
+  const getLeaseDuration = (tenant: EnrichedTenant): string | null => {
     if (!tenant.leases || tenant.leases.length === 0) {
       return null; // Return null so we don't display anything
     }
@@ -149,14 +153,18 @@ const TenantTable = ({ tenants, onEditTenant, onDeleteTenant, onAddTenant, isLoa
             </tr>
           </thead>
           <tbody>
-            {tenants.map((tenant, index) => {
+            {tenants.map((tenant) => {
               const leaseDuration = getLeaseDuration(tenant);
               const displayName = getTenantDisplayName(tenant);
               const subtitle = getTenantSubtitle(tenant);
               
               // data-table CSS now handles zebra striping
               return (
-                <tr key={tenant.id}>
+                <tr
+                  key={tenant.id}
+                  onClick={() => navigate(`/tenants/${tenant.id}`)}
+                  className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
@@ -237,13 +245,19 @@ const TenantTable = ({ tenants, onEditTenant, onDeleteTenant, onAddTenant, isLoa
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                     <div className="inline-flex space-x-3">
                       <button
-                        onClick={() => onEditTenant(tenant)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditTenant(tenant);
+                        }}
                         className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 focus:outline-none transition-colors duration-150"
                       >
                         Edit
                       </button>
                       <button
-                        onClick={() => onDeleteTenant(tenant.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteTenant(tenant.id);
+                        }}
                         className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 focus:outline-none transition-colors duration-150"
                       >
                         Delete

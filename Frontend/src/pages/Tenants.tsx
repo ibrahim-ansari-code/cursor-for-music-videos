@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import TenantModal from "../components/tenants/TenantModal";
 import UpdateTenantModal from "../components/tenants/UpdateTenantModal";
 import TenantTable from "../components/tenants/TenantTable";
-import { TenantsTableSkeleton, StatusCardSkeleton } from "../components/ui/skeletons";
+import { TenantsTableSkeleton } from "../components/ui/skeletons";
 import useDebounce from "../hooks/useDebounce";
 import useFilteredTenants from "../hooks/useFilteredTenants";
 import {
@@ -10,27 +10,34 @@ import {
     getExpiringLeases,
     getInitials,
     formatDate,
-    getStatusBadgeClass,
 } from "../utils/tenantUtils";
 import { useTenants, useDeleteTenant } from "../hooks/useTenants";
 import { useLeases } from "../hooks/useLeases";
 import useDashboardData from "../hooks/useDashboardData";
 import { useOutstandingPayments } from "../hooks/useAccountingQueries";
+import { EnrichedTenant, Lease } from "../types/tenant";
+import type { FetchTenantsParams } from "../utils/api/tenants";
 
-const Tenants = () => {
+type ActiveFilter = null | 'active_leases' | 'expiring' | 'overdue';
+
+interface Notification {
+  type: 'success' | 'error';
+  message: string;
+}
+
+const Tenants: React.FC = () => {
   // Local UI state
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-  const [selectedTenant, setSelectedTenant] = useState(null);
-  const [notification, setNotification] = useState(null);
-  const [actionMenuOpen, setActionMenuOpen] = useState(null);
-  const [activeFilter, setActiveFilter] = useState(null); // null, 'active_leases', 'expiring', 'overdue'
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState<boolean>(false);
+  const [selectedTenant, setSelectedTenant] = useState<EnrichedTenant | null>(null);
+  const [notification, setNotification] = useState<Notification | null>(null);
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>(null); // null, 'active_leases', 'expiring', 'overdue'
 
   // Build query parameters
-  const tenantParams = useMemo(() => {
-    const params = {};
+  const tenantParams = useMemo<FetchTenantsParams>(() => {
+    const params: FetchTenantsParams = {};
     if (debouncedSearchTerm) {
       params.search = debouncedSearchTerm;
     }
@@ -40,7 +47,12 @@ const Tenants = () => {
   // TanStack Query hooks
   const { data: tenants = [], isLoading: tenantsLoading, error: tenantsError } = useTenants(tenantParams);
   const { data: allLeases = [], isLoading: leasesLoading, error: leasesError } = useLeases();
-  const { data: dashData, isLoading: dashLoading, error: dashError } = useDashboardData({});
+  const { data: dashData, loading: dashLoading, error: dashError } = useDashboardData({ 
+    propertyId: undefined, 
+    timePeriod: undefined, 
+    startDate: undefined, 
+    endDate: undefined 
+  });
   const { data: outstandingPayments = [], isLoading: paymentsLoading, error: paymentsError } = useOutstandingPayments();
   const deleteTenantMutation = useDeleteTenant();
 
@@ -48,7 +60,7 @@ const Tenants = () => {
   const tenantsWithLeases = useMemo(() => {
     return tenants.map((tenant) => {
       const tenantLeases = allLeases.filter(
-        (lease) => lease.tenant_id === tenant.id
+        (lease: Lease) => lease.tenant_id === tenant.id
       );
       return {
         ...tenant,
@@ -82,7 +94,7 @@ const Tenants = () => {
 
 
   // Handle sending renewal email via email client
-  const handleSendRenewal = (tenantName, tenantEmail, expiryDate, unitInfo) => {
+  const handleSendRenewal = (tenantName: string, tenantEmail: string | undefined, expiryDate: string, unitInfo: string) => {
     if (!tenantEmail) {
       setNotification({
         type: "error",
@@ -116,13 +128,13 @@ Property Management`;
   };
 
   // Handle editing a tenant
-  const handleEditTenant = (tenant) => {
+  const handleEditTenant = (tenant: EnrichedTenant) => {
     setSelectedTenant(tenant);
     setIsUpdateModalOpen(true);
   };
 
   // Handle tenant save (create/update) - TanStack Query will auto-refresh
-  const handleSaveTenant = async (savedTenant) => {
+  const handleSaveTenant = async () => {
     // Close modals
     setIsModalOpen(false);
     setIsUpdateModalOpen(false);
@@ -130,35 +142,37 @@ Property Management`;
   };
 
   // Handle tenant deletion
-  const handleDeleteTenant = async (tenantId) => {
+  const handleDeleteTenant = async (tenantId: number) => {
     if (window.confirm("Are you sure you want to delete this tenant?")) {
       try {
         await deleteTenantMutation.mutateAsync(tenantId);
       } catch (err) {
         console.error("Failed to delete tenant:", err);
         // Display the specific error message from the backend if available
-        if (err.data && err.data.detail) {
-          console.error("Delete error details:", err.data.detail);
+        if (err && typeof err === 'object' && 'data' in err) {
+          const error = err as { data?: { detail?: string } };
+          if (error.data?.detail) {
+            console.error("Delete error details:", error.data.detail);
+          }
         }
       }
     }
-    // Close action menu
-    setActionMenuOpen(null);
   };
 
   // Handle search input
-  const handleSearchChange = (e) => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
 
   // Handle filter card clicks
-  const handleFilterClick = (filterType) => {
+  const handleFilterClick = (filterType: ActiveFilter) => {
     if (activeFilter === filterType) {
       setActiveFilter(null); // Clear filter if clicking the same one
     } else {
       setActiveFilter(filterType);
     }
   };
+
 
   return (
     <div className="p-6">
@@ -447,7 +461,9 @@ Property Management`;
                   />
                 </svg>
               </div>
-              <p className="text-red-600 dark:text-red-400">{error}</p>
+              <p className="text-red-600 dark:text-red-400">
+                {error instanceof Error ? error.message : String(error)}
+              </p>
             </div>
           </div>
         )}
@@ -457,12 +473,12 @@ Property Management`;
           <TenantsTableSkeleton rowCount={8} />
         ) : (
           <TenantTable
-          tenants={filteredTenants}
-          onEditTenant={handleEditTenant}
-          onDeleteTenant={handleDeleteTenant}
-          onAddTenant={handleAddTenant}
-          isLoading={false}
-        />
+            tenants={filteredTenants}
+            onEditTenant={handleEditTenant}
+            onDeleteTenant={handleDeleteTenant}
+            onAddTenant={handleAddTenant}
+            isLoading={false}
+          />
         )}
       </div>
 

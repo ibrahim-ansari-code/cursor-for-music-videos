@@ -1,5 +1,5 @@
 import logging
-from uuid import UUID as PythonUUID
+from uuid import UUID as PythonUUID, uuid4
 from typing import Any
 
 from fastapi import HTTPException, status, BackgroundTasks
@@ -10,7 +10,11 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from sqlmodel import col
 
+from Backend.api.leases.schemas import LeaseDocumentResponse
 from Backend.api.tenants.schemas import (
+    EmergencyContactCreate,
+    EmergencyContactResponse,
+    EmergencyContactUpdate,
     LeaseResponseSimple,
     PropertyResponseSimple,
     TenantCreate,
@@ -415,12 +419,13 @@ async def enrich_tenants_with_details(
                 tenant_response.unit = unit_info
                 tenant_response.property = property_info
 
-        # Load all leases for this tenant with property/unit details
+        # Load all leases for this tenant with property/unit/document details
         lease_query = (
             select(Lease)
             .options(
                 selectinload(getattr(Lease, "property")),
-                selectinload(getattr(Lease, "unit"))
+                selectinload(getattr(Lease, "unit")),
+                selectinload(getattr(Lease, "documents"))
             )
             .where(col(Lease.tenant_id) == tenant.id)
             .order_by(col(Lease.start_date).desc())
@@ -431,11 +436,11 @@ async def enrich_tenants_with_details(
         lease_responses = []
         for lease in leases:
             lease_response = LeaseResponseSimple.model_validate(lease)
-            
+
             # Add property info to lease
             if lease.property:
                 lease_response.property = PropertyResponseSimple.model_validate(lease.property)
-            
+
             # Add unit info to lease (if lease has a unit)
             if lease.unit:
                 unit_response = UnitResponseSimple.model_validate(lease.unit)
@@ -443,7 +448,13 @@ async def enrich_tenants_with_details(
                 if lease.property:
                     unit_response.property = PropertyResponseSimple.model_validate(lease.property)
                 lease_response.unit = unit_response
-            
+
+            # Add documents to lease response
+            if lease.documents:
+                lease_response.documents = [
+                    LeaseDocumentResponse.model_validate(doc) for doc in lease.documents
+                ]
+
             lease_responses.append(lease_response)
 
         tenant_response.leases = lease_responses
@@ -473,3 +484,232 @@ async def enrich_tenants_with_details(
         response_data.append(tenant_response)
 
     return [t for t in response_data if t is not None and t.id is not None]
+
+
+# === Emergency Contact Atomic Operations ===
+
+async def add_emergency_contact(
+    tenant_id: int,
+    contact_data: EmergencyContactCreate,
+    session: AsyncSession,
+    current_user: User
+) -> EmergencyContactResponse:
+    """
+    Atomically adds a new emergency contact to a tenant.
+
+    This function handles the primary contact logic atomically on the backend,
+    preventing race conditions that could occur with client-side read-modify-write patterns.
+
+    Args:
+        tenant_id: The ID of the tenant to add the contact to
+        contact_data: The emergency contact data to add
+        session: Database session
+        current_user: The current authenticated user
+
+    Returns:
+        The newly created emergency contact with its assigned ID
+
+    Raises:
+        HTTPException: If the tenant is not found, user lacks permission, or validation fails
+    """
+    # Check permissions
+    tenant = await check_tenant_permission(tenant_id, session, current_user, action="update")
+
+    # Get current contacts
+    current_contacts = tenant.emergency_contacts or []
+
+    # Validate maximum contacts limit (enforced at DB level, but check here for better UX)
+    if len(current_contacts) >= 5:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum 5 emergency contacts allowed per tenant"
+        )
+
+    # Generate UUID for the new contact
+    contact_id = str(uuid4())
+
+    # Convert contact data to dict
+    new_contact = contact_data.model_dump()
+    new_contact["id"] = contact_id
+
+    # If this contact is marked as primary, unset all other primary contacts
+    if new_contact.get("is_primary", False):
+        for contact in current_contacts:
+            contact["is_primary"] = False
+
+    # Add the new contact
+    updated_contacts = current_contacts + [new_contact]
+
+    # Update tenant with new contacts array
+    tenant.emergency_contacts = updated_contacts
+    tenant.updated_at = create_audit_datetime()
+
+    try:
+        session.add(tenant)
+        await session.commit()
+        await session.refresh(tenant)
+
+        logger.info(
+            "Emergency contact %s added to tenant %s by user %s",
+            contact_id,
+            tenant_id,
+            current_user.id
+        )
+
+        return EmergencyContactResponse(**new_contact)
+    except Exception as e:
+        await session.rollback()
+        logger.exception("Failed to add emergency contact to tenant %s", tenant_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to add emergency contact"
+        ) from e
+
+
+async def update_emergency_contact(
+    tenant_id: int,
+    contact_id: str,
+    contact_data: EmergencyContactUpdate,
+    session: AsyncSession,
+    current_user: User
+) -> EmergencyContactResponse:
+    """
+    Atomically updates an existing emergency contact.
+
+    This function handles the primary contact logic atomically on the backend,
+    ensuring that only one contact can be marked as primary at a time.
+
+    Args:
+        tenant_id: The ID of the tenant
+        contact_id: The UUID of the contact to update
+        contact_data: The updated contact data (partial update)
+        session: Database session
+        current_user: The current authenticated user
+
+    Returns:
+        The updated emergency contact
+
+    Raises:
+        HTTPException: If the tenant or contact is not found, user lacks permission, or validation fails
+    """
+    # Check permissions
+    tenant = await check_tenant_permission(tenant_id, session, current_user, action="update")
+
+    # Get current contacts
+    current_contacts = tenant.emergency_contacts or []
+
+    # Find the contact to update
+    contact_index = None
+    for idx, contact in enumerate(current_contacts):
+        if contact.get("id") == contact_id:
+            contact_index = idx
+            break
+
+    if contact_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Emergency contact with ID {contact_id} not found"
+        )
+
+    # Get the existing contact
+    existing_contact = current_contacts[contact_index]
+
+    # Apply partial update
+    update_dict = contact_data.model_dump(exclude_unset=True)
+    updated_contact = {**existing_contact, **update_dict}
+
+    # If this contact is being marked as primary, unset all other primary contacts
+    if update_dict.get("is_primary", False):
+        for idx, contact in enumerate(current_contacts):
+            if idx != contact_index:
+                contact["is_primary"] = False
+
+    # Update the contact in the array
+    current_contacts[contact_index] = updated_contact
+
+    # Update tenant with modified contacts array
+    tenant.emergency_contacts = current_contacts
+    tenant.updated_at = create_audit_datetime()
+
+    try:
+        session.add(tenant)
+        await session.commit()
+        await session.refresh(tenant)
+
+        logger.info(
+            "Emergency contact %s updated for tenant %s by user %s",
+            contact_id,
+            tenant_id,
+            current_user.id
+        )
+
+        return EmergencyContactResponse(**updated_contact)
+    except Exception as e:
+        await session.rollback()
+        logger.exception("Failed to update emergency contact %s for tenant %s", contact_id, tenant_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update emergency contact"
+        ) from e
+
+
+async def delete_emergency_contact(
+    tenant_id: int,
+    contact_id: str,
+    session: AsyncSession,
+    current_user: User
+) -> None:
+    """
+    Atomically deletes an emergency contact from a tenant.
+
+    Args:
+        tenant_id: The ID of the tenant
+        contact_id: The UUID of the contact to delete
+        session: Database session
+        current_user: The current authenticated user
+
+    Raises:
+        HTTPException: If the tenant or contact is not found, or user lacks permission
+    """
+    # Check permissions
+    tenant = await check_tenant_permission(tenant_id, session, current_user, action="update")
+
+    # Get current contacts
+    current_contacts = tenant.emergency_contacts or []
+
+    # Find and remove the contact
+    contact_found = False
+    updated_contacts = []
+    for contact in current_contacts:
+        if contact.get("id") == contact_id:
+            contact_found = True
+        else:
+            updated_contacts.append(contact)
+
+    if not contact_found:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Emergency contact with ID {contact_id} not found"
+        )
+
+    # Update tenant with filtered contacts array
+    tenant.emergency_contacts = updated_contacts
+    tenant.updated_at = create_audit_datetime()
+
+    try:
+        session.add(tenant)
+        await session.commit()
+
+        logger.info(
+            "Emergency contact %s deleted from tenant %s by user %s",
+            contact_id,
+            tenant_id,
+            current_user.id
+        )
+    except Exception as e:
+        await session.rollback()
+        logger.exception("Failed to delete emergency contact %s from tenant %s", contact_id, tenant_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete emergency contact"
+        ) from e

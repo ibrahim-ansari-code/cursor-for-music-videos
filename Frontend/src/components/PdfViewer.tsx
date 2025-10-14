@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -44,6 +44,23 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ fileUrl, onError }) => {
   useEffect(() => {
     setPageNumber(1);
   }, [fileUrl]);
+
+  // Memoize PDF.js options to prevent unnecessary Document reloads
+  const pdfOptions = useMemo(() => ({
+    // Use CDN for cmaps (character maps for international PDFs)
+    cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+    cMapPacked: true,
+    // Standard headers for better compatibility
+    httpHeaders: {
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    // IMPORTANT: withCredentials must be false for Azure SAS tokens
+    // SAS authentication happens via URL query parameters (?sv=...&sig=...),
+    // not cookies. Setting to true would unnecessarily send app cookies to Azure.
+    withCredentials: false,
+    // Enable standard fonts for better rendering
+    standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
+  }), []); // Empty dependency array - options never change
 
   const onDocumentLoadSuccess = ({ numPages }: DocumentLoadSuccess): void => {
     setNumPages(numPages);
@@ -192,21 +209,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ fileUrl, onError }) => {
                 </div>
               </div>
             }
-            options={{
-              // Use CDN for cmaps (character maps for international PDFs)
-              cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
-              cMapPacked: true,
-              // Standard headers for better compatibility
-              httpHeaders: {
-                'X-Requested-With': 'XMLHttpRequest',
-              },
-              // IMPORTANT: withCredentials must be false for Azure SAS tokens
-              // SAS authentication happens via URL query parameters (?sv=...&sig=...),
-              // not cookies. Setting to true would unnecessarily send app cookies to Azure.
-              withCredentials: false,
-              // Enable standard fonts for better rendering
-              standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
-            }}
+            options={pdfOptions}
           >
             <Page 
               pageNumber={pageNumber} 
