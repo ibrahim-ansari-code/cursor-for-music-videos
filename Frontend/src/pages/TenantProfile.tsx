@@ -245,6 +245,7 @@ const TenantProfile: React.FC = () => {
         onDelete={handleDelete}
         onRefresh={handleRefresh}
         onNewTicket={openMaintenanceModal}
+        onRecordPayment={openPaymentModal}
       />
 
       {/* Fetching Indicator - Subtle loading bar when refetching in background */}

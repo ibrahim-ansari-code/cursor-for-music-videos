@@ -8,6 +8,7 @@ interface TenantProfileHeaderProps {
   onDelete: () => void;
   onRefresh: () => void;
   onNewTicket?: (initialData: any) => void;
+  onRecordPayment?: (initialData: any) => void;
 }
 
 const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
@@ -16,6 +17,7 @@ const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
   onDelete,
   onRefresh,
   onNewTicket,
+  onRecordPayment,
 }) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
@@ -85,8 +87,36 @@ const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
   };
 
   const handlePayment = () => {
-    // TODO: Implement payment recording
-    console.log('Record payment');
+    if (!onRecordPayment) return;
+    
+    // Get active lease to extract property and payment info
+    const activeLease = tenant.leases?.find(lease => lease.status === 'ACTIVE');
+    
+    if (!activeLease) {
+      // Could show a toast here, but button should be disabled if no active lease
+      return;
+    }
+
+    const tenantName = tenant.tenant_type === 'Company'
+      ? tenant.company_name || 'Company Tenant'
+      : `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim();
+
+    const propertyName = activeLease.property?.name || tenant.property?.name || '';
+    const propertyId = activeLease.property?.id || tenant.current_property_id;
+
+    const initialData = {
+      tenant_id: tenant.id,
+      tenant_name: tenantName,
+      property_id: propertyId?.toString() || '',
+      property_name: propertyName,
+      lease_id: activeLease.id,
+      amount: activeLease.monthly_rent?.toString() || '',
+      payment_date: new Date().toISOString().split('T')[0],
+      payment_method: 'Other',
+      status: 'Paid',
+    };
+
+    onRecordPayment(initialData);
   };
 
   return (
@@ -170,10 +200,10 @@ const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
           <button
             onClick={handleMessage}
             disabled
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50 relative group"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50 relative group"
             title="Coming Soon"
           >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
             Message
@@ -184,19 +214,20 @@ const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
 
           <button
             onClick={handleNewTicket}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             New Ticket
           </button>
 
           <button
             onClick={handleUpload}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
             Upload
@@ -204,9 +235,9 @@ const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
 
           <button
             onClick={handlePayment}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             Payment
