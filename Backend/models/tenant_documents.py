@@ -18,7 +18,7 @@ from typing import Optional, List
 from uuid import UUID, uuid4
 
 from sqlmodel import SQLModel, Field, Column
-from sqlalchemy import ARRAY, String
+from sqlalchemy import ARRAY, String, Enum as PgEnum
 
 from Backend.models.enums import DocumentCategory, DocumentStatus
 
@@ -57,7 +57,13 @@ class TenantDocument(SQLModel, table=True):
     file_type: str = Field(max_length=100, description="MIME type (e.g., application/pdf)")
     
     # ===== DOCUMENT CLASSIFICATION (STRONGLY TYPED) =====
-    document_category: DocumentCategory = Field(description="Category from 14 predefined types")
+    document_category: DocumentCategory = Field(
+        sa_column=Column(
+            PgEnum(DocumentCategory, name="document_category_enum", create_constraint=False, values_callable=lambda obj: [e.value for e in obj]),
+            nullable=False
+        ),
+        description="Category from 14 predefined types"
+    )
     document_type: str = Field(max_length=100, description="Specific type within category (200+ types)")
     
     # ===== ORGANIZATION =====
@@ -79,6 +85,10 @@ class TenantDocument(SQLModel, table=True):
     )
     status: DocumentStatus = Field(
         default=DocumentStatus.PENDING,
+        sa_column=Column(
+            PgEnum(DocumentStatus, name="document_status_enum", create_constraint=False, values_callable=lambda obj: [e.value for e in obj]),
+            nullable=False
+        ),
         description="Document workflow status"
     )
     
