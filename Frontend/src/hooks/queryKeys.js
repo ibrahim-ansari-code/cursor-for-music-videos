@@ -60,6 +60,16 @@ export const QUERY_KEYS = {
     requests: (params) => ["maintenance", "requests", params],
     summary: (params) => ["maintenance", "summary", params],
   },
+
+  // Tenant Documents domain
+  tenantDocuments: {
+    all: () => ["tenantDocuments"],
+    lists: () => ["tenantDocuments", "list"],
+    list: (tenantId, filters) => ["tenantDocuments", "list", tenantId, filters],
+    details: () => ["tenantDocuments", "detail"],
+    detail: (tenantId, documentId) => ["tenantDocuments", "detail", tenantId, documentId],
+    taxonomy: () => ["tenantDocuments", "taxonomy"],
+  },
 };
 
 // Helper functions for query invalidation

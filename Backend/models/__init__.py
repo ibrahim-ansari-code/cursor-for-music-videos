@@ -10,6 +10,7 @@ from . import user
 from . import property
 from . import units
 from . import tenant
+from . import tenant_documents
 from . import lease
 from . import maintenance
 from . import reports
@@ -41,6 +42,7 @@ from .property import Property, PropertyType # PropertyType is in property.py
 from .units import PropertyUnit # PropertyUnit is now in units.py
 from .lease import Lease, LeaseDocument, LeaseStatus
 from .tenant import Tenant, TenantStatus # TenantStatus is in tenant.py
+from .tenant_documents import TenantDocument
 from .maintenance import MaintenanceRequest, MaintenancePriority, MaintenanceStatus
 
 # Accounting models & enums from the 'accounting' subdirectory
@@ -91,6 +93,7 @@ __all__ = [
     "ReportResponse",
     "ReportSummary",
     "Tenant",
+    "TenantDocument",
     "TenantStatus",
     "User",
     "UserAgentThread",

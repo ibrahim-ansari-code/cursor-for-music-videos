@@ -145,3 +145,85 @@ class MaintenanceStatus(str, Enum):
                 pass
         return super()._missing_(value)
 
+
+class DocumentCategory(str, Enum):
+    """
+    Document category enum - matches database document_category_enum.
+    
+    Defines 14 main categories for tenant document organization:
+    - Lease & Core Agreements
+    - Lease Addendums
+    - Condition & Inspections
+    - Province/Territory Forms
+    - Commercial Tenant Files
+    - Applications & Screening/KYC
+    - Insurance & Risk
+    - Financial & Payments
+    - Maintenance/Unit-Level Work
+    - Legal Notices & Tribunal
+    - Communications & Records
+    - Move-In/Move-Out & Assets
+    - Privacy & Data Security
+    - Health/Safety/Accessibility
+    """
+    LEASE_AGREEMENTS = "lease_agreements"
+    LEASE_ADDENDUMS = "lease_addendums"
+    CONDITION_INSPECTIONS = "condition_inspections"
+    PROVINCE_FORMS = "province_forms"
+    COMMERCIAL_FILES = "commercial_files"
+    APPLICATIONS_KYC = "applications_kyc"
+    INSURANCE_RISK = "insurance_risk"
+    FINANCIAL_PAYMENTS = "financial_payments"
+    MAINTENANCE_WORK = "maintenance_work"
+    LEGAL_NOTICES = "legal_notices"
+    COMMUNICATIONS = "communications"
+    MOVE_IN_OUT = "move_in_out"
+    PRIVACY_SECURITY = "privacy_security"
+    HEALTH_SAFETY = "health_safety"
+
+    @classmethod
+    def _missing_(cls, value: Any) -> Optional["DocumentCategory"]:
+        if isinstance(value, str):
+            # Case-insensitive matching for value
+            lower_value = value.lower()
+            for member in cls:
+                if member.value.lower() == lower_value:
+                    return member
+            # Case-insensitive matching for member name
+            try:
+                return cls[value.upper()]
+            except KeyError:
+                pass
+        return super()._missing_(value)
+
+
+class DocumentStatus(str, Enum):
+    """
+    Document status enum - matches database document_status_enum.
+    
+    Defines document workflow states:
+    - PENDING: Awaiting review or verification
+    - VERIFIED: Approved and verified by admin
+    - REJECTED: Rejected or invalid document
+    - EXPIRED: Document has passed its expiry date
+    """
+    PENDING = "pending"
+    VERIFIED = "verified"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+
+    @classmethod
+    def _missing_(cls, value: Any) -> Optional["DocumentStatus"]:
+        if isinstance(value, str):
+            # Case-insensitive matching for value
+            lower_value = value.lower()
+            for member in cls:
+                if member.value.lower() == lower_value:
+                    return member
+            # Case-insensitive matching for member name
+            try:
+                return cls[value.upper()]
+            except KeyError:
+                pass
+        return super()._missing_(value)
+

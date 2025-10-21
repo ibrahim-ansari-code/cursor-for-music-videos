@@ -308,6 +308,47 @@ setattr(upload_property_image_to_blob, '__annotations__', {
 })
 
 
+# Tenant document upload function - follows same pattern as existing document uploads
+upload_tenant_document_to_blob = functools.partial(
+    _upload_to_blob,
+    container_name="tenant-documents",
+    default_filename_prefix="tenant_document",
+    safe_filename_suffix_limit=100
+)
+setattr(upload_tenant_document_to_blob, '__doc__', """
+    Asynchronously uploads a tenant document file to Azure Blob Storage and returns its public URL.
+
+    Uploads the provided file to the 'tenant-documents' container, generating a
+    unique blob name using the user ID and a UUID to prevent collisions.
+    Supports various document types: PDF, DOCX, images, etc.
+    Returns the public URL of the uploaded file.
+
+    Args:
+        file (UploadFile): The tenant document file to upload (PDF, DOCX, PNG, JPG, HEIC, etc.).
+        user_id (PythonUUID): The user identifier used to namespace the uploaded file.
+
+    Returns:
+        str: The public URL of the uploaded tenant document file.
+
+    Raises:
+        ConnectionError: If the Azure Blob Storage client is not initialized.
+        Exception: If file upload fails.
+        
+    Example:
+        >>> from uuid import UUID
+        >>> from fastapi import UploadFile
+        >>> user_id = UUID('123e4567-e89b-12d3-a456-426614174000')
+        >>> file_url = await upload_tenant_document_to_blob(file, user_id)
+        >>> print(file_url)
+        https://storage.blob.core.windows.net/tenant-documents/user_123.../doc.pdf
+""")
+setattr(upload_tenant_document_to_blob, '__annotations__', {
+    'file': UploadFile,
+    'user_id': PythonUUID,
+    'return': str
+})
+
+
 async def delete_blob_by_url(blob_url: str) -> bool:
     """
     Deletes a blob from Azure Blob Storage using its public URL.
@@ -473,7 +514,7 @@ def generate_sas_token_for_blob(
 async def generate_secure_document_url(
     blob_url: str,
     user_id: PythonUUID,
-    document_id: int,
+    document_id: int | str,
     expires_in_hours: int | None = None,
     client_ip: str | None = None
 ) -> dict:
@@ -488,7 +529,7 @@ async def generate_secure_document_url(
     Args:
         blob_url: Original Azure Blob URL (without SAS token)
         user_id: UUID of user requesting access
-        document_id: ID of document being accessed
+        document_id: ID of document being accessed (int or UUID string for logging)
         expires_in_hours: Token expiration (default: from config)
         client_ip: Optional client IP for restriction
         

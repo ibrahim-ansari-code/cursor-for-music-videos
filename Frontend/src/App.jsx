@@ -43,7 +43,7 @@ import TenantProfile from "./pages/TenantProfile";
 // Tenant Profile Tabs (lazy-loaded)
 const TenantOverviewTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/OverviewTab"));
 const TenantLeasesTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/LeasesTab"));
-const TenantDocumentsTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/DocumentsTab"));
+const TenantDocumentsTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/DocumentsTab/DocumentsTab"));
 const TenantMaintenanceTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/MaintenanceTab"));
 const TenantPaymentsTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/PaymentsTab"));
 const TenantMessagingTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/MessagingTab"));

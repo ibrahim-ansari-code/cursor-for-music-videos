@@ -263,6 +263,8 @@ try:
     from Backend.api.properties.image_router import router as property_images_router
     from Backend.api.reports import router as reports_router
     from Backend.api.tenants.router import router as tenants_router
+    from Backend.api.tenants.documents.router import router as tenant_documents_router
+    from Backend.api.tenants.documents.router import taxonomy_router as document_taxonomy_router
     from Backend.api.units.router import router as units_router
     from Backend.api.maintenance.router import router as maintenance_router
     from Backend.api.quickbooks.router import router as quickbooks_router
@@ -278,6 +280,8 @@ try:
     api_main_router.include_router(accounting_api_router, prefix="/accounting")
     api_main_router.include_router(agent_router)
     api_main_router.include_router(tenants_router)
+    api_main_router.include_router(tenant_documents_router)  # Includes /tenants/{tenant_id}/documents endpoints
+    api_main_router.include_router(document_taxonomy_router)  # Includes /document-types/taxonomy endpoint
     api_main_router.include_router(units_router)
     api_main_router.include_router(reports_router)
     api_main_router.include_router(health_router)
