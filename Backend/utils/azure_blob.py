@@ -70,6 +70,16 @@ async def _upload_to_blob(
     blob_name = f"user_{safe_user_id}/{uuid.uuid4()}_{safe_filename_suffix}"
 
     container_client = blob_service_client.get_container_client(container_name)
+    
+    # Create container if it doesn't exist (idempotent operation)
+    try:
+        await container_client.create_container()
+        logger.info(f"Created container '{container_name}'")
+    except ResourceExistsError:
+        # Container already exists, which is fine
+        pass
+    except Exception as e:
+        logger.warning(f"Could not create container '{container_name}': {e}")
 
     blob_client = container_client.get_blob_client(blob_name)
 

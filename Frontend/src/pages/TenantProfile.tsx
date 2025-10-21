@@ -14,6 +14,7 @@ import FilePreviewModal from '../components/FilePreviewModal';
 import NewPaymentModal from '../components/accounting/modals/NewPaymentModal';
 import EmergencyContactModal from '../components/tenants/modals/EmergencyContactModal';
 import MaintenanceRequestModal from '../components/maintenance/MaintenanceRequestModal.tsx';
+import DocumentUploadModal from '../components/tenants/TenantProfile/tabs/DocumentsTab/DocumentUploadModal';
 import { createMaintenanceRequest } from '../utils/api';
 
 const TenantProfile: React.FC = () => {
@@ -38,6 +39,9 @@ const TenantProfile: React.FC = () => {
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [maintenanceModalData, setMaintenanceModalData] = useState<any>(null);
   const [isSubmittingMaintenance, setIsSubmittingMaintenance] = useState(false);
+
+  // Document Upload modal state (lifted to this level for proper fixed positioning and z-index)
+  const [showDocumentUploadModal, setShowDocumentUploadModal] = useState(false);
 
   // Fetch tenant data with optimized caching strategy
   // - staleTime: 2 minutes (allows tab switching without refetch)
@@ -183,6 +187,14 @@ const TenantProfile: React.FC = () => {
     }
   };
 
+  const openDocumentUploadModal = () => {
+    setShowDocumentUploadModal(true);
+  };
+
+  const closeDocumentUploadModal = () => {
+    setShowDocumentUploadModal(false);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
@@ -246,6 +258,7 @@ const TenantProfile: React.FC = () => {
         onRefresh={handleRefresh}
         onNewTicket={openMaintenanceModal}
         onRecordPayment={openPaymentModal}
+        onUploadDocument={openDocumentUploadModal}
       />
 
       {/* Fetching Indicator - Subtle loading bar when refetching in background */}
@@ -281,7 +294,7 @@ const TenantProfile: React.FC = () => {
 
       {/* Main Content */}
       <div className="p-6 max-w-[1600px] mx-auto">
-        <Outlet context={{ tenant, refetch, openFilePreviewModal, closeFilePreviewModal, openPaymentModal, openEmergencyContactModal, openMaintenanceModal }} />
+        <Outlet context={{ tenant, refetch, openFilePreviewModal, closeFilePreviewModal, openPaymentModal, openEmergencyContactModal, openMaintenanceModal, openDocumentUploadModal }} />
       </div>
 
       {/* File Preview Modal - Rendered at root level for proper fixed positioning */}
@@ -324,6 +337,20 @@ const TenantProfile: React.FC = () => {
         isViewing={false}
         isSubmitting={isSubmittingMaintenance}
       />
+
+      {/* Document Upload Modal - Rendered at root level for proper fixed positioning and z-index */}
+      {tenant && (
+        <DocumentUploadModal
+          isOpen={showDocumentUploadModal}
+          onClose={closeDocumentUploadModal}
+          tenantId={tenant.id?.toString() || ''}
+          tenantName={
+            tenant.tenant_type === 'Company'
+              ? tenant.company_name || tenant.contact_person || 'Company'
+              : `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim() || 'Tenant'
+          }
+        />
+      )}
     </div>
   );
 };

@@ -1,16 +1,20 @@
 """
-Unit tests for Azure Blob SAS token generation functions.
+Unit tests for Azure Blob SAS token generation and upload functions.
 """
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from datetime import datetime, timedelta
 from uuid import uuid4
+from io import BytesIO
+
+from azure.core.exceptions import ResourceExistsError
 
 from Backend.utils.azure_blob import (
     extract_blob_info_from_url,
     generate_sas_token_for_blob,
     generate_secure_document_url,
+    _upload_to_blob,
 )
 
 # Mark all tests in this module as unit tests
@@ -197,4 +201,96 @@ class TestGenerateSecureDocumentUrl:
         mock_gen_sas.assert_called_once()
         call_kwargs = mock_gen_sas.call_args[1]
         assert call_kwargs['expires_in_hours'] == 4
+
+
+class TestUploadToBlobContainerCreation:
+    """Tests for _upload_to_blob container auto-creation feature."""
+    
+    @patch('Backend.utils.azure_blob.blob_service_client')
+    @patch('Backend.utils.azure_blob.settings')
+    async def test_upload_creates_new_container(self, mock_settings, mock_blob_service):
+        """Test that upload creates container if it doesn't exist."""
+        # Arrange
+        mock_settings.AZURE_BLOB_PUBLIC_URL = "https://storage.blob.core.windows.net"
+        
+        # Mock file
+        mock_file = AsyncMock()
+        mock_file.filename = "test.pdf"
+        mock_file.content_type = "application/pdf"
+        mock_file.file = BytesIO(b"test content")
+        mock_file.size = 100
+        mock_file.seek = AsyncMock()
+        mock_file.close = AsyncMock()
+        
+        # Mock container client - simulate container doesn't exist
+        mock_container_client = MagicMock()
+        mock_container_client.create_container = AsyncMock()  # First upload - creates container
+        mock_container_client.get_blob_client = MagicMock()
+        mock_blob_service.get_container_client.return_value = mock_container_client
+        
+        # Mock blob client
+        mock_blob_client = MagicMock()
+        mock_blob_client.upload_blob = AsyncMock(return_value=None)
+        mock_container_client.get_blob_client.return_value = mock_blob_client
+        
+        user_id = uuid4()
+        
+        # Act
+        result = await _upload_to_blob(
+            file=mock_file,
+            user_id=user_id,
+            container_name="tenant-documents",
+            default_filename_prefix="tenant_document",
+            safe_filename_suffix_limit=100
+        )
+        
+        # Assert
+        mock_container_client.create_container.assert_called_once()  # Container was created
+        mock_blob_client.upload_blob.assert_called_once()  # File was uploaded
+        assert "tenant-documents" in result
+        assert result.startswith("https://storage.blob.core.windows.net")
+    
+    @patch('Backend.utils.azure_blob.blob_service_client')
+    @patch('Backend.utils.azure_blob.settings')
+    async def test_upload_handles_existing_container(self, mock_settings, mock_blob_service):
+        """Test that upload handles ResourceExistsError gracefully when container already exists."""
+        # Arrange
+        mock_settings.AZURE_BLOB_PUBLIC_URL = "https://storage.blob.core.windows.net"
+        
+        # Mock file
+        mock_file = AsyncMock()
+        mock_file.filename = "test.pdf"
+        mock_file.content_type = "application/pdf"
+        mock_file.file = BytesIO(b"test content")
+        mock_file.size = 100
+        mock_file.seek = AsyncMock()
+        mock_file.close = AsyncMock()
+        
+        # Mock container client - simulate container already exists
+        mock_container_client = MagicMock()
+        mock_container_client.create_container = AsyncMock(side_effect=ResourceExistsError("Container exists"))
+        mock_container_client.get_blob_client = MagicMock()
+        mock_blob_service.get_container_client.return_value = mock_container_client
+        
+        # Mock blob client
+        mock_blob_client = MagicMock()
+        mock_blob_client.upload_blob = AsyncMock(return_value=None)
+        mock_container_client.get_blob_client.return_value = mock_blob_client
+        
+        user_id = uuid4()
+        
+        # Act
+        result = await _upload_to_blob(
+            file=mock_file,
+            user_id=user_id,
+            container_name="tenant-documents",
+            default_filename_prefix="tenant_document",
+            safe_filename_suffix_limit=100
+        )
+        
+        # Assert
+        mock_container_client.create_container.assert_called_once()  # Attempted to create
+        mock_blob_client.upload_blob.assert_called_once()  # Upload still succeeded
+        assert "tenant-documents" in result
+        # Verify upload continued despite ResourceExistsError
 

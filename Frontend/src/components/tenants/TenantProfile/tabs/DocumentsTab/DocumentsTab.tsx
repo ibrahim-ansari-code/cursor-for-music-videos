@@ -12,12 +12,12 @@ import { DocumentFilters as DocumentFiltersType } from '../../../../../types/ten
 import { useTenantDocuments } from '../../../../../hooks/useTenantDocuments';
 import DocumentFilters from './DocumentFilters';
 import DocumentsTable from './DocumentsTable';
-import DocumentUploadModal from './DocumentUploadModal';
 
 interface OutletContext {
   tenant: EnrichedTenant;
   refetch: () => void;
   openFilePreviewModal: (url: string, name: string) => void;
+  openDocumentUploadModal: () => void;
 }
 
 const DocumentsTab: React.FC = () => {
@@ -25,9 +25,6 @@ const DocumentsTab: React.FC = () => {
   
   // Filter state
   const [filters, setFilters] = useState<DocumentFiltersType>({});
-  
-  // Modal state
-  const [showUploadModal, setShowUploadModal] = useState(false);
 
   // Guard: Handle undefined context gracefully (occurs during refetch or initial load)
   if (!context || !context.tenant) {
@@ -41,7 +38,7 @@ const DocumentsTab: React.FC = () => {
     );
   }
 
-  const { tenant, openFilePreviewModal } = context;
+  const { tenant, openFilePreviewModal, openDocumentUploadModal } = context;
 
   // Fetch documents with filters
   const { data: documentsResponse, isLoading, error, refetch } = useTenantDocuments(
@@ -51,26 +48,6 @@ const DocumentsTab: React.FC = () => {
 
   const documents = documentsResponse?.documents || [];
   const totalCount = documentsResponse?.total || 0;
-
-  // Handle upload modal
-  const handleOpenUploadModal = () => {
-    setShowUploadModal(true);
-  };
-
-  const handleCloseUploadModal = () => {
-    setShowUploadModal(false);
-  };
-
-  // Get tenant display name
-  const getTenantDisplayName = (): string => {
-    if (tenant.tenant_type === 'Company') {
-      return tenant.company_name || tenant.contact_person || 'Company';
-    }
-    if (tenant.first_name || tenant.last_name) {
-      return `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim();
-    }
-    return 'Tenant';
-  };
 
   // Error state
   if (error) {
@@ -104,7 +81,7 @@ const DocumentsTab: React.FC = () => {
         <DocumentFilters
           filters={filters}
           onFiltersChange={setFilters}
-          onUploadClick={handleOpenUploadModal}
+          onUploadClick={openDocumentUploadModal}
           documentCount={totalCount}
         />
 
@@ -127,14 +104,6 @@ const DocumentsTab: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Upload Modal */}
-      <DocumentUploadModal
-        isOpen={showUploadModal}
-        onClose={handleCloseUploadModal}
-        tenantId={tenant.id?.toString() || ''}
-        tenantName={getTenantDisplayName()}
-      />
     </div>
   );
 };

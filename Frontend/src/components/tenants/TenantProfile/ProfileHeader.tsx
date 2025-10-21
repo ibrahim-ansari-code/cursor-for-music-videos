@@ -9,6 +9,7 @@ interface TenantProfileHeaderProps {
   onRefresh: () => void;
   onNewTicket?: (initialData: any) => void;
   onRecordPayment?: (initialData: any) => void;
+  onUploadDocument?: () => void;
 }
 
 const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
@@ -18,6 +19,7 @@ const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
   onRefresh,
   onNewTicket,
   onRecordPayment,
+  onUploadDocument,
 }) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
@@ -82,8 +84,9 @@ const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
   };
 
   const handleUpload = () => {
-    // TODO: Implement document upload
-    console.log('Upload document');
+    if (onUploadDocument) {
+      onUploadDocument();
+    }
   };
 
   const handlePayment = () => {
