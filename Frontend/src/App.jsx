@@ -107,10 +107,10 @@ const AppRoutes = () => {
       >
         <Route index element={<Navigate to="/dashboard" />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="properties" element={<Properties />} />
-        <Route path="properties/:id" element={<PropertyDetail />} />
-        <Route path="leases" element={<Leases />} />
-        <Route path="vendors" element={<Vendors />} />
+        <Route path="properties" element={<Suspense fallback={<div>Loading...</div>}><Properties /></Suspense>} />
+        <Route path="properties/:id" element={<Suspense fallback={<div>Loading...</div>}><PropertyDetail /></Suspense>} />
+        <Route path="leases" element={<Suspense fallback={<div>Loading...</div>}><Leases /></Suspense>} />
+        <Route path="vendors" element={<Suspense fallback={<div>Loading...</div>}><Vendors /></Suspense>} />
         <Route path="accounting/*" element={<Suspense fallback={<div>Loading...</div>}><Accounting /></Suspense>}>
           <Route index element={<Navigate to="overview" />} />
           <Route path="overview" element={<Suspense fallback={<div>Loading...</div>}><OverviewTab /></Suspense>} />
@@ -119,9 +119,9 @@ const AppRoutes = () => {
           <Route path="invoices" element={<Suspense fallback={<div>Loading...</div>}><InvoicesTab /></Suspense>} />
           <Route path="rent-tracker" element={<Suspense fallback={<div>Loading...</div>}><RentTrackerTab /></Suspense>} />
         </Route>
-        <Route path="messages" element={<Messages />} />
-        <Route path="tenants" element={<Tenants />} />
-        <Route path="tenants/:id" element={<TenantProfile />}>
+        <Route path="messages" element={<Suspense fallback={<div>Loading...</div>}><Messages /></Suspense>} />
+        <Route path="tenants" element={<Suspense fallback={<div>Loading...</div>}><Tenants /></Suspense>} />
+        <Route path="tenants/:id" element={<Suspense fallback={<div>Loading...</div>}><TenantProfile /></Suspense>}>
           <Route index element={<Suspense fallback={<div>Loading...</div>}><TenantOverviewTab /></Suspense>} />
           <Route path="leases" element={<Suspense fallback={<div>Loading...</div>}><TenantLeasesTab /></Suspense>} />
           <Route path="documents" element={<Suspense fallback={<div>Loading...</div>}><TenantDocumentsTab /></Suspense>} />
@@ -132,10 +132,10 @@ const AppRoutes = () => {
           <Route path="assets" element={<Suspense fallback={<div>Loading...</div>}><TenantAssetsTab /></Suspense>} />
           <Route path="settings" element={<Suspense fallback={<div>Loading...</div>}><TenantSettingsTab /></Suspense>} />
         </Route>
-        <Route path="maintenance" element={<Maintenance />} />
-        <Route path="reports" element={<Reports />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="integrations" element={<Integrations />} />
+        <Route path="maintenance" element={<Suspense fallback={<div>Loading...</div>}><Maintenance /></Suspense>} />
+        <Route path="reports" element={<Suspense fallback={<div>Loading...</div>}><Reports /></Suspense>} />
+        <Route path="settings" element={<Suspense fallback={<div>Loading...</div>}><Settings /></Suspense>} />
+        <Route path="integrations" element={<Suspense fallback={<div>Loading...</div>}><Integrations /></Suspense>} />
       </Route>
       <Route
         path="/login"
