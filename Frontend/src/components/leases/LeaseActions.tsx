@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import * as Sentry from '@sentry/react';
 import DocumentDropdown from './DocumentDropdown';
 import type { LeaseWithDocuments, LeaseDocument } from '../../types/lease';
@@ -20,29 +20,11 @@ const LeaseActions: React.FC<LeaseActionsProps> = ({
   onDocumentUpload,
   onDocumentPreview,
 }) => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  const handleToggleDropdown = () => {
-    Sentry.logger.trace('Toggling document dropdown', {
-      leaseId: lease.id,
-      documentCount: lease.documents?.length || 0,
-      opening: !isDropdownOpen,
-    });
-    setIsDropdownOpen((prev) => !prev);
-  };
-
   const handlePreview = async (document: LeaseDocument) => {
-    Sentry.logger.debug('Document preview clicked from dropdown', {
-      leaseId: lease.id,
-      documentId: document.id,
-      documentType: document.document_type,
-    });
-    setIsDropdownOpen(false);
-    
     try {
       await onDocumentPreview(lease, document);
     } catch (error: any) {
-      Sentry.logger.error('Document preview failed', {
+      Sentry.logger.error('Document preview failed in actions', {
         error: error.message,
         leaseId: lease.id,
         documentId: document.id,
@@ -56,12 +38,7 @@ const LeaseActions: React.FC<LeaseActionsProps> = ({
     <div className="flex items-center justify-center space-x-2">
       {/* Documents dropdown or upload button */}
       {hasDocuments ? (
-        <DocumentDropdown
-          lease={lease}
-          isOpen={isDropdownOpen}
-          onToggle={handleToggleDropdown}
-          onPreview={handlePreview}
-        />
+        <DocumentDropdown lease={lease} onPreview={handlePreview} />
       ) : (
         <button
           type="button"

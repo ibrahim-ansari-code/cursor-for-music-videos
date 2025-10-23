@@ -18,6 +18,7 @@
     "@hookform/resolvers": "^5.2.1",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@react-google-maps/api": "^2.20.7",
     "@sentry/react": "^9.46.0",
     "@sentry/vite-plugin": "^4.3.0",

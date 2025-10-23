@@ -160,11 +160,9 @@ export interface LeaseRowProps {
   actionHandlers: LeaseActionHandlers;
 }
 
-// Document dropdown props
+// Document dropdown props (simplified - Radix UI handles open/close state)
 export interface DocumentDropdownProps {
   lease: LeaseWithDocuments;
-  isOpen: boolean;
-  onToggle: () => void;
   onPreview: (document: LeaseDocument) => Promise<void>;
 }
 
