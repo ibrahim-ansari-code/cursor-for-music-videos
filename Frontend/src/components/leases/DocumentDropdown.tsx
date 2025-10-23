@@ -59,7 +59,7 @@ const DocumentDropdown: React.FC<DocumentDropdownProps> = ({ lease, onPreview })
 
       <DropdownMenu.Portal>
         <DropdownMenu.Content
-          className="min-w-[14rem] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
+          className="min-w-[14rem] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-[9999]"
           sideOffset={5}
           align="end"
           collisionPadding={10}

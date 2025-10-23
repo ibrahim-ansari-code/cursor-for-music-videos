@@ -25,9 +25,19 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ResetPassword from "./pages/ResetPassword";
 
-// Pages
-import Leases from "./pages/Leases";
-import Vendors from "./pages/Vendors";
+// Pages (lazy-loaded for automatic code splitting)
+const Leases = React.lazy(() => import("./pages/Leases"));
+const Vendors = React.lazy(() => import("./pages/Vendors"));
+const Messages = React.lazy(() => import("./pages/Messages"));
+const Properties = React.lazy(() => import("./pages/Properties"));
+const PropertyDetail = React.lazy(() => import("./pages/PropertyDetail"));
+const Tenants = React.lazy(() => import("./pages/Tenants"));
+const TenantProfile = React.lazy(() => import("./pages/TenantProfile"));
+const Maintenance = React.lazy(() => import("./pages/Maintenance.tsx"));
+const Reports = React.lazy(() => import("./pages/Reports"));
+const Settings = React.lazy(() => import("./pages/Settings"));
+const Integrations = React.lazy(() => import("./pages/Integrations"));
+
 // Accounting pages/tabs (lazy-loaded)
 const Accounting = React.lazy(() => import("./pages/Accounting"));
 const OverviewTab = React.lazy(() => import("./components/accounting/OverviewTab"));
@@ -35,11 +45,6 @@ const PaymentsTab = React.lazy(() => import("./components/accounting/PaymentsTab
 const ExpensesTab = React.lazy(() => import("./components/accounting/ExpensesTab"));
 const RentTrackerTab = React.lazy(() => import("./components/accounting/RentTrackerTab"));
 const InvoicesTab = React.lazy(() => import("./components/accounting/InvoicesTab"));
-import Messages from "./pages/Messages";
-import Properties from "./pages/Properties";
-import PropertyDetail from "./pages/PropertyDetail";
-import Tenants from "./pages/Tenants";
-import TenantProfile from "./pages/TenantProfile";
 // Tenant Profile Tabs (lazy-loaded)
 const TenantOverviewTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/OverviewTab"));
 const TenantLeasesTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/LeasesTab"));
@@ -50,10 +55,8 @@ const TenantMessagingTab = React.lazy(() => import("./components/tenants/TenantP
 const TenantBackgroundTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/BackgroundTab"));
 const TenantAssetsTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/AssetsTab"));
 const TenantSettingsTab = React.lazy(() => import("./components/tenants/TenantProfile/tabs/SettingsTab"));
-import Maintenance from "./pages/Maintenance.tsx";
-import Reports from "./pages/Reports";
-import Settings from "./pages/Settings";
-import Integrations from "./pages/Integrations";
+
+// QuickBooks callback (eager - needed for OAuth flow)
 import QuickBooksCallback from "./pages/QuickBooksCallback";
 
 /**

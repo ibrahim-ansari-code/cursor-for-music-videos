@@ -11,17 +11,17 @@ describe('Vite Chunking Strategy', () => {
   });
 
   describe('Critical React Configuration', () => {
-    it('should have React and ReactDOM in the same chunk', () => {
-      // Check that the config properly bundles React together
-      expect(viteConfig).toContain('react-vendor');
-      expect(viteConfig).toContain("id.includes('/react/')");
-      expect(viteConfig).toContain("id.includes('react-dom')");
+    it('should deduplicate React to prevent multiple instances', () => {
+      // Using resolve.dedupe instead of manual chunking to avoid Radix UI bundling conflicts
+      expect(viteConfig).toContain('dedupe');
+      expect(viteConfig).toContain('react');
+      expect(viteConfig).toContain('react-dom');
     });
 
-    it('should separate React-dependent libraries from React core', () => {
-      // Verify React Router is in a separate chunk
-      expect(viteConfig).toContain("id.includes('react-router')");
-      expect(viteConfig).toContain('react-libs');
+    it('should use automatic code splitting via lazy loading', () => {
+      // We use React.lazy() for route-based splitting instead of manualChunks
+      // This avoids React context/hook conflicts with Radix UI
+      expect(viteConfig).toContain('inlineDynamicImports: false');
     });
 
     it('should have global defined as globalThis for browser compatibility', () => {
@@ -37,11 +37,11 @@ describe('Vite Chunking Strategy', () => {
   });
 
   describe('Chunk Optimization', () => {
-    it('should separate large dependencies into dedicated chunks', () => {
-      expect(viteConfig).toContain('charts');
-      expect(viteConfig).toContain('recharts');
-      expect(viteConfig).toContain('pdf-libs');
-      expect(viteConfig).toContain('pdfjs-dist');
+    it('should use automatic chunking for dependencies', () => {
+      // Vite automatically splits large dependencies when using lazy loading
+      // No manual chunking needed (prevents React bundling conflicts)
+      expect(viteConfig).toContain('chunkFileNames');
+      expect(viteConfig).toContain('assets/[name]-[hash].js');
     });
 
     it('should have proper chunk naming configuration', () => {
@@ -49,15 +49,16 @@ describe('Vite Chunking Strategy', () => {
       expect(viteConfig).toContain('assets/[name]-[hash].js');
     });
 
-    it('should use manualChunks function for intelligent splitting', () => {
-      expect(viteConfig).toContain('manualChunks(id)');
-      expect(viteConfig).toContain('node_modules');
+    it('should not use manualChunks to avoid React bundling conflicts', () => {
+      // We intentionally removed manualChunks because it was causing
+      // "Cannot read properties of undefined (reading 'createContext')" errors
+      // with Radix UI in production builds
+      expect(viteConfig).not.toContain('manualChunks(id)');
     });
 
-    it('should handle vendor dependencies properly', () => {
-      expect(viteConfig).toContain("return 'vendor'");
-      expect(viteConfig).toContain('supabase');
-      expect(viteConfig).toContain('lodash');
+    it('should include Radix UI in optimizeDeps', () => {
+      expect(viteConfig).toContain('@radix-ui/react-dialog');
+      expect(viteConfig).toContain('@radix-ui/react-dropdown-menu');
     });
   });
 
