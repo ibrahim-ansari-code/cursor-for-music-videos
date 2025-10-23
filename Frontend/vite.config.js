@@ -96,6 +96,8 @@ export default defineConfig({
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
         // Ensure proper chunk loading order
+        inlineDynamicImports: false,
+        // Ensure React is available globally for all chunks
         globals: {
           'react': 'React',
           'react-dom': 'ReactDOM'
@@ -107,25 +109,27 @@ export default defineConfig({
               return 'vendor';
             }
             
-            // React MUST be bundled together and load first
-            if (id.includes('react-dom') || id.includes('/react/') || id.includes('scheduler')) {
-              return 'react-vendor';
+            // React core MUST load first and be in same chunk
+            if (id.includes('react-dom') || id.includes('/react/') || id.includes('scheduler') || id.includes('/react/index')) {
+              return 'react-core';
             }
             
-            // Radix UI MUST be with React to share context (prevents hook errors)
+            // Radix UI components MUST be in react-libs (separate from react-core to avoid circular deps)
+            // But AFTER react-core is loaded
             if (id.includes('@radix-ui/')) {
-              return 'react-vendor';
+              return 'radix-ui';
             }
             
-            // React-dependent libraries in separate chunk
+            // React-dependent libraries 
             if (id.includes('react-router') || id.includes('react-is')) {
               return 'react-libs';
             }
+            
             // Keep critical optimizations for largest dependencies
             if (id.includes('recharts')) return 'charts';
             if (id.includes('pdfjs-dist') || id.includes('react-pdf')) return 'pdf-libs';
             
-            // Libraries that use React hooks/context
+            // Libraries that use React hooks/context (AFTER radix-ui chunk)
             if (id.includes('@tanstack/react-query') || 
                 id.includes('react-toastify') || 
                 id.includes('framer-motion') ||
