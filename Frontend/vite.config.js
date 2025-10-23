@@ -21,6 +21,8 @@ export default defineConfig({
       "@contexts": path.resolve(__dirname, "./src/contexts"),
       "@types": path.resolve(__dirname, "./src/types"),
     },
+    // Fix: Ensure only one copy of React is bundled (prevents Radix UI hook errors)
+    dedupe: ['react', 'react-dom'],
   },
   server: {
     host: true,
@@ -62,7 +64,16 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'pdfjs-dist', 'recharts', '@sentry/react'],
+    include: [
+      'react', 
+      'react-dom', 
+      'react-router-dom', 
+      'pdfjs-dist', 
+      'recharts', 
+      '@sentry/react',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-dialog',
+    ],
     exclude: [],
     esbuildOptions: {
       target: 'es2022'
@@ -100,6 +111,12 @@ export default defineConfig({
             if (id.includes('react-dom') || id.includes('/react/') || id.includes('scheduler')) {
               return 'react-vendor';
             }
+            
+            // Radix UI MUST be with React to share context (prevents hook errors)
+            if (id.includes('@radix-ui/')) {
+              return 'react-vendor';
+            }
+            
             // React-dependent libraries in separate chunk
             if (id.includes('react-router') || id.includes('react-is')) {
               return 'react-libs';
