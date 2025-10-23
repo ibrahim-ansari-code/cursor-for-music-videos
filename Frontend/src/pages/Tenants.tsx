@@ -12,10 +12,11 @@ import {
     formatDate,
 } from "../utils/tenantUtils";
 import { useTenants, useDeleteTenant } from "../hooks/useTenants";
-import { useLeases } from "../hooks/useLeases";
+import { useLeases } from "../hooks/useLeasesQueries";
 import useDashboardData from "../hooks/useDashboardData";
 import { useOutstandingPayments } from "../hooks/useAccountingQueries";
-import { EnrichedTenant, Lease } from "../types/tenant";
+import { EnrichedTenant } from "../types/tenant";
+import type { Lease } from "../types/lease";
 import type { FetchTenantsParams } from "../utils/api/tenants";
 
 type ActiveFilter = null | 'active_leases' | 'expiring' | 'overdue';

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
+import * as Sentry from "@sentry/react";
 import {
   fetchProperties,
   fetchTenants,
-  updateLease,
   fetchUnitById,
 } from "../../utils/api";
+import { useUpdateLease } from "../../hooks/useLeasesQueries";
 import {
   Label,
   Input,
@@ -19,6 +20,9 @@ const MIN_RENT_DUE_DAY = 1;
 const MAX_RENT_DUE_DAY = 28;
 
 const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
+  // TanStack Query mutation hook for optimistic updates
+  const updateLeaseMutation = useUpdateLease();
+
   const [formData, setFormData] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -143,19 +147,56 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
     // For now, sending null for empty/cleared fields is fine with `exclude_unset=True` on backend.
 
     try {
-      const updatedLease = await updateLease(lease.id, updateData);
+      Sentry.logger.info("Updating lease", {
+        leaseId: lease.id,
+        changedFields: Object.keys(updateData),
+      });
+
+      // Use optimistic mutation hook for instant UI update
+      const updatedLease = await updateLeaseMutation.mutateAsync({
+        leaseId: lease.id,
+        leaseData: updateData,
+      });
+
+      Sentry.logger.info("Lease updated successfully", {
+        leaseId: lease.id,
+      });
+
+      toast.success("Lease updated successfully!");
       onClose();
-      // Call onLeaseUpdated after closing to avoid race conditions
+
+      // Call onLeaseUpdated callback
       try {
         onLeaseUpdated(updatedLease);
       } catch (callbackError) {
-        console.error("Error in onLeaseUpdated callback:", callbackError);
-        // Optionally, inform the user that the list might not be up-to-date
-        toast.error("Could not refresh the lease list automatically.");
+        Sentry.logger.error("Error in onLeaseUpdated callback", {
+          error: callbackError.message,
+          leaseId: lease.id,
+        });
       }
     } catch (err) {
+      Sentry.logger.error("Failed to update lease", {
+        error: err.message,
+        leaseId: lease.id,
+      });
+
+      Sentry.captureException(err, {
+        tags: {
+          component: 'EditLeaseModal',
+          action: 'update_lease',
+          feature: 'leases',
+        },
+        contexts: {
+          lease: {
+            leaseId: lease.id,
+            propertyId: lease.property_id,
+            tenantId: lease.tenant_id,
+          },
+        },
+      });
+
       setError(err.message || "Failed to update lease. Please try again.");
-      console.error("Update lease error:", err);
+      toast.error(err.message || "Failed to update lease. Please try again.");
     } finally {
       setIsLoading(false);
     }

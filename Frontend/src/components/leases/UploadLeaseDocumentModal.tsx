@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import * as Sentry from '@sentry/react';
-import { useUploadLeaseDocument } from '../../hooks/useLeases';
+import { X, Upload, FileText } from 'lucide-react';
+import { useUploadLeaseDocument } from '../../hooks/useLeasesQueries';
 import type { Lease } from '../../types/lease';
 
 interface UploadLeaseDocumentModalProps {
@@ -137,207 +140,232 @@ const UploadLeaseDocumentModal: React.FC<UploadLeaseDocumentModalProps> = ({
     onClose();
   };
 
-  if (!isOpen) return null;
-
   const getDocumentTypeIcon = (type: string) => {
     switch (type) {
       case 'contract':
-        return 'fa-file-contract';
+        return '📄';
       case 'addendum':
-        return 'fa-file-signature';
+        return '✍️';
       case 'notice':
-        return 'fa-bell';
+        return '🔔';
       case 'inspection':
-        return 'fa-clipboard-check';
+        return '📋';
       default:
-        return 'fa-file-alt';
+        return '📎';
     }
   };
 
   return (
-    <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center p-4">
-      <div 
-        className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity" 
-        onClick={handleClose}
-      ></div>
-      
-      <div className="glassmorphism relative rounded-xl max-w-lg w-full mx-auto shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-              <i className="fas fa-cloud-upload-alt text-blue-600 dark:text-blue-400 text-lg"></i>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-              Upload Document
-            </h3>
-          </div>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-            type="button"
+    <Dialog.Root open={isOpen} onOpenChange={handleClose}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0"
+          />
+        </Dialog.Overlay>
+
+        <Dialog.Content className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.3, type: 'spring', stiffness: 300, damping: 30 }}
+            className="w-[90vw] max-w-lg bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden"
           >
-            <i className="fas fa-times text-xl"></i>
-          </button>
-        </div>
-
-        {/* Body */}
-        <form onSubmit={handleUploadDocument} className="p-6 space-y-5">
-          {/* Lease Info */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
-              <i className="fas fa-info-circle text-blue-600 dark:text-blue-400 mt-0.5"></i>
-              <div className="flex-1 text-sm">
-                <p className="font-medium text-gray-900 dark:text-gray-100">
-                  {lease.tenant?.full_name || 
-                   `${lease.tenant?.first_name || ''} ${lease.tenant?.last_name || ''}`.trim() || 
-                   'Tenant'}
-                </p>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {lease.property?.name || `Property #${lease.property_id}`}
-                  {lease.unit?.name && ` - Unit ${lease.unit.name}`}
-                </p>
+            {/* Clean Header matching NewExpenseModal */}
+            <div className="relative bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <Upload className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <Dialog.Title className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                      Upload Document
+                    </Dialog.Title>
+                    <Dialog.Description className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                      Add a document to this lease
+                    </Dialog.Description>
+                  </div>
+                </div>
+                <Dialog.Close asChild>
+                  <button
+                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+                    disabled={uploadDocumentMutation.isPending}
+                    aria-label="Close"
+                  >
+                    <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  </button>
+                </Dialog.Close>
               </div>
             </div>
-          </div>
 
-          {/* Document Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <i className={`fas ${getDocumentTypeIcon(uploadDocumentType)} mr-2`}></i>
-              Document Type
-            </label>
-            <div className="relative">
-              <select
-                className="dark-input block w-full py-3 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all appearance-none cursor-pointer bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50"
-                value={uploadDocumentType}
-                onChange={(e) => setUploadDocumentType(e.target.value as DocumentType)}
-                required
+            {/* Content area */}
+            <motion.div
+              className="p-6 bg-gray-50/50 dark:bg-gray-800/50"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+            >
+              <form onSubmit={handleUploadDocument} className="space-y-5">
+                {/* Lease Info */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {lease.tenant?.full_name ||
+                          `${lease.tenant?.first_name || ''} ${lease.tenant?.last_name || ''}`.trim() ||
+                          'Tenant'}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                        {lease.property?.name || `Property #${lease.property_id}`}
+                        {lease.unit?.name && ` - Unit ${lease.unit.name}`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Document Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Document Type
+                  </label>
+                  <select
+                    className="block w-full px-4 py-2.5 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 transition-colors"
+                    value={uploadDocumentType}
+                    onChange={(e) => setUploadDocumentType(e.target.value as DocumentType)}
+                    required
+                  >
+                    <option value="contract">{getDocumentTypeIcon('contract')} Lease Contract</option>
+                    <option value="addendum">{getDocumentTypeIcon('addendum')} Addendum</option>
+                    <option value="notice">{getDocumentTypeIcon('notice')} Notice</option>
+                    <option value="inspection">{getDocumentTypeIcon('inspection')} Inspection Report</option>
+                    <option value="other">{getDocumentTypeIcon('other')} Other</option>
+                  </select>
+                </div>
+
+                {/* File Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Select File
+                  </label>
+
+                  <input
+                    id="file-upload"
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileChange}
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    required
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className={`flex flex-col items-center justify-center w-full px-4 py-8 border-2 border-dashed rounded-lg cursor-pointer transition-all ${
+                      uploadFile
+                        ? 'border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-600'
+                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/50 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                    }`}
+                  >
+                    <div className="text-center">
+                      {uploadFile ? (
+                        <>
+                          <div className="w-12 h-12 mx-auto mb-3 flex items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                            <svg
+                              className="w-6 h-6 text-green-600 dark:text-green-400"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+                            {uploadFile.name}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                            {formatFileSize(uploadFile.size)}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setUploadFile(null);
+                            }}
+                            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+                          >
+                            Change file
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-10 h-10 mx-auto mb-3 text-gray-400 dark:text-gray-500" />
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Click to upload or drag and drop
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            PDF, DOC, DOCX, JPG, PNG (max 10MB)
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </label>
+                </div>
+              </form>
+            </motion.div>
+
+            {/* Clean Footer matching NewExpenseModal */}
+            <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-3 flex justify-end items-center bg-white dark:bg-gray-800 space-x-3">
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={uploadDocumentMutation.isPending}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 transition-colors"
               >
-                <option value="contract">📄 Lease Contract</option>
-                <option value="addendum">✍️ Addendum</option>
-                <option value="notice">🔔 Notice</option>
-                <option value="inspection">📋 Inspection Report</option>
-                <option value="other">📎 Other</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                <i className="fas fa-chevron-down text-gray-400 text-xs"></i>
-              </div>
-            </div>
-          </div>
+                Cancel
+              </button>
 
-          {/* File Upload */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <i className="fas fa-paperclip mr-2"></i>
-              Select File
-            </label>
-            
-            <div className="relative">
-              <input
-                id="file-upload"
-                type="file"
-                className="hidden"
-                onChange={handleFileChange}
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                required
-              />
-              <label
-                htmlFor="file-upload"
-                className={`flex items-center justify-center w-full px-4 py-8 border-2 border-dashed rounded-lg cursor-pointer transition-all ${
-                  uploadFile
-                    ? 'border-green-400 bg-green-50 dark:bg-green-900/20 dark:border-green-600'
-                    : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+              <button
+                type="button"
+                onClick={() => {
+                  const form = document.querySelector('form');
+                  if (form) {
+                    form.requestSubmit();
+                  }
+                }}
+                disabled={!uploadFile || uploadDocumentMutation.isPending}
+                className={`px-5 py-2 text-sm font-medium text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 ${
+                  uploadDocumentMutation.isPending || !uploadFile
+                    ? 'bg-gray-400 dark:bg-gray-600'
+                    : 'bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600'
                 }`}
               >
-                <div className="text-center">
-                  {uploadFile ? (
-                    <>
-                      <i className="fas fa-check-circle text-4xl text-green-500 dark:text-green-400 mb-3"></i>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
-                        {uploadFile.name}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {formatFileSize(uploadFile.size)}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setUploadFile(null);
-                        }}
-                        className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline"
-                      >
-                        Change file
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-cloud-upload-alt text-4xl text-gray-400 dark:text-gray-500 mb-3"></i>
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Click to upload or drag and drop
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        PDF, DOC, DOCX, JPG, PNG (max 10MB)
-                      </p>
-                    </>
-                  )}
-                </div>
-              </label>
+                {uploadDocumentMutation.isPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" />
+                    <span>Upload Document</span>
+                  </>
+                )}
+              </button>
             </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="inline-flex items-center px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-              disabled={uploadDocumentMutation.isPending}
-            >
-              <i className="fas fa-times mr-2"></i>
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!uploadFile || uploadDocumentMutation.isPending}
-              className="inline-flex items-center px-5 py-2.5 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {uploadDocumentMutation.isPending ? (
-                <>
-                  <svg
-                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-upload mr-2"></i>
-                  Upload Document
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          </motion.div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 };
 

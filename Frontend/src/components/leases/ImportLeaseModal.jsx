@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import React, { useEffect, useState, useCallback, useRef } from "react";
+import * as Sentry from "@sentry/react";
 import {
   fetchProperties,
   fetchTenants,
@@ -7,8 +8,8 @@ import {
   uploadLeasePDF,
   fetchPropertyUnits,
   fetchLeases,
-  createLease,
 } from "../../utils/api";
+import { useCreateLease } from "../../hooks/useLeasesQueries";
 import TenantModal from "../tenants/TenantModal";
 import {
   Label,
@@ -31,6 +32,9 @@ const ImportLeaseModal = ({
 }) => {
   const [mode, setMode] = useState(initialMode);
   const [showParsedResults, setShowParsedResults] = useState(false);
+
+  // TanStack Query mutation hook for optimistic updates
+  const createLeaseMutation = useCreateLease();
 
   // Common State
   const [properties, setProperties] = useState([]);
@@ -364,15 +368,46 @@ const ImportLeaseModal = ({
         file_url: parsedFileUrl,
       };
 
-      console.log("Creating lease with data:", leaseData);
-      const createdLease = await createLease(leaseData);
-      console.log("Lease created successfully:", createdLease);
+      Sentry.logger.info("Creating lease", { 
+        propertyId: leaseData.property_id,
+        tenantId: leaseData.tenant_id,
+        hasFileUrl: !!parsedFileUrl,
+      });
+
+      // Use optimistic mutation hook for instant UI update
+      const createdLease = await createLeaseMutation.mutateAsync(leaseData);
+      
+      Sentry.logger.info("Lease created successfully", { 
+        leaseId: createdLease.id,
+        status: createdLease.status,
+      });
 
       // Call the onImport callback
       onImport(createdLease);
       onClose();
     } catch (err) {
-      console.error("Failed to create lease:", err);
+      Sentry.logger.error("Failed to create lease", {
+        error: err.message,
+        propertyId: formData.property_id,
+        tenantId: formData.tenant_id,
+      });
+
+      Sentry.captureException(err, {
+        tags: {
+          component: 'ImportLeaseModal',
+          action: 'create_lease',
+          feature: 'leases',
+          mode,
+        },
+        contexts: {
+          formData: {
+            property_id: formData.property_id,
+            tenant_id: formData.tenant_id,
+            has_file: !!file,
+          },
+        },
+      });
+
       setError(err.message || "Failed to create lease. Please try again.");
     } finally {
       setIsLoading(false);

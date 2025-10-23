@@ -132,3 +132,56 @@ export interface LeasesQueryParams {
   tenant_id?: number;
 }
 
+// Extended lease type with documents for optimistic updates
+export interface LeaseWithDocuments extends Lease {
+  documents: LeaseDocument[];
+}
+
+// Action handler types for components
+export interface LeaseActionHandlers {
+  onEdit: (lease: LeaseWithDocuments) => void;
+  onDelete: (leaseId: number) => Promise<void>;
+  onStatusChange: (lease: LeaseWithDocuments) => void;
+  onDocumentUpload: (lease: LeaseWithDocuments) => void;
+  onDocumentPreview: (lease: LeaseWithDocuments, document: LeaseDocument) => Promise<void>;
+}
+
+// Table props interface
+export interface LeasesTableProps {
+  leases: LeaseWithDocuments[];
+  isLoading?: boolean;
+  actionHandlers: LeaseActionHandlers;
+}
+
+// Row props interface
+export interface LeaseRowProps {
+  lease: LeaseWithDocuments;
+  index: number;
+  actionHandlers: LeaseActionHandlers;
+}
+
+// Document dropdown props
+export interface DocumentDropdownProps {
+  lease: LeaseWithDocuments;
+  isOpen: boolean;
+  onToggle: () => void;
+  onPreview: (document: LeaseDocument) => Promise<void>;
+}
+
+// Lease filters props
+export interface LeaseFiltersProps {
+  statusFilter: string;
+  onStatusFilterChange: (status: string) => void;
+  onNewLease: () => void;
+}
+
+// API Error type
+export interface ApiError {
+  status?: number;
+  statusText?: string;
+  data?: {
+    detail?: string;
+  };
+  message?: string;
+}
+
