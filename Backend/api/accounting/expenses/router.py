@@ -9,7 +9,7 @@ import logging
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Backend.api.auth import get_current_user
@@ -22,7 +22,7 @@ from Backend.models.user import User
 from . import service
 from .schemas import (
     ExpenseReceiptParseResponse, PaginatedExpensesResponse,
-    CSVExpenseImportRequest, CSVExpenseImportResult
+    CSVExpenseImportRequest, CSVExpenseImportResult, SecureReceiptUrlResponse
 )
 from .helpers import delete_blob_with_error_handling
 from Backend.utils.recaptcha import require_recaptcha
@@ -180,6 +180,44 @@ async def delete_expense(
     if receipt_url_to_delete:
         background_tasks.add_task(
             delete_blob_with_error_handling, receipt_url_to_delete)
+
+
+@router.post("/receipts/secure-url", response_model=SecureReceiptUrlResponse)
+async def get_receipt_secure_url(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    receipt_url: str = Query(..., description="The original Azure Blob URL of the receipt")
+):
+    """
+    Generate a time-limited, authenticated URL for secure expense receipt access.
+    
+    For private Azure containers, receipts require SAS tokens to be accessed.
+    This endpoint generates a 1-hour expiring SAS token for secure receipt viewing.
+    """
+    try:
+        return await service.generate_receipt_secure_url(
+            receipt_url=receipt_url,
+            current_user=current_user
+        )
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        error_msg = str(ve)
+        if "not found in storage" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The receipt file no longer exists in storage."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid receipt URL: {error_msg}"
+        )
+    except Exception as e:
+        logger.exception("Error generating secure URL for expense receipt")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate secure preview URL."
+        )
 
 
 @router.post("/import-csv", response_model=CSVExpenseImportResult)

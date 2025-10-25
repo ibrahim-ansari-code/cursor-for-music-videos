@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { EnrichedTenant, MaintenanceStatus, MaintenancePriority } from '../../../../types/tenant';
+import { toast } from 'react-toastify';
+import { EnrichedTenant, MaintenanceStatus, MaintenancePriority, MaintenanceRequest } from '../../../../types/tenant';
 import { formatDate } from '../../../../utils/tenantUtils';
+import { deleteMaintenanceRequest } from '../../../../utils/api/maintenance';
 
 interface OutletContext {
   tenant: EnrichedTenant;
@@ -25,7 +27,7 @@ const MaintenanceTab: React.FC = () => {
     );
   }
 
-  const { tenant, openMaintenanceModal } = context;
+  const { tenant, refetch, openMaintenanceModal } = context;
 
   // Handle creating new maintenance request
   const handleNewRequest = () => {
@@ -45,6 +47,30 @@ const MaintenanceTab: React.FC = () => {
     };
 
     openMaintenanceModal(initialData);
+  };
+
+  // Handle viewing a maintenance request
+  const handleView = (request: MaintenanceRequest) => {
+    openMaintenanceModal({ ...request, isViewing: true });
+  };
+
+  // Handle editing a maintenance request
+  const handleEdit = (request: MaintenanceRequest) => {
+    openMaintenanceModal(request);
+  };
+
+  // Handle deleting a maintenance request
+  const handleDelete = async (requestId: number) => {
+    if (window.confirm('Are you sure you want to delete this maintenance request?')) {
+      try {
+        await deleteMaintenanceRequest(requestId);
+        toast.success('Maintenance request deleted successfully!');
+        refetch(); // Refresh tenant data to update the list
+      } catch (error: any) {
+        console.error('Failed to delete request:', error);
+        toast.error(error?.message || 'Failed to delete maintenance request');
+      }
+    }
   };
 
   const maintenanceRequests = tenant.maintenance_requests || [];
@@ -144,6 +170,7 @@ const MaintenanceTab: React.FC = () => {
                   <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Priority</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Date</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -185,6 +212,28 @@ const MaintenanceTab: React.FC = () => {
                             Completed: {formatDate(request.completed_date)}
                           </span>
                         )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center text-sm font-medium">
+                      <div className="flex justify-center space-x-3">
+                        <button
+                          onClick={() => handleView(request)}
+                          className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 focus:outline-none transition-colors duration-150"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => handleEdit(request)}
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 focus:outline-none transition-colors duration-150"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(request.id)}
+                          className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 focus:outline-none transition-colors duration-150"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>

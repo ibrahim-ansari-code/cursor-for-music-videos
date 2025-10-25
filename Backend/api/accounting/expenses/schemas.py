@@ -67,6 +67,13 @@ class PaginatedExpensesResponse(BaseModel):
     has_more: bool
 
 
+class SecureReceiptUrlResponse(BaseModel):
+    """Response schema for secure, time-limited receipt URLs"""
+    secure_url: str
+    expires_at: str  # ISO 8601 datetime string
+    expires_in_seconds: int
+
+
 # CSV Import schemas
 class CSVExpenseData(BaseModel):
     """Schema for individual expense data from CSV"""

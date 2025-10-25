@@ -21,10 +21,10 @@ export const useMaintenancePhotos = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   /**
-   * Handle file selection and upload
-   * Returns array of successfully uploaded URLs
+   * Handle file selection - just creates previews, doesn't upload yet
+   * Returns array of preview URLs (object URLs for local display)
    */
-  const handleFileChange = useCallback(async (files: FileList | File[]): Promise<string[]> => {
+  const handleFileChange = useCallback((files: FileList | File[]): string[] => {
     const fileArray = Array.from(files);
 
     if (fileArray.length === 0) return [];
@@ -50,31 +50,45 @@ export const useMaintenancePhotos = () => {
       return [];
     }
 
-    // Assign unique IDs to files
-    const filesWithIds: PhotoFileWithId[] = fileArray.map((file) => ({
-      id: crypto.randomUUID(),
-      file,
-      name: file.name,
-      size: file.size,
-    }));
+    // Create preview URLs for the files
+    const filesWithPreviews: PhotoFileWithId[] = fileArray.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      return {
+        id: crypto.randomUUID(),
+        file,
+        name: file.name,
+        size: file.size,
+        preview: previewUrl,
+      };
+    });
 
-    setSelectedFiles(prev => [...prev, ...filesWithIds]);
+    setSelectedFiles(prev => [...prev, ...filesWithPreviews]);
     setUploadError(null);
-    setUploadProgress(prev => [
-      ...prev,
-      ...filesWithIds.map((f) => ({ id: f.id, status: 'pending' as const })),
-    ]);
+
+    // Return preview URLs for display
+    return filesWithPreviews.map(f => f.preview!);
+  }, []);
+
+  /**
+   * Upload all pending files to Azure
+   * Called when form is submitted
+   * Returns array of successfully uploaded URLs
+   */
+  const uploadAllPendingFiles = useCallback(async (): Promise<string[]> => {
+    if (selectedFiles.length === 0) return [];
+
     setUploadingPhotos(true);
+    setUploadError(null);
 
     try {
       // Upload files in parallel
-      const uploadPromises = filesWithIds.map((fileObj) =>
+      const uploadPromises = selectedFiles.map((fileObj) =>
         uploadMaintenancePhoto(fileObj.file)
-          .then((url) => ({ id: fileObj.id, url, status: 'done' as const }))
+          .then((url) => ({ id: fileObj.id, url, success: true }))
           .catch((err) => ({
             id: fileObj.id,
             error: err.message || 'Failed to upload',
-            status: 'error' as const,
+            success: false,
           }))
       );
 
@@ -84,25 +98,12 @@ export const useMaintenancePhotos = () => {
       const successfulUploads: string[] = [];
       const uploadErrors: string[] = [];
 
-      setUploadProgress(prevProgress => {
-        const updatedProgress = [...prevProgress];
-        results.forEach((result) => {
-          const progressIndex = updatedProgress.findIndex(p => p.id === result.id);
-          if (progressIndex >= 0) {
-            if (result.status === 'done') {
-              updatedProgress[progressIndex] = { id: result.id, status: 'done' };
-              successfulUploads.push(result.url);
-            } else if (result.status === 'error') {
-              updatedProgress[progressIndex] = {
-                id: result.id,
-                status: 'error',
-                error: result.error
-              };
-              uploadErrors.push(result.error || 'Unknown error');
-            }
-          }
-        });
-        return updatedProgress;
+      results.forEach((result) => {
+        if (result.success && 'url' in result) {
+          successfulUploads.push(result.url);
+        } else if ('error' in result) {
+          uploadErrors.push(result.error || 'Unknown error');
+        }
       });
 
       // Show errors if any
@@ -117,25 +118,39 @@ export const useMaintenancePhotos = () => {
     } finally {
       setUploadingPhotos(false);
     }
-  }, []);
+  }, [selectedFiles]);
 
   /**
-   * Remove a photo by ID or URL
+   * Remove a photo by ID or preview URL
+   * Also revokes the object URL to prevent memory leaks
    */
   const removePhoto = useCallback((identifier: string) => {
-    setSelectedFiles(prev => prev.filter(f => f.id !== identifier));
+    // Find the file to revoke its preview URL
+    const fileToRemove = selectedFiles.find(f => f.preview === identifier || f.id === identifier);
+    if (fileToRemove?.preview) {
+      URL.revokeObjectURL(fileToRemove.preview);
+    }
+    
+    setSelectedFiles(prev => prev.filter(f => f.id !== identifier && f.preview !== identifier));
     setUploadProgress(prev => prev.filter(p => p.id !== identifier));
-  }, []);
+  }, [selectedFiles]);
 
   /**
-   * Reset all state
+   * Reset all state and clean up preview URLs
    */
   const resetState = useCallback(() => {
+    // Revoke all preview URLs to prevent memory leaks
+    selectedFiles.forEach(file => {
+      if (file.preview) {
+        URL.revokeObjectURL(file.preview);
+      }
+    });
+    
     setSelectedFiles([]);
     setUploadProgress([]);
     setUploadError(null);
     setUploadingPhotos(false);
-  }, []);
+  }, [selectedFiles]);
 
   /**
    * Get upload status for a specific file
@@ -143,6 +158,43 @@ export const useMaintenancePhotos = () => {
   const getFileStatus = useCallback((fileId: string): PhotoUploadProgress | undefined => {
     return uploadProgress.find(p => p.id === fileId);
   }, [uploadProgress]);
+
+  /**
+   * Retry uploading a failed file
+   */
+  const retryUpload = useCallback(async (fileId: string): Promise<string | null> => {
+    const fileToRetry = selectedFiles.find(f => f.id === fileId);
+    if (!fileToRetry?.file) return null;
+
+    // Update status to uploading
+    setUploadProgress(prev => 
+      prev.map(p => p.id === fileId ? { id: fileId, status: 'pending' as const } : p)
+    );
+    setUploadingPhotos(true);
+
+    try {
+      const url = await uploadMaintenancePhoto(fileToRetry.file);
+      
+      // Update to success
+      setUploadProgress(prev =>
+        prev.map(p => p.id === fileId ? { id: fileId, status: 'done' as const } : p)
+      );
+      
+      return url;
+    } catch (err: any) {
+      // Update to error
+      setUploadProgress(prev =>
+        prev.map(p => 
+          p.id === fileId 
+            ? { id: fileId, status: 'error' as const, error: err.message || 'Upload failed' } 
+            : p
+        )
+      );
+      return null;
+    } finally {
+      setUploadingPhotos(false);
+    }
+  }, [selectedFiles]);
 
   const photoState: MaintenancePhotoState = {
     selectedFiles,
@@ -161,8 +213,10 @@ export const useMaintenancePhotos = () => {
 
     // Actions
     handleFileChange,
+    uploadAllPendingFiles,
     removePhoto,
     resetState,
     getFileStatus,
+    retryUpload,
   };
 };

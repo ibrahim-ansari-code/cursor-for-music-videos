@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { X, Wrench } from 'lucide-react';
 import { fetchProperties, fetchPropertyUnits, fetchTenantsByProperty } from '../../utils/api';
 import { useMaintenanceForm } from '../../hooks/maintenance/useMaintenanceForm';
 import { useMaintenancePhotos } from '../../hooks/maintenance/useMaintenancePhotos';
@@ -45,8 +46,8 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
     errors,
     isSubmitting: formSubmitting,
     updateField,
-    submitForm,
     resetForm,
+    validateForm,
   } = useMaintenanceForm({
     mode: request?.id ? 'edit' : 'create',
     initialData: request,
@@ -59,7 +60,7 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
 
   // Photo upload hook - destructure to extract stable function references
   const photoState = useMaintenancePhotos();
-  const { resetState: resetPhotoState } = photoState;
+  const { resetState: resetPhotoState, uploadAllPendingFiles } = photoState;
 
   // Load properties on mount - memoized to prevent infinite loops
   const loadProperties = useCallback(async () => {
@@ -86,7 +87,9 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
       setUnits([]);
       setTenants([]);
     }
-  }, [isOpen, request, loadProperties, resetForm, resetPhotoState]);
+    // Only run when modal opens/closes or request changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, request]);
 
   // Load units and tenants when property changes
   useEffect(() => {
@@ -132,15 +135,17 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
     if (isOpen && formData.property_id) {
       loadUnitsAndTenants();
     }
-  }, [isOpen, formData.property_id, request, updateField]);
+    // Only run when modal opens or property selection changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, formData.property_id, request]);
 
-  // Handle file upload
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle file selection - just add preview URLs, don't upload yet
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
 
-    const urls = await photoState.handleFileChange(e.target.files);
-    if (urls.length > 0) {
-      updateField('photos', [...(formData.photos || []), ...urls]);
+    const previewUrls = photoState.handleFileChange(e.target.files);
+    if (previewUrls.length > 0) {
+      updateField('photos', [...(formData.photos || []), ...previewUrls]);
     }
   };
 
@@ -153,20 +158,80 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
     );
   };
 
-  // Handle form submission
+  // Handle photo reorder
+  const handleReorderPhotos = (newOrder: string[]) => {
+    updateField('photos', newOrder);
+  };
+
+  // Handle form submission - upload photos first, then submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (photoState.uploadingPhotos) {
-      setError('Please wait for all photos to finish uploading.');
-      return;
-    }
-
     try {
-      await submitForm();
+      // Validate form first
+      if (!validateForm()) {
+        setError('Please correct the highlighted fields.');
+        return;
+      }
+
+      // Upload any pending photos first (photos with blob: preview URLs)
+      const uploadedUrls = await uploadAllPendingFiles();
+      
+      // Build final photo array: existing Azure URLs + newly uploaded URLs
+      let finalPhotos = formData.photos || [];
+      
+      if (uploadedUrls.length > 0) {
+        // Get existing photos that are already uploaded to Azure (not preview URLs)
+        const existingUploadedPhotos = (formData.photos || []).filter(url => 
+          !url.startsWith('blob:')
+        );
+        
+        // Combine existing Azure URLs with newly uploaded ones  
+        finalPhotos = [...existingUploadedPhotos, ...uploadedUrls];
+        
+        console.log('[MaintenanceSubmit] Replaced preview URLs with Azure URLs:', {
+          original: formData.photos,
+          final: finalPhotos,
+          uploadedCount: uploadedUrls.length
+        });
+      }
+      
+      // Build the final payload with proper type conversions
+      // This mirrors what submitForm does in useMaintenanceForm
+      const payload = {
+        issue_title: formData.issue_title.trim(),
+        description: formData.description && formData.description.trim() !== ''
+          ? formData.description.trim()
+          : null,
+        priority: formData.priority,
+        status: formData.status,
+        property_id: formData.property_id ? Number(formData.property_id) : null,
+        unit_id: formData.unit_id && formData.unit_id !== '' && formData.unit_id !== 'common_area'
+          ? Number(formData.unit_id)
+          : null,
+        tenant_id: formData.tenant_id && formData.tenant_id !== ''
+          ? Number(formData.tenant_id)
+          : null,
+        assigned_to: formData.assigned_to && formData.assigned_to.trim() !== ''
+          ? formData.assigned_to.trim()
+          : null,
+        scheduled_date: formData.scheduled_date && formData.scheduled_date.trim() !== ''
+          ? formData.scheduled_date
+          : null,
+        estimated_cost: formData.estimated_cost && formData.estimated_cost !== ''
+          ? Number(formData.estimated_cost)
+          : null,
+        // CRITICAL: Use finalPhotos (Azure URLs) not formData.photos (preview URLs)
+        photos: finalPhotos.length > 0 ? finalPhotos : null,
+      };
+      
+      // Call parent's onSubmit with the corrected payload
+      await onSubmit(payload);
+      
     } catch (err: any) {
       setError(err?.message || 'Failed to save the request.');
+      throw err; // Re-throw so parent can handle if needed
     }
   };
 
@@ -196,35 +261,40 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-          className="relative w-full max-w-4xl bg-white dark:bg-gray-800 rounded-xl shadow-xl max-h-[90vh] overflow-hidden flex flex-col z-[10000] transition-colors duration-300"
+          className="relative w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col z-[10000] transition-colors duration-300"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="relative px-6 py-4 bg-gradient-to-br from-brand-green to-brand-teal dark:from-gray-700 dark:to-gray-600 text-white transition-colors duration-300">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-semibold text-white">{modalTitle}</h2>
-                <p className="text-white/80 mt-0.5 text-sm">
-                  {isViewing
-                    ? 'View maintenance request details'
-                    : request
-                    ? 'Update maintenance request information'
-                    : 'Create a new maintenance request for your property'}
-                </p>
+          {/* Clean Header matching NewExpenseModal */}
+          <div className="relative bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <Wrench className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{modalTitle}</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    {isViewing
+                      ? 'View maintenance request details'
+                      : request
+                      ? 'Update maintenance request information'
+                      : 'Create a new maintenance request for your property'}
+                  </p>
+                </div>
               </div>
               <button
                 onClick={onClose}
-                className="text-white/70 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition-all"
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+                disabled={isSubmitting}
+                aria-label="Close"
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+          {/* Content area matching NewExpenseModal */}
+          <div className="flex-1 overflow-y-auto bg-gray-50/50 dark:bg-gray-800/50 transition-colors duration-300">
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
@@ -261,6 +331,7 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
                   onUpdateField={updateField}
                   onFileChange={handleFileChange}
                   onRemovePhoto={handleRemovePhoto}
+                  onReorderPhotos={handleReorderPhotos}
                   isViewing={isViewing}
                   isLoadingUnits={isLoadingUnits}
                   isLoadingTenants={isLoadingTenants}
@@ -269,53 +340,52 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
             )}
           </div>
 
-          {/* Footer */}
-          <div className="px-6 py-5 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600 transition-colors duration-300">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="text-sm text-gray-500 dark:text-gray-400 flex items-start flex-1 sm:max-w-md transition-colors duration-300">
-                <svg className="w-4 h-4 mr-2 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          {/* Clean Footer matching NewExpenseModal */}
+          <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-3 flex justify-between items-center bg-white dark:bg-gray-800 flex-shrink-0">
+            {/* Info text on left */}
+            {!isViewing && (
+              <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                <svg className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span>
-                  {isViewing ? (
-                    'Viewing maintenance request details'
-                  ) : (
-                    <>
-                      <span className="text-red-600 font-bold">*</span> Required fields. Unit selection is optional for common area
-                      maintenance.
-                    </>
-                  )}
-                </span>
+                <span className="text-red-600 font-bold">*</span>
+                <span className="ml-1">Required fields</span>
               </div>
-              <div className="flex gap-3 flex-shrink-0 sm:items-center">
+            )}
+            {isViewing && <div></div>}
+            
+            {/* Buttons on right */}
+            <div className="flex items-center space-x-3">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 transition-colors"
+              >
+                {isViewing ? 'Close' : 'Cancel'}
+              </button>
+              
+              {!isViewing && (
                 <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all text-sm font-medium"
+                  type="submit"
+                  onClick={handleSubmit}
                   disabled={isSubmitting}
+                  className={`px-5 py-2 text-sm font-medium text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 ${
+                    isSubmitting
+                      ? 'bg-gray-400 dark:bg-gray-600' 
+                      : 'bg-green-600 dark:bg-green-700 hover:bg-green-700 dark:hover:bg-green-600'
+                  }`}
                 >
-                  {isViewing ? 'Close' : 'Cancel'}
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>{request && request.id ? 'Updating...' : 'Creating...'}</span>
+                    </>
+                  ) : (
+                    submitLabel
+                  )}
                 </button>
-                {!isViewing && (
-                  <button
-                    onClick={handleSubmit}
-                    className="px-5 py-2.5 bg-gradient-to-br from-brand-green to-brand-teal text-white rounded-md hover:from-brand-green/90 hover:to-brand-teal/90 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium flex items-center gap-2 min-w-[140px] justify-center shadow-sm"
-                    disabled={isSubmitting || photoState.uploadingPhotos}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        {request && request.id ? 'Updating...' : 'Creating...'}
-                      </>
-                    ) : (
-                      submitLabel
-                    )}
-                  </button>
-                )}
-              </div>
+              )}
             </div>
           </div>
         </motion.div>

@@ -20,7 +20,8 @@ from fastapi import HTTPException, status
 
 from Backend.config import settings
 from Backend.models.property import Property, PropertyImage
-from Backend.utils.azure_blob import blob_service_client, delete_blob_by_url
+from Backend.models.user import User
+from Backend.utils.azure_blob import blob_service_client, delete_blob_by_url, generate_secure_document_url
 
 logger = logging.getLogger(__name__)
 
@@ -449,3 +450,40 @@ class PropertyImageService:
             raise
         
         return image
+    
+    @staticmethod
+    async def generate_image_secure_url(
+        image_url: str,
+        current_user: User
+    ) -> dict:
+        """
+        Generate a time-limited SAS token URL for property image access.
+        
+        Args:
+            image_url: The Azure Blob URL of the image
+            current_user: Current authenticated user
+            
+        Returns:
+            Dict with secure_url, expires_at, expires_in_seconds
+        """
+        # Authorization check - all authenticated users can view property images they have access to
+        # The property ownership check should be done at the router level if needed
+        
+        try:
+            # Generate secure URL with SAS token
+            url_data = await generate_secure_document_url(
+                blob_url=image_url,
+                user_id=current_user.id,
+                document_id=image_url,  # Use URL as identifier for logging
+                expires_in_hours=1,
+                client_ip=None,  # No IP restriction for browser-loaded images
+            )
+            
+            return url_data
+            
+        except Exception as e:
+            logger.error(f"Error generating secure URL for property image: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate secure URL: {str(e)}"
+            )

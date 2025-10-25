@@ -583,11 +583,32 @@ async def generate_document_secure_url(
         
         return url_data
         
+    except ValueError as ve:
+        # ValueError indicates blob doesn't exist or URL is invalid
+        error_msg = str(ve)
+        
+        if "not found in storage" in error_msg.lower():
+            # Blob was deleted but DB record remains (orphaned record)
+            logger.error(
+                f"Orphaned document record detected: Tenant Document {document_id} "
+                f"(Tenant {tenant_id}) has no corresponding blob in Azure storage"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The document file no longer exists in storage. It may have been deleted. Please contact support."
+            )
+        else:
+            # Other validation error (invalid URL, etc.)
+            logger.error(f"Validation error generating SAS token for document {document_id}: {ve}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid document URL: {error_msg}"
+            )
     except Exception as e:
-        logger.error(f"Error generating secure URL for document {document_id}: {e}")
+        logger.exception(f"Error generating secure URL for document {document_id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate secure URL: {str(e)}"
+            detail=f"Failed to generate secure preview URL. Please try again or contact support."
         )
 
 

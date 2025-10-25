@@ -102,14 +102,18 @@ const OverviewTab: React.FC = () => {
         autoClose: false,
       });
 
-      // Fetch secure, time-limited URL with SAS token
-      const { secure_url } = await getSecureDocumentUrl(
+      // Always fetch a fresh secure, time-limited URL with SAS token
+      // This ensures we never use expired tokens
+      const { secure_url, expires_at } = await getSecureDocumentUrl(
         activeLease.id,
         leaseDocument.id
       );
 
       // Dismiss loading toast
       toast.dismiss(loadingToast);
+
+      // Log expiration for debugging
+      console.log(`[DocumentPreview] Generated SAS URL, expires at: ${expires_at}`);
 
       // Open the preview modal with the secure URL
       const tenantName = tenant.tenant_type === 'Company'
@@ -121,10 +125,18 @@ const OverviewTab: React.FC = () => {
     } catch (error: any) {
       console.error('[handleViewLease] Failed to generate secure URL:', error);
 
-      const errorMessage =
-        error?.data?.detail ||
-        error?.message ||
-        'Unable to preview lease. Please try downloading instead.';
+      // Better error messages based on error type
+      let errorMessage = 'Unable to preview lease.';
+      
+      if (error?.response?.status === 404 || error?.status === 404) {
+        errorMessage = 'The lease document file no longer exists in storage. It may have been deleted.';
+      } else if (error?.response?.status === 403 || error?.status === 403) {
+        errorMessage = 'You do not have permission to view this document.';
+      } else if (error?.data?.detail) {
+        errorMessage = error.data.detail;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
 
       toast.error(errorMessage);
     }

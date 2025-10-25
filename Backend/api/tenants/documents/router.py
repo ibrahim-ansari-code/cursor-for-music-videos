@@ -221,8 +221,8 @@ async def get_document_secure_url(
     **Usage**: Use the `secure_url` to download or preview the document
     in browser. URL expires after 1 hour for security.
     """
-    # Get client IP for audit trail (optional)
-    client_ip = request.client.host if request.client else None
+    # NOTE: We don't restrict by IP for documents loaded in browser
+    # The browser's IP won't match the backend server IP, causing 403 errors
     
     return await service.generate_document_secure_url(
         session=session,
@@ -230,7 +230,7 @@ async def get_document_secure_url(
         document_id=document_id,
         user_id=current_user.id,
         expires_in_hours=1,
-        client_ip=client_ip,
+        client_ip=None,  # No IP restriction for browser-loaded documents
     )
 
 

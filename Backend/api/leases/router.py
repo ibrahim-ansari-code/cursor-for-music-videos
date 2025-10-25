@@ -337,17 +337,18 @@ async def get_document_secure_url(
             session=session
         )
         
-        # Get client IP for optional restriction (currently not enforced)
-        client_ip = request.client.host if request.client else None
+        # NOTE: We don't restrict by IP for documents loaded in browser iframes
+        # The browser's IP won't match the backend server IP, causing 403 errors
+        # IP restriction could be useful if backend proxies the download, but for
+        # direct browser access (iframes, images), IP restriction breaks functionality
         
-        # Generate secure URL with SAS token
-        # Note: document.id is guaranteed to exist (primary key from database)
+        # Generate secure URL with SAS token (no IP restriction)
         secure_url_data = await generate_secure_document_url(
             blob_url=document.file_path,
             user_id=current_user.id,
             document_id=document.id or document_id,  # Fallback for type checker
             expires_in_hours=None,  # Use config default (1 hour)
-            client_ip=None  # Set to client_ip to enable IP restriction
+            client_ip=None  # No IP restriction for browser-loaded documents
         )
         
         return secure_url_data
@@ -356,16 +357,38 @@ async def get_document_secure_url(
         # Re-raise HTTPExceptions as-is
         raise
     except ValueError as ve:
-        logger.error(f"Configuration error generating SAS token: {ve}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server configuration error. Please contact support."
-        )
+        error_msg = str(ve)
+        
+        # Check error type and return appropriate status code
+        if "not found in storage" in error_msg.lower():
+            # Blob was deleted but DB record remains (orphaned record)
+            logger.error(
+                f"Orphaned document record detected: Document {document_id} "
+                f"(Lease {lease_id}) has no corresponding blob in Azure storage"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The document file no longer exists in storage. It may have been deleted. Please contact support."
+            )
+        elif any(keyword in error_msg.lower() for keyword in ['not configured', 'configuration', 'account key', 'account name']):
+            # Configuration error (missing Azure credentials, etc.)
+            logger.error(f"Configuration error generating SAS token: {ve}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Server configuration error. Please contact support."
+            )
+        else:
+            # Other validation error (invalid URL, etc.)
+            logger.error(f"Validation error generating SAS token: {ve}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid document URL: {error_msg}"
+            )
     except Exception:
         logger.exception(f"Error generating secure URL for document {document_id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate secure URL. Please contact support."
+            detail="Failed to generate secure preview URL. Please try again or contact support."
         )
 
 

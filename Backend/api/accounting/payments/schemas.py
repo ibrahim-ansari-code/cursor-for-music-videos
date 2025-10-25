@@ -280,3 +280,10 @@ class CSVPaymentImportResult(BaseModel):
     failed_imports: int
     errors: list[CSVImportError]
     created_payment_ids: list[int]
+
+
+class SecureReceiptUrlResponse(BaseModel):
+    """Response schema for secure, time-limited receipt URLs"""
+    secure_url: str
+    expires_at: str  # ISO 8601 datetime string
+    expires_in_seconds: int

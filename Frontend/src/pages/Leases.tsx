@@ -213,6 +213,9 @@ const LeasesContent: React.FC = () => {
               expiresInSeconds: expires_in_seconds,
             });
 
+            // Log expiration for debugging
+            console.log(`[DocumentPreview] Generated SAS URL, expires at: ${expires_at}`);
+
             // Open the preview modal with the secure URL
             setFileToPreviewUrl(secure_url);
             const tenantName = getTenantName(lease);

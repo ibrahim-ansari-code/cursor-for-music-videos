@@ -359,6 +359,7 @@ export interface PhotoFileWithId {
   file: File;
   name: string;
   size: number;
+  preview?: string; // Object URL for local preview before upload
 }
 
 export interface PhotoUploadProgress {

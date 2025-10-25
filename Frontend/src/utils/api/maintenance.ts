@@ -183,4 +183,33 @@ export const uploadMaintenancePhoto = async (file: File): Promise<string> => {
     // Re-throw to allow caller to handle
     throw error;
   }
+};
+
+/**
+ * Generate a secure, time-limited URL for a maintenance photo.
+ * 
+ * For private Azure containers, photos require SAS tokens to be accessed.
+ * This endpoint generates a 1-hour expiring SAS token for secure photo access.
+ * 
+ * @param {string} photoUrl - The original Azure Blob URL of the photo
+ * @returns {Promise<{secure_url: string, expires_at: string, expires_in_seconds: number}>}
+ * 
+ * @example
+ * ```typescript
+ * const { secure_url } = await getSecurePhotoUrl(
+ *   'https://storage.blob.core.windows.net/maintenance-photos/photo.jpg'
+ * );
+ * // Use secure_url to display image (valid for 1 hour)
+ * ```
+ */
+export const getSecurePhotoUrl = async (photoUrl: string): Promise<{
+  secure_url: string;
+  expires_at: string;
+  expires_in_seconds: number;
+}> => {
+  // Encode photo URL as query parameter
+  const encodedUrl = encodeURIComponent(photoUrl);
+  return apiRequest(`/maintenance/photos/secure-url?photo_url=${encodedUrl}`, {
+    method: "POST",
+  });
 }; 

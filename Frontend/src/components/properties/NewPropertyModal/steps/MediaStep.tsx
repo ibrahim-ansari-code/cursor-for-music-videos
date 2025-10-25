@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { usePropertyImages } from '../hooks/usePropertyImages';
+import { useSecureImageUrls } from '../../../../hooks/useSecureImageUrl';
 
 interface MediaStepProps {
   onNext?: () => void;
@@ -71,6 +72,10 @@ const MediaStep: React.FC<MediaStepProps> = ({ propertyId, onPropertyCreated }) 
   // Helper functions for component logic
   const pendingImages = getPendingImages();
   const uploadedImages = getUploadedImages();
+
+  // Fetch secure URLs for uploaded images (for private Azure containers)
+  const uploadedImageUrls = uploadedImages.map(img => img.imageUrl).filter((url): url is string => !!url);
+  const secureImageUrls = useSecureImageUrls(uploadedImageUrls);
 
   // Post-creation upload handler
   const handlePostCreationUpload = useCallback(async (newPropertyId: number) => {
@@ -282,10 +287,10 @@ const MediaStep: React.FC<MediaStepProps> = ({ propertyId, onPropertyCreated }) 
 
                       {/* Image */}
                       <img
-                        src={image.imageUrl!}
+                        src={secureImageUrls[image.imageUrl!] || image.imageUrl!}
                         alt="Property"
                         className="w-full h-full object-cover"
-                        onClick={() => setSelectedImage(image.imageUrl!)}
+                        onClick={() => setSelectedImage(secureImageUrls[image.imageUrl!] || image.imageUrl!)}
                       />
 
                       {/* Primary Badge */}
@@ -335,7 +340,7 @@ const MediaStep: React.FC<MediaStepProps> = ({ propertyId, onPropertyCreated }) 
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedImage(image.imageUrl!);
+                                setSelectedImage(secureImageUrls[image.imageUrl!] || image.imageUrl!);
                               }}
                               className="p-1 bg-white/90 rounded-lg hover:bg-white transition-colors"
                               disabled={operationLoading[`delete-${image.id}`]}

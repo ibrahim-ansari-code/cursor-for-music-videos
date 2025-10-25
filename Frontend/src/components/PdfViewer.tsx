@@ -46,21 +46,26 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ fileUrl, onError }) => {
   }, [fileUrl]);
 
   // Memoize PDF.js options to prevent unnecessary Document reloads
-  const pdfOptions = useMemo(() => ({
-    // Use CDN for cmaps (character maps for international PDFs)
-    cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
-    cMapPacked: true,
-    // Standard headers for better compatibility
-    httpHeaders: {
-      'X-Requested-With': 'XMLHttpRequest',
-    },
-    // IMPORTANT: withCredentials must be false for Azure SAS tokens
-    // SAS authentication happens via URL query parameters (?sv=...&sig=...),
-    // not cookies. Setting to true would unnecessarily send app cookies to Azure.
-    withCredentials: false,
-    // Enable standard fonts for better rendering
-    standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
-  }), []); // Empty dependency array - options never change
+  const pdfOptions = useMemo(() => {
+    console.log('[PDF Viewer] Loading PDF from URL:', fileUrl);
+    console.log('[PDF Viewer] URL has SAS token:', fileUrl.includes('?s'));
+    
+    return {
+      // Use CDN for cmaps (character maps for international PDFs)
+      cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+      cMapPacked: true,
+      // IMPORTANT: withCredentials must be false for Azure SAS tokens
+      // SAS authentication happens via URL query parameters (?sv=...&sig=...),
+      // not cookies. Setting to true would unnecessarily send app cookies to Azure.
+      withCredentials: false,
+      // Enable standard fonts for better rendering
+      standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
+      // Disable range requests - fetch entire PDF at once to avoid auth issues
+      disableRange: true,
+      // Disable streaming to ensure SAS token is used for all requests
+      disableStream: true,
+    };
+  }, [fileUrl]); // Recreate when URL changes
 
   const onDocumentLoadSuccess = ({ numPages }: DocumentLoadSuccess): void => {
     setNumPages(numPages);
@@ -165,7 +170,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ fileUrl, onError }) => {
       <div className="pdf-document-container flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 p-4">
         <div className="flex justify-center">
           <Document
-            file={fileUrl}
+            file={{ url: fileUrl }}
             onLoadSuccess={onDocumentLoadSuccess}
             onLoadError={onDocumentLoadError}
             loading={

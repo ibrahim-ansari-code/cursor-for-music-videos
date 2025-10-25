@@ -1,7 +1,7 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Backend.api.auth import get_current_user
@@ -15,6 +15,7 @@ from .schemas import (
     MaintenanceRequestResponse,
     MaintenanceRequestUpdate,
     MaintenanceSummaryResponse,
+    SecurePhotoUrlResponse,
 )
 from .service import MaintenanceService
 
@@ -261,4 +262,68 @@ async def upload_maintenance_photo(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload maintenance photo: {str(e)}"
+        )
+
+
+@router.post("/photos/secure-url", response_model=SecurePhotoUrlResponse)
+async def get_photo_secure_url(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    photo_url: str = Query(..., description="The original Azure Blob URL of the photo")
+):
+    """
+    Generate a time-limited, authenticated URL for secure photo access.
+    
+    Security Features:
+        - Requires JWT authentication
+        - Generates 1-hour expiring SAS token
+        - Read-only access (no write/delete)
+        - HTTPS enforced
+        - Audit logging enabled
+    
+    Args:
+        photo_url: The original Azure Blob URL of the photo
+        
+    Returns:
+        SecurePhotoUrlResponse containing:
+            - secure_url: Azure Blob URL with SAS token appended
+            - expires_at: ISO 8601 UTC datetime when URL expires
+            - expires_in_seconds: Seconds until expiration (3600 for 1 hour)
+    """
+    try:
+        # NOTE: We don't restrict by IP for photos because they're loaded by the browser
+        # The browser's IP won't match the backend server IP, causing 403 errors
+        # For document downloads, IP restriction could be useful as backend proxies the download
+        
+        # Generate secure URL with SAS token (no IP restriction)
+        secure_url_data = await MaintenanceService.generate_photo_secure_url(
+            photo_url=photo_url,
+            current_user=current_user,
+            client_ip=None  # No IP restriction for browser-loaded images
+        )
+        
+        return secure_url_data
+        
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        error_msg = str(ve)
+        
+        if "not found in storage" in error_msg.lower():
+            logger.error(f"Orphaned photo record detected: {photo_url}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The photo no longer exists in storage. It may have been deleted."
+            )
+        else:
+            logger.error(f"Validation error generating SAS token for photo: {ve}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid photo URL: {error_msg}"
+            )
+    except Exception as e:
+        logger.exception("Error generating secure URL for photo")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate secure preview URL. Please try again."
         )

@@ -4,7 +4,7 @@ Router for property image endpoints including SAS token generation.
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, UploadFile, File, Form
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +28,13 @@ class ImageReorderRequest(BaseModel):
     """Request model for reordering images."""
     image_id: int
     display_order: int
+
+
+class SecureImageUrlResponse(BaseModel):
+    """Response schema for secure, time-limited image URLs"""
+    secure_url: str
+    expires_at: str  # ISO 8601 datetime string
+    expires_in_seconds: int
 
 
 # Removed SAS token endpoints - using simplified direct upload approach
@@ -241,4 +248,42 @@ async def upload_property_image_direct(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to upload image"
+        )
+
+
+@router.post("/images/secure-url", response_model=SecureImageUrlResponse)
+async def get_image_secure_url(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    image_url: str = Query(..., description="The original Azure Blob URL of the image")
+):
+    """
+    Generate a time-limited, authenticated URL for secure property image access.
+    
+    For private Azure containers, images require SAS tokens to be accessed.
+    This endpoint generates a 1-hour expiring SAS token for secure image viewing.
+    """
+    try:
+        return await PropertyImageService.generate_image_secure_url(
+            image_url=image_url,
+            current_user=current_user
+        )
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        error_msg = str(ve)
+        if "not found in storage" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The image file no longer exists in storage."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid image URL: {error_msg}"
+        )
+    except Exception as e:
+        logger.exception("Error generating secure URL for property image")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate secure preview URL."
         )

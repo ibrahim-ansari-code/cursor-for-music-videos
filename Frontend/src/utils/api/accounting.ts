@@ -375,3 +375,37 @@ export const getAccountingOverview = async (params: InsightParams = {}): Promise
   const queryString = queryParams.toString();
   return apiRequest(`/accounting/insights/overview${queryString ? '?' + queryString : ''}`);
 };
+
+/**
+ * Generate a secure, time-limited URL for an expense receipt.
+ * 
+ * For private Azure containers, receipts require SAS tokens to be accessed.
+ * This generates a 1-hour expiring SAS token for secure receipt viewing.
+ */
+export const getSecureExpenseReceiptUrl = async (receiptUrl: string): Promise<{
+  secure_url: string;
+  expires_at: string;
+  expires_in_seconds: number;
+}> => {
+  const encodedUrl = encodeURIComponent(receiptUrl);
+  return apiRequest(`/accounting/expenses/receipts/secure-url?receipt_url=${encodedUrl}`, {
+    method: "POST",
+  });
+};
+
+/**
+ * Generate a secure, time-limited URL for a payment receipt.
+ * 
+ * For private Azure containers, receipts require SAS tokens to be accessed.
+ * This generates a 1-hour expiring SAS token for secure receipt viewing.
+ */
+export const getSecurePaymentReceiptUrl = async (receiptUrl: string): Promise<{
+  secure_url: string;
+  expires_at: string;
+  expires_in_seconds: number;
+}> => {
+  const encodedUrl = encodeURIComponent(receiptUrl);
+  return apiRequest(`/accounting/payments/receipts/secure-url?receipt_url=${encodedUrl}`, {
+    method: "POST",
+  });
+};

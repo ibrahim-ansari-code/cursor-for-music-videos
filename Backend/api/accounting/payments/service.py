@@ -17,7 +17,7 @@ from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.property import Property
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
-from Backend.utils.azure_blob import upload_payment_receipt_to_blob
+from Backend.utils.azure_blob import upload_payment_receipt_to_blob, generate_secure_document_url
 from Backend.utils.datetime_utils import (create_audit_datetime,
                                           date_to_utc_range, utc_now,
                                           validate_business_datetime)
@@ -565,6 +565,47 @@ async def parse_payment_receipt(
             "Error parsing payment receipt for user %s", current_user.id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail="Failed to parse payment receipt due to an internal error.") from e
+
+
+async def generate_receipt_secure_url(
+    receipt_url: str,
+    current_user: User
+) -> dict:
+    """
+    Generate a time-limited SAS token URL for payment receipt access.
+    
+    Args:
+        receipt_url: The Azure Blob URL of the receipt
+        current_user: Current authenticated user
+        
+    Returns:
+        Dict with secure_url, expires_at, expires_in_seconds
+    """
+    # Authorization check
+    if current_user.user_type not in [UserType.ADMIN, UserType.LANDLORD]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access payment receipts."
+        )
+    
+    try:
+        # Generate secure URL with SAS token
+        url_data = await generate_secure_document_url(
+            blob_url=receipt_url,
+            user_id=current_user.id,
+            document_id=receipt_url,  # Use URL as identifier for logging
+            expires_in_hours=1,
+            client_ip=None,  # No IP restriction for browser-loaded images
+        )
+        
+        return url_data
+        
+    except Exception as e:
+        logger.error(f"Error generating secure URL for payment receipt: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate secure URL: {str(e)}"
+        )
 
 
 async def run_orphaned_payments_check(

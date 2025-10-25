@@ -626,10 +626,79 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
   height = "24rem",
   className = "",
 }) => {
+  const [secureUrl, setSecureUrl] = useState<string | null>(null);
+  const [isLoadingSecureUrl, setIsLoadingSecureUrl] = useState(false);
+
+  // Fetch secure URL when receiptUrl changes (for private Azure containers)
+  useEffect(() => {
+    const fetchSecureUrl = async () => {
+      if (!receiptUrl) {
+        setSecureUrl(null);
+        return;
+      }
+
+      // Check if it's an Azure blob URL that needs a SAS token
+      if (receiptUrl.startsWith('https://') && receiptUrl.includes('blob.core.windows.net')) {
+        // Only fetch secure URL if it doesn't already have a SAS token
+        if (!receiptUrl.includes('?sv=')) {
+          setIsLoadingSecureUrl(true);
+          try {
+            const { getSecureExpenseReceiptUrl, getSecurePaymentReceiptUrl } = await import('../../utils/api/accounting');
+            
+            // Try expense receipt first, then payment receipt as fallback
+            let secureUrlData;
+            try {
+              secureUrlData = await getSecureExpenseReceiptUrl(receiptUrl);
+            } catch (error: unknown) {
+              // If expense fails with a 404, try payment as a fallback.
+              // For other errors, we should fail fast.
+              const status = (error as { response?: { status?: number } })?.response?.status;
+              if (status === 404) {
+                secureUrlData = await getSecurePaymentReceiptUrl(receiptUrl);
+              } else {
+                // Re-throw the original error if it's not a 404
+                throw error;
+              }
+            }
+            
+            setSecureUrl(secureUrlData.secure_url);
+          } catch (error: unknown) {
+            console.error('Failed to fetch secure URL for receipt:', error);
+            // Fallback to original URL (will likely fail but shows error)
+            setSecureUrl(receiptUrl);
+          } finally {
+            setIsLoadingSecureUrl(false);
+          }
+        } else {
+          // Already has SAS token
+          setSecureUrl(receiptUrl);
+        }
+      } else {
+        // Not an Azure URL or is a preview URL (blob:)
+        setSecureUrl(receiptUrl);
+      }
+    };
+
+    if (show && receiptUrl) {
+      fetchSecureUrl();
+    }
+  }, [receiptUrl, show]);
+
   if (!receiptUrl) return null;
 
   const renderPreviewContent = () => {
-    const url = receiptUrl;
+    if (isLoadingSecureUrl || !secureUrl) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-8 h-8 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading receipt...</p>
+          </div>
+        </div>
+      );
+    }
+
+    const url = secureUrl;
     const lowerUrl = url.toLowerCase();
 
     if (

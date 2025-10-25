@@ -16,6 +16,7 @@ import EmergencyContactModal from '../components/tenants/modals/EmergencyContact
 import MaintenanceRequestModal from '../components/maintenance/MaintenanceRequestModal.tsx';
 import DocumentUploadModal from '../components/tenants/TenantProfile/tabs/DocumentsTab/DocumentUploadModal';
 import { createMaintenanceRequest } from '../utils/api';
+import { updateMaintenanceRequest } from '../utils/api/maintenance';
 
 const TenantProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -38,6 +39,7 @@ const TenantProfile: React.FC = () => {
   // Maintenance Request modal state (lifted to this level for proper fixed positioning and z-index)
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [maintenanceModalData, setMaintenanceModalData] = useState<any>(null);
+  const [isViewingMaintenance, setIsViewingMaintenance] = useState(false);
   const [isSubmittingMaintenance, setIsSubmittingMaintenance] = useState(false);
 
   // Document Upload modal state (lifted to this level for proper fixed positioning and z-index)
@@ -162,25 +164,43 @@ const TenantProfile: React.FC = () => {
   };
 
   const openMaintenanceModal = (initialData: any = null) => {
-    setMaintenanceModalData(initialData);
+    // Check if this is a view-only request
+    const isViewing = initialData?.isViewing === true;
+    
+    // Remove isViewing from the data object so it doesn't persist in state
+    const { isViewing: _removed, ...dataWithoutFlag } = initialData || {};
+    
+    setMaintenanceModalData(dataWithoutFlag);
+    setIsViewingMaintenance(isViewing);
     setShowMaintenanceModal(true);
   };
 
   const closeMaintenanceModal = () => {
     setShowMaintenanceModal(false);
     setMaintenanceModalData(null);
+    setIsViewingMaintenance(false);
   };
 
   const handleSubmitMaintenanceRequest = async (requestData: any) => {
     setIsSubmittingMaintenance(true);
     try {
-      await createMaintenanceRequest(requestData);
-      await refetch();
-      closeMaintenanceModal();
-      toast.success('Maintenance request created successfully!');
+      // Check if we're updating an existing request or creating a new one
+      if (maintenanceModalData?.id) {
+        // Update existing request
+        await updateMaintenanceRequest(maintenanceModalData.id, requestData);
+        await refetch();
+        closeMaintenanceModal();
+        toast.success('Maintenance request updated successfully!');
+      } else {
+        // Create new request
+        await createMaintenanceRequest(requestData);
+        await refetch();
+        closeMaintenanceModal();
+        toast.success('Maintenance request created successfully!');
+      }
     } catch (error: any) {
-      console.error('Failed to create maintenance request:', error);
-      toast.error(error?.message || 'Failed to create maintenance request');
+      console.error('Failed to save maintenance request:', error);
+      toast.error(error?.message || 'Failed to save maintenance request');
       throw error; // Let modal handle error display
     } finally {
       setIsSubmittingMaintenance(false);
@@ -334,7 +354,7 @@ const TenantProfile: React.FC = () => {
         onClose={closeMaintenanceModal}
         onSubmit={handleSubmitMaintenanceRequest}
         request={maintenanceModalData}
-        isViewing={false}
+        isViewing={isViewingMaintenance}
         isSubmitting={isSubmittingMaintenance}
       />
 

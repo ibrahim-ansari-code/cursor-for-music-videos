@@ -148,3 +148,10 @@ class MaintenanceSummaryResponse(BaseModel):
 
 class MaintenancePhotoUploadResponse(BaseModel):
     photo_url: str
+
+
+class SecurePhotoUrlResponse(BaseModel):
+    """Response schema for secure, time-limited photo URLs"""
+    secure_url: str
+    expires_at: str  # ISO 8601 datetime string
+    expires_in_seconds: int

@@ -3,7 +3,7 @@ import logging
 from datetime import date
 from typing import Annotated, Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, Response, UploadFile, status, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, Request, Response, UploadFile, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Backend.api.auth import get_current_user
@@ -19,6 +19,7 @@ from .schemas import (
     PaymentUpdate,
     PaginatedPaymentsResponse,
     PaymentReceiptParseResponse,
+    SecureReceiptUrlResponse,
     CSVPaymentImportRequest,
     CSVPaymentImportResult,
 )
@@ -240,6 +241,44 @@ async def parse_payment_receipt(
     Only landlords and admins can parse receipts.
     """
     return await service.parse_payment_receipt(file, current_user)
+
+
+@router.post("/receipts/secure-url", response_model=SecureReceiptUrlResponse)
+async def get_receipt_secure_url(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    receipt_url: str = Query(..., description="The original Azure Blob URL of the receipt")
+):
+    """
+    Generate a time-limited, authenticated URL for secure payment receipt access.
+    
+    For private Azure containers, receipts require SAS tokens to be accessed.
+    This endpoint generates a 1-hour expiring SAS token for secure receipt viewing.
+    """
+    try:
+        return await service.generate_receipt_secure_url(
+            receipt_url=receipt_url,
+            current_user=current_user
+        )
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        error_msg = str(ve)
+        if "not found in storage" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The receipt file no longer exists in storage."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid receipt URL: {error_msg}"
+        )
+    except Exception as e:
+        logger.exception("Error generating secure URL for payment receipt")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate secure preview URL."
+        )
 
 
 # === Administrative Operations ===

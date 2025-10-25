@@ -14,7 +14,7 @@ from Backend.models.property import Property
 from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
-from Backend.utils.azure_blob import upload_maintenance_photo_to_blob
+from Backend.utils.azure_blob import upload_maintenance_photo_to_blob, generate_secure_document_url
 
 from .helpers import check_permission, validate_file_content, validate_file_size
 from .schemas import (
@@ -440,4 +440,48 @@ class MaintenanceService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to upload maintenance photo: {str(e)}"
+            )
+
+    @staticmethod
+    async def generate_photo_secure_url(
+        photo_url: str,
+        current_user: User,
+        client_ip: str | None = None
+    ) -> dict:
+        """
+        Generate a time-limited SAS token URL for maintenance photo access.
+        
+        Args:
+            photo_url: The Azure Blob URL of the photo
+            current_user: Current authenticated user
+            client_ip: Optional client IP for restriction
+            
+        Returns:
+            Dict with secure_url, expires_at, expires_in_seconds
+        """
+        # Authorization check
+        authorized_roles = {UserType.LANDLORD, UserType.ADMIN}
+        if current_user.user_type not in authorized_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to access maintenance photos."
+            )
+        
+        try:
+            # Generate secure URL with SAS token
+            url_data = await generate_secure_document_url(
+                blob_url=photo_url,
+                user_id=current_user.id,
+                document_id=photo_url,  # Use URL as identifier for logging
+                expires_in_hours=1,
+                client_ip=client_ip,
+            )
+            
+            return url_data
+            
+        except Exception as e:
+            logger.error(f"Error generating secure URL for maintenance photo: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate secure URL: {str(e)}"
             )

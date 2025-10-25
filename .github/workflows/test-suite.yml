@@ -262,26 +262,32 @@ jobs:
       
       - name: Verify Build Chunks
         run: |
-          echo "Checking build output for proper chunking..."
+          echo "Checking build output for proper code splitting..."
           ls -la dist/assets/
           
-          # Check for critical chunks (matching actual chunk names from vite.config.js)
-          if ! ls dist/assets/react-vendor-*.js 2>/dev/null; then
-            echo "ERROR: react-vendor chunk not found!"
+          # With lazy loading strategy, check for route-based chunks
+          if ! ls dist/assets/Leases-*.js 2>/dev/null; then
+            echo "ERROR: Leases route chunk not found!"
             exit 1
           fi
           
-          if ! ls dist/assets/charts-*.js 2>/dev/null; then
-            echo "ERROR: charts chunk not found!"
+          if ! ls dist/assets/Properties-*.js 2>/dev/null; then
+            echo "ERROR: Properties route chunk not found!"
             exit 1
           fi
           
-          if ! ls dist/assets/pdf-libs-*.js 2>/dev/null; then
-            echo "ERROR: pdf-libs chunk not found!"
+          if ! ls dist/assets/Tenants-*.js 2>/dev/null; then
+            echo "ERROR: Tenants route chunk not found!"
             exit 1
           fi
           
-          echo "✅ All critical chunks generated successfully"
+          # Check main index bundle exists
+          if ! ls dist/assets/index-*.js 2>/dev/null; then
+            echo "ERROR: Main index bundle not found!"
+            exit 1
+          fi
+          
+          echo "✅ All route-based chunks generated successfully with lazy loading"
       
       - name: Run Tests
         run: npm test -- --run
@@ -308,6 +314,14 @@ jobs:
           fi
           
           echo "✅ No global React exposure detected"
+          
+          # Verify code splitting is working (multiple route chunks)
+          route_chunks=$(ls dist/assets/ | grep -E "(Leases|Properties|Tenants|Maintenance)" | wc -l)
+          if [ "$route_chunks" -lt 4 ]; then
+            echo "WARNING: Expected at least 4 route chunks, found $route_chunks"
+          else
+            echo "✅ Code splitting working: $route_chunks route chunks found"
+          fi
       
       - name: Generate Test Coverage
         run: npm run test:coverage

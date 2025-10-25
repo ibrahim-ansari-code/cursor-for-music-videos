@@ -155,7 +155,12 @@ def test_get_secure_url_no_permission(mocker):
 
 
 def test_get_secure_url_configuration_error(mocker):
-    """Test secure URL generation when Azure config is missing."""
+    """Test secure URL generation when Azure config is missing.
+    
+    The improved error handling now detects configuration errors by checking
+    if the ValueError message contains keywords like 'not configured', 'account key', etc.
+    and returns 500 (server error) instead of 400 (client error).
+    """
     # Arrange
     lease_id = 123
     document_id = 456
@@ -165,17 +170,18 @@ def test_get_secure_url_configuration_error(mocker):
     mock_document = MagicMock(spec=LeaseDocument)
     mock_document.id = document_id
     mock_document.lease_id = lease_id
-    mock_document.file_path = "https://briklicorestorage.blob.core.windows.net/lease-uploads/doc.pdf"
+    mock_document.file_path = "https://brRighticorestorage.blob.core.windows.net/lease-uploads/doc.pdf"
     
     mocker.patch(
         "Backend.api.leases.router.get_lease_document_by_id",
         new=AsyncMock(return_value=mock_document)
     )
     
-    # Mock SAS generation to raise ValueError (config error)
+    # Mock SAS generation to raise ValueError with config-related message
+    # The error handler checks for keywords: 'not configured', 'account key', 'account name'
     mocker.patch(
         "Backend.api.leases.router.generate_secure_document_url",
-        new=AsyncMock(side_effect=ValueError("Azure account key not configured"))
+        new=AsyncMock(side_effect=ValueError("AZURE_STORAGE_ACCOUNT_KEY not configured"))
     )
     
     # Override dependencies
@@ -186,9 +192,43 @@ def test_get_secure_url_configuration_error(mocker):
     with TestClientWithHost(app) as client:
         response = client.get(f"/api/leases/{lease_id}/documents/{document_id}/secure-url")
     
-    # Assert
+    # Assert - Should return 500 for configuration errors
     assert response.status_code == 500
-    assert "configuration error" in response.json()["detail"].lower()
+    assert "configuration" in response.json()["detail"].lower()
+
+
+def test_get_secure_url_invalid_url_format(mocker):
+    """Test secure URL generation with invalid blob URL format."""
+    lease_id = 123
+    document_id = 456
+    fake_user = create_test_user()
+    
+    # Create mock document with invalid URL
+    mock_document = MagicMock(spec=LeaseDocument)
+    mock_document.id = document_id
+    mock_document.lease_id = lease_id
+    mock_document.file_path = "https://example.com/not-a-blob-url.pdf"
+    
+    mocker.patch(
+        "Backend.api.leases.router.get_lease_document_by_id",
+        new=AsyncMock(return_value=mock_document)
+    )
+    
+    # Mock to raise ValueError for invalid URL (not containing "not found")
+    mocker.patch(
+        "Backend.api.leases.router.generate_secure_document_url",
+        new=AsyncMock(side_effect=ValueError("Not an Azure Blob Storage URL"))
+    )
+    
+    app.dependency_overrides[get_current_user] = lambda: fake_user
+    app.dependency_overrides[get_session] = lambda: AsyncMock()
+    
+    with TestClientWithHost(app) as client:
+        response = client.get(f"/api/leases/{lease_id}/documents/{document_id}/secure-url")
+    
+    # Should return 400 for invalid URL format
+    assert response.status_code == 400
+    assert "invalid" in response.json()["detail"].lower()
 
 
 def test_get_secure_url_invalid_lease_id(mocker):

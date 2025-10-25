@@ -132,6 +132,23 @@ export const propertyImagesApi = {
     return apiRequest(`/properties/${propertyId}/images/${imageId}/primary`, {
       method: 'PUT'
     });
+  },
+
+  /**
+   * Generate a secure, time-limited URL for a property image.
+   * 
+   * For private Azure containers, images require SAS tokens to be accessed.
+   * This generates a 1-hour expiring SAS token for secure image viewing.
+   */
+  async getSecureImageUrl(imageUrl: string): Promise<{
+    secure_url: string;
+    expires_at: string;
+    expires_in_seconds: number;
+  }> {
+    const encodedUrl = encodeURIComponent(imageUrl);
+    return apiRequest(`/properties/images/secure-url?image_url=${encodedUrl}`, {
+      method: 'POST'
+    });
   }
 };
 

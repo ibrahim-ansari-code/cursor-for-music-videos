@@ -2,6 +2,7 @@ import React, { MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Property, PropertyStatus } from '../../../../../types/property';
 import { StatusBadge } from './StatusBadge';
+import { useSecureImageUrl } from '../../../../../hooks/useSecureImageUrl';
 
 interface PropertyRowProps {
   property: Property;
@@ -41,6 +42,10 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({
     return property.images[0]?.image_url || null;
   };
 
+  // Fetch secure URL for the primary image (for private Azure containers)
+  const primaryImageUrl = getPrimaryImage();
+  const secureImageUrl = useSecureImageUrl(primaryImageUrl);
+
   const getFormattedAddress = (): { display: string; title: string } => {
     const addressParts = [property.address, property.city, property.province].filter(Boolean);
     const formattedAddress = addressParts.join(', ');
@@ -68,9 +73,9 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="flex items-center">
           <div className="relative flex-shrink-0 h-10 w-10 rounded-lg overflow-hidden">
-            {getPrimaryImage() && (
+            {secureImageUrl && (
               <img
-                src={getPrimaryImage()!}
+                src={secureImageUrl}
                 alt={property.name}
                 className="h-full w-full object-cover"
                 onError={handleImageError}
@@ -78,7 +83,7 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({
             )}
             <div 
               className={`absolute inset-0 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold ${
-                getPrimaryImage() ? 'hidden' : 'flex'
+                secureImageUrl ? 'hidden' : 'flex'
               }`}
             >
               {getImageInitial(property.name)}

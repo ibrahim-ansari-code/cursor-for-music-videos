@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { MaintenanceFormData, MaintenancePhotoState, Property, PropertyUnit, Tenant } from '../../types/tenant';
-import LoadingSpinner from '../LoadingSpinner';
+import MaintenancePhotoUpload from './MaintenancePhotoUpload';
+import { getSecurePhotoUrl } from '../../utils/api/maintenance';
 
 interface MaintenanceFormFieldsProps {
   formData: MaintenanceFormData;
@@ -12,6 +13,7 @@ interface MaintenanceFormFieldsProps {
   onUpdateField: <K extends keyof MaintenanceFormData>(field: K, value: MaintenanceFormData[K]) => void;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemovePhoto: (id: string) => void;
+  onReorderPhotos?: (newOrder: string[]) => void;
   isViewing?: boolean;
   isLoadingUnits?: boolean;
   isLoadingTenants?: boolean;
@@ -36,6 +38,53 @@ const MaintenanceViewMode: React.FC<{
   units: PropertyUnit[];
   tenants: Tenant[];
 }> = ({ formData, properties, units, tenants }) => {
+  const [securePhotoUrls, setSecurePhotoUrls] = useState<Record<string, string>>({});
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+
+  // Fetch secure URLs for all photos when component mounts
+  useEffect(() => {
+    const fetchSecureUrls = async () => {
+      if (!formData.photos || formData.photos.length === 0) {
+        setLoadingPhotos(false);
+        return;
+      }
+
+      setLoadingPhotos(true);
+      const urlMap: Record<string, string> = {};
+
+      try {
+        console.log('[MaintenanceView] Fetching secure URLs for photos:', formData.photos);
+        
+        // Fetch secure URLs for all photos in parallel
+        const secureUrlPromises = formData.photos.map(async (photoUrl) => {
+          try {
+            const { secure_url, expires_at } = await getSecurePhotoUrl(photoUrl);
+            console.log(`[MaintenanceView] Got secure URL for ${photoUrl}, expires at ${expires_at}`);
+            return { original: photoUrl, secure: secure_url };
+          } catch (error) {
+            console.error(`Failed to get secure URL for photo: ${photoUrl}`, error);
+            // Return original URL as fallback (will likely fail but shows error state)
+            return { original: photoUrl, secure: photoUrl };
+          }
+        });
+
+        const results = await Promise.all(secureUrlPromises);
+        results.forEach(({ original, secure }) => {
+          urlMap[original] = secure;
+        });
+
+        console.log('[MaintenanceView] Secure photo URLs loaded:', urlMap);
+        setSecurePhotoUrls(urlMap);
+      } catch (error) {
+        console.error('Failed to fetch secure photo URLs:', error);
+      } finally {
+        setLoadingPhotos(false);
+      }
+    };
+
+    fetchSecureUrls();
+  }, [formData.photos]);
+
   const renderField = (label: string, value: React.ReactNode) => (
     <div className="flex flex-col gap-1">
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">
@@ -59,6 +108,93 @@ const MaintenanceViewMode: React.FC<{
 
   return (
     <div className="p-6 space-y-4">
+      {/* Photos Section - At Top (View-Only) */}
+      {formData.photos && formData.photos.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600 transition-colors duration-300">
+          <div className="flex items-center mb-3">
+            <div className="w-9 h-9 bg-purple-50 dark:bg-purple-900/20 rounded-lg flex items-center justify-center mr-3 transition-colors duration-300">
+              <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">Photos ({formData.photos.length})</h3>
+          </div>
+          
+          {/* Simple photo grid for view mode - no dropzone, no actions */}
+          {loadingPhotos ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-8 h-8 border-4 border-purple-200 dark:border-purple-800 border-t-purple-600 dark:border-t-purple-400 rounded-full animate-spin" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">Loading photos...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {formData.photos.map((url, index) => {
+                const isPdf = url.toLowerCase().includes('.pdf');
+                // Use secure URL if available, otherwise show loading state
+                const displayUrl = securePhotoUrls[url];
+                const isPhotoReady = !!displayUrl;
+                
+                return (
+                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 shadow-md hover:shadow-lg transition-shadow duration-300 border-2 border-gray-200 dark:border-gray-600">
+                    {!isPhotoReady ? (
+                      // Loading state while fetching secure URL
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="w-6 h-6 border-2 border-purple-200 dark:border-purple-800 border-t-purple-600 dark:border-t-purple-400 rounded-full animate-spin" />
+                      </div>
+                    ) : isPdf ? (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700">
+                        <svg className="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                    ) : (
+                      <img
+                        src={displayUrl}
+                        alt={`Photo ${index + 1}`}
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => window.open(displayUrl, '_blank')}
+                        onError={(e) => {
+                          // Handle broken images
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="w-full h-full flex flex-col items-center justify-center bg-red-50 dark:bg-red-900/20 p-2">
+                                <svg class="w-8 h-8 text-red-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="text-xs text-red-600 dark:text-red-400 text-center">Image not found</span>
+                              </div>
+                            `;
+                          }
+                        }}
+                      />
+                    )}
+                    
+                    {/* Hover overlay to view full size - only show when photo is ready */}
+                    {!isPdf && isPhotoReady && (
+                      <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                        <a
+                          href={displayUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="opacity-0 hover:opacity-100 text-white bg-black bg-opacity-60 px-3 py-1.5 rounded-lg text-xs font-medium transition-opacity"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          View Full
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
       {/* Property and Unit Information */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600">
         <div className="flex items-center mb-3">
@@ -121,46 +257,6 @@ const MaintenanceViewMode: React.FC<{
         </div>
       </div>
 
-      {/* Photos */}
-      {formData.photos && formData.photos.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600 transition-colors duration-300">
-          <div className="flex items-center mb-3">
-            <div className="w-9 h-9 bg-purple-50 dark:bg-purple-900/20 rounded-lg flex items-center justify-center mr-3 transition-colors duration-300">
-              <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">Photos</h3>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {formData.photos.map((url, idx) => (
-              <div key={idx} className="relative group">
-                <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                  {url.toLowerCase().includes('.pdf') ? (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                  ) : (
-                    <img src={url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
-                  )}
-                </div>
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="opacity-0 group-hover:opacity-100 text-white bg-black bg-opacity-50 px-3 py-1 rounded text-sm transition-opacity"
-                  >
-                    View Full
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -176,6 +272,7 @@ const MaintenanceFormFields: React.FC<MaintenanceFormFieldsProps> = ({
   onUpdateField,
   onFileChange,
   onRemovePhoto,
+  onReorderPhotos,
   isViewing,
   isLoadingUnits,
   isLoadingTenants,
@@ -192,13 +289,56 @@ const MaintenanceFormFields: React.FC<MaintenanceFormFieldsProps> = ({
       : `${baseClasses} border-gray-200 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500`;
   };
 
+  // Handle file change from dropzone
+  const handleDropzoneFileChange = (files: File[]) => {
+    // Create a fake event to match existing signature
+    const fileList = files as unknown as FileList;
+    const fakeEvent = {
+      target: {
+        files: fileList,
+      },
+    } as unknown as React.ChangeEvent<HTMLInputElement>;
+    onFileChange(fakeEvent);
+  };
+
+  // Handle photo reorder
+  const handlePhotoReorder = (newOrder: string[]) => {
+    onUpdateField('photos', newOrder);
+    if (onReorderPhotos) {
+      onReorderPhotos(newOrder);
+    }
+  };
+
   return (
     <div className="space-y-3">
+      {/* Photos Section - At Top */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+        <div className="flex items-center mb-3">
+          <div className="w-8 h-8 bg-purple-50 dark:bg-purple-900/20 rounded-lg flex items-center justify-center mr-3">
+            <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Photos</h3>
+          </div>
+        </div>
+
+        <MaintenancePhotoUpload
+          photos={formData.photos || []}
+          photoState={photoState}
+          onFileChange={handleDropzoneFileChange}
+          onRemovePhoto={onRemovePhoto}
+          onReorderPhotos={handlePhotoReorder}
+          disabled={false}
+        />
+      </div>
+
       {/* Location Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
         <div className="flex items-center mb-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mr-3">
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="w-8 h-8 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center mr-3">
+            <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
           </div>
@@ -283,8 +423,8 @@ const MaintenanceFormFields: React.FC<MaintenanceFormFieldsProps> = ({
       {/* Request Details Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
         <div className="flex items-center mb-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center mr-3">
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="w-8 h-8 bg-orange-50 dark:bg-orange-900/20 rounded-lg flex items-center justify-center mr-3">
+            <svg className="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
@@ -365,8 +505,8 @@ const MaintenanceFormFields: React.FC<MaintenanceFormFieldsProps> = ({
       {/* Additional Information Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
         <div className="flex items-center mb-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center mr-3">
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="w-8 h-8 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center mr-3">
+            <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
             </svg>
           </div>
@@ -427,77 +567,6 @@ const MaintenanceFormFields: React.FC<MaintenanceFormFieldsProps> = ({
         </div>
       </div>
 
-      {/* Photos Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-        <div className="flex items-center mb-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Photos</h3>
-          </div>
-        </div>
-
-        <div>
-          <input
-            type="file"
-            name="photos"
-            multiple
-            accept="image/*,.pdf"
-            className="block w-full text-sm file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer cursor-pointer border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-200"
-            disabled={photoState.uploadingPhotos}
-            onChange={onFileChange}
-          />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Upload images or PDFs (max 10MB each). Supported formats: JPG, PNG, GIF, PDF
-          </p>
-
-          {photoState.uploadingPhotos && (
-            <div className="mt-2 text-blue-600 dark:text-blue-400 text-sm flex items-center">
-              <div className="mr-2">
-                <LoadingSpinner size="sm" />
-              </div>
-              Uploading photos...
-            </div>
-          )}
-
-          {photoState.uploadError && (
-            <div className="mt-2 text-red-600 text-sm">{photoState.uploadError}</div>
-          )}
-
-          {formData.photos && formData.photos.length > 0 && (
-            <div className="mt-4">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Uploaded Photos</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {formData.photos.map((url, idx) => (
-                  <div key={idx} className="relative group">
-                    <div className="aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
-                      {url.toLowerCase().includes('.pdf') ? (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-700">
-                          <svg className="w-6 h-6 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                        </div>
-                      ) : (
-                        <img src={url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onRemovePhoto(url)}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 };

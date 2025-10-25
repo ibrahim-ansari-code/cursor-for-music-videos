@@ -1,11 +1,12 @@
 import logging
 import uuid
 import functools
+import ssl
 from uuid import UUID as PythonUUID
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
-from azure.core.exceptions import ResourceExistsError
+from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.storage.blob.aio import BlobServiceClient
 from azure.storage.blob import ContentSettings, generate_blob_sas, BlobSasPermissions
 from fastapi import UploadFile
@@ -19,11 +20,45 @@ logger = logging.getLogger(__name__)
 blob_service_client = None
 if settings.AZURE_STORAGE_CONNECTION_STRING:
     try:
-        # For local development SSL issues, set environment variable: PYTHONHTTPSVERIFY=0
-        # Or install certificates: pip install --upgrade certifi
-        blob_service_client = BlobServiceClient.from_connection_string(
-            settings.AZURE_STORAGE_CONNECTION_STRING
-        )
+        # For local development SSL issues with self-signed certificates
+        # SECURITY: Only disable SSL in development, never in production
+        if settings.ENVIRONMENT == "development" and not settings.TESTING:
+            # Guard: Prevent accidental production deployment with disabled SSL
+            if any(prod_indicator in settings.AZURE_STORAGE_CONNECTION_STRING.lower() 
+                   for prod_indicator in ['production', 'prod', 'live']):
+                raise RuntimeError(
+                    "CRITICAL: Cannot disable SSL verification with production Azure credentials. "
+                    "Use proper certificates or remove ENVIRONMENT=development."
+                )
+            
+            import aiohttp
+            from azure.core.pipeline.transport import AioHttpTransport
+            
+            # Create SSL context that doesn't verify certificates
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            
+            # Create aiohttp connector with custom SSL context
+            connector = aiohttp.TCPConnector(ssl=ssl_context)
+            session = aiohttp.ClientSession(connector=connector)
+            # Create custom transport with the session, allowing it to manage the session's lifecycle
+            transport = AioHttpTransport(session=session, session_owner=True)
+            
+            blob_service_client = BlobServiceClient.from_connection_string(
+                settings.AZURE_STORAGE_CONNECTION_STRING,
+                transport=transport
+            )
+            logger.warning(
+                "⚠️  SECURITY WARNING: SSL certificate verification DISABLED for development. "
+                "Use mkcert or proper certificates for production deployments."
+            )
+        else:
+            # Production: Full SSL verification enabled
+            blob_service_client = BlobServiceClient.from_connection_string(
+                settings.AZURE_STORAGE_CONNECTION_STRING
+            )
+        
         logger.info("Azure Blob Service Client initialized successfully.")
     except Exception as e:
         logger.error("Failed to initialize Azure Blob Service Client: %s", e)
@@ -498,6 +533,10 @@ def generate_sas_token_for_blob(
     # Extract container and blob name from URL
     container_name, blob_name = extract_blob_info_from_url(blob_url)
     
+    # Debug logging - check blob name
+    logger.info(f"[SAS_DEBUG] Container: {container_name}, Blob: {blob_name}")
+    logger.info(f"[SAS_DEBUG] Original blob_url: {blob_url}")
+    
     # Calculate expiry time once (using codebase-standard UTC function)
     expiry_time = utc_now() + timedelta(hours=expires_in_hours)
     
@@ -532,9 +571,10 @@ async def generate_secure_document_url(
     Generate a secure, time-limited URL for document access with audit logging.
     
     This is the main function for generating secure document URLs. It:
-    1. Generates a SAS token with configurable expiry
-    2. Creates a complete secure URL
-    3. Logs the access for audit trail (if enabled)
+    1. Validates the blob exists in Azure
+    2. Generates a SAS token with configurable expiry
+    3. Creates a complete secure URL
+    4. Logs the access for audit trail (if enabled)
     
     Args:
         blob_url: Original Azure Blob URL (without SAS token)
@@ -548,6 +588,9 @@ async def generate_secure_document_url(
             - secure_url: Full URL with SAS token
             - expires_at: ISO datetime string
             - expires_in_seconds: Seconds until expiration
+            
+    Raises:
+        ValueError: If blob doesn't exist in Azure or URL is invalid
             
     Example:
         result = await generate_secure_document_url(
@@ -566,6 +609,35 @@ async def generate_secure_document_url(
     if expires_in_hours is None:
         expires_in_hours = settings.DOCUMENT_SAS_EXPIRY_HOURS
     
+    # Validate blob exists before generating SAS token
+    # This prevents generating tokens for deleted blobs (orphaned DB records)
+    try:
+        container_name, blob_name = extract_blob_info_from_url(blob_url)
+        
+        if blob_service_client:
+            blob_client = blob_service_client.get_blob_client(
+                container=container_name,
+                blob=blob_name
+            )
+            
+            # Check if blob exists in Azure
+            if not await blob_client.exists():
+                logger.error(
+                    f"Blob not found in Azure: {container_name}/{blob_name[:50]}... "
+                    f"(Document ID: {document_id}, User: {user_id})"
+                )
+                raise ValueError(
+                    f"Document file not found in storage. The file may have been deleted. "
+                    f"Please contact support to resolve this issue."
+                )
+    except ValueError:
+        # Re-raise validation errors as-is
+        raise
+    except Exception as e:
+        logger.warning(f"Could not verify blob existence (continuing anyway): {e}")
+        # Continue with SAS generation even if existence check fails
+        # This prevents the check itself from blocking legitimate access
+    
     # Generate SAS token and get its expiry time (single source of truth)
     sas_token, expiry_time = generate_sas_token_for_blob(
         blob_url=blob_url,
@@ -573,8 +645,15 @@ async def generate_secure_document_url(
         allowed_ip=client_ip
     )
     
-    # Build complete secure URL
-    secure_url = f"{blob_url}?{sas_token}"
+    # Build complete secure URL with proper query parameter handling
+    # Handle case where blob_url might already have query parameters
+    separator = '&' if '?' in blob_url else '?'
+    secure_url = f"{blob_url}{separator}{sas_token}"
+    
+    # Debug logging - log the actual secure URL
+    logger.info(
+        f"[SAS_DEBUG] Generated secure URL: {secure_url[:200]}..." if len(secure_url) > 200 else f"[SAS_DEBUG] Generated secure URL: {secure_url}"
+    )
     
     # Audit logging (if enabled)
     if settings.DOCUMENT_ACCESS_LOGGING_ENABLED:
