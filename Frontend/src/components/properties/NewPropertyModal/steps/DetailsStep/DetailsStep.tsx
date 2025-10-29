@@ -1,11 +1,21 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { PropertyFormData, PropertyType, PropertyStatus } from '@/types/property';
-import { 
+import {
   Building2, Home, Store, Factory, Building, CheckCircle, Shield,
-  Info, FileText, Calendar, MapPin
+  Info, FileText, Calendar, MapPin, Briefcase, ChevronDown, ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import * as Select from '@radix-ui/react-select';
+import * as Sentry from '@sentry/react';
+import {
+  fetchOwnershipEntities,
+  type OwnershipEntity
+} from '../../../../../utils/api/ownershipEntities';
+import NewOwnershipEntityModal from '../../../../ownership/NewOwnershipEntityModal';
+
+// Constant for "no ownership entity" value - can't use empty string with Radix Select
+const NO_OWNERSHIP_ENTITY = '__none__';
 
 // Import type-specific forms
 import ResidentialForm from './typeSpecificForms/ResidentialForm';
@@ -108,19 +118,79 @@ const statusOptions = [
 const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, ref) => {
   const { register, watch, setValue, formState: { errors } } = useFormContext<PropertyFormData>();
   const [activeTab, setActiveTab] = useState<'basic' | 'specific'>('basic');
+  const [ownershipEntities, setOwnershipEntities] = useState<OwnershipEntity[]>([]);
+  const [loadingEntities, setLoadingEntities] = useState<boolean>(true);
+  const [isCreateEntityModalOpen, setIsCreateEntityModalOpen] = useState(false);
   
   const propertyType = watch('property_type');
   const propertyName = watch('name');
   const yearBuilt = watch('year_built');
   const status = watch('status') || PropertyStatus.ACTIVE;
   const description = watch('description');
+  const ownershipEntityId = watch('ownership_entity_id');
   
   const selectedType = useMemo(
     () => propertyTypes.find(t => t.value === propertyType),
     [propertyType]
   );
   
-  
+  // Load ownership entities on mount
+  useEffect(() => {
+    const loadOwnershipEntities = async () => {
+      return Sentry.startSpan(
+        {
+          op: 'property.modal.load_entities',
+          name: 'Load Ownership Entities',
+        },
+        async (span) => {
+          try {
+            setLoadingEntities(true);
+            Sentry.logger.debug('Loading ownership entities for property form');
+            const response = await fetchOwnershipEntities({ pageSize: 100 });
+            setOwnershipEntities(response.entities || []);
+            span.setAttribute('entityCount', response.entities?.length || 0);
+            Sentry.logger.debug('Ownership entities loaded successfully', { count: response.entities?.length || 0 });
+          } catch (error) {
+            Sentry.logger.error('Failed to load ownership entities', { 
+              error: error instanceof Error ? error.message : String(error) 
+            });
+            Sentry.captureException(error, {
+              tags: {
+                component: 'DetailsStep',
+                action: 'load_entities',
+                feature: 'property_modal',
+              },
+            });
+          } finally {
+            setLoadingEntities(false);
+          }
+        }
+      );
+    };
+
+    loadOwnershipEntities();
+  }, []);
+
+  // Handle ownership entity creation
+  const handleEntityCreated = useCallback((newEntity: OwnershipEntity) => {
+    Sentry.logger.info('Ownership entity created from property modal', {
+      entityId: newEntity.id,
+      entityName: newEntity.name,
+      entityType: newEntity.entity_type,
+    });
+
+    // Add to list using functional setState
+    setOwnershipEntities(prev => [...prev, newEntity]);
+
+    // Auto-select the newly created entity
+    setValue('ownership_entity_id', newEntity.id);
+
+    // Close modal
+    setIsCreateEntityModalOpen(false);
+
+    // Success toast is already shown by the modal component
+  }, [setValue]);
+
   // Set defaults - status is already handled with fallback in watch
 
   // Expose methods to parent
@@ -244,10 +314,9 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
           <div className="h-full">
               <div className="grid grid-cols-12 gap-6 h-full">
                 {/* Left Section - Form Fields (7 columns) */}
-                <div className="col-span-7 flex flex-col space-y-5">
-                  {/* Name and Year/Status Row */}
-                  <div className="flex gap-3">
-                    <div className="flex-1">
+                <div className="col-span-7 flex flex-col space-y-5 pl-1">
+                  {/* Name Row */}
+                  <div>
                       <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">
                         Property Name *
                       </label>
@@ -271,7 +340,9 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                       )}
                     </div>
 
-                    <div className="w-32">
+                  {/* Year/Status/Ownership Row */}
+                  <div className="grid grid-cols-12 gap-3">
+                    <div className="col-span-3">
                       <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">
                         Year Built
                       </label>
@@ -290,29 +361,120 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                           placeholder=""
                         />
                       </div>
-                      <div className="h-4 mt-1">
-                        {errors.year_built && (
-                          <p className="text-xs text-red-600 dark:text-red-400">
-                            {errors.year_built.message}
-                          </p>
-                        )}
-                      </div>
                     </div>
 
-                    <div className="w-36">
+                    <div className="col-span-3">
                       <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">
                         Status
                       </label>
-                      <select
-                        {...register('status')}
-                        className="w-full px-3 py-2.5 text-sm font-medium border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 appearance-none cursor-pointer"
+                      <Select.Root 
+                        value={status} 
+                        onValueChange={(value) => {
+                          Sentry.logger.trace('Property status changed', { status: value });
+                          setValue('status', value as PropertyStatus);
+                        }}
                       >
-                        {statusOptions.map(option => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                        <Select.Trigger className="w-full px-3 py-2.5 text-sm font-medium border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-all flex items-center justify-between hover:border-gray-300 dark:hover:border-gray-500">
+                          <Select.Value />
+                          <Select.Icon>
+                            <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          </Select.Icon>
+                        </Select.Trigger>
+                        <Select.Portal>
+                          <Select.Content 
+                            className="overflow-hidden bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-lg z-50"
+                            position="popper"
+                            side="bottom"
+                            align="start"
+                            sideOffset={4}
+                          >
+                            <Select.Viewport className="p-1">
+                              {statusOptions.map((option) => (
+                                <Select.Item
+                                  key={option.value}
+                                  value={option.value}
+                                  className="relative flex items-center px-8 py-2 text-sm text-gray-900 dark:text-gray-100 rounded cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 focus:bg-blue-50 dark:focus:bg-blue-900/20 outline-none select-none data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/30"
+                                >
+                                  <Select.ItemText>{option.label}</Select.ItemText>
+                                  <Select.ItemIndicator className="absolute left-2 inline-flex items-center">
+                                    <CheckCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                  </Select.ItemIndicator>
+                                </Select.Item>
+                              ))}
+                            </Select.Viewport>
+                          </Select.Content>
+                        </Select.Portal>
+                      </Select.Root>
+                    </div>
+
+                    <div className="col-span-6">
+                      <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">
+                        <Briefcase className="h-3 w-3 inline mr-1 mb-0.5" />
+                        Ownership Entity
+                      </label>
+                      {loadingEntities ? (
+                        <div className="w-full px-3 py-2.5 text-xs border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                          Loading...
+                        </div>
+                      ) : (
+                        <Select.Root 
+                          value={ownershipEntityId ?? NO_OWNERSHIP_ENTITY} 
+                          onValueChange={(value) => {
+                            Sentry.logger.trace('Ownership entity changed', { value, isNone: value === NO_OWNERSHIP_ENTITY });
+                            setValue('ownership_entity_id', value === NO_OWNERSHIP_ENTITY ? null : value);
+                          }}
+                        >
+                          <Select.Trigger className="w-full px-3 py-2.5 text-sm font-medium border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-all flex items-center justify-between hover:border-gray-300 dark:hover:border-gray-500">
+                            <Select.Value placeholder="None" />
+                            <Select.Icon>
+                              <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                            </Select.Icon>
+                          </Select.Trigger>
+                          <Select.Portal>
+                            <Select.Content 
+                              className="overflow-hidden bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-lg z-50 max-h-[300px]"
+                              position="popper"
+                              side="bottom"
+                              align="start"
+                              sideOffset={4}
+                            >
+                              <Select.Viewport className="p-1">
+                                <Select.Item
+                                  value={NO_OWNERSHIP_ENTITY}
+                                  className="relative flex items-center px-8 py-2 text-sm text-gray-900 dark:text-gray-100 rounded cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 focus:bg-blue-50 dark:focus:bg-blue-900/20 outline-none select-none data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/30"
+                                >
+                                  <Select.ItemText>None</Select.ItemText>
+                                  <Select.ItemIndicator className="absolute left-2 inline-flex items-center">
+                                    <CheckCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                  </Select.ItemIndicator>
+                                </Select.Item>
+                                {ownershipEntities.map((entity) => (
+                                  <Select.Item
+                                    key={entity.id}
+                                    value={entity.id}
+                                    className="relative flex items-center px-8 py-2 text-sm text-gray-900 dark:text-gray-100 rounded cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 focus:bg-blue-50 dark:focus:bg-blue-900/20 outline-none select-none data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/30"
+                                  >
+                                    <Select.ItemText>{entity.name}</Select.ItemText>
+                                    <Select.ItemIndicator className="absolute left-2 inline-flex items-center">
+                                      <CheckCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                    </Select.ItemIndicator>
+                                  </Select.Item>
+                                ))}
+                              </Select.Viewport>
+                            </Select.Content>
+                          </Select.Portal>
+                        </Select.Root>
+                      )}
+                      {!loadingEntities && (
+                        <button
+                          type="button"
+                          onClick={() => setIsCreateEntityModalOpen(true)}
+                          className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors flex items-center gap-1"
+                        >
+                          <Briefcase className="h-3.5 w-3.5" />
+                          Create New Ownership Entity
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -329,7 +491,20 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                           <motion.button
                             key={type.value}
                             type="button"
-                            onClick={() => setValue('property_type', type.value)}
+                            onClick={() => {
+                              Sentry.startSpan(
+                                {
+                                  op: 'ui.click',
+                                  name: 'Select Property Type',
+                                },
+                                (span) => {
+                                  span.setAttribute('propertyType', type.value);
+                                  span.setAttribute('previousType', propertyType || 'none');
+                                  Sentry.logger.debug('Property type selected', { type: type.value });
+                                  setValue('property_type', type.value);
+                                }
+                              );
+                            }}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             className={`relative group overflow-hidden rounded-xl transition-all duration-200 ${
@@ -460,14 +635,14 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                   </motion.div>
 
                   {/* Compact Quick Tips */}
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900 rounded-xl p-4 border border-blue-100 dark:border-blue-800 flex-1 flex flex-col">
-                    <div className="flex items-center mb-4">
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900 rounded-xl p-4 border border-blue-100 dark:border-blue-800">
+                    <div className="flex items-center mb-3">
                       <div className="p-1.5 bg-blue-100 dark:bg-blue-800 rounded-lg mr-2.5">
                         <Info className="h-4 w-4 text-blue-600 dark:text-blue-300" />
                       </div>
                       <p className="font-semibold text-sm text-blue-900 dark:text-blue-100">Quick Tips</p>
                     </div>
-                    <div className="flex flex-col justify-between flex-1">
+                    <div className="space-y-2.5">
                       <div className="flex items-center">
                         <span className="inline-flex w-1.5 h-1.5 rounded-full bg-blue-500 mr-3 flex-shrink-0"></span>
                         <span className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">Choose the property type that best matches your building structure</span>
@@ -488,6 +663,45 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                       </div>
                     </div>
                   </div>
+
+                  {/* What's Next Section */}
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/20 rounded-xl p-4 border border-green-200 dark:border-green-700">
+                    <div className="flex items-center mb-3">
+                      <div className="p-1.5 bg-green-100 dark:bg-green-800 rounded-lg mr-2.5">
+                        <ArrowRight className="h-4 w-4 text-green-600 dark:text-green-300" />
+                      </div>
+                      <p className="font-semibold text-sm text-green-900 dark:text-green-100">What's Next?</p>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-5 h-5 rounded-full bg-green-600 dark:bg-green-500 flex items-center justify-center text-[10px] font-bold text-white">
+                          2
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-green-900 dark:text-green-100">Units Setup</p>
+                          <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">Configure rentable units for your property</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-5 h-5 rounded-full bg-green-600 dark:bg-green-500 flex items-center justify-center text-[10px] font-bold text-white">
+                          3
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-green-900 dark:text-green-100">Photos & Media</p>
+                          <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">Add images to showcase your property</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-5 h-5 rounded-full bg-green-600 dark:bg-green-500 flex items-center justify-center text-[10px] font-bold text-white">
+                          4
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-green-900 dark:text-green-100">Review & Submit</p>
+                          <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">Final check and create your property</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
           </div>
@@ -501,6 +715,13 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Ownership Entity Creation Modal */}
+      <NewOwnershipEntityModal
+        isOpen={isCreateEntityModalOpen}
+        onClose={() => setIsCreateEntityModalOpen(false)}
+        onSuccess={handleEntityCreated}
+      />
     </div>
   );
 });
@@ -511,4 +732,35 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
 
 DetailsStep.displayName = 'DetailsStep';
 
-export default React.memo(DetailsStep);
+// Wrap with Sentry error boundary for production error tracking
+export default Sentry.withErrorBoundary(React.memo(DetailsStep), {
+  fallback: ({ resetError }) => (
+    <div className="p-6 text-center">
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4">
+        <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
+          Property Details Form Error
+        </h3>
+        <p className="text-sm text-red-600 dark:text-red-300 mb-4">
+          There was an issue loading the property details form.
+        </p>
+        <button
+          onClick={resetError}
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    </div>
+  ),
+  onError: (error: unknown, componentStack: string) => {
+    Sentry.logger.error('DetailsStep component error', {
+      error: error instanceof Error ? error.message : String(error),
+      componentStack,
+    });
+  },
+  beforeCapture: (scope) => {
+    scope.setTag('component', 'DetailsStep');
+    scope.setTag('feature', 'property_modal');
+    scope.setTag('step', 'details');
+  },
+});

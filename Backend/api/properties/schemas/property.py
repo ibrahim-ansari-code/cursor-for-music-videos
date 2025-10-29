@@ -30,6 +30,7 @@ class PropertyBase(BaseModel):
     postal_code: str = Field(..., min_length=3, max_length=20, description="Postal/ZIP code")
     description: Optional[str] = Field(None, max_length=2000, description="Property description")
     year_built: Optional[int] = Field(None, ge=1800, le=2100, description="Year of construction")
+    ownership_entity_id: Optional[UUID] = Field(None, description="UUID of the ownership entity that owns this property")
     
     @field_validator("name", "address", "city", "province", "postal_code")
     @classmethod
@@ -124,6 +125,7 @@ class PropertyUpdate(BaseModel):
     description: Optional[str] = Field(None, max_length=2000)
     year_built: Optional[int] = Field(None, ge=1800, le=2100)
     status: Optional[PropertyStatus] = None
+    ownership_entity_id: Optional[UUID] = None
     
     # Location updates
     latitude: Optional[float] = Field(None, ge=-90, le=90)
@@ -238,18 +240,19 @@ class PropertyResponse(BaseModel):
     description: Optional[str] = None
     year_built: Optional[int] = None
     status: PropertyStatus
-    
+    ownership_entity_id: Optional[UUID] = None
+
     # Location data
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     place_id: Optional[str] = None
     formatted_address: Optional[str] = None
     google_maps_data: Optional[Dict[str, Any]] = None
-    
+
     # Property details (from JSONB and hierarchical tables)
     property_details: Optional[Dict[str, Any]] = None
     type_specific_details: Optional[PropertyTypeDetailsResponse] = None
-    
+
     # Relations
     images: List[PropertyImageResponse] = Field(default_factory=list)
     user_id: UUID

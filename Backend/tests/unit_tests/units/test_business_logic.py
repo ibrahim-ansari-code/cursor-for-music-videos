@@ -76,6 +76,22 @@ def create_properly_configured_unit(unit_id=1):
     unit.property.id = 1
     unit.property.user_id = uuid4()
     
+    # Mock unit_type_details with proper discriminator and required fields
+    unit_type_details = MagicMock()
+    unit_type_details.unit_type = 'Residential'
+    unit_type_details.bedrooms = 2
+    unit_type_details.bathrooms = 1.5
+    unit_type_details.square_feet = 1000.0
+    unit_type_details.furnished = False
+    unit_type_details.parking_spots = 1
+    unit_type_details.parking_spot_number = None
+    unit_type_details.pets_allowed = False
+    unit_type_details.pet_deposit = None
+    unit_type_details.laundry_type = None
+    unit_type_details.balcony = False
+    unit_type_details.view_type = None
+    unit.unit_type_details = unit_type_details
+    
     return unit
 
 
@@ -139,7 +155,7 @@ async def test_update_unit_vacate_keeps_explicit_rent(mock_session, mock_user):
         # Assert
         assert mock_unit.tenant_id is None
         assert mock_unit.is_rented is False
-        assert mock_unit.monthly_rent == Decimal("1600.00")  # Rent kept
+        assert Decimal(str(mock_unit.monthly_rent)) == Decimal("1600.00")  # Rent kept
 
 
 @pytest.mark.asyncio

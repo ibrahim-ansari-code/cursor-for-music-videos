@@ -1,47 +1,71 @@
-import React, { useState, useContext } from "react";
-import { AuthContext } from "../contexts/AuthContext";
-import { toast } from "react-toastify";
-import SettingsSkeleton from "../components/ui/skeletons/SettingsSkeleton";
+import React, { useState, useContext } from 'react';
+import { AuthContext } from '../contexts/AuthContext';
+import type { User, AvatarUpdateHandler, ProfileUpdateHandler } from '../types/user';
+import SettingsSkeleton from '../components/ui/skeletons/SettingsSkeleton';
 
 // Import settings components
-import ProfileCard from "../components/settings/ProfileCard";
-import ProfileForm from "../components/settings/ProfileForm";
-import SecurityForm from "../components/settings/SecurityForm";
-import PreferencesForm from "../components/settings/PreferencesForm";
-import NotificationSettings from "../components/settings/NotificationSettings";
+import ProfileCard from '../components/settings/ProfileCard';
+import ProfileForm from '../components/settings/ProfileForm';
+import SecurityForm from '../components/settings/SecurityForm';
+import PreferencesForm from '../components/settings/PreferencesForm';
+import NotificationSettings from '../components/settings/NotificationSettings';
+import OwnershipEntitiesSettings from '../components/settings/OwnershipEntitiesSettings';
 
-const Settings = () => {
-  const { user: authUser, setUser: setAuthUser } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState('profile');
+interface Tab {
+  id: 'profile' | 'security' | 'preferences' | 'notifications' | 'ownership';
+  label: string;
+  icon: string;
+}
+
+type TabId = Tab['id'];
+
+interface AuthContextValue {
+  user: User | null;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
+}
+
+const Settings: React.FC = () => {
+  const authContext = useContext(AuthContext) as AuthContextValue | null;
+  const authUser = authContext?.user;
+  const setAuthUser = authContext?.setUser;
+
+  const [activeTab, setActiveTab] = useState<TabId>('profile');
 
   // Tab configuration
-  const tabs = [
+  const tabs: Tab[] = [
     { id: 'profile', label: 'Profile', icon: 'fa-user' },
     { id: 'security', label: 'Security', icon: 'fa-lock' },
     { id: 'preferences', label: 'Preferences', icon: 'fa-cog' },
     { id: 'notifications', label: 'Notifications', icon: 'fa-bell' },
+    { id: 'ownership', label: 'Ownership Entities', icon: 'fa-briefcase' },
   ];
 
   // Handle avatar update from ProfileCard
-  const handleAvatarUpdate = (newImageUrl) => {
-    setAuthUser(prev => ({ ...prev, profile_image_url: newImageUrl }));
+  const handleAvatarUpdate: AvatarUpdateHandler = (newImageUrl: string) => {
+    if (setAuthUser) {
+      setAuthUser(prev => prev ? { ...prev, profile_image_url: newImageUrl } : prev);
+    }
   };
 
   // Handle profile update from ProfileForm
-  const handleProfileUpdate = (updatedData) => {
-    setAuthUser(prev => ({ ...prev, ...updatedData }));
+  const handleProfileUpdate: ProfileUpdateHandler = (updatedData: Partial<User>) => {
+    if (setAuthUser) {
+      setAuthUser(prev => prev ? { ...prev, ...updatedData } : prev);
+    }
   };
 
   // Handle preferences update
-  const handlePreferencesUpdate = (preferences) => {
+  const handlePreferencesUpdate = (preferences: Record<string, unknown>) => {
     // Update user preferences in context if needed
     // TODO: Implement preference updates in auth context when backend supports it
+    console.log('Preferences update:', preferences);
   };
 
   // Handle notification update
-  const handleNotificationUpdate = (notifications) => {
+  const handleNotificationUpdate = (notifications: Record<string, unknown>) => {
     // Update notification preferences in context if needed
     // TODO: Implement notification updates in auth context when backend supports it
+    console.log('Notifications update:', notifications);
   };
 
   // Loading state
@@ -111,10 +135,14 @@ const Settings = () => {
                   )}
                   
                   {activeTab === 'notifications' && (
-                    <NotificationSettings 
-                      user={authUser} 
+                    <NotificationSettings
+                      user={authUser}
                       onNotificationUpdate={handleNotificationUpdate}
                     />
+                  )}
+
+                  {activeTab === 'ownership' && (
+                    <OwnershipEntitiesSettings />
                   )}
                 </div>
               </div>
@@ -127,3 +155,4 @@ const Settings = () => {
 };
 
 export default Settings;
+

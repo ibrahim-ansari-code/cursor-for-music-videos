@@ -159,19 +159,24 @@ describe('PropertyModalErrorBoundary', () => {
       );
       
       const toggleButton = screen.getByText('Show technical details');
-      expect(screen.queryByText(/Detailed error message/)).not.toBeInTheDocument();
+      // Check that the technical details container is not present initially
+      expect(screen.queryByLabelText('technical details')).not.toBeInTheDocument();
       
       fireEvent.click(toggleButton);
       
       await waitFor(() => {
-        expect(screen.getByText(/Detailed error message/)).toBeInTheDocument();
+        // Check for the technical details container with aria-label
+        expect(screen.getByLabelText('technical details')).toBeInTheDocument();
+        // Verify the error message section label is present
+        expect(screen.getByText('Error Message:')).toBeInTheDocument();
       });
       
       const hideButton = screen.getByText('Hide technical details');
       fireEvent.click(hideButton);
       
       await waitFor(() => {
-        expect(screen.queryByText(/Detailed error message/)).not.toBeInTheDocument();
+        // Technical details container should be hidden again
+        expect(screen.queryByLabelText('technical details')).not.toBeInTheDocument();
       });
 
       // Restore original env

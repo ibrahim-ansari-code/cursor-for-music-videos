@@ -608,6 +608,7 @@ const PropertyDetail = () => {
         onClose={handleCloseCreateModal}
         onSubmit={handleCreateUnit}
         propertyId={id}
+        propertyType={property?.property_type}
         isLoading={isSubmitting}
       />
 
@@ -617,6 +618,7 @@ const PropertyDetail = () => {
         onClose={handleCloseEditModal}
         onSubmit={handleUpdateUnit}
         unit={unitToEdit}
+        propertyType={property?.property_type}
         isLoading={isSubmitting}
       />
 

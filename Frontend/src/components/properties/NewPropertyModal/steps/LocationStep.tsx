@@ -62,7 +62,7 @@ const LocationStep: React.FC<LocationStepProps> = ({ onNext: _onNext }) => {
       {/* Main content - responsive grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[380px,1fr] gap-4">
         {/* Left side - responsive */}
-        <div className="flex flex-col lg:min-w-[380px]">
+        <div className="flex flex-col lg:min-w-[380px] pl-1">
           {/* Search input */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

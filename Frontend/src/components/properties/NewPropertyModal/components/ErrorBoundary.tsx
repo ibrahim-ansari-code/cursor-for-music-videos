@@ -1,6 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home, CheckCircle, ChevronDown, ChevronRight, Bug } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AlertTriangle, RefreshCw, Home, CheckCircle, Bug } from 'lucide-react';
+import { motion } from 'framer-motion';
 import * as Sentry from '@sentry/react';
 
 interface Props {
@@ -368,50 +368,12 @@ class PropertyModalErrorBoundary extends Component<Props, State> {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2 break-words">
                     {title || (isModal ? 'Property form encountered an issue' : 'Section temporarily unavailable')}
                   </h3>
-                  <p className="text-sm text-gray-600 mb-3">
+                  <p className="text-sm text-gray-600 mb-4 break-words">
                     {description || (this.state.error ? this.getErrorSuggestion(this.state.error) : 'An unexpected error occurred.')}
                   </p>
-
-                  {this.state.error && import.meta.env.DEV && (
-                    <div className="mb-4">
-                      <button
-                        onClick={this.toggleDetails}
-                        className="flex items-center text-xs text-gray-600 hover:text-gray-800 font-medium transition-colors"
-                      >
-                        {this.state.showDetails ? (
-                          <ChevronDown className="h-3 w-3 mr-1" />
-                        ) : (
-                          <ChevronRight className="h-3 w-3 mr-1" />
-                        )}
-                        {this.state.showDetails ? 'Hide' : 'Show'} technical details
-                      </button>
-                      
-                      <AnimatePresence>
-                        {this.state.showDetails && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="mt-2 overflow-hidden"
-                          >
-                            <pre 
-                              className="text-xs bg-gray-100 p-3 rounded-lg overflow-auto max-h-32 text-gray-700"
-                              role="generic"
-                              aria-label="technical details"
-                            >
-                              {this.state.error.message || this.state.error.toString()}
-                              {this.state.errorInfo?.componentStack && (
-                                '\n\nComponent Stack:' + this.state.errorInfo.componentStack.slice(0, 500)
-                              )}
-                            </pre>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  )}
                   
                   <div className="flex flex-wrap gap-2">
                     <motion.button
@@ -488,6 +450,55 @@ class PropertyModalErrorBoundary extends Component<Props, State> {
                         </div>
                       </div>
                     </motion.div>
+                  )}
+
+                  {/* Technical Details Toggle - Only shown in development */}
+                  {import.meta.env.DEV && this.state.error && (
+                    <div className="mt-4">
+                      <button
+                        onClick={this.toggleDetails}
+                        className="text-sm text-gray-600 hover:text-gray-800 underline"
+                      >
+                        {this.state.showDetails ? 'Hide technical details' : 'Show technical details'}
+                      </button>
+                      
+                      {this.state.showDetails && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-lg overflow-auto"
+                          aria-label="technical details"
+                        >
+                          <div className="space-y-3 text-sm">
+                            <div>
+                              <p className="font-semibold text-gray-700 mb-1">Error Message:</p>
+                              <p className="text-gray-600 font-mono text-xs break-words">
+                                {this.state.error.message}
+                              </p>
+                            </div>
+                            
+                            {this.state.error.stack && (
+                              <div>
+                                <p className="font-semibold text-gray-700 mb-1">Stack Trace:</p>
+                                <pre className="text-gray-600 font-mono text-xs overflow-x-auto whitespace-pre-wrap break-words">
+                                  {this.sanitizeStackTrace(this.state.error.stack)}
+                                </pre>
+                              </div>
+                            )}
+                            
+                            {this.state.errorInfo?.componentStack && (
+                              <div>
+                                <p className="font-semibold text-gray-700 mb-1">Component Stack:</p>
+                                <pre className="text-gray-600 font-mono text-xs overflow-x-auto whitespace-pre-wrap break-words">
+                                  {this.sanitizeStackTrace(this.state.errorInfo.componentStack)}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

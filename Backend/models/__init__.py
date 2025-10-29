@@ -9,6 +9,7 @@ from . import accounting
 from . import user
 from . import property
 from . import units
+from . import ownership_entity
 from . import tenant
 from . import tenant_documents
 from . import lease
@@ -40,6 +41,7 @@ initialize_models()
 from .user import User
 from .property import Property, PropertyType # PropertyType is in property.py
 from .units import PropertyUnit # PropertyUnit is now in units.py
+from .ownership_entity import OwnershipEntity, EntityType
 from .lease import Lease, LeaseDocument, LeaseStatus
 from .tenant import Tenant, TenantStatus # TenantStatus is in tenant.py
 from .tenant_documents import TenantDocument
@@ -83,6 +85,8 @@ __all__ = [
     "MaintenanceRequest",
     "MaintenanceStatus",
     "MonthlyChartData",
+    "OwnershipEntity",
+    "EntityType",
     "Payment",
     "PaymentMethod",
     "PaymentStatus",

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from Backend.models.maintenance import MaintenanceRequest
     from Backend.models.accounting.invoice import Invoice
     from Backend.models.units import PropertyUnit
+    from Backend.models.ownership_entity import OwnershipEntity
 
 
 class PropertyType(str, Enum):
@@ -98,6 +99,14 @@ class Property(SQLModel, table=True):
             "users.id", ondelete="CASCADE"), nullable=False)
     )
 
+    # Ownership entity (optional) - Links property to a legal entity
+    ownership_entity_id: Optional[PythonUUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey(
+            "ownership_entities.id", ondelete="SET NULL"), nullable=True),
+        description="UUID of the ownership entity (company, individual, etc.) that owns this property"
+    )
+
     # Timestamps - Using datetime utilities
     created_at: datetime = Field(
         default_factory=create_audit_datetime,
@@ -113,6 +122,12 @@ class Property(SQLModel, table=True):
     # Relationships
     owner: Optional[User] = Relationship(back_populates="properties", sa_relationship_kwargs={
                                          "foreign_keys": "[Property.user_id]"})
+
+    # Relationship to ownership entity (many properties can belong to one entity)
+    ownership_entity: Optional["OwnershipEntity"] = Relationship(
+        back_populates="properties",
+        sa_relationship_kwargs={"foreign_keys": "[Property.ownership_entity_id]"}
+    )
 
     # Configure cascade delete for units
     units: list["PropertyUnit"] = Relationship(

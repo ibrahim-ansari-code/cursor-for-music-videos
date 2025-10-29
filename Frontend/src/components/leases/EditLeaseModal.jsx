@@ -340,6 +340,8 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
                 <Input
                   name="monthly_rent"
                   type="number"
+                  step="0.01"
+                  min="0"
                   value={formData.monthly_rent}
                   onChange={handleChange}
                   required
@@ -351,6 +353,8 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
                 <Input
                   name="security_deposit"
                   type="number"
+                  step="0.01"
+                  min="0"
                   value={formData.security_deposit}
                   onChange={handleChange}
                   placeholder="e.g., 1500.00"
@@ -376,6 +380,8 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
                 <Input
                   name="late_fee_amount"
                   type="number"
+                  step="0.01"
+                  min="0"
                   value={formData.late_fee_amount}
                   onChange={handleChange}
                   placeholder="e.g., 50.00"

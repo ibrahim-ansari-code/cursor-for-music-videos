@@ -534,7 +534,10 @@ def test_tenant_info_company_missing_company_name_logs_warning():
         "phone": "555-0123"
     }
     
-    with patch.object(logging.getLogger('Backend.api.units.schemas'), 'warning') as mock_warning:
+    # Get the actual logger used in the schema file
+    logger = logging.getLogger('Backend.api.units.schemas.unit')
+    
+    with patch.object(logger, 'warning') as mock_warning:
         # This should create the tenant but log a warning
         tenant = TenantInfo(**tenant_data)
         
@@ -560,7 +563,10 @@ def test_tenant_info_individual_missing_names_logs_warning():
         "phone": "555-0124"
     }
     
-    with patch.object(logging.getLogger('Backend.api.units.schemas'), 'warning') as mock_warning:
+    # Get the actual logger used in the schema file
+    logger = logging.getLogger('Backend.api.units.schemas.unit')
+    
+    with patch.object(logger, 'warning') as mock_warning:
         # This should create the tenant but log a warning
         tenant = TenantInfo(**tenant_data)
         

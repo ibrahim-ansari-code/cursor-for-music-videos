@@ -55,6 +55,7 @@ export interface Property {
   year_built?: number | null;
   description?: string | null;
   status: PropertyStatus;
+  ownership_entity_id?: string | null;
   
   // Google Maps fields
   latitude?: number | null;
@@ -169,6 +170,7 @@ export interface PropertyCreatePayload {
   status?: PropertyStatus;
   year_built?: number;
   description?: string;
+  ownership_entity_id?: string | null;
   
   // Google Maps fields
   latitude?: number;
@@ -193,6 +195,7 @@ export interface PropertyUpdatePayload {
   status?: PropertyStatus;
   year_built?: number;
   description?: string;
+  ownership_entity_id?: string | null;
   
   // Google Maps fields
   latitude?: number;

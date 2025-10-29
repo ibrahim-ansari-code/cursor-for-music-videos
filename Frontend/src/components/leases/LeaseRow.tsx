@@ -88,8 +88,6 @@ const LeaseRow: React.FC<LeaseRowProps> = ({ lease, actionHandlers }) => {
         <div className="text-sm text-gray-500 dark:text-gray-400">
           {lease.unit?.name
             ? `Unit: ${lease.unit.name}`
-            : lease.unit_id
-            ? `Unit ID: ${lease.unit_id}`
             : 'No unit specified'}
         </div>
       </td>

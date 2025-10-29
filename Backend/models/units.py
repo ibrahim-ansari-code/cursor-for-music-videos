@@ -3,10 +3,10 @@ Unit models for property management.
 Separated from property.py for better organization.
 """
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Dict, Any
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Numeric, Index, Integer
+from sqlalchemy import DateTime, Numeric, Index, Integer, JSON
 from sqlalchemy import ForeignKey
 from sqlmodel import Column, Field, Relationship, SQLModel
 
@@ -43,8 +43,20 @@ class PropertyUnit(SQLModel, table=True):
     size: Optional[float] = None
     monthly_rent: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))
     is_rented: bool = Field(default=False)
+
+    # Legacy fields (kept for backward compatibility during migration)
     bedrooms: Optional[int] = None
     bathrooms: Optional[float] = None
+
+    # Type-specific unit details (JSONB for flexibility)
+    # Stores property-type-specific fields (e.g., bedrooms/bathrooms for residential,
+    # ownership/additional_rent for industrial, etc.)
+    unit_type_details: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+        description="Type-specific unit details based on parent property type"
+    )
+
     floor: Optional[int] = Field(
         default=None, description="The floor number of the unit")
     created_at: datetime = Field(

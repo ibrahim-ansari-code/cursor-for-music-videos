@@ -1,7 +1,9 @@
+"""Main unit schemas for CRUD operations."""
 import logging
 import re
 from datetime import datetime, date
 from decimal import Decimal
+from typing import Optional
 from uuid import UUID as PythonUUID
 
 from pydantic import (
@@ -14,6 +16,11 @@ from pydantic import (
 )
 
 from Backend.models.enums import TenantType
+from Backend.api.units.schemas.types import (
+    UnitTypeDetailsCreate,
+    UnitTypeDetailsUpdate,
+    UnitTypeDetailsResponse
+)
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +63,24 @@ class UnitBase(UnitValidatorMixin, BaseModel):
     size: float | None = None
     monthly_rent: Decimal | None = None
     is_rented: bool = False
-    bedrooms: int | None = None
-    bathrooms: float | None = None
+
+    # Legacy fields (kept for backward compatibility during migration)
+    # These will be read from unit_type_details for new units
+    bedrooms: int | None = Field(
+        None,
+        description="Legacy field - use unit_type_details for new units"
+    )
+    bathrooms: float | None = Field(
+        None,
+        description="Legacy field - use unit_type_details for new units"
+    )
+
+    # Type-specific unit details (property-type aware)
+    unit_type_details: Optional[UnitTypeDetailsCreate] = Field(
+        None,
+        description="Property-type-specific unit details (e.g., bedrooms/bathrooms for residential, ownership for industrial)"
+    )
+
     floor: int | None = None
 
 
@@ -75,8 +98,14 @@ class UnitUpdate(UnitValidatorMixin, BaseModel):
     description: str | None = None
     size: float | None = None
     monthly_rent: Decimal | None = None
+
+    # Legacy fields (kept for backward compatibility)
     bedrooms: int | None = None
     bathrooms: float | None = None
+
+    # Type-specific unit details
+    unit_type_details: Optional[UnitTypeDetailsUpdate] = None
+
     floor: int | None = None
     tenant_id: int | None = None  # Added tenant_id for assignments
 
@@ -118,10 +147,24 @@ class UnitCreateResponse(UnitBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-class UnitResponse(UnitBase):
+class UnitResponse(BaseModel):
     """Standard response model including optional tenant info"""
     id: int
     property_id: int
+    name: str
+    description: str | None = None
+    size: float | None = None
+    monthly_rent: Decimal | None = None
+    is_rented: bool = False
+
+    # Legacy fields (for backward compatibility)
+    bedrooms: int | None = None
+    bathrooms: float | None = None
+
+    # Type-specific details
+    unit_type_details: Optional[UnitTypeDetailsResponse] = None
+
+    floor: int | None = None
     created_at: datetime
     updated_at: datetime
     tenant: TenantInfo | None = None
@@ -262,3 +305,4 @@ class BulkAssignmentResponse(BaseModel):
     errors: list[CSVAssignmentError]
     created_leases: list[int] = Field(
         default_factory=list)  # List of lease IDs
+

@@ -96,6 +96,23 @@ def mock_unit(mock_property):
     unit.tenant = None
     unit.created_at = datetime.now(timezone.utc)
     unit.updated_at = datetime.now(timezone.utc)
+    
+    # Mock unit_type_details with proper discriminator and required fields
+    unit_type_details = MagicMock()
+    unit_type_details.unit_type = 'Residential'
+    unit_type_details.bedrooms = 2
+    unit_type_details.bathrooms = 1.5
+    unit_type_details.square_feet = 1000.0
+    unit_type_details.furnished = False
+    unit_type_details.parking_spots = 1
+    unit_type_details.parking_spot_number = None
+    unit_type_details.pets_allowed = False
+    unit_type_details.pet_deposit = None
+    unit_type_details.laundry_type = None
+    unit_type_details.balcony = False
+    unit_type_details.view_type = None
+    unit.unit_type_details = unit_type_details
+    
     return unit
 
 
@@ -132,6 +149,22 @@ def create_mock_unit(unit_id, name, property_id=1):
     unit.property = MagicMock()
     unit.property.id = property_id
     unit.property.user_id = uuid4()
+    
+    # Mock unit_type_details with proper discriminator and required fields
+    unit_type_details = MagicMock()
+    unit_type_details.unit_type = 'Residential'
+    unit_type_details.bedrooms = 2
+    unit_type_details.bathrooms = 1.5
+    unit_type_details.square_feet = 1000.0
+    unit_type_details.furnished = False
+    unit_type_details.parking_spots = 1
+    unit_type_details.parking_spot_number = None
+    unit_type_details.pets_allowed = False
+    unit_type_details.pet_deposit = None
+    unit_type_details.laundry_type = None
+    unit_type_details.balcony = False
+    unit_type_details.view_type = None
+    unit.unit_type_details = unit_type_details
     
     return unit
 
@@ -370,7 +403,7 @@ async def test_update_unit_success(mock_session, mock_user, mock_unit):
 
         # Assert
         assert mock_unit.name == "Updated Unit"
-        assert mock_unit.monthly_rent == Decimal("1800.00")
+        assert Decimal(str(mock_unit.monthly_rent)) == Decimal("1800.00")
         mock_session.commit.assert_called_once()
 
 

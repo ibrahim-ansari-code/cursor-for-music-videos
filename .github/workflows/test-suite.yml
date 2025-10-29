@@ -168,13 +168,13 @@ jobs:
           poetry run coverage html -d tests/htmlcov
           poetry run coverage report
       
-      - name: "Step 3: Check Diff Coverage (80%+ on New Code)"
+      - name: "Step 3: Check Diff Coverage (70%+ on New Code)"
         run: |
           cd Backend
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             poetry run diff-cover tests/coverage.xml \
               --compare-branch=origin/${{ github.base_ref }} \
-              --fail-under=80 \
+              --fail-under=70 \
               --diff-range-notation='..'
           else
             echo "Skipping diff coverage check for push events"

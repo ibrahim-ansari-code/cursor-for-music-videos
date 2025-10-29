@@ -24,6 +24,7 @@ import Dashboard from "./pages/Dashboard";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ResetPassword from "./pages/ResetPassword";
+import PageLoader from "./components/ui/PageLoader";
 
 // Pages (lazy-loaded for automatic code splitting)
 const Leases = React.lazy(() => import("./pages/Leases"));
@@ -35,7 +36,7 @@ const Tenants = React.lazy(() => import("./pages/Tenants"));
 const TenantProfile = React.lazy(() => import("./pages/TenantProfile"));
 const Maintenance = React.lazy(() => import("./pages/Maintenance.tsx"));
 const Reports = React.lazy(() => import("./pages/Reports"));
-const Settings = React.lazy(() => import("./pages/Settings"));
+const Settings = React.lazy(() => import("./pages/Settings.tsx"));
 const Integrations = React.lazy(() => import("./pages/Integrations"));
 
 // Accounting pages/tabs (lazy-loaded)
@@ -107,35 +108,35 @@ const AppRoutes = () => {
       >
         <Route index element={<Navigate to="/dashboard" />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="properties" element={<Suspense fallback={<div>Loading...</div>}><Properties /></Suspense>} />
-        <Route path="properties/:id" element={<Suspense fallback={<div>Loading...</div>}><PropertyDetail /></Suspense>} />
-        <Route path="leases" element={<Suspense fallback={<div>Loading...</div>}><Leases /></Suspense>} />
-        <Route path="vendors" element={<Suspense fallback={<div>Loading...</div>}><Vendors /></Suspense>} />
-        <Route path="accounting/*" element={<Suspense fallback={<div>Loading...</div>}><Accounting /></Suspense>}>
+        <Route path="properties" element={<Suspense fallback={<PageLoader />}><Properties /></Suspense>} />
+        <Route path="properties/:id" element={<Suspense fallback={<PageLoader />}><PropertyDetail /></Suspense>} />
+        <Route path="leases" element={<Suspense fallback={<PageLoader />}><Leases /></Suspense>} />
+        <Route path="vendors" element={<Suspense fallback={<PageLoader />}><Vendors /></Suspense>} />
+        <Route path="accounting/*" element={<Suspense fallback={<PageLoader />}><Accounting /></Suspense>}>
           <Route index element={<Navigate to="overview" />} />
-          <Route path="overview" element={<Suspense fallback={<div>Loading...</div>}><OverviewTab /></Suspense>} />
-          <Route path="payments" element={<Suspense fallback={<div>Loading...</div>}><PaymentsTab /></Suspense>} />
-          <Route path="expenses" element={<Suspense fallback={<div>Loading...</div>}><ExpensesTab /></Suspense>} />
-          <Route path="invoices" element={<Suspense fallback={<div>Loading...</div>}><InvoicesTab /></Suspense>} />
-          <Route path="rent-tracker" element={<Suspense fallback={<div>Loading...</div>}><RentTrackerTab /></Suspense>} />
+          <Route path="overview" element={<Suspense fallback={<PageLoader />}><OverviewTab /></Suspense>} />
+          <Route path="payments" element={<Suspense fallback={<PageLoader />}><PaymentsTab /></Suspense>} />
+          <Route path="expenses" element={<Suspense fallback={<PageLoader />}><ExpensesTab /></Suspense>} />
+          <Route path="invoices" element={<Suspense fallback={<PageLoader />}><InvoicesTab /></Suspense>} />
+          <Route path="rent-tracker" element={<Suspense fallback={<PageLoader />}><RentTrackerTab /></Suspense>} />
         </Route>
-        <Route path="messages" element={<Suspense fallback={<div>Loading...</div>}><Messages /></Suspense>} />
-        <Route path="tenants" element={<Suspense fallback={<div>Loading...</div>}><Tenants /></Suspense>} />
-        <Route path="tenants/:id" element={<Suspense fallback={<div>Loading...</div>}><TenantProfile /></Suspense>}>
-          <Route index element={<Suspense fallback={<div>Loading...</div>}><TenantOverviewTab /></Suspense>} />
-          <Route path="leases" element={<Suspense fallback={<div>Loading...</div>}><TenantLeasesTab /></Suspense>} />
-          <Route path="documents" element={<Suspense fallback={<div>Loading...</div>}><TenantDocumentsTab /></Suspense>} />
-          <Route path="maintenance" element={<Suspense fallback={<div>Loading...</div>}><TenantMaintenanceTab /></Suspense>} />
-          <Route path="payments" element={<Suspense fallback={<div>Loading...</div>}><TenantPaymentsTab /></Suspense>} />
-          <Route path="messaging" element={<Suspense fallback={<div>Loading...</div>}><TenantMessagingTab /></Suspense>} />
-          <Route path="background" element={<Suspense fallback={<div>Loading...</div>}><TenantBackgroundTab /></Suspense>} />
-          <Route path="assets" element={<Suspense fallback={<div>Loading...</div>}><TenantAssetsTab /></Suspense>} />
-          <Route path="settings" element={<Suspense fallback={<div>Loading...</div>}><TenantSettingsTab /></Suspense>} />
+        <Route path="messages" element={<Suspense fallback={<PageLoader />}><Messages /></Suspense>} />
+        <Route path="tenants" element={<Suspense fallback={<PageLoader />}><Tenants /></Suspense>} />
+        <Route path="tenants/:id" element={<Suspense fallback={<PageLoader />}><TenantProfile /></Suspense>}>
+          <Route index element={<Suspense fallback={<PageLoader />}><TenantOverviewTab /></Suspense>} />
+          <Route path="leases" element={<Suspense fallback={<PageLoader />}><TenantLeasesTab /></Suspense>} />
+          <Route path="documents" element={<Suspense fallback={<PageLoader />}><TenantDocumentsTab /></Suspense>} />
+          <Route path="maintenance" element={<Suspense fallback={<PageLoader />}><TenantMaintenanceTab /></Suspense>} />
+          <Route path="payments" element={<Suspense fallback={<PageLoader />}><TenantPaymentsTab /></Suspense>} />
+          <Route path="messaging" element={<Suspense fallback={<PageLoader />}><TenantMessagingTab /></Suspense>} />
+          <Route path="background" element={<Suspense fallback={<PageLoader />}><TenantBackgroundTab /></Suspense>} />
+          <Route path="assets" element={<Suspense fallback={<PageLoader />}><TenantAssetsTab /></Suspense>} />
+          <Route path="settings" element={<Suspense fallback={<PageLoader />}><TenantSettingsTab /></Suspense>} />
         </Route>
-        <Route path="maintenance" element={<Suspense fallback={<div>Loading...</div>}><Maintenance /></Suspense>} />
-        <Route path="reports" element={<Suspense fallback={<div>Loading...</div>}><Reports /></Suspense>} />
-        <Route path="settings" element={<Suspense fallback={<div>Loading...</div>}><Settings /></Suspense>} />
-        <Route path="integrations" element={<Suspense fallback={<div>Loading...</div>}><Integrations /></Suspense>} />
+        <Route path="maintenance" element={<Suspense fallback={<PageLoader />}><Maintenance /></Suspense>} />
+        <Route path="reports" element={<Suspense fallback={<PageLoader />}><Reports /></Suspense>} />
+        <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
+        <Route path="integrations" element={<Suspense fallback={<PageLoader />}><Integrations /></Suspense>} />
       </Route>
       <Route
         path="/login"

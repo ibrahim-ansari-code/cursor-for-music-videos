@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from Backend.models.tenant import Tenant
     from Backend.models.maintenance import MaintenanceRequest
     from Backend.models.accounting.integration import Integration
+    from Backend.models.ownership_entity import OwnershipEntity
 
 
 class User(SQLModel, table=True):
@@ -75,6 +76,12 @@ class User(SQLModel, table=True):
     # Integration connections (QuickBooks, Xero, etc.)
     integrations: list["Integration"] = Relationship(
         back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+
+    # Ownership entities (companies, individuals, etc. that own units)
+    ownership_entities: list["OwnershipEntity"] = Relationship(
+        back_populates="owner",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
 

@@ -1,6 +1,7 @@
 import logging
 from datetime import date
 from typing import List, cast
+from uuid import UUID
 
 from fastapi import HTTPException, status
 from pydantic import ValidationError
@@ -16,6 +17,7 @@ from Backend.models.property import Property
 from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
+from Backend.models.ownership_entity import OwnershipEntity
 from Backend.api.leases.service import create_lease
 
 from .schemas import (
@@ -29,6 +31,57 @@ logger = logging.getLogger(__name__)
 
 
 class UnitService:
+    @staticmethod
+    async def _validate_unit_type_details(
+        session: AsyncSession,
+        property_obj: Property,
+        unit_data: UnitCreate | UnitUpdate,
+        current_user: User
+    ) -> None:
+        """
+        Validate that unit_type_details matches the property type.
+
+        Note: Ownership entity is now tracked at the property level, not unit level.
+
+        Args:
+            session: Database session
+            property_obj: Parent property
+            unit_data: Unit creation/update data
+            current_user: Current user
+
+        Raises:
+            HTTPException: If validation fails
+        """
+        if not unit_data.unit_type_details:
+            # No type-specific details provided - this is OK for backward compatibility
+            # Legacy bedrooms/bathrooms fields will be used if provided
+            return
+
+        # Get the unit_type from the details
+        unit_type = unit_data.unit_type_details.unit_type
+        property_type = property_obj.property_type
+
+        # Map property types to expected unit types
+        property_to_unit_type = {
+            'Residential': 'Residential',
+            'Apartment Complex': 'Residential',
+            'Industrial': 'Industrial',
+            'Commercial': 'Industrial',  # Commercial units can use industrial details
+            'Mixed-Use': 'Residential',  # Default to residential for mixed-use
+        }
+
+        expected_unit_type = property_to_unit_type.get(property_type)
+
+        if not expected_unit_type:
+            logger.warning(f"Unknown property type: {property_type}. Skipping unit_type_details validation.")
+            return
+
+        if unit_type != expected_unit_type:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unit type '{unit_type}' does not match property type '{property_type}'. Expected '{expected_unit_type}' unit details."
+            )
+
     @staticmethod
     async def _find_unit_by_number(
         session: AsyncSession, 
@@ -159,9 +212,23 @@ class UnitService:
                 detail="You don't have permission to add units to this property"
             )
 
+        # Validate unit_type_details matches property type
+        await UnitService._validate_unit_type_details(
+            session=session,
+            property_obj=property_obj,
+            unit_data=unit_data,
+            current_user=current_user
+        )
+
+        # Convert unit_type_details to dict for database storage
+        # Use mode='json' to convert Decimal to float for JSON serialization
+        unit_dict = unit_data.model_dump(mode='json')
+        if unit_dict.get('unit_type_details'):
+            unit_dict['unit_type_details'] = unit_dict['unit_type_details']
+
         # Create the new unit
         new_unit = PropertyUnit(
-            **unit_data.model_dump(),
+            **unit_dict,
             property_id=property_id
         )
         session.add(new_unit)
@@ -207,12 +274,29 @@ class UnitService:
         # get_unit_or_404 already performs the ownership check
         unit_to_update = await UnitService.get_unit_or_404(unit_id, session, current_user)
 
-        update_data = unit_data.model_dump(exclude_unset=True)
+        # Use mode='json' to convert Decimal to float for JSON serialization
+        update_data = unit_data.model_dump(exclude_unset=True, mode='json')
         if not update_data:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No update data provided"
             )
+
+        # If updating unit_type_details, validate it matches property type
+        if 'unit_type_details' in update_data and update_data['unit_type_details'] is not None:
+            # Get the property to validate against
+            property_result = await session.execute(
+                select(Property).where(col(Property.id) == unit_to_update.property_id)
+            )
+            property_obj = property_result.scalar_one_or_none()
+
+            if property_obj:
+                await UnitService._validate_unit_type_details(
+                    session=session,
+                    property_obj=property_obj,
+                    unit_data=unit_data,
+                    current_user=current_user
+                )
 
         # Check if assigning a tenant
         new_tenant_id = update_data.get('tenant_id')

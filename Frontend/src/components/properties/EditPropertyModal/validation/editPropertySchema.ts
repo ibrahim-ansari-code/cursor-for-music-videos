@@ -15,9 +15,18 @@ const typeSpecificDetailsSchema = z.record(z.string(), z.any()).optional();
 export const editPropertySchema = z.object({
   // Basic information
   name: z.string().min(1, 'Property name cannot be empty').max(255).optional(),
-  status: z.nativeEnum(PropertyStatus).optional(),
+  status: z.enum([
+    PropertyStatus.ACTIVE,
+    PropertyStatus.INACTIVE,
+    PropertyStatus.DRAFT,
+    PropertyStatus.ARCHIVED,
+    PropertyStatus.RENTED,
+    PropertyStatus.VACANT,
+    PropertyStatus.PARTIALLY_RENTED,
+  ]).optional(),
   year_built: z.number().int().min(1800).max(2100).nullable().optional(),
   description: z.string().max(2000).nullable().optional(),
+  ownership_entity_id: z.string().nullable().optional(),
 
   // Location information
   address: z.string().min(1).max(500).optional(),
