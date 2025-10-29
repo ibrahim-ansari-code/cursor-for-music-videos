@@ -55,26 +55,12 @@ def mock_user():
 
 def create_properly_configured_unit(unit_id=1):
     """Create a mock unit with all required attributes properly configured."""
-    unit = MagicMock(spec=PropertyUnit)
-    unit.id = unit_id
-    unit.name = "Unit A"
-    unit.description = "Test unit"
-    unit.size = 1000.0
-    unit.monthly_rent = Decimal("1500.00")
-    unit.is_rented = False
-    unit.bedrooms = 2
-    unit.bathrooms = 1.5
-    unit.floor = 1
-    unit.tenant_id = None
-    unit.tenant = None
-    unit.created_at = datetime.now(timezone.utc)
-    unit.updated_at = datetime.now(timezone.utc)
-    unit.property_id = 1
+    now = datetime.now(timezone.utc)
     
     # Mock property
-    unit.property = MagicMock()
-    unit.property.id = 1
-    unit.property.user_id = uuid4()
+    mock_property = MagicMock()
+    mock_property.id = 1
+    mock_property.user_id = uuid4()
     
     # Mock unit_type_details with proper discriminator and required fields
     unit_type_details = MagicMock()
@@ -90,6 +76,26 @@ def create_properly_configured_unit(unit_id=1):
     unit_type_details.laundry_type = None
     unit_type_details.balcony = False
     unit_type_details.view_type = None
+    
+    # Create a simple object with all attributes
+    # Using type() to create a class dynamically
+    UnitMock = type('UnitMock', (), {})
+    unit = UnitMock()
+    unit.id = unit_id
+    unit.property_id = 1
+    unit.property = mock_property
+    unit.name = "Unit A"
+    unit.description = "Test unit"
+    unit.size = 1000.0
+    unit.monthly_rent = Decimal("1500.00")
+    unit.is_rented = False
+    unit.bedrooms = 2
+    unit.bathrooms = 1.5
+    unit.floor = 1
+    unit.tenant_id = None
+    unit.tenant = None
+    unit.created_at = now
+    unit.updated_at = now
     unit.unit_type_details = unit_type_details
     
     return unit

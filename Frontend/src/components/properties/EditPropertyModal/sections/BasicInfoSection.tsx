@@ -57,7 +57,7 @@ export const BasicInfoSection: React.FC = () => {
     setOwnershipEntities(prev => [...prev, newEntity]);
 
     // Auto-select the newly created entity
-    setValue('ownership_entity_id', newEntity.id);
+    setValue('ownership_entity_id', newEntity.id, { shouldDirty: true });
 
     // Close modal
     setIsCreateEntityModalOpen(false);
@@ -155,7 +155,7 @@ export const BasicInfoSection: React.FC = () => {
               value={ownershipEntityId ?? NO_OWNERSHIP_ENTITY}
               onValueChange={(value) => {
                 Sentry.logger.trace('Ownership entity changed', { value, isNone: value === NO_OWNERSHIP_ENTITY });
-                setValue('ownership_entity_id', value === NO_OWNERSHIP_ENTITY ? null : value);
+                setValue('ownership_entity_id', value === NO_OWNERSHIP_ENTITY ? null : value, { shouldDirty: true });
               }}
             >
               <Select.Trigger className="w-full px-3 py-2.5 text-sm font-medium border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-all flex items-center justify-between hover:border-gray-300 dark:hover:border-gray-500">

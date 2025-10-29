@@ -30,6 +30,40 @@ from .schemas import (
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_unit_for_response(unit: PropertyUnit) -> dict:
+    """
+    Sanitize unit data before validation to handle legacy/invalid unit_type_details.
+    
+    Returns a dict representation with unit_type_details set to None if invalid,
+    avoiding mutation of the ORM object.
+    """
+    unit_dict = {
+        'id': unit.id,
+        'property_id': unit.property_id,
+        'name': unit.name,
+        'description': unit.description,
+        'floor': unit.floor,
+        'size': unit.size,
+        'monthly_rent': unit.monthly_rent,
+        'is_rented': unit.is_rented,
+        'bedrooms': unit.bedrooms,
+        'bathrooms': unit.bathrooms,
+        'tenant_id': unit.tenant_id,
+        'tenant': unit.tenant,
+        'created_at': unit.created_at,
+        'updated_at': unit.updated_at,
+        'unit_type_details': unit.unit_type_details,
+    }
+    
+    # Sanitize unit_type_details if it's empty or missing discriminator
+    if unit_dict['unit_type_details'] is not None:
+        if (isinstance(unit_dict['unit_type_details'], dict) and 
+            (not unit_dict['unit_type_details'] or 'unit_type' not in unit_dict['unit_type_details'])):
+            unit_dict['unit_type_details'] = None
+    
+    return unit_dict
+
+
 class UnitService:
     @staticmethod
     async def _validate_unit_type_details(
@@ -358,7 +392,7 @@ class UnitService:
 
             logger.info(
                 f"Unit {final_unit.id} updated successfully by user {current_user.id}")
-            return UnitResponse.model_validate(final_unit)
+            return UnitResponse.model_validate(_sanitize_unit_for_response(final_unit))
 
         except ValidationError as e:
             logger.error(
@@ -424,7 +458,7 @@ class UnitService:
         """
         # The helper function performs the fetch, permission check, and eager loads the tenant.
         unit = await UnitService.get_unit_or_404(unit_id, session, current_user)
-        return UnitResponse.model_validate(unit)
+        return UnitResponse.model_validate(_sanitize_unit_for_response(unit))
 
     @staticmethod
     async def get_units_for_property(
@@ -466,10 +500,14 @@ class UnitService:
             .offset(skip)
             .limit(limit)
         )
-        units = result.unique().scalars().all()
+        units = cast(List[PropertyUnit], result.unique().scalars().all())
 
         # Convert ORM objects to Pydantic response models
-        return [UnitResponse.model_validate(unit) for unit in units]
+        # Sanitize unit_type_details to handle legacy/invalid data
+        return [
+            UnitResponse.model_validate(_sanitize_unit_for_response(cast(PropertyUnit, unit))) 
+            for unit in units
+        ]
 
     @staticmethod
     async def create_units_bulk(
@@ -615,7 +653,8 @@ class UnitService:
         units = result.unique().scalars().all()
 
         # Convert to response models
-        return [UnitResponse.model_validate(unit) for unit in units]
+        # Sanitize unit_type_details to handle legacy/invalid data
+        return [UnitResponse.model_validate(_sanitize_unit_for_response(unit)) for unit in units]
 
     @staticmethod
     async def get_unit_lease(

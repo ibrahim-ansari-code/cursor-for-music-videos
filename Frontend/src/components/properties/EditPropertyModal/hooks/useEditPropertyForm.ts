@@ -23,6 +23,7 @@ const transformPropertyDataForForm = (propertyData: Property): EditPropertyFormD
     status: propertyData.status,
     year_built: propertyData.year_built ?? null,
     description: propertyData.description || null,
+    ownership_entity_id: propertyData.ownership_entity_id || null,
     address: propertyData.address || '',
     city: propertyData.city || '',
     province: propertyData.province as any,
@@ -135,7 +136,7 @@ export const useEditPropertyForm = ({ propertyData, onSuccess, onClose }: UseEdi
 
   const {
     handleSubmit,
-    formState: { errors, isDirty },
+    formState: { errors, isDirty, dirtyFields },
     reset,
     watch,
   } = methods;
@@ -182,6 +183,7 @@ export const useEditPropertyForm = ({ propertyData, onSuccess, onClose }: UseEdi
       if (data.status !== undefined) payload.status = data.status;
       if (data.year_built !== undefined) payload.year_built = data.year_built;
       if (data.description !== undefined) payload.description = data.description?.trim() || null;
+      if (data.ownership_entity_id !== undefined) payload.ownership_entity_id = data.ownership_entity_id;
       if (data.address !== undefined) payload.address = data.address.trim();
       if (data.city !== undefined) payload.city = data.city.trim();
       if (data.province !== undefined) payload.province = data.province;
@@ -193,7 +195,8 @@ export const useEditPropertyForm = ({ propertyData, onSuccess, onClose }: UseEdi
       if (data.google_maps_data !== undefined) payload.google_maps_data = data.google_maps_data;
 
       // Handle type-specific details
-      if (data.type_specific_details && Object.keys(data.type_specific_details).length > 0) {
+      // Only include if type_specific_details was actually modified by the user
+      if (dirtyFields.type_specific_details && data.type_specific_details && Object.keys(data.type_specific_details).length > 0) {
         // Add discriminator field for backend validation
         const discriminatorMap = {
           [PropertyType.RESIDENTIAL]: 'Residential',
