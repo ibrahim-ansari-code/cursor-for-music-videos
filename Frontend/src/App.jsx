@@ -15,6 +15,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 // Auth
 import { AuthProvider } from "./contexts/AuthProvider";
 import { AuthContext } from "./contexts/AuthContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 
 //Theme
 import { ThemeProvider } from "./contexts/ThemeSwitch";
@@ -181,23 +182,25 @@ function App() {
             // Dark theme will be handled by CSS custom properties in ThemeProvider
           >
             <AuthProvider>
-              <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-                <ToastContainer
-                  position="top-right"
-                  autoClose={5000}
-                  theme="colored"
-                  toastClassName="!bg-white !text-gray-900 dark:!bg-gray-800 dark:!text-gray-100"
-                  bodyClassName="!text-gray-900 dark:!text-gray-100"
-                  progressClassName="!bg-blue-500"
-                />
-                <AppRoutes />
-                <div className="recaptcha-notice">
-                  Protected by reCAPTCHA v3 —
-                  <a href="https://policies.google.com/privacy" rel="noopener noreferrer" target="_blank"> Privacy</a>
-                  {" • "}
-                  <a href="https://policies.google.com/terms" rel="noopener noreferrer" target="_blank"> Terms</a>
+              <NotificationProvider>
+                <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+                  <ToastContainer
+                    position="top-right"
+                    autoClose={5000}
+                    theme="colored"
+                    toastClassName="!bg-white !text-gray-900 dark:!bg-gray-800 dark:!text-gray-100"
+                    bodyClassName="!text-gray-900 dark:!text-gray-100"
+                    progressClassName="!bg-blue-500"
+                  />
+                  <AppRoutes />
+                  <div className="recaptcha-notice">
+                    Protected by reCAPTCHA v3 —
+                    <a href="https://policies.google.com/privacy" rel="noopener noreferrer" target="_blank"> Privacy</a>
+                    {" • "}
+                    <a href="https://policies.google.com/terms" rel="noopener noreferrer" target="_blank"> Terms</a>
+                  </div>
                 </div>
-              </div>
+              </NotificationProvider>
             </AuthProvider>
           </SkeletonTheme>
         </Router>

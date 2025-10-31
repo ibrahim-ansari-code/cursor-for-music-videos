@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 import { Outlet, useLocation, Link, useParams } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import { AuthContext } from "../contexts/AuthContext";
+import NotificationBell from "./notifications/NotificationBell";
 
 const Layout = () => {
   const { user, signOut } = useContext(AuthContext);
@@ -73,6 +74,9 @@ const Layout = () => {
 
             {/* User dropdown area */}
             <div className="flex items-center space-x-3">
+              {/* Notification Bell */}
+              <NotificationBell />
+
               {/* Link the avatar and name to settings */}
               <Link
                 to="/settings"

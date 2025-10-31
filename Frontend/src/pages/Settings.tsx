@@ -62,9 +62,9 @@ const Settings: React.FC = () => {
   };
 
   // Handle notification update
-  const handleNotificationUpdate = (notifications: Record<string, unknown>) => {
+  const handleNotificationUpdate = (notifications: unknown) => {
     // Update notification preferences in context if needed
-    // TODO: Implement notification updates in auth context when backend supports it
+    // Notification preferences are managed by the NotificationContext
     console.log('Notifications update:', notifications);
   };
 

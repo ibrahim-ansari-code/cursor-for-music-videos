@@ -259,6 +259,7 @@ try:
     from Backend.api.dashboard import router as dashboard_router
     from Backend.api.health import router as health_router
     from Backend.api.leases.router import router as leases_router
+    from Backend.api.notifications.router import router as notifications_router
     from Backend.api.ownership_entities.router import router as ownership_entities_router
     from Backend.api.properties.router import router as properties_router
     from Backend.api.properties.image_router import router as property_images_router
@@ -281,6 +282,7 @@ try:
     # Include the new accounting router with its own base prefix
     api_main_router.include_router(accounting_api_router, prefix="/accounting")
     api_main_router.include_router(agent_router)
+    api_main_router.include_router(notifications_router)
     api_main_router.include_router(tenants_router)
     api_main_router.include_router(tenant_documents_router)  # Includes /tenants/{tenant_id}/documents endpoints
     api_main_router.include_router(document_taxonomy_router)  # Includes /document-types/taxonomy endpoint

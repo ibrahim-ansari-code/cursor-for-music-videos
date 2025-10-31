@@ -118,6 +118,14 @@ class Settings(BaseSettings):
     # This secret is used to secure webhook endpoints. It is required for production.
     SUPABASE_WEBHOOK_SECRET: str = os.getenv("SUPABASE_WEBHOOK_SECRET", "")
     
+    # === SendGrid Email Configuration ===
+    SENDGRID_API_KEY: str = os.getenv("SENDGRID_API_KEY", "")
+    SENDGRID_FROM_EMAIL: str = os.getenv("SENDGRID_FROM_EMAIL", "noreply@brikli.com")
+    SENDGRID_FROM_NAME: str = os.getenv("SENDGRID_FROM_NAME", "Brikli Property Management")
+    
+    # === Frontend URL ===
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://app.brikli.com")
+    
     # === Azure AI Agent Configuration ===
     # Azure AI Foundry project endpoint for the Brikli Agent
     AZURE_AGENT_ENDPOINT: str = os.getenv("AZURE_AGENT_ENDPOINT", "")
@@ -187,6 +195,15 @@ class Settings(BaseSettings):
             warnings.warn(
                 "SUPABASE_WEBHOOK_SECRET is not configured. "
                 "Webhook endpoints are not secure. This is not recommended for production.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+        
+        # Validate SendGrid configuration
+        if not self.SENDGRID_API_KEY:
+            warnings.warn(
+                "SENDGRID_API_KEY is not configured. "
+                "Email notifications will not be sent.",
                 RuntimeWarning,
                 stacklevel=2,
             )
