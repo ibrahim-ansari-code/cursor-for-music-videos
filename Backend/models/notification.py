@@ -34,7 +34,11 @@ class Notification(SQLModel, table=True):
     # Primary Key
     id: PythonUUID | None = Field(
         default=None,
-        sa_column=Column(PG_UUID(as_uuid=True), primary_key=True)
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()")
+        )
     )
     
     # User Reference
@@ -124,7 +128,11 @@ class NotificationPreference(SQLModel, table=True):
     # Primary Key
     id: PythonUUID | None = Field(
         default=None,
-        sa_column=Column(PG_UUID(as_uuid=True), primary_key=True)
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()")
+        )
     )
     
     # User Reference (unique - one preference record per user)
@@ -194,7 +202,11 @@ class NotificationDeliveryLog(SQLModel, table=True):
     # Primary Key
     id: PythonUUID | None = Field(
         default=None,
-        sa_column=Column(PG_UUID(as_uuid=True), primary_key=True)
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()")
+        )
     )
     
     # References

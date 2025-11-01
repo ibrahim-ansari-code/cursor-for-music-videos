@@ -456,6 +456,23 @@ async def get_current_landlord_or_admin(
     return current_user
 
 
+async def get_user_id(current_user: User = Depends(get_current_user)) -> PythonUUID:
+    """
+    Dependency to get the current user's ID directly.
+    
+    This avoids lazy loading issues in async exception handlers by eagerly
+    extracting the user_id from the User object. Use this when you only need
+    the user_id and don't need the full User object.
+    
+    Args:
+        current_user: The authenticated user from get_current_user dependency
+        
+    Returns:
+        PythonUUID: The user's ID
+    """
+    return current_user.id
+
+
 async def get_current_user_sse(
     request: Request,
     session: AsyncSession = Depends(get_session),

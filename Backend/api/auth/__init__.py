@@ -10,6 +10,7 @@ This module provides authentication and authorization functionality including:
 
 from .dependencies import (
     get_current_user,
+    get_user_id,
     get_current_active_user,
     get_current_admin_user,
     get_current_verified_user
@@ -34,6 +35,7 @@ __all__ = [
     
     # Dependencies (for use in other modules)
     "get_current_user",
+    "get_user_id",
     "get_current_active_user", 
     "get_current_admin_user",
     "get_current_verified_user",

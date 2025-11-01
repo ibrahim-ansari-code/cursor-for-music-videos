@@ -22,7 +22,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from Backend.api.auth import get_current_user
+from Backend.api.auth import get_current_user, get_user_id
 from Backend.database import get_session
 from Backend.models.user import User
 from Backend.config import settings
@@ -58,7 +58,7 @@ async def get_notifications(
     is_read: Optional[bool] = Query(None, description="Filter by read status"),
     type: Optional[str] = Query(None, description="Filter by notification type"),
     priority: Optional[str] = Query(None, description="Filter by priority"),
-    current_user: User = Depends(get_current_user),
+    user_id: UUID = Depends(get_user_id),
     session: AsyncSession = Depends(get_session)
 ) -> NotificationListResponse:
     """
@@ -73,7 +73,7 @@ async def get_notifications(
     """
     try:
         notifications, total = await NotificationService.get_notifications(
-            user_id=current_user.id,
+            user_id=user_id,
             session=session,
             limit=limit,
             offset=offset,
@@ -84,7 +84,7 @@ async def get_notifications(
         
         # Get unread count
         unread_count = await NotificationService.get_unread_count(
-            user_id=current_user.id,
+            user_id=user_id,
             session=session
         )
         
@@ -97,7 +97,7 @@ async def get_notifications(
         )
         
     except Exception as e:
-        logger.exception(f"Failed to get notifications for user {current_user.id}")
+        logger.exception(f"Failed to get notifications for user {user_id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve notifications"
@@ -106,7 +106,7 @@ async def get_notifications(
 
 @router.get("/unread-count", response_model=UnreadCountResponse)
 async def get_unread_count(
-    current_user: User = Depends(get_current_user),
+    user_id: UUID = Depends(get_user_id),
     session: AsyncSession = Depends(get_session)
 ) -> UnreadCountResponse:
     """
@@ -117,14 +117,14 @@ async def get_unread_count(
     """
     try:
         unread_count = await NotificationService.get_unread_count(
-            user_id=current_user.id,
+            user_id=user_id,
             session=session
         )
         
         return UnreadCountResponse(unread_count=unread_count)
         
     except Exception as e:
-        logger.exception(f"Failed to get unread count for user {current_user.id}")
+        logger.exception(f"Failed to get unread count for user {user_id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve unread count"
@@ -134,7 +134,7 @@ async def get_unread_count(
 @router.patch("/{notification_id}/read", response_model=MarkAsReadResponse)
 async def mark_notification_as_read(
     notification_id: UUID,
-    current_user: User = Depends(get_current_user),
+    user_id: UUID = Depends(get_user_id),
     session: AsyncSession = Depends(get_session)
 ) -> MarkAsReadResponse:
     """
@@ -145,7 +145,7 @@ async def mark_notification_as_read(
     try:
         marked_count = await NotificationService.mark_as_read(
             notification_ids=[notification_id],
-            user_id=current_user.id,
+            user_id=user_id,
             session=session
         )
         
@@ -173,7 +173,7 @@ async def mark_notification_as_read(
 
 @router.patch("/mark-all-read", response_model=MarkAsReadResponse)
 async def mark_all_notifications_as_read(
-    current_user: User = Depends(get_current_user),
+    user_id: UUID = Depends(get_user_id),
     session: AsyncSession = Depends(get_session)
 ) -> MarkAsReadResponse:
     """
@@ -183,7 +183,7 @@ async def mark_all_notifications_as_read(
     """
     try:
         marked_count = await NotificationService.mark_all_as_read(
-            user_id=current_user.id,
+            user_id=user_id,
             session=session
         )
         
@@ -194,7 +194,7 @@ async def mark_all_notifications_as_read(
         )
         
     except Exception as e:
-        logger.exception(f"Failed to mark all notifications as read for user {current_user.id}")
+        logger.exception(f"Failed to mark all notifications as read for user {user_id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to mark all notifications as read"
@@ -204,7 +204,7 @@ async def mark_all_notifications_as_read(
 @router.delete("/{notification_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_notification(
     notification_id: UUID,
-    current_user: User = Depends(get_current_user),
+    user_id: UUID = Depends(get_user_id),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -216,7 +216,7 @@ async def delete_notification(
     try:
         success = await NotificationService.delete_notification(
             notification_id=notification_id,
-            user_id=current_user.id,
+            user_id=user_id,
             session=session
         )
         
@@ -244,7 +244,7 @@ async def delete_notification(
 
 @router.get("/preferences", response_model=NotificationPreferenceResponse)
 async def get_notification_preferences(
-    current_user: User = Depends(get_current_user),
+    user_id: UUID = Depends(get_user_id),
     session: AsyncSession = Depends(get_session)
 ) -> NotificationPreferenceResponse:
     """
@@ -258,14 +258,14 @@ async def get_notification_preferences(
     """
     try:
         preferences = await NotificationService.get_user_preferences(
-            user_id=current_user.id,
+            user_id=user_id,
             session=session
         )
         
         return NotificationPreferenceResponse.model_validate(preferences)
         
     except Exception as e:
-        logger.exception(f"Failed to get preferences for user {current_user.id}")
+        logger.exception(f"Failed to get preferences for user {user_id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve notification preferences"
@@ -275,7 +275,7 @@ async def get_notification_preferences(
 @router.put("/preferences", response_model=NotificationPreferenceUpdateResponse)
 async def update_notification_preferences(
     preference_update: NotificationPreferenceUpdateRequest,
-    current_user: User = Depends(get_current_user),
+    user_id: UUID = Depends(get_user_id),
     session: AsyncSession = Depends(get_session)
 ) -> NotificationPreferenceUpdateResponse:
     """
@@ -296,7 +296,7 @@ async def update_notification_preferences(
     """
     try:
         updated_preferences = await NotificationService.update_preferences(
-            user_id=current_user.id,
+            user_id=user_id,
             session=session,
             enabled=preference_update.enabled,
             preferences=preference_update.preferences,
@@ -315,7 +315,7 @@ async def update_notification_preferences(
         )
         
     except Exception as e:
-        logger.exception(f"Failed to update preferences for user {current_user.id}")
+        logger.exception(f"Failed to update preferences for user {user_id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update notification preferences"
@@ -338,7 +338,12 @@ async def send_test_email(
     Useful for testing email templates and SMTP configuration.
     This endpoint will be expanded in Phase 4 when email service is implemented.
     """
+    user_id = None
     try:
+        # Capture user attributes early to avoid lazy loading in error handler
+        user_id = current_user.id
+        user_email = current_user.email
+        
         # TODO: Implement email sending in Phase 4
         # For now, just create a test notification
         
@@ -376,7 +381,7 @@ async def send_test_email(
         
         # Create test notification
         notification = await NotificationService.create_notification(
-            user_id=current_user.id,
+            user_id=user_id,
             type=test_request.notification_type,
             title=test_data['title'],
             message=test_data['message'],
@@ -388,11 +393,12 @@ async def send_test_email(
         return TestEmailResponse(
             success=True,
             message=f"Test notification created successfully. Email sending will be implemented in Phase 4.",
-            email_sent_to=current_user.email
+            email_sent_to=user_email
         )
         
     except Exception as e:
-        logger.exception(f"Failed to send test email for user {current_user.id}")
+        log_user_id = user_id or "unknown"
+        logger.exception(f"Failed to send test email for user {log_user_id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to send test email"
