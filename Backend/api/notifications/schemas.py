@@ -230,6 +230,29 @@ class NotificationPreferenceUpdateResponse(BaseModel):
 # TEST EMAIL SCHEMA
 # ========================================================================
 
+class TestNotificationRequest(BaseModel):
+    """Request to send a test in-app notification"""
+    notification_type: str = "system_update"
+    
+    @field_validator('notification_type')
+    @classmethod
+    def validate_type(cls, v: str) -> str:
+        valid_types = [
+            'rent_reminder', 'payment_received', 'lease_expiring',
+            'maintenance_update', 'new_application', 'system_update'
+        ]
+        if v not in valid_types:
+            raise ValueError(f"Invalid notification type. Must be one of: {', '.join(valid_types)}")
+        return v
+
+
+class TestNotificationResponse(BaseModel):
+    """Response after sending test notification"""
+    success: bool
+    message: str
+    notification_id: str
+
+
 class TestEmailRequest(BaseModel):
     """Request to send a test email notification"""
     notification_type: str = "system_update"

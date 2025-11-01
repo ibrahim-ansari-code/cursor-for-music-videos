@@ -38,8 +38,8 @@ Comprehensive notification system for Brikli Property Management with in-app not
 │  React          │◀────▶│  PostgreSQL      │
 │  Frontend       │      │  Database        │
 └─────────────────┘      └──────────────────┘
-  Polls every 30s          RLS + Indexes
-  Real-time updates        Notification data
+  Supabase Realtime       RLS + Indexes
+  WebSocket updates       Notification data
 ```
 
 ---
@@ -66,7 +66,7 @@ These are built into the system but not yet wired to platform operations:
 
 ## Scheduled Notifications
 
-### Overview
+ Overview
 
 Automated notifications run daily at **9:00 AM EST (14:00 UTC)** using Supabase pg_cron, a PostgreSQL-native job scheduler.
 
@@ -433,7 +433,15 @@ Send a test email to current user.
 
 ### NotificationContext
 
-Global state management for notifications with automatic polling.
+Global state management for notifications with **Supabase Realtime** for instant updates without polling.
+
+**How It Works:**
+
+- Establishes WebSocket connection to Supabase on mount
+- Subscribes to `INSERT`, `UPDATE`, and `DELETE` events on `notifications` table
+- Automatically updates UI when notifications change
+- Filters events by current user ID
+- No polling required - truly real-time!
 
 ```tsx
 import { NotificationProvider } from '@/contexts/NotificationContext';
@@ -446,6 +454,20 @@ function App() {
   );
 }
 ```
+
+**Realtime Events Handled:**
+
+| Event | Action | UI Update |
+|-------|--------|-----------|
+| `INSERT` | New notification created | Adds to list, increments unread count |
+| `UPDATE` | Notification marked read/unread | Updates notification, adjusts unread count |
+| `DELETE` | Notification deleted/archived | Removes from list, decrements unread count |
+
+**Connection Status:**
+
+- `SUBSCRIBED` - Active realtime connection ✅
+- `CHANNEL_ERROR` - Connection failed (logged to Sentry) ❌
+- Auto-reconnects on network issues
 
 ### Using Notifications in Components
 
@@ -620,6 +642,7 @@ curl -X POST http://localhost:8000/api/notifications/test-email \
 3. User is authenticated
 4. NotificationProvider is wrapping app
 5. Browser console for errors
+6. Supabase Realtime is enabled on `notifications` table
 
 **Debug:**
 
@@ -628,6 +651,17 @@ curl -X POST http://localhost:8000/api/notifications/test-email \
 const { notifications, error } = useNotifications();
 console.log('Notifications:', notifications);
 console.log('Error:', error);
+```
+
+**Verify Realtime Subscription:**
+
+```sql
+-- Check if table is published for realtime
+SELECT * FROM pg_publication_tables 
+WHERE pubname = 'supabase_realtime' 
+AND tablename = 'notifications';
+
+-- Expected: Should return one row
 ```
 
 ### Issue: Extension not found
@@ -642,13 +676,41 @@ CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS http;
 ```
 
+### Issue: Realtime updates not working
+
+**Check Realtime Publication:**
+
+```sql
+-- Ensure notifications table is published
+ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+
+-- Verify it was added
+SELECT * FROM pg_publication_tables 
+WHERE pubname = 'supabase_realtime' AND tablename = 'notifications';
+```
+
+**Check Browser Console:**
+
+Look for messages like:
+
+- `"Notification subscription status: SUBSCRIBED"` ✅
+- `"New notification received:"` when creating test notifications
+- `"Notification updated:"` when marking as read
+
+**Common Causes:**
+
+1. Supabase Realtime not enabled in project settings
+2. Table not added to `supabase_realtime` publication
+3. WebSocket connection blocked by firewall/proxy
+4. User not authenticated (Realtime filters by user_id)
+
 ---
 
 ## Database Schema
 
 ### Tables
 
-**notifications**
+***notifications**
 
 - `id` (UUID, PK) - Notification identifier
 - `user_id` (UUID, FK) - User who receives notification
@@ -662,7 +724,7 @@ CREATE EXTENSION IF NOT EXISTS http;
 - `created_at` (TIMESTAMP) - Creation timestamp
 - `updated_at` (TIMESTAMP) - Last update timestamp
 
-**notification_preferences**
+***notification_preferences**
 
 - `id` (UUID, PK) - Preference identifier
 - `user_id` (UUID, FK, UNIQUE) - User identifier
@@ -672,7 +734,7 @@ CREATE EXTENSION IF NOT EXISTS http;
 - `created_at` (TIMESTAMP) - Creation timestamp
 - `updated_at` (TIMESTAMP) - Last update timestamp
 
-**notification_scheduler_config**
+***notification_scheduler_config**
 
 - `id` (SERIAL, PK) - Config identifier
 - `key` (VARCHAR, UNIQUE) - Configuration key

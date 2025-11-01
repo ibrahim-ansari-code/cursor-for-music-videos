@@ -162,6 +162,12 @@ export interface NotificationPreferenceUpdateResponse {
   preferences: NotificationPreferenceData;
 }
 
+export interface TestNotificationResponse {
+  success: boolean;
+  message: string;
+  notification_id: string;
+}
+
 export interface TestEmailResponse {
   success: boolean;
   message: string;
@@ -258,6 +264,16 @@ const notificationApi = {
   },
 
   /**
+   * Send a test in-app notification
+   */
+  sendTestNotification: async (notificationType: NotificationType = 'system_update'): Promise<TestNotificationResponse> => {
+    const response = await api.post<TestNotificationResponse>('/notifications/test-notification', {
+      notification_type: notificationType,
+    });
+    return response.data;
+  },
+
+  /**
    * Send a test email notification
    */
   sendTestEmail: async (notificationType: NotificationType = 'system_update'): Promise<TestEmailResponse> => {
@@ -278,6 +294,7 @@ export const markAllAsRead = notificationApi.markAllAsRead;
 export const dismissNotification = notificationApi.deleteNotification;
 export const getPreferences = notificationApi.getPreferences;
 export const updatePreferences = notificationApi.updatePreferences;
+export const sendTestNotification = notificationApi.sendTestNotification;
 export const sendTestEmail = notificationApi.sendTestEmail;
 
 // Type aliases for backwards compatibility

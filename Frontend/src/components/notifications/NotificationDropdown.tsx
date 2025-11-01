@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
 import NotificationItem from './NotificationItem';
 
@@ -13,6 +14,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   onClose,
   anchorRef,
 }) => {
+  const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const {
     notifications,
@@ -112,13 +114,15 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
       {/* Footer */}
       {notifications.length > 0 && (
         <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-3">
-          <a
-            href="/settings?tab=notifications"
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline block text-center"
-            onClick={onClose}
+          <button
+            onClick={() => {
+              navigate('/settings?tab=notifications');
+              onClose();
+            }}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline block text-center w-full"
           >
-            View all notifications & settings
-          </a>
+            View Notification Settings
+          </button>
         </div>
       )}
     </div>

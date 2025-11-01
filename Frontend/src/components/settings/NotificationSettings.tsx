@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Label, Checkbox, Select, Button } from "../ui/SharedModalComponents";
 import { toast } from "react-toastify";
 import * as Sentry from "@sentry/react";
-import { getPreferences, updatePreferences, sendTestEmail, type NotificationPreferenceResponse } from "../../utils/api/notifications";
+import { getPreferences, updatePreferences, sendTestNotification, sendTestEmail, type NotificationPreferenceResponse } from "../../utils/api/notifications";
 import type { User } from "../../types/user";
 
 interface NotificationCategoryPreference {
@@ -35,7 +35,8 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onNotificat
   const [preferences, setPreferences] = useState<NotificationPreferenceResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchLoading, setIsFetchLoading] = useState(true);
-  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [isSendingTestNotification, setIsSendingTestNotification] = useState(false);
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
 
   // Fetch user preferences on mount
   useEffect(() => {
@@ -139,12 +140,37 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onNotificat
     }
   };
 
+  const handleSendTestNotification = async () => {
+    setIsSendingTestNotification(true);
+    try {
+      await sendTestNotification();
+      toast.success("Test notification sent! Check your notifications.");
+    } catch (error: any) {
+      console.error("Error sending test notification:", error);
+      Sentry.captureException(error, {
+        tags: {
+          component: 'NotificationSettings',
+          action: 'send_test_notification',
+        },
+      });
+      
+      // Check for rate limit error
+      if (error?.status === 429) {
+        toast.error("Rate limit exceeded. You can send up to 5 test notifications per hour.");
+      } else {
+        toast.error("Failed to send test notification. Please try again.");
+      }
+    } finally {
+      setIsSendingTestNotification(false);
+    }
+  };
+
   const handleSendTestEmail = async () => {
-    setIsSendingTest(true);
+    setIsSendingTestEmail(true);
     try {
       await sendTestEmail();
       toast.success("Test email sent! Check your inbox.");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error sending test email:", error);
       Sentry.captureException(error, {
         tags: {
@@ -152,9 +178,15 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onNotificat
           action: 'send_test_email',
         },
       });
-      toast.error("Failed to send test email. Please try again.");
+      
+      // Check for rate limit error
+      if (error?.status === 429) {
+        toast.error("Rate limit exceeded. You can send up to 5 test emails per hour.");
+      } else {
+        toast.error("Failed to send test email. Please try again.");
+      }
     } finally {
-      setIsSendingTest(false);
+      setIsSendingTestEmail(false);
     }
   };
 
@@ -279,26 +311,52 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onNotificat
           </p>
         </div>
 
-        {/* Test Email Button */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 transition-colors duration-300">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
-                <i className="fas fa-envelope mr-2"></i>
-                Test Email Notifications
-              </p>
-              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                Send a test email to verify your settings
-              </p>
+        {/* Test Notification Buttons */}
+        <div className="space-y-3">
+          {/* Test In-App Notification */}
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 transition-colors duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-900 dark:text-green-200">
+                  <i className="fas fa-bell mr-2"></i>
+                  Test In-App Notification
+                </p>
+                <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                  Send a test notification to your notification center
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleSendTestNotification}
+                disabled={isSendingTestNotification}
+              >
+                {isSendingTestNotification ? "Sending..." : "Send Test"}
+              </Button>
             </div>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleSendTestEmail}
-              disabled={isSendingTest || !preferences.enabled}
-            >
-              {isSendingTest ? "Sending..." : "Send Test"}
-            </Button>
+          </div>
+
+          {/* Test Email Notification */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 transition-colors duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
+                  <i className="fas fa-envelope mr-2"></i>
+                  Test Email Notification
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  Send a test email to verify your settings
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleSendTestEmail}
+                disabled={isSendingTestEmail || !preferences.enabled}
+              >
+                {isSendingTestEmail ? "Sending..." : "Send Test"}
+              </Button>
+            </div>
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import * as Sentry from "@sentry/react";
+import { supabase } from '../supabaseClient';
 import {
   getNotifications,
   getUnreadCount,
@@ -161,18 +162,154 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   // Fetch notifications and unread count on mount and auth change
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchNotifications();
-      fetchUnreadCount();
-      
-      // Poll for new notifications every 30 seconds
-      const interval = setInterval(() => {
-        fetchUnreadCount();
-      }, 30000);
-      
-      return () => clearInterval(interval);
+    if (!isAuthenticated || !authContext?.user?.id) {
+      return;
     }
-  }, [isAuthenticated, fetchNotifications, fetchUnreadCount]);
+
+    const userId = authContext.user.id;
+    let pollingInterval: NodeJS.Timeout | null = null;
+    
+    // Initial fetch
+    fetchNotifications();
+    fetchUnreadCount();
+    
+    // Set up Supabase Realtime subscription for notifications
+    const channel = supabase
+      .channel('notifications-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('New notification received:', payload);
+          
+          // Add new notification to the list
+          const newNotification = payload.new as Notification;
+          setNotifications((prev) => [newNotification, ...prev]);
+          
+          // Increment unread count if notification is unread
+          if (!newNotification.is_read) {
+            setUnreadCount((prev) => prev + 1);
+          }
+          
+          // Report to Sentry for monitoring
+          Sentry.captureMessage('Real-time notification received', {
+            level: 'info',
+            tags: {
+              component: 'NotificationContext',
+              action: 'realtime_insert',
+              notification_type: newNotification.type,
+            },
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('Notification updated:', payload);
+          
+          // Update the notification in the list
+          const updatedNotification = payload.new as Notification;
+          setNotifications((prev) =>
+            prev.map((notif) =>
+              notif.id === updatedNotification.id ? updatedNotification : notif
+            )
+          );
+          
+          // Update unread count based on is_read status change
+          const oldNotification = payload.old as Partial<Notification>;
+          // Ensure oldNotification.is_read is a boolean before comparing values
+          // to prevent incorrect count updates if the database REPLICA IDENTITY is not FULL
+          if (typeof oldNotification.is_read === 'boolean' && oldNotification.is_read !== updatedNotification.is_read) {
+            if (updatedNotification.is_read) {
+              // Notification was marked as read
+              setUnreadCount((prev) => Math.max(0, prev - 1));
+            } else {
+              // Notification was marked as unread
+              setUnreadCount((prev) => prev + 1);
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('Notification deleted:', payload);
+          
+          // Remove notification from the list
+          const deletedNotification = payload.old as Notification;
+          setNotifications((prev) =>
+            prev.filter((notif) => notif.id !== deletedNotification.id)
+          );
+          
+          // Update unread count if deleted notification was unread
+          if (!deletedNotification.is_read) {
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Notification subscription status:', status);
+        
+        if (status === 'SUBSCRIBED') {
+          // Clear polling interval if it exists (realtime is working)
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+          }
+          
+          Sentry.captureMessage('Notification realtime subscription active', {
+            level: 'info',
+            tags: {
+              component: 'NotificationContext',
+              action: 'realtime_subscribed',
+            },
+          });
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          // Fallback to polling on subscription failure
+          console.warn('Realtime subscription failed, falling back to polling');
+          
+          if (!pollingInterval) {
+            pollingInterval = setInterval(() => {
+              fetchUnreadCount();
+            }, 30000); // Poll every 30 seconds
+          }
+          
+          Sentry.captureException(new Error(`Notification realtime subscription ${status}`), {
+            tags: {
+              component: 'NotificationContext',
+              action: 'realtime_fallback_polling',
+              status,
+            },
+          });
+        }
+      });
+    
+    // Cleanup subscription and polling on unmount
+    return () => {
+      console.log('Unsubscribing from notification realtime channel');
+      supabase.removeChannel(channel);
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [isAuthenticated, authContext?.user?.id, fetchNotifications, fetchUnreadCount]);
 
   const value: NotificationContextValue = {
     notifications,

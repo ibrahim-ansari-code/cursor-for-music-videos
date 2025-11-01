@@ -1,4 +1,5 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import type { User, AvatarUpdateHandler, ProfileUpdateHandler } from '../types/user';
 import SettingsSkeleton from '../components/ui/skeletons/SettingsSkeleton';
@@ -28,8 +29,17 @@ const Settings: React.FC = () => {
   const authContext = useContext(AuthContext) as AuthContextValue | null;
   const authUser = authContext?.user;
   const setAuthUser = authContext?.setUser;
-
+  
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabId>('profile');
+
+  // Set active tab from URL query parameter
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['profile', 'security', 'preferences', 'notifications', 'ownership'].includes(tabParam)) {
+      setActiveTab(tabParam as TabId);
+    }
+  }, [searchParams]);
 
   // Tab configuration
   const tabs: Tab[] = [

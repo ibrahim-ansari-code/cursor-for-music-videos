@@ -9,6 +9,8 @@ RESTful API endpoints for notification management:
 - DELETE /notifications/{id} - Delete notification
 - GET /notifications/preferences - Get user preferences
 - PUT /notifications/preferences - Update preferences
+- POST /notifications/test-notification - Send test in-app notification
+- POST /notifications/test-email - Send test email notification
 
 Internal scheduled job endpoints:
 - POST /notifications/scheduled/rent-reminders - Trigger rent reminders (pg_cron)
@@ -16,7 +18,7 @@ Internal scheduled job endpoints:
 """
 import logging
 import secrets
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -36,15 +38,96 @@ from .schemas import (
     NotificationPreferenceResponse,
     NotificationPreferenceUpdateRequest,
     NotificationPreferenceUpdateResponse,
+    TestNotificationRequest,
+    TestNotificationResponse,
     TestEmailRequest,
     TestEmailResponse,
 )
 from .service import NotificationService
 from .scheduled_service import ScheduledNotificationService
+from .email_service import EmailService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
+
+
+# ========================================================================
+# RATE LIMITING FOR TEST ENDPOINTS
+# ========================================================================
+
+# Database-backed rate limiter for test endpoints (works with multiple workers)
+# Limit: 5 requests per hour per user
+_rate_limit_max = 5
+_rate_limit_window_seconds = 3600  # 1 hour
+
+
+async def check_test_rate_limit(user_id: UUID, session: AsyncSession) -> bool:
+    """
+    Check if user is within rate limit for test endpoints using database.
+    
+    Uses PostgreSQL advisory locks to prevent race conditions between
+    concurrent requests. This ensures the check-and-insert is atomic.
+    
+    Args:
+        user_id: User ID to check
+        session: Database session
+        
+    Returns:
+        True if request is allowed, False if rate limited
+    """
+    from sqlalchemy import text
+    from datetime import datetime, timedelta, timezone
+    
+    # Use PostgreSQL advisory lock to make check-and-insert atomic
+    # Lock ID is derived from user_id hash to ensure per-user locking
+    lock_id = hash(str(user_id)) % 2147483647  # PostgreSQL max int
+    
+    try:
+        # Acquire advisory lock (automatically released at transaction end)
+        lock_query = text("SELECT pg_advisory_xact_lock(:lock_id)")
+        await session.execute(lock_query, {"lock_id": lock_id})
+        
+        # Calculate window start time
+        window_start = datetime.now(timezone.utc) - timedelta(seconds=_rate_limit_window_seconds)
+        
+        # Count requests in the current window
+        count_query = text("""
+            SELECT COUNT(*) 
+            FROM notification_delivery_log 
+            WHERE user_id = :user_id 
+            AND channel = 'test_endpoint'
+            AND created_at > :window_start
+        """)
+        
+        result = await session.execute(count_query, {
+            "user_id": str(user_id),
+            "window_start": window_start
+        })
+        count: int = result.scalar() or 0
+        
+        if count >= _rate_limit_max:
+            return False
+        
+        # Record this request
+        insert_query = text("""
+            INSERT INTO notification_delivery_log (user_id, notification_id, channel, status, created_at)
+            VALUES (:user_id, :notification_id, 'test_endpoint', 'success', NOW())
+        """)
+        
+        await session.execute(insert_query, {
+            "user_id": str(user_id),
+            "notification_id": "00000000-0000-0000-0000-000000000000"
+        })
+        await session.commit()
+        
+        return True
+        
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Rate limit check failed for user {user_id}: {e}")
+        # Fail open: allow request if rate limiting system has errors
+        return True
 
 
 # ========================================================================
@@ -326,27 +409,30 @@ async def update_notification_preferences(
 # TESTING & DEBUG ENDPOINTS
 # ========================================================================
 
-@router.post("/test-email", response_model=TestEmailResponse)
-async def send_test_email(
-    test_request: TestEmailRequest,
+@router.post("/test-notification", response_model=TestNotificationResponse)
+async def send_test_notification(
+    test_request: TestNotificationRequest,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
-) -> TestEmailResponse:
+) -> TestNotificationResponse:
     """
-    Send a test email notification to the current user.
+    Send a test in-app notification to the current user.
     
-    Useful for testing email templates and SMTP configuration.
-    This endpoint will be expanded in Phase 4 when email service is implemented.
+    Rate limited to 5 requests per hour per user.
     """
     user_id = None
     try:
-        # Capture user attributes early to avoid lazy loading in error handler
+        # Capture user attributes early
         user_id = current_user.id
-        user_email = current_user.email
         
-        # TODO: Implement email sending in Phase 4
-        # For now, just create a test notification
+        # Check rate limit (database-backed, works with multiple workers)
+        if not await check_test_rate_limit(user_id, session):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Rate limit exceeded. You can send up to 5 test notifications per hour."
+            )
         
+        # Define test messages
         test_messages = {
             'rent_reminder': {
                 'title': 'Test: Rent Due Reminder',
@@ -379,7 +465,7 @@ async def send_test_email(
             {'title': 'Test Notification', 'message': 'This is a test notification.'}
         )
         
-        # Create test notification
+        # Create in-app notification only
         notification = await NotificationService.create_notification(
             user_id=user_id,
             type=test_request.notification_type,
@@ -390,12 +476,129 @@ async def send_test_email(
             session=session
         )
         
+        # Handle case where notification creation was skipped due to user preferences
+        if notification is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot create test notification: '{test_request.notification_type}' notifications are disabled in your preferences. Please enable them first."
+            )
+        
+        return TestNotificationResponse(
+            success=True,
+            message="Test notification created successfully!",
+            notification_id=str(notification.id)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_user_id = user_id or "unknown"
+        logger.exception(f"Failed to send test notification for user {log_user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send test notification"
+        )
+
+
+@router.post("/test-email", response_model=TestEmailResponse)
+async def send_test_email(
+    test_request: TestEmailRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+) -> TestEmailResponse:
+    """
+    Send a test email notification to the current user.
+    
+    Creates both an in-app notification and sends an email via SendGrid.
+    Rate limited to 5 requests per hour per user.
+    """
+    user_id = None
+    try:
+        # Capture user attributes early to avoid lazy loading in error handler
+        user_id = current_user.id
+        user_email = current_user.email
+        
+        # Check rate limit (database-backed, works with multiple workers)
+        if not await check_test_rate_limit(user_id, session):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Rate limit exceeded. You can send up to 5 test emails per hour."
+            )
+        
+        # Define test messages for different notification types
+        test_messages = {
+            'rent_reminder': {
+                'title': 'Test: Rent Due Reminder',
+                'message': 'This is a test rent reminder notification. Your rent payment is due soon.'
+            },
+            'payment_received': {
+                'title': 'Test: Payment Received',
+                'message': 'This is a test payment confirmation. A payment of $1,500.00 has been received.'
+            },
+            'lease_expiring': {
+                'title': 'Test: Lease Expiring',
+                'message': 'This is a test lease expiration notice. A lease will expire in 30 days.'
+            },
+            'maintenance_update': {
+                'title': 'Test: Maintenance Update',
+                'message': 'This is a test maintenance notification. A work order has been completed.'
+            },
+            'new_application': {
+                'title': 'Test: New Application',
+                'message': 'This is a test application notification. A new tenant application has been submitted.'
+            },
+            'system_update': {
+                'title': 'Test: System Update',
+                'message': 'This is a test system notification. New features have been added to Brikli.'
+            }
+        }
+        
+        test_data = test_messages.get(
+            test_request.notification_type,
+            {'title': 'Test Notification', 'message': 'This is a test notification.'}
+        )
+        
+        # Create in-app notification
+        notification = await NotificationService.create_notification(
+            user_id=user_id,
+            type=test_request.notification_type,
+            title=test_data['title'],
+            message=test_data['message'],
+            metadata={'test': True},
+            priority='normal',
+            session=session
+        )
+        
+        # Handle case where notification creation was skipped due to user preferences
+        if notification is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot create test email: '{test_request.notification_type}' notifications are disabled in your preferences. Please enable them first."
+            )
+        
+        # Send actual email via SendGrid
+        email_sent = await EmailService.send_notification_email(
+            user=current_user,
+            notification_type=test_request.notification_type,
+            title=test_data['title'],
+            message=test_data['message'],
+            link='/notifications',
+            metadata={'test': True}
+        )
+        
+        if email_sent:
+            message = f"Test notification created and email sent successfully to {user_email}!"
+        else:
+            message = f"Test notification created, but email sending failed. Check SendGrid configuration."
+        
         return TestEmailResponse(
             success=True,
-            message=f"Test notification created successfully. Email sending will be implemented in Phase 4.",
+            message=message,
             email_sent_to=user_email
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         log_user_id = user_id or "unknown"
         logger.exception(f"Failed to send test email for user {log_user_id}")
