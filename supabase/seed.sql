@@ -348,6 +348,7 @@ INSERT INTO auth.users (
     updated_at = NOW();
 
 -- Clear existing data (in dependency order)
+-- CASCADE will automatically handle notification tables if they exist
 TRUNCATE TABLE 
   expense_tax_details,
   expenses,
@@ -363,6 +364,14 @@ TRUNCATE TABLE
   integrations,
   users
 CASCADE;
+
+-- Temporarily disable notification trigger if it exists (for preview environments)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'create_user_notification_preferences') THEN
+        ALTER TABLE users DISABLE TRIGGER create_user_notification_preferences;
+    END IF;
+END $$;
 
 -- ===================================================================
 -- USERS (Focused on Test User + Supporting Users)
@@ -619,4 +628,12 @@ WHERE EXISTS (
 -- UNION ALL SELECT 'Invoices', count(*) FROM invoices
 -- UNION ALL SELECT 'Expenses', count(*) FROM expenses
 -- UNION ALL SELECT 'Maintenance Requests', count(*) FROM maintenance_requests
--- UNION ALL SELECT 'Integrations', count(*) FROM integrations; 
+-- UNION ALL SELECT 'Integrations', count(*) FROM integrations;
+
+-- Re-enable notification trigger if it exists (for preview environments)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'create_user_notification_preferences') THEN
+        ALTER TABLE users ENABLE TRIGGER create_user_notification_preferences;
+    END IF;
+END $$; 

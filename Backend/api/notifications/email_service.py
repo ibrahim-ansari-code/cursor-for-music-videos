@@ -42,13 +42,19 @@ class EmailService:
         Returns:
             True if email sent successfully, False otherwise
         """
+        # Eagerly capture user attributes to prevent lazy loading in exception handlers
+        user_id = user.id
+        user_email = user.email
+        user_first_name = user.first_name
+        user_last_name = user.last_name
+        
         try:
             # Get user's full name
-            user_name = f"{user.first_name} {user.last_name}".strip() or "Brikli User"
+            user_name = f"{user_first_name} {user_last_name}".strip() or "Brikli User"
             
             # Send email via SendGrid
             success = await SendGridService.send_email(
-                to_email=user.email,
+                to_email=user_email,
                 to_name=user_name,
                 subject=title,
                 notification_type=notification_type,
@@ -60,9 +66,9 @@ class EmailService:
             
             if success:
                 logger.info(
-                    f"Notification email sent successfully to {user.email}",
+                    f"Notification email sent successfully to {user_email}",
                     extra={
-                        'user_id': str(user.id),
+                        'user_id': str(user_id),
                         'notification_type': notification_type,
                     }
                 )
@@ -70,9 +76,9 @@ class EmailService:
             return success
             
         except Exception as e:
-            logger.exception(f"Failed to send notification email to {user.email}")
+            logger.exception(f"Failed to send notification email to {user_email}")
             sentry_sdk.capture_exception(e, extra={
-                'user_id': str(user.id),
+                'user_id': str(user_id),
                 'notification_type': notification_type,
             })
             return False
