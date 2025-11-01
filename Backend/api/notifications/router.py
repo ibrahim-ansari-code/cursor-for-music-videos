@@ -9,17 +9,23 @@ RESTful API endpoints for notification management:
 - DELETE /notifications/{id} - Delete notification
 - GET /notifications/preferences - Get user preferences
 - PUT /notifications/preferences - Update preferences
+
+Internal scheduled job endpoints:
+- POST /notifications/scheduled/rent-reminders - Trigger rent reminders (pg_cron)
+- POST /notifications/scheduled/lease-expiring - Trigger lease expiring alerts (pg_cron)
 """
 import logging
-from typing import List, Optional
+import secrets
+from typing import List, Optional, Dict, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Backend.api.auth import get_current_user
 from Backend.database import get_session
 from Backend.models.user import User
+from Backend.config import settings
 
 from .schemas import (
     NotificationResponse,
@@ -34,6 +40,7 @@ from .schemas import (
     TestEmailResponse,
 )
 from .service import NotificationService
+from .scheduled_service import ScheduledNotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -390,4 +397,63 @@ async def send_test_email(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to send test email"
         )
+
+
+# ========================================================================
+# SCHEDULED JOB ENDPOINTS (Internal - Called by pg_cron)
+# ========================================================================
+
+@router.post("/scheduled/rent-reminders", include_in_schema=False)
+async def trigger_rent_reminders(
+    request: Request,
+    session: AsyncSession = Depends(get_session)
+) -> Dict[str, Any]:
+    """
+    [Internal] Scheduled job endpoint for rent reminders.
+    
+    Called by pg_cron daily at 14:00 UTC (9 AM EST).
+    Finds all active leases with rent due in 3 days and creates notifications.
+    
+    Authentication: Requires X-Internal-API-Key header.
+    """
+    # Verify internal API key
+    api_key = request.headers.get('X-Internal-API-Key')
+    if not api_key or not secrets.compare_digest(api_key, settings.INTERNAL_CRON_API_KEY):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    try:
+        result = await ScheduledNotificationService.send_rent_reminders(session)
+        logger.info(f"Rent reminders sent: {result}")
+        return result
+    except Exception as e:
+        logger.exception("Failed to send rent reminders")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/scheduled/lease-expiring", include_in_schema=False)
+async def trigger_lease_expiring(
+    request: Request,
+    session: AsyncSession = Depends(get_session)
+) -> Dict[str, Any]:
+    """
+    [Internal] Scheduled job endpoint for lease expiring alerts.
+    
+    Called by pg_cron daily at 14:00 UTC (9 AM EST).
+    Finds leases expiring in 30 or 60 days and creates notifications.
+    
+    Authentication: Requires X-Internal-API-Key header.
+    """
+    # Verify internal API key
+    api_key = request.headers.get('X-Internal-API-Key')
+    if not api_key or api_key != settings.INTERNAL_CRON_API_KEY:
+        logger.warning("Unauthorized lease expiring trigger attempt")
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    try:
+        result = await ScheduledNotificationService.send_lease_expiring_notifications(session)
+        logger.info(f"Lease expiring notifications sent: {result}")
+        return result
+    except Exception as e:
+        logger.exception("Failed to send lease expiring notifications")
+        raise HTTPException(status_code=500, detail=str(e))
 

@@ -126,6 +126,10 @@ class Settings(BaseSettings):
     # === Frontend URL ===
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://app.brikli.com")
     
+    # === Internal API Key for Scheduled Jobs ===
+    # Used by pg_cron to authenticate scheduled notification jobs
+    INTERNAL_CRON_API_KEY: str = os.getenv("INTERNAL_CRON_API_KEY", "")
+    
     # === Azure AI Agent Configuration ===
     # Azure AI Foundry project endpoint for the Brikli Agent
     AZURE_AGENT_ENDPOINT: str = os.getenv("AZURE_AGENT_ENDPOINT", "")
