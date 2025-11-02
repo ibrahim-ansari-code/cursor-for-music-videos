@@ -112,7 +112,7 @@ async def check_test_rate_limit(user_id: UUID, session: AsyncSession) -> bool:
         # Record this request
         insert_query = text("""
             INSERT INTO notification_delivery_log (user_id, notification_id, channel, status, created_at)
-            VALUES (:user_id, :notification_id, 'test_endpoint', 'success', NOW())
+            VALUES (:user_id, :notification_id, 'test_endpoint', 'sent', NOW())
         """)
         
         await session.execute(insert_query, {
@@ -507,9 +507,10 @@ async def send_test_email(
     session: AsyncSession = Depends(get_session)
 ) -> TestEmailResponse:
     """
-    Send a test email notification to the current user.
+    Send a test email notification to the current user via SendGrid.
     
-    Creates both an in-app notification and sends an email via SendGrid.
+    This endpoint ONLY sends an email - it does NOT create an in-app notification.
+    Use the separate /test-notification endpoint for in-app notification testing.
     Rate limited to 5 requests per hour per user.
     """
     user_id = None
@@ -517,6 +518,8 @@ async def send_test_email(
         # Capture user attributes early to avoid lazy loading in error handler
         user_id = current_user.id
         user_email = current_user.email
+        user_first_name = current_user.first_name
+        user_last_name = current_user.last_name
         
         # Check rate limit (database-backed, works with multiple workers)
         if not await check_test_rate_limit(user_id, session):
@@ -558,42 +561,28 @@ async def send_test_email(
             {'title': 'Test Notification', 'message': 'This is a test notification.'}
         )
         
-        # Create in-app notification
-        notification = await NotificationService.create_notification(
-            user_id=user_id,
-            type=test_request.notification_type,
-            title=test_data['title'],
-            message=test_data['message'],
-            metadata={'test': True},
-            priority='normal',
-            session=session
-        )
-        
-        # Handle case where notification creation was skipped due to user preferences
-        if notification is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Cannot create test email: '{test_request.notification_type}' notifications are disabled in your preferences. Please enable them first."
-            )
-        
-        # Send actual email via SendGrid
+        # Send email via SendGrid (no in-app notification created)
         email_sent = await EmailService.send_notification_email(
-            user=current_user,
+            user_id=user_id,
+            user_email=user_email,
+            user_first_name=user_first_name,
+            user_last_name=user_last_name,
             notification_type=test_request.notification_type,
             title=test_data['title'],
             message=test_data['message'],
-            link='/notifications',
+            link='/settings?tab=notifications',
             metadata={'test': True}
         )
         
-        if email_sent:
-            message = f"Test notification created and email sent successfully to {user_email}!"
-        else:
-            message = f"Test notification created, but email sending failed. Check SendGrid configuration."
+        if not email_sent:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send test email. Please check SendGrid configuration and try again."
+            )
         
         return TestEmailResponse(
             success=True,
-            message=message,
+            message=f"Test email sent successfully to {user_email}!",
             email_sent_to=user_email
         )
         

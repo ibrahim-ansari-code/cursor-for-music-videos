@@ -513,15 +513,12 @@ class TestSendTestEmail:
     
     @patch('Backend.api.notifications.router.EmailService.send_notification_email')
     @patch('Backend.api.notifications.router.check_test_rate_limit')
-    @patch('Backend.api.notifications.router.NotificationService.create_notification')
-    def test_send_test_email_success(self, mock_create, mock_rate_limit, mock_email):
+    def test_send_test_email_success(self, mock_rate_limit, mock_email):
         """Test sending test email."""
         # Arrange
         test_user = create_test_user()
         mock_session = AsyncMock()
         
-        test_notification = create_test_notification(test_user.id)
-        mock_create.return_value = test_notification
         mock_rate_limit.return_value = True
         mock_email.return_value = True
         
@@ -539,6 +536,12 @@ class TestSendTestEmail:
         data = response.json()
         assert data['success'] is True
         assert data['email_sent_to'] == test_user.email
+        # Verify email service was called with correct parameters
+        mock_email.assert_called_once()
+        call_kwargs = mock_email.call_args[1]
+        assert call_kwargs['user_id'] == test_user.id
+        assert call_kwargs['user_email'] == test_user.email
+        assert call_kwargs['notification_type'] == 'rent_reminder'
     
     @patch('Backend.api.notifications.router.check_test_rate_limit')
     def test_send_test_email_rate_limit_exceeded(self, mock_rate_limit):
@@ -565,16 +568,14 @@ class TestSendTestEmail:
     
     @patch('Backend.api.notifications.router.EmailService.send_notification_email')
     @patch('Backend.api.notifications.router.check_test_rate_limit')
-    @patch('Backend.api.notifications.router.NotificationService.create_notification')
-    def test_send_test_email_preferences_disabled(self, mock_create, mock_rate_limit, mock_email):
-        """Test email when user preferences disable that type."""
+    def test_send_test_email_email_fails(self, mock_rate_limit, mock_email):
+        """Test when email sending fails."""
         # Arrange
         test_user = create_test_user()
         mock_session = AsyncMock()
         
-        mock_create.return_value = None  # Service returns None when skipped
         mock_rate_limit.return_value = True
-        mock_email.return_value = False  # Shouldn't be called, but mock anyway
+        mock_email.return_value = False  # Email fails
         
         app.dependency_overrides[get_current_user] = lambda: test_user
         app.dependency_overrides[get_session] = lambda: mock_session
@@ -585,41 +586,10 @@ class TestSendTestEmail:
         client = TestClientWithHost(app)
         response = client.post("/api/notifications/test-email", json=payload)
         
-        # Assert
-        assert response.status_code == 400
+        # Assert - should now return 500 when email fails
+        assert response.status_code == 500
         data = response.json()
-        assert 'disabled' in data['detail'].lower()
-        # Email service should not be called if notification creation failed
-        mock_email.assert_not_called()
-    
-    @patch('Backend.api.notifications.router.EmailService.send_notification_email')
-    @patch('Backend.api.notifications.router.check_test_rate_limit')
-    @patch('Backend.api.notifications.router.NotificationService.create_notification')
-    def test_send_test_email_email_fails(self, mock_create, mock_rate_limit, mock_email):
-        """Test when email sending fails but notification is created."""
-        # Arrange
-        test_user = create_test_user()
-        mock_session = AsyncMock()
-        
-        test_notification = create_test_notification(test_user.id)
-        mock_create.return_value = test_notification
-        mock_rate_limit.return_value = True
-        mock_email.return_value = False
-        
-        app.dependency_overrides[get_current_user] = lambda: test_user
-        app.dependency_overrides[get_session] = lambda: mock_session
-        
-        payload = {"notification_type": "rent_reminder"}
-        
-        # Act
-        client = TestClientWithHost(app)
-        response = client.post("/api/notifications/test-email", json=payload)
-        
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data['success'] is True
-        assert 'failed' in data['message'].lower()
+        assert 'failed' in data['detail'].lower()
 
 
 class TestRateLimiting:

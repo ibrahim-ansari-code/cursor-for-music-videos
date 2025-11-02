@@ -9,7 +9,6 @@ from uuid import UUID
 
 import sentry_sdk
 
-from Backend.models.user import User
 from Backend.api.notifications.sendgrid_service import SendGridService
 
 logger = logging.getLogger(__name__)
@@ -21,7 +20,10 @@ class EmailService:
     
     @staticmethod
     async def send_notification_email(
-        user: User,
+        user_id: UUID,
+        user_email: str,
+        user_first_name: Optional[str],
+        user_last_name: Optional[str],
         notification_type: str,
         title: str,
         message: str,
@@ -32,7 +34,10 @@ class EmailService:
         Send a notification email to a user via SendGrid.
         
         Args:
-            user: User to send email to
+            user_id: UUID of the user
+            user_email: Email address to send to
+            user_first_name: User's first name
+            user_last_name: User's last name
             notification_type: Type of notification
             title: Email subject / notification title
             message: Email body / notification message
@@ -42,15 +47,9 @@ class EmailService:
         Returns:
             True if email sent successfully, False otherwise
         """
-        # Eagerly capture user attributes to prevent lazy loading in exception handlers
-        user_id = user.id
-        user_email = user.email
-        user_first_name = user.first_name
-        user_last_name = user.last_name
-        
         try:
             # Get user's full name
-            user_name = f"{user_first_name} {user_last_name}".strip() or "Brikli User"
+            user_name = f"{user_first_name or ''} {user_last_name or ''}".strip() or "Brikli User"
             
             # Send email via SendGrid
             success = await SendGridService.send_email(
@@ -82,24 +81,4 @@ class EmailService:
                 'notification_type': notification_type,
             })
             return False
-    
-    @staticmethod
-    async def send_test_email(user: User) -> bool:
-        """
-        Send a test email to verify email configuration.
-        
-        Args:
-            user: User to send test email to
-            
-        Returns:
-            True if test email sent successfully
-        """
-        return await EmailService.send_notification_email(
-            user=user,
-            notification_type='system_update',
-            title='Test Notification from Brikli',
-            message='This is a test email to verify your notification settings are working correctly. If you received this email, your notifications are properly configured!',
-            link='/settings?tab=notifications',
-            metadata={'test': True}
-        )
 
