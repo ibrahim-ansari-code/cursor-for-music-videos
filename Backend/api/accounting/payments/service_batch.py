@@ -3,7 +3,7 @@ Batch processing utilities for payment CSV imports.
 """
 from typing import List, Dict, Any, Optional
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import insert, select
 from sqlmodel import col
@@ -112,7 +112,7 @@ def prepare_payment_batch(
                 raise ValueError("Could not determine lease for payment. Tenant name or property name required.")
             
             # Parse payment date
-            payment_date = parse_flexible_date(csv_payment.payment_date) if csv_payment.payment_date else datetime.utcnow()
+            payment_date = parse_flexible_date(csv_payment.payment_date) if csv_payment.payment_date else datetime.now(timezone.utc)
             
             # Normalize payment method and status
             payment_method = normalize_payment_method(csv_payment.payment_method)
@@ -138,8 +138,8 @@ def prepare_payment_batch(
                 "description": csv_payment.description,
                 "reduction_amount": reduction_amount,
                 "reduction_reason": csv_payment.reduction_reason if reduction_amount else None,
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc)
             }
             
             valid_payments.append(payment_data)

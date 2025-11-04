@@ -313,37 +313,96 @@ async def get_current_user(
             logger.warning(
                 "User with Supabase ID %s not found in local database. Attempting JIT creation.", actual_user_from_supabase.id)
             
-            # Use a transaction with a lock to prevent race conditions
-            async with session.begin_nested():
-                # Re-check if user was created by a concurrent request while we were waiting for the lock
-                check_user_again = await session.get(User, uuid_obj)
-                if check_user_again:
-                    logger.info("User %s was created by a concurrent request. Using existing user.", uuid_obj)
-                    return check_user_again
+            try:
+                # Use a transaction with a lock to prevent race conditions
+                async with session.begin_nested():
+                    # Re-check if user was created by a concurrent request while we were waiting for the lock
+                    check_user_again = await session.get(User, uuid_obj)
+                    if check_user_again:
+                        logger.info("User %s was created by a concurrent request. Using existing user.", uuid_obj)
+                        return check_user_again
 
-                # JIT User Creation - if still not found, proceed with creation
-                user_metadata = actual_user_from_supabase.user_metadata or {}
-                first_name, last_name = parse_user_name(user_metadata)
+                    # JIT User Creation - if still not found, proceed with creation
+                    user_metadata = actual_user_from_supabase.user_metadata or {}
+                    first_name, last_name = parse_user_name(user_metadata)
 
-                new_user_data = {
-                    "id": uuid_obj,
-                    "email": actual_user_from_supabase.email,
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "is_email_verified": user_metadata.get("email_verified", False),
-                    "user_type": UserType.LANDLORD
-                }
+                    new_user_data = {
+                        "id": uuid_obj,
+                        "email": actual_user_from_supabase.email,
+                        "first_name": first_name,
+                        "last_name": last_name,
+                        "is_email_verified": user_metadata.get("email_verified", False),
+                        "user_type": UserType.LANDLORD
+                    }
 
-                db_user = User.model_validate(new_user_data)
-                session.add(db_user)
-                await session.flush() # Use flush instead of commit inside the nested transaction
-                logger.info("Successfully provisioned user %s via JIT.", db_user.id)
-            
-            # After the nested transaction commits to a savepoint, refresh the object to ensure
-            # it's up-to-date in the parent session. The final commit of the overall transaction
-            # is handled by the FastAPI dependency lifecycle (e.g., a middleware) to ensure
-            # the entire request is treated as a single unit of work.
-            await session.refresh(db_user)
+                    db_user = User.model_validate(new_user_data)
+                    session.add(db_user)
+                    await session.flush() # Use flush instead of commit inside the nested transaction
+                    logger.info("Successfully provisioned user %s via JIT.", db_user.id)
+                
+                # After the nested transaction commits to a savepoint, refresh the object to ensure
+                # it's up-to-date in the parent session. The final commit of the overall transaction
+                # is handled by the FastAPI dependency lifecycle (e.g., a middleware) to ensure
+                # the entire request is treated as a single unit of work.
+                await session.refresh(db_user)
+         
+            except Exception as jit_error:
+                logger.error(
+                    "JIT user creation failed for Supabase ID %s: %s - %s",
+                    actual_user_from_supabase.id,
+                    type(jit_error).__name__,
+                    str(jit_error)
+                )
+                
+                # Capture detailed context for Sentry
+                with sentry_sdk.push_scope() as scope:
+                    scope.set_tag("component", "jit_user_creation")
+                    scope.set_tag("user_id", str(uuid_obj))
+                    scope.set_tag("email", actual_user_from_supabase.email)
+                    scope.set_context("jit_failure", {
+                        "supabase_id": str(uuid_obj),
+                        "email": actual_user_from_supabase.email,
+                        "error_type": type(jit_error).__name__,
+                        "error_message": str(jit_error),
+                        "user_metadata": user_metadata
+                    })
+                    sentry_sdk.capture_exception(jit_error)
+                
+                # Check if error is related to missing tables/triggers (schema mismatch)
+                error_msg_lower = str(jit_error).lower()
+                if any(keyword in error_msg_lower for keyword in [
+                    "notification_preferences",
+                    "relation", 
+                    "does not exist",
+                    "undefined table",
+                    "trigger"
+                ]):
+                    logger.critical(
+                        "Database schema mismatch detected: notification system tables may be missing. "
+                        "This indicates migrations were not applied correctly."
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail=(
+                            "User account creation temporarily unavailable due to database configuration. "
+                            "Please contact support if this persists."
+                        ),
+                        headers={
+                            "WWW-Authenticate": "Bearer",
+                            "Retry-After": "60",
+                            "X-Error-Type": "schema_mismatch"
+                        },
+                    )
+                
+                # For other JIT errors, return a generic server error
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Unable to create user account. Please try again or contact support.",
+                    headers={
+                        "WWW-Authenticate": "Bearer",
+                        "X-Error-Type": "jit_creation_failed"
+                    },
+                )
 
         return db_user
     except HTTPException as http_exc:  # Re-raise HTTPException to preserve status code and details

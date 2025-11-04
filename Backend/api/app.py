@@ -256,6 +256,7 @@ try:
     from Backend.api.accounting import accounting_api_router
     from Backend.api.agent import router as agent_router
     from Backend.api.auth import router as auth_router
+    from Backend.api.calendar.router import router as calendar_router
     from Backend.api.dashboard import router as dashboard_router
     from Backend.api.health import router as health_router
     from Backend.api.leases.router import router as leases_router
@@ -282,6 +283,7 @@ try:
     # Include the new accounting router with its own base prefix
     api_main_router.include_router(accounting_api_router, prefix="/accounting")
     api_main_router.include_router(agent_router)
+    api_main_router.include_router(calendar_router)  # Calendar events and reminders
     api_main_router.include_router(notifications_router)
     api_main_router.include_router(tenants_router)
     api_main_router.include_router(tenant_documents_router)  # Includes /tenants/{tenant_id}/documents endpoints

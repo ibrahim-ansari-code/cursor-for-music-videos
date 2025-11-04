@@ -655,3 +655,31 @@ async def trigger_lease_expiring(
         logger.exception("Failed to send lease expiring notifications")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.post("/scheduled/reminders", include_in_schema=False)
+async def trigger_reminder_notifications(
+    request: Request,
+    session: AsyncSession = Depends(get_session)
+) -> Dict[str, Any]:
+    """
+    [Internal] Scheduled job endpoint for custom reminder notifications.
+    
+    Called by pg_cron every 15 minutes.
+    Finds reminders that need notifications in the next 15-minute window and sends them.
+    
+    Authentication: Requires X-Internal-API-Key header.
+    """
+    # Verify internal API key
+    api_key = request.headers.get('X-Internal-API-Key')
+    if not api_key or api_key != settings.INTERNAL_CRON_API_KEY:
+        logger.warning("Unauthorized reminder notification trigger attempt")
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    try:
+        result = await ScheduledNotificationService.send_reminder_notifications(session)
+        logger.info(f"Reminder notifications sent: {result}")
+        return result
+    except Exception as e:
+        logger.exception("Failed to send reminder notifications")
+        raise HTTPException(status_code=500, detail=str(e))
+

@@ -13,7 +13,7 @@ Key Features:
 - Integrates with Azure Blob Storage for file storage
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional, List
 from uuid import UUID, uuid4
 
@@ -94,15 +94,15 @@ class TenantDocument(SQLModel, table=True):
     
     # ===== TIMESTAMPS =====
     uploaded_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="When document was uploaded"
     )
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Record creation timestamp"
     )
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Record last update timestamp (auto-updated by trigger)"
     )
     

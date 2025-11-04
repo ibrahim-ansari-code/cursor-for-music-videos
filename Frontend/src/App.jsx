@@ -37,6 +37,7 @@ const Tenants = React.lazy(() => import("./pages/Tenants"));
 const TenantProfile = React.lazy(() => import("./pages/TenantProfile"));
 const Maintenance = React.lazy(() => import("./pages/Maintenance.tsx"));
 const Reports = React.lazy(() => import("./pages/Reports"));
+const Calendar = React.lazy(() => import("./pages/Calendar"));
 const Settings = React.lazy(() => import("./pages/Settings.tsx"));
 const Integrations = React.lazy(() => import("./pages/Integrations"));
 
@@ -135,6 +136,7 @@ const AppRoutes = () => {
           <Route path="settings" element={<Suspense fallback={<PageLoader />}><TenantSettingsTab /></Suspense>} />
         </Route>
         <Route path="maintenance" element={<Suspense fallback={<PageLoader />}><Maintenance /></Suspense>} />
+        <Route path="calendar" element={<Suspense fallback={<PageLoader />}><Calendar /></Suspense>} />
         <Route path="reports" element={<Suspense fallback={<PageLoader />}><Reports /></Suspense>} />
         <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
         <Route path="integrations" element={<Suspense fallback={<PageLoader />}><Integrations /></Suspense>} />

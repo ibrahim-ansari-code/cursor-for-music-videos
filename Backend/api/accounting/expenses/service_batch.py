@@ -3,7 +3,7 @@ Batch processing utilities for expense CSV imports.
 """
 from typing import List, Dict, Any, Optional
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import insert, select
 from Backend.models.accounting.expense import Expense
@@ -98,8 +98,8 @@ def prepare_expense_batch(
                 "subtotal_amount": float(csv_expense.subtotal_amount),
                 "total_tax_amount": float(csv_expense.total_tax_amount or Decimal('0.00')),
                 "payment_method": payment_method.value,
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc)
             }
             
             valid_expenses.append(expense_data)

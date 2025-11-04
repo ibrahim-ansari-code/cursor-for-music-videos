@@ -2,9 +2,9 @@
 
 ## Tech Stack & Architecture
 
-- Backend: FastAPI + SQLModel + PostgreSQL + Alembic
+- Backend: FastAPI + SQLModel + PostgreSQL + Supabase
 - Frontend: React 18 + Vite + Tailwind CSS + React Router v7
-- Database: Supabase PostgreSQL with dual migration system
+- Database: Supabase PostgreSQL (migrations managed exclusively via Supabase)
 - Auth: Supabase JWT with user sync
 - Storage: Azure Blob Storage
 - AI: OpenAI for receipt parsing
@@ -33,14 +33,15 @@
 
 ### Database Migration Strategy
 
-### CRITICAL: Dual migration system**
+### CRITICAL: Supabase-only migration system (Alembic removed 2025-11-04)
 
-- **Alembic migrations** (primary for production): Use for SQLModel changes
-  - Generate: `poetry run alembic revision --autogenerate -m "description"`
-- **Supabase migrations** (local dev): Use for RLS policies, functions, triggers
+- **All database changes** go through Supabase migrations ONLY
   - Generate: `supabase db diff --use-migra -f migration_name`
-- Always test migrations locally before deploying
-- Commit both types of migration files
+  - Apply locally: `supabase db reset` or `supabase db push`
+  - Production: Automatically applied when PR merges to main
+- **SQLModel changes** MUST have corresponding Supabase migration
+- Always test migrations locally with `supabase db reset` before committing
+- Never edit existing migrations - create new ones to fix issues
 
 ## File Structure Rules
 
@@ -56,16 +57,17 @@
 # Backend
 poetry install
 poetry run uvicorn Backend.api.app:app --reload
-poetry run alembic revision --autogenerate -m "description"
-poetry run alembic upgrade head
+
+# Database Migrations (Supabase only)
+supabase db diff --use-migra -f migration_name  # Generate migration
+supabase db reset  # Test locally (applies all migrations)
+supabase db push   # Push to remote
 
 # Frontend
 cd Frontend && npm install && npm run dev
 
 # Supabase
-supabase start
-supabase db diff --use-migra -f migration_name
-supabase db push
+supabase start  # Start local Supabase instance
 
 # Testing
 cd Backend/tests && python run_all_api_tests_pytest.py

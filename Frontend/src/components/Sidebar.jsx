@@ -19,7 +19,7 @@ const Sidebar = () => {
   // Management section - reordered as requested
   const managementItems = [
     { name: "Accounting", path: "/accounting", icon: "fa-calculator" },
-    { name: "Reports", path: "/reports", icon: "fa-chart-pie" },
+    { name: "Calendar", path: "/calendar", icon: "fa-calendar" },
     { name: "Maintenance", path: "/maintenance", icon: "fa-wrench" },
   ];
 

@@ -13,12 +13,7 @@ poetry install
 # Run backend server
 poetry run uvicorn Backend.api.app:app --reload
 
-# Database migrations
-poetry run alembic revision --autogenerate -m "migration_message"
-poetry run alembic upgrade head
-poetry run alembic downgrade -1
-
-# Supabase migrations (for schema changes)
+# Database migrations (Supabase only - Alembic removed)
 supabase db diff --use-migra -f migration_name
 supabase db push
 
@@ -50,9 +45,9 @@ npm run build
 
 ### Backend Architecture
 
-- **Tech Stack**: FastAPI + SQLModel + PostgreSQL + Alembic
+- **Tech Stack**: FastAPI + SQLModel + PostgreSQL + Supabase
 - **Auth**: Supabase JWT with user sync
-- **Database**: Async PostgreSQL with SQLAlchemy
+- **Database**: Async PostgreSQL with SQLAlchemy (schema managed by Supabase migrations)
 - **API Pattern**: Domain-based routers (`/api/accounting`, `/api/properties`, etc.)
 - **Structure**: Each domain has `router.py`, `schemas.py`, `service.py`, `helpers.py`
 
@@ -99,40 +94,47 @@ npm run build
 
 ### Migration Strategy
 
-#### IMPORTANT: Dual migration system - Supabase + Alembic working together
+#### IMPORTANT: Supabase-only migration system (Alembic removed as of 2025-11-04)
 
 #### Current Setup
 
-- **Production Database**: Managed via Alembic migrations (`Backend/migrations/versions/`)
-- **Local Development**: Synced via Supabase migrations (`supabase/migrations/`)
-- **Baseline**: `supabase/migrations/20250622235642_baseline_sync_from_remote.sql` contains full production schema
+- **All Environments**: Managed exclusively via Supabase migrations (`supabase/migrations/`)
+- **Production**: Migrations automatically applied when PRs are merged to main
+- **Local Development**: Apply migrations with `supabase db reset` or `supabase db push`
+- **Baseline**: `supabase/migrations/20250622235642_baseline_sync_from_remote.sql` contains initial production schema
 
-```text
-
-#### Database-Specific Changes
+#### Making Database Changes
 
 ```bash
-# 1. Make changes via Supabase Studio or direct SQL
-# 2. Generate Supabase migration
-supabase db diff --use-migra -f add_rls_policies
+# 1. Make changes via Supabase Studio or update your SQLModel models
+# 2. Generate Supabase migration to capture the changes
+supabase db diff --use-migra -f descriptive_migration_name
 
-# 3. Apply locally
-supabase db reset
+# 3. Review the generated migration file in supabase/migrations/
+# 4. Test locally
+supabase db reset  # Applies all migrations from scratch
 
-# 4. PR will automatically apply to production when closed
+# 5. Commit migration file
+git add supabase/migrations/YYYYMMDDHHMMSS_descriptive_migration_name.sql
+git commit -m "Add migration: descriptive name"
+
+# 6. PR will automatically apply to production when merged
 ```
 
 #### Team Onboarding
 
 - New developers run `supabase start` → Automatically gets exact production schema
-- Local database matches remote via baseline migration
+- Local database matches remote via migrations
 - No manual schema setup required
+- All SQLModel changes MUST have corresponding Supabase migrations
 
-#### Migration Files
+#### Migration Best Practices
 
-- `Backend/migrations/versions/` - Alembic migrations (production)
-- `supabase/migrations/` - Supabase migrations (local dev + supplemental)
-- Both directories should be committed to Git
+- **Always test migrations locally first** with `supabase db reset`
+- **Include both DDL and DML** in migrations when needed (schema + data)
+- **Use descriptive names** that explain what the migration does
+- **Add comments** in complex migrations for future reference
+- **Never edit existing migrations** - create new ones to fix issues
 
 ### Testing Requirements
 

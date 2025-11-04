@@ -6,7 +6,7 @@ import logging
 import uuid
 import mimetypes
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 from uuid import UUID
@@ -167,9 +167,9 @@ class PropertyImageService:
         
         # Generate unique identifier
         unique_id = str(uuid.uuid4())
-        
+
         # Combine: timestamp_uuid_originalname.ext
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
         safe_filename = f"{timestamp}_{unique_id}_{safe_base}{extension}"
         
         return safe_filename

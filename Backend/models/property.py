@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING, Optional, Dict, Any
@@ -91,6 +91,16 @@ class Property(SQLModel, table=True):
         description="Property's default tax rate as percentage (0-100)",
         ge=0,
         le=100
+    )
+    
+    # Calendar-related expiry dates
+    insurance_expiry_date: Optional[date] = Field(
+        default=None,
+        description="Property insurance policy expiration date for calendar tracking"
+    )
+    mortgage_renewal_date: Optional[date] = Field(
+        default=None,
+        description="Property mortgage renewal date for calendar tracking"
     )
 
     # Foreign keys

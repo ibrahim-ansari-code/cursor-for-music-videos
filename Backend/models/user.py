@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from Backend.models.maintenance import MaintenanceRequest
     from Backend.models.accounting.integration import Integration
     from Backend.models.ownership_entity import OwnershipEntity
+    from Backend.models.calendar import CustomReminder
 
 
 class User(SQLModel, table=True):
@@ -82,6 +83,12 @@ class User(SQLModel, table=True):
     # Ownership entities (companies, individuals, etc. that own units)
     ownership_entities: list["OwnershipEntity"] = Relationship(
         back_populates="owner",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    
+    # Custom calendar reminders
+    custom_reminders: list["CustomReminder"] = Relationship(
+        back_populates="user",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
 

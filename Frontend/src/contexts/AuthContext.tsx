@@ -1,15 +1,19 @@
 import { createContext } from 'react';
-import type { User } from '@supabase/supabase-js';
+
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  user_type: string;
+  [key: string]: any;
+}
 
 export interface AuthContextType {
   user: User | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  setUser: (user: User | null) => void;
+  signIn: (email: string, password: string) => Promise<boolean>;
   signOut: () => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
-  updatePassword: (newPassword: string) => Promise<void>;
+  isAuthenticated: boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);

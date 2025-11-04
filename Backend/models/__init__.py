@@ -16,6 +16,8 @@ from . import lease
 from . import maintenance
 from . import reports
 from . import agent
+from . import notification
+from . import calendar
 
 # Industry standard: Initialize models to resolve circular dependencies
 def initialize_models():
@@ -66,6 +68,12 @@ from .reports import ReportResponse, MonthlyChartData, ReportSummary, FinancialT
 # Agent models
 from .agent import UserAgentThread
 
+# Notification models
+from .notification import Notification, NotificationPreference, NotificationDeliveryLog
+
+# Calendar models
+from .calendar import CustomReminder, CalendarEventType, CalendarEventStatus, CalendarEventPriority
+
 __all__ = [
     # Accounting models & enums
     "Expense",
@@ -102,5 +110,14 @@ __all__ = [
     "User",
     "UserAgentThread",
     "UserType",
+    # Notification models
+    "Notification",
+    "NotificationPreference",
+    "NotificationDeliveryLog",
+    # Calendar models & enums
+    "CustomReminder",
+    "CalendarEventType",
+    "CalendarEventStatus",
+    "CalendarEventPriority",
 ]
 

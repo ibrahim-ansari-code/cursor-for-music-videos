@@ -3,7 +3,7 @@ Batch processing utilities for invoice CSV imports.
 """
 from typing import List, Dict, Any, Optional
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import insert, select
 from sqlmodel import col
@@ -115,8 +115,8 @@ def prepare_invoice_batch(
                 "status": status.value,
                 "property_id": property_id,
                 "tenant_id": tenant_id,
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc)
             }
             
             valid_invoices.append(invoice_data)

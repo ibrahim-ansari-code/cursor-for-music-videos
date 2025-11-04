@@ -12,7 +12,7 @@ All functions use async/await pattern and implement proper error handling.
 """
 
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional, Tuple
 from uuid import UUID
 
@@ -451,9 +451,9 @@ async def update_document(
     
     for field, value in update_dict.items():
         setattr(document, field, value)
-    
+
     # Update timestamp
-    document.updated_at = datetime.utcnow()
+    document.updated_at = datetime.now(timezone.utc)
     
     try:
         session.add(document)

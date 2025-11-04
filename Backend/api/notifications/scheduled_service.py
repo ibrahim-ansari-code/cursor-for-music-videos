@@ -316,4 +316,149 @@ class ScheduledNotificationService:
         
         logger.info(f"Lease expiring job completed: {result_data}")
         return result_data
+    
+    @staticmethod
+    async def send_reminder_notifications(session: AsyncSession) -> Dict[str, Any]:
+        """
+        Find custom reminders that need notifications and send them.
+        
+        Logic:
+        1. Calculate notification window (next 15 minutes)
+        2. Find reminders where (reminder_date - notify_before_hours) falls in window
+        3. Create in-app and email notifications
+        4. Mark as notified to prevent duplicates
+        
+        Returns:
+            Dict with success status, notifications_created count, and reminders_processed count
+        """
+        from datetime import datetime, timezone
+        from Backend.models.calendar import CustomReminder
+        from Backend.models.property import Property
+        
+        now = datetime.now(timezone.utc)
+        window_end = now + timedelta(minutes=15)
+        
+        logger.info(f"Starting custom reminder notification job. Window: {now} to {window_end}")
+        
+        # Build query to find reminders needing notification
+        # Formula: reminder_date - (notify_before_hours * 1 hour) should be between now and window_end
+        # We need to find reminders where:
+        #   - Not yet completed
+        #   - Not yet notified
+        #   - Notification time is within the next 15 minutes
+        
+        # Load relationships eagerly to avoid lazy loading issues
+        user_rel = cast(QueryableAttribute[Any], getattr(CustomReminder, 'user'))
+        property_rel = cast(QueryableAttribute[Any], getattr(CustomReminder, 'property'))
+        
+        query = (
+            select(CustomReminder)
+            .options(
+                selectinload(user_rel),
+                selectinload(property_rel)
+            )
+            .where(
+                and_(
+                    col(CustomReminder.is_completed) == False,
+                    col(CustomReminder.notified_at).is_(None),
+                    # Calculate notification time and check if it's in the window
+                    # notification_time = reminder_date - (notify_before_hours * interval '1 hour')
+                    func.date_trunc(
+                        'minute',
+                        col(CustomReminder.reminder_date) - 
+                        (col(CustomReminder.notify_before_hours) * timedelta(hours=1))
+                    ).between(now, window_end)
+                )
+            )
+        )
+        
+        result = await session.execute(query)
+        reminders = result.scalars().all()
+        
+        logger.info(f"Found {len(reminders)} reminders needing notification")
+        
+        notifications_created = 0
+        
+        for reminder in reminders:
+            try:
+                user = reminder.user
+                
+                if not user:
+                    logger.warning(f"User not found for reminder {reminder.id}")
+                    continue
+                
+                # Build notification title and message
+                title = f"Reminder: {reminder.title}"
+                
+                # Calculate time until reminder
+                time_until = reminder.reminder_date - now
+                hours_until = int(time_until.total_seconds() / 3600)
+                
+                if hours_until < 1:
+                    time_str = "now"
+                elif hours_until < 24:
+                    time_str = f"in {hours_until} hour{'s' if hours_until != 1 else ''}"
+                elif hours_until < 168:
+                    days_until = hours_until // 24
+                    time_str = f"in {days_until} day{'s' if days_until != 1 else ''}"
+                else:
+                    weeks_until = hours_until // 168
+                    time_str = f"in {weeks_until} week{'s' if weeks_until != 1 else ''}"
+                
+                # Format reminder date
+                reminder_date_str = reminder.reminder_date.strftime("%B %d, %Y at %I:%M %p") if not reminder.all_day else reminder.reminder_date.strftime("%B %d, %Y")
+                
+                message = f"Your reminder for {reminder_date_str} is coming up {time_str}."
+                if reminder.description:
+                    message += f"\n\n{reminder.description}"
+                
+                # Add property context if available
+                link = '/calendar'
+                metadata = {
+                    'reminder_id': str(reminder.id),
+                    'reminder_date': reminder.reminder_date.isoformat(),
+                    'all_day': reminder.all_day,
+                }
+                
+                if reminder.property:
+                    message += f"\n\nProperty: {reminder.property.name}"
+                    metadata['property_id'] = str(reminder.property_id)
+                    link = f'/properties/{reminder.property_id}'
+                
+                # Create notification
+                notification = await NotificationService.create_notification(
+                    user_id=user.id,
+                    type='custom_reminder',
+                    title=title,
+                    message=message,
+                    session=session,
+                    link=link,
+                    priority='high' if hours_until < 1 else 'normal',
+                    metadata=metadata
+                )
+                
+                if notification:
+                    # Mark as notified
+                    reminder.notified_at = now
+                    reminder.notification_id = notification.id
+                    notifications_created += 1
+                    logger.info(f"Created notification for reminder {reminder.id} (user {user.id})")
+                
+            except Exception as e:
+                logger.error(f"Failed to create notification for reminder {reminder.id}: {e}", exc_info=True)
+                continue
+        
+        # Commit all changes
+        await session.commit()
+        
+        result_data = {
+            'success': True,
+            'notifications_created': notifications_created,
+            'reminders_processed': len(reminders),
+            'window_start': now.isoformat(),
+            'window_end': window_end.isoformat()
+        }
+        
+        logger.info(f"Custom reminder notification job completed: {result_data}")
+        return result_data
 
