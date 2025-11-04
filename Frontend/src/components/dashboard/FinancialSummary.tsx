@@ -1,8 +1,28 @@
 import React from "react";
 import { formatCurrency } from "../../utils/formatters";
 import { FinancialCardSkeleton } from "../ui/skeletons";
+import type { DashboardSummary } from "../../utils/api/dashboard";
 
-const FinancialSummary = ({
+interface Delta {
+  show: boolean;
+  direction: 'up' | 'down' | 'neutral' | 'new';
+  absolute: number;
+  percent: number;
+  colorClass: string;
+  iconName: string;
+}
+
+interface FinancialSummaryProps {
+  summary?: DashboardSummary;
+  timePeriod: string;
+  periodLabel?: string;
+  revenueDelta?: Delta;
+  expensesDelta?: Delta;
+  maintenanceDelta?: Delta;
+  isLoading?: boolean;
+}
+
+const FinancialSummary: React.FC<FinancialSummaryProps> = ({
   summary,
   timePeriod,
   periodLabel,
@@ -32,7 +52,7 @@ const FinancialSummary = ({
           <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(summary?.monthly_revenue)}</p>
           {showRevenueDelta && (
             <span
-              title={`Current: ${formatCurrency(summary?.monthly_revenue)} | Previous: ${formatCurrency(summary?.monthly_revenue - (revenueDelta?.absolute ?? 0))}`}
+              title={`Current: ${formatCurrency(summary?.monthly_revenue)} | Previous: ${formatCurrency(Number(summary?.monthly_revenue || 0) - (revenueDelta?.absolute ?? 0))}`}
               className={`ml-2 text-xs font-medium ${revenueDelta?.colorClass}`}
             >
               <i
@@ -63,7 +83,7 @@ const FinancialSummary = ({
           <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(summary?.monthly_expenses)}</p>
           {showExpensesDelta && (
             <span
-              title={`Current: ${formatCurrency(summary?.monthly_expenses)} | Previous: ${formatCurrency(summary?.monthly_expenses - (expensesDelta?.absolute ?? 0))}`}
+              title={`Current: ${formatCurrency(summary?.monthly_expenses)} | Previous: ${formatCurrency(Number(summary?.monthly_expenses || 0) - (expensesDelta?.absolute ?? 0))}`}
               className={`ml-2 text-xs font-medium ${expensesDelta?.colorClass}`}
             >
               <i
@@ -92,7 +112,7 @@ const FinancialSummary = ({
           <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(summary?.maintenance_expenses)}</p>
           {showMaintenanceDelta && (
             <span
-              title={`Current: ${formatCurrency(summary?.maintenance_expenses)} | Previous: ${formatCurrency(summary?.maintenance_expenses - (maintenanceDelta?.absolute ?? 0))}`}
+              title={`Current: ${formatCurrency(summary?.maintenance_expenses)} | Previous: ${formatCurrency(Number(summary?.maintenance_expenses || 0) - (maintenanceDelta?.absolute ?? 0))}`}
               className={`ml-2 text-xs font-medium ${maintenanceDelta?.colorClass}`}
             >
               <i
@@ -115,3 +135,4 @@ const FinancialSummary = ({
 };
 
 export default FinancialSummary;
+

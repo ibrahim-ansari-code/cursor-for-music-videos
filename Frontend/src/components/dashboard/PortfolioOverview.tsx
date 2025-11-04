@@ -1,8 +1,26 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { clampPercent } from "../../utils/formatters";
 import { PortfolioCardSkeleton } from "../ui/skeletons";
+import type { DashboardSummary, OccupancyData } from "../../utils/api/dashboard";
 
-const PortfolioOverview = ({ summary, occupancy, tenantCount, tenantsLoading, isLoading = false }) => {
+interface PortfolioOverviewProps {
+  summary?: DashboardSummary;
+  occupancy?: OccupancyData;
+  tenantCount: number;
+  tenantsLoading: boolean;
+  isLoading?: boolean;
+}
+
+const PortfolioOverview: React.FC<PortfolioOverviewProps> = ({
+  summary,
+  occupancy,
+  tenantCount,
+  tenantsLoading,
+  isLoading = false
+}) => {
+  const navigate = useNavigate();
+
   if (isLoading) {
     return <PortfolioCardSkeleton />;
   }
@@ -12,13 +30,16 @@ const PortfolioOverview = ({ summary, occupancy, tenantCount, tenantsLoading, is
 
       <div className="flex-1 flex flex-col justify-around">
         <div className="grid grid-cols-3 gap-4">
-          <div className="dark-panel rounded-xl p-4 dark-divider border dark-shadow flex flex-col items-center justify-center hover:scale-105 transition-transform duration-200">
+          <button 
+            onClick={() => navigate('/properties')}
+            className="dark-panel rounded-xl p-4 dark-divider border dark-shadow flex flex-col items-center justify-center hover:scale-105 transition-transform duration-200 cursor-pointer"
+          >
             <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-3">
               <i className="fas fa-building text-blue-500 dark:text-blue-400 text-lg"></i>
             </div>
             <p className="kpi-number text-lg">{summary?.total_properties || 0}</p>
             <p className="text-sm text-gray-500 dark:text-gray-400">Properties</p>
-          </div>
+          </button>
 
           <div className="dark-panel rounded-xl p-4 dark-divider border dark-shadow flex flex-col items-center justify-center hover:scale-105 transition-transform duration-200">
             <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center mb-3">
@@ -28,7 +49,10 @@ const PortfolioOverview = ({ summary, occupancy, tenantCount, tenantsLoading, is
             <p className="text-sm text-gray-500 dark:text-gray-400">Units</p>
           </div>
 
-          <div className="dark-panel rounded-xl p-4 dark-divider border dark-shadow flex flex-col items-center justify-center hover:scale-105 transition-transform duration-200">
+          <button
+            onClick={() => navigate('/tenants')}
+            className="dark-panel rounded-xl p-4 dark-divider border dark-shadow flex flex-col items-center justify-center hover:scale-105 transition-transform duration-200 cursor-pointer"
+          >
             <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center mb-3">
               <i className="fas fa-users text-purple-500 dark:text-purple-400 text-lg"></i>
             </div>
@@ -38,10 +62,11 @@ const PortfolioOverview = ({ summary, occupancy, tenantCount, tenantsLoading, is
               <p className="kpi-number text-lg">{tenantCount}</p>
             )}
             <p className="text-sm text-gray-500 dark:text-gray-400">Tenants</p>
-          </div>
+          </button>
         </div>
 
-        <div>
+        {/* Add spacing between grid and occupancy rate */}
+        <div className="mt-6">
           {(() => {
             const occupancyPercent = Math.round(clampPercent(occupancy?.occupancy_rate));
             return (
@@ -70,3 +95,4 @@ const PortfolioOverview = ({ summary, occupancy, tenantCount, tenantsLoading, is
 };
 
 export default PortfolioOverview;
+

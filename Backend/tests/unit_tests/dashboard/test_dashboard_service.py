@@ -270,25 +270,36 @@ class TestDashboardServiceSummary:
     
     @pytest.mark.asyncio
     async def test_get_dashboard_summary_empty_properties(self):
-        """Test dashboard summary with no properties."""
+        """Test dashboard summary with no properties (SECURITY TEST: verifies early return)."""
         mock_session = AsyncMock()
         mock_property_query = MagicMock()
         start_datetime = datetime(2024, 1, 1, tzinfo=UTC)
         end_datetime = datetime(2024, 1, 31, tzinfo=UTC)
         
         # Mock empty properties
-        mock_session.execute.return_value.scalars.return_value.all.return_value = []
-        mock_session.execute.return_value.scalar.return_value = 0
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value = mock_result
         
         summary = await DashboardService._get_dashboard_summary(
             mock_session, mock_property_query, start_datetime, end_datetime
         )
         
+        # SECURITY VERIFICATION: Only ONE query should be executed (the properties query)
+        # The early return should prevent all financial metric queries from running
+        assert mock_session.execute.call_count == 1, \
+            "Security bug: Financial queries executed for user with no properties!"
+        
+        # Verify correct zero-filled response
         assert isinstance(summary, DashboardSummary)
         assert summary.total_properties == 0
         assert summary.total_units == 0
         assert summary.occupied_units == 0
         assert summary.vacancy_rate == Decimal("0.0")
+        assert summary.monthly_revenue == Decimal("0.0")
+        assert summary.monthly_expenses == Decimal("0.0")
+        assert summary.outstanding_rent == Decimal("0.0")
+        assert summary.maintenance_expenses == Decimal("0.0")
     
     @pytest.mark.asyncio
     async def test_get_dashboard_summary_error_handling(self):

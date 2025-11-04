@@ -159,6 +159,20 @@ class DashboardService:
             properties = properties_result.scalars().all()
             property_ids = [p.id for p in properties]
 
+            # SECURITY: Early return for users with no properties to prevent data leaks
+            # Without this check, the financial queries below would aggregate data from ALL users
+            if not property_ids:
+                return DashboardSummary(
+                    total_properties=0,
+                    total_units=0,
+                    occupied_units=0,
+                    vacancy_rate=Decimal("0.0"),
+                    monthly_revenue=Decimal("0.0"),
+                    monthly_expenses=Decimal("0.0"),
+                    outstanding_rent=Decimal("0.0"),
+                    maintenance_expenses=Decimal("0.0"),
+                )
+
             total_properties = len(properties)
 
             # Compute unit counts using aggregate queries for correctness at scale

@@ -14,25 +14,38 @@ import useDashboardData from "../hooks/useDashboardData";
 import useRentTracker from "../hooks/useRentTracker";
 import useTenantsCount from "../hooks/useTenantsCount";
 import useDueInvoices from "../hooks/useDueInvoices";
+import type { DashboardResponse } from "../utils/api/dashboard";
 
-const DashboardPage = () => {
-  const [loading, setLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState(null);
-  const [prevPeriodData, setPrevPeriodData] = useState(null);
-  const [rentData, setRentData] = useState([]);
-  const [rentLoading, setRentLoading] = useState(true);
-  const [selectedProperty, setSelectedProperty] = useState("all");
-  const [timePeriod, setTimePeriod] = useState("this_month");
-  const [customRange, setCustomRange] = useState(null); // { start: 'YYYY-MM-DD', end: 'YYYY-MM-DD' }
+interface RentData {
+  lease_id: number | string;
+  tenant_name: string;
+  remaining_due: number;
+  status: string;
+}
+
+interface CustomRange {
+  start: string;
+  end: string;
+}
+
+const DashboardPage: React.FC = () => {
+  const [loading, setLoading] = useState<boolean>(true);
+  const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null);
+  const [prevPeriodData, setPrevPeriodData] = useState<DashboardResponse | null>(null);
+  const [rentData, setRentData] = useState<RentData[]>([]);
+  const [rentLoading, setRentLoading] = useState<boolean>(true);
+  const [selectedProperty, setSelectedProperty] = useState<string>("all");
+  const [timePeriod, setTimePeriod] = useState<string>("this_month");
+  const [customRange, setCustomRange] = useState<CustomRange | null>(null);
   const { options: propertyOptions } = useProperties();
-  const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState("rent");
-  const [tenantCount, setTenantCount] = useState(0);
-  const [tenantsLoading, setTenantsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("rent");
+  const [tenantCount, setTenantCount] = useState<number>(0);
+  const [tenantsLoading, setTenantsLoading] = useState<boolean>(true);
 
   // Hook-powered data
   // Compute final start/end based on timePeriod or custom
-  const computeActiveRange = () => {
+  const computeActiveRange = (): CustomRange => {
     if (timePeriod === "custom" && customRange?.start && customRange?.end) {
       return { start: customRange.start, end: customRange.end };
     }
@@ -122,7 +135,7 @@ const DashboardPage = () => {
     if (hookPrevData) setPrevPeriodData(hookPrevData);
   }, [selectedProperty, timePeriod, hookDashboardLoading, hookDashboardData, hookDashboardError, hookRentLoading, hookRentData, hookPrevData, activeRange]);
 
-  const getRevenueChange = () => {
+  const getRevenueChange = (): number => {
     if (!dashboardData?.summary || !prevPeriodData?.summary) return 0;
     return percentChange(
       dashboardData.summary.monthly_revenue,
@@ -130,7 +143,7 @@ const DashboardPage = () => {
     );
   };
 
-  const getMaintenanceChange = () => {
+  const getMaintenanceChange = (): number => {
     if (!dashboardData?.summary || !prevPeriodData?.summary) return 0;
     return percentChange(
       dashboardData.summary.maintenance_expenses,
@@ -228,3 +241,4 @@ const DashboardPage = () => {
 };
 
 export default DashboardPage;
+
