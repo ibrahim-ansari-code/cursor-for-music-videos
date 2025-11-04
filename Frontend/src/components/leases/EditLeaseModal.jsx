@@ -15,6 +15,7 @@ import {
   Button,
   FormSection,
 } from "../ui/SharedModalComponents";
+import { getTenantDisplayName } from "../../utils/tenantUtils";
 
 const MIN_RENT_DUE_DAY = 1;
 const MAX_RENT_DUE_DAY = 28;
@@ -257,14 +258,14 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="p-6 space-y-2 max-h-[calc(100vh-15rem)] overflow-y-auto bg-white dark:bg-gray-800">
+          <div className="p-6 space-y-6 max-h-[calc(100vh-15rem)] overflow-y-auto bg-white dark:bg-gray-800">
             <AnimatePresence>
               {error && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 rounded-md text-sm"
+                  className="p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 rounded-md text-sm"
                 >
                   {error}
                 </motion.div>
@@ -296,13 +297,7 @@ const EditLeaseModal = ({ isOpen, onClose, lease, onLeaseUpdated }) => {
                 <Label htmlFor="tenant_name">Tenant</Label>
                 <Input
                   name="tenant_name"
-                  value={
-                    tenantDetails?.full_name ||
-                    tenantDetails?.name ||
-                    lease?.tenant?.full_name ||
-                    lease?.tenant?.name ||
-                    "Loading..."
-                  }
+                  value={getTenantDisplayName(tenantDetails || lease?.tenant, 'Loading...')}
                   readOnly
                 />
               </div>

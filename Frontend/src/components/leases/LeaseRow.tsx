@@ -1,42 +1,14 @@
 import React from 'react';
 import LeaseActions from './LeaseActions';
 import type { LeaseRowProps } from '../../types/lease';
+import { getTenantDisplayName, getTenantInitials } from '../../utils/tenantUtils';
 
 const LeaseRow: React.FC<LeaseRowProps> = ({ lease, actionHandlers }) => {
-  // Helper: Get tenant name
-  const getTenantName = () => {
-    const { tenant } = lease;
-    if (!tenant) return 'No tenant assigned';
-    if (tenant.full_name) return tenant.full_name;
-    if (tenant.first_name || tenant.last_name) {
-      return `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim();
-    }
-    return `Tenant #${tenant.id}`;
-  };
-
-  // Helper: Get tenant initials
-  const getTenantInitials = () => {
-    const { tenant } = lease;
-    if (!tenant) return 'T';
-
-    if (tenant.full_name) {
-      return tenant.full_name
-        .split(' ')
-        .filter((n) => n.length > 0)
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase() || 'T';
-    }
-
-    if (tenant.first_name && tenant.first_name.length > 0 && tenant.last_name && tenant.last_name.length > 0) {
-      return (tenant.first_name[0] + tenant.last_name[0]).toUpperCase();
-    }
-
-    if (tenant.first_name && tenant.first_name.length > 0) return tenant.first_name[0].toUpperCase();
-    if (tenant.last_name && tenant.last_name.length > 0) return tenant.last_name[0].toUpperCase();
-
-    return 'T';
-  };
+  // Get tenant name with fallback
+  const tenantName = getTenantDisplayName(lease.tenant, 'No tenant assigned');
+  
+  // Get tenant initials
+  const tenantInitials = getTenantInitials(lease.tenant);
 
   // Helper: Get status badge class
   const getStatusClass = () => {
@@ -61,11 +33,11 @@ const LeaseRow: React.FC<LeaseRowProps> = ({ lease, actionHandlers }) => {
       <td className="px-6 py-4 whitespace-nowrap text-left">
         <div className="flex items-center">
           <div className="flex-shrink-0 h-10 w-10 rounded-full dark-input flex items-center justify-center text-gray-600 dark:text-gray-300">
-            {getTenantInitials()}
+            {tenantInitials}
           </div>
           <div className="ml-4">
             <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {getTenantName()}
+              {tenantName}
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">
               {lease.tenant?.email ? (
@@ -87,8 +59,8 @@ const LeaseRow: React.FC<LeaseRowProps> = ({ lease, actionHandlers }) => {
         </div>
         <div className="text-sm text-gray-500 dark:text-gray-400">
           {lease.unit?.name
-            ? `Unit: ${lease.unit.name}`
-            : 'No unit specified'}
+            ? lease.unit.name
+            : 'Unit Name: N/A'}
         </div>
       </td>
 

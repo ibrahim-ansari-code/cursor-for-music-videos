@@ -6,6 +6,7 @@ import * as Sentry from '@sentry/react';
 import { X, Upload, FileText } from 'lucide-react';
 import { useUploadLeaseDocument } from '../../hooks/useLeasesQueries';
 import type { Lease } from '../../types/lease';
+import { getTenantDisplayName } from '../../utils/tenantUtils';
 
 interface UploadLeaseDocumentModalProps {
   isOpen: boolean;
@@ -218,9 +219,7 @@ const UploadLeaseDocumentModal: React.FC<UploadLeaseDocumentModalProps> = ({
                     <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {lease.tenant?.full_name ||
-                          `${lease.tenant?.first_name || ''} ${lease.tenant?.last_name || ''}`.trim() ||
-                          'Tenant'}
+                        {getTenantDisplayName(lease.tenant)}
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
                         {lease.property?.name || `Property #${lease.property_id}`}
