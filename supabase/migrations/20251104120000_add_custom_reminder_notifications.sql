@@ -114,9 +114,10 @@ COMMENT ON FUNCTION check_custom_reminder_notifications() IS 'Called by pg_cron 
 -- Unschedule if exists, then schedule (idempotent)
 DO $$
 BEGIN
-  PERFORM cron.unschedule('custom-reminder-notifications');
-EXCEPTION
-  WHEN undefined_object THEN NULL;
+  -- Check if job exists and unschedule it
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'custom-reminder-notifications') THEN
+    PERFORM cron.unschedule('custom-reminder-notifications');
+  END IF;
 END
 $$;
 
