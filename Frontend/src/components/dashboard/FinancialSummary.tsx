@@ -3,14 +3,17 @@ import { formatCurrency } from "../../utils/formatters";
 import { FinancialCardSkeleton } from "../ui/skeletons";
 import type { DashboardSummary } from "../../utils/api/dashboard";
 
-interface Delta {
-  show: boolean;
-  direction: 'up' | 'down' | 'neutral' | 'new';
-  absolute: number;
-  percent: number;
-  colorClass: string;
-  iconName: string;
-}
+type Delta = 
+  | { show: false }
+  | {
+      show: true;
+      direction: 'up' | 'down' | 'neutral' | 'new' | 'cleared';
+      absolute: number;
+      percent: number | null;
+      sign: string;
+      colorClass: string;
+      iconName: string;
+    };
 
 interface FinancialSummaryProps {
   summary?: DashboardSummary;

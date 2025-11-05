@@ -92,7 +92,19 @@ const ImportLeaseModal: React.FC<ImportLeaseModalProps> = ({
         loadUnitsForProperty(initialPropertyId);
       }
     }
-  }, [isOpen, initialMode, initialPropertyId]);
+  }, [
+    isOpen,
+    initialMode,
+    initialPropertyId,
+    setFile,
+    setError,
+    setFieldErrors,
+    setSelectedTenant,
+    resetForm,
+    loadProperties,
+    loadTenantsForProperty,
+    loadUnitsForProperty
+  ]);
 
   // Handle property change
   const onPropertyChangeHandler = (propertyId: number) => {
@@ -246,11 +258,11 @@ const ImportLeaseModal: React.FC<ImportLeaseModalProps> = ({
       <AnimatePresence>
         {showTenantModal && (
           <TenantModal
-            isOpen={true} 
+            isOpen={true}
             onClose={() => setShowTenantModal(false)}
             onSave={handleTenantSaved}
             source="importLeaseModal"
-            propertyId={formData.property_id ? parseInt(formData.property_id) as any : null}
+            propertyId={formData.property_id ? parseInt(formData.property_id) : null}
           />
         )}
       </AnimatePresence>

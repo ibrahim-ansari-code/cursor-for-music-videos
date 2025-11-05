@@ -12,6 +12,17 @@ const STATUS_MAPPING = {
   'moved_out': 'Moved Out'
 };
 
+/**
+ * @param {Object} props
+ * @param {boolean} props.isOpen
+ * @param {Function} props.onClose
+ * @param {Function} props.onSave
+ * @param {string} props.source
+ * @param {Object} [props.tenant={}]
+ * @param {number|null} [props.propertyId=null]
+ * @param {number|null} [props.unitId=null]
+ * @param {string} [props.unitName=""]
+ */
 const TenantModal = ({
   isOpen,
   onClose,

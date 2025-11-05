@@ -14,6 +14,17 @@ from Backend.models.property import Property
 from Backend.models.tenant import Tenant
 
 
+class PropertyUnitSimple(BaseModel):
+    """Simple unit schema without circular references for API responses"""
+    id: int
+    name: str
+    property_id: int
+    floor: Optional[int] = None
+    monthly_rent: Optional[Decimal] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
 class LeaseBase(BaseModel):
     start_date: date
     end_date: date
@@ -68,6 +79,7 @@ class LeaseResponse(LeaseBase):
     updated_at: datetime
     tenant: Optional[Tenant] = None
     property: Optional[Property] = None
+    unit: Optional[PropertyUnitSimple] = None
 
     model_config = ConfigDict(from_attributes=True)
 

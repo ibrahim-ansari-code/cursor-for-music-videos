@@ -8,6 +8,7 @@ import { PaymentsTableSkeleton } from "../ui/skeletons";
 import { useAccounting } from "./AccountingContext";
 import { usePayments, useDeletePayment } from "../../hooks/useAccountingQueries";
 import { importPaymentsFromCSV } from "../../utils/api/accounting";
+import { getTenantDisplayName, getTenantInitials } from "../../utils/tenantUtils";
 
 const paymentTableColumns = [
   { key: "tenant", label: "Tenant", align: "left" },
@@ -446,20 +447,11 @@ const PaymentsTab = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300">
-                          {/* Display tenant initials */}
-                          {payment.tenant_name
-                            ? payment.tenant_name
-                                .split(" ")
-                                .map((name) => name[0])
-                                .join("")
-                                .toUpperCase()
-                                .substring(0, 2)
-                            : "TS"}
+                          {getTenantInitials(payment.tenant)}
                         </div>
                         <div className="ml-3">
                           <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {payment.tenant_name ||
-                              `Tenant #${payment.tenant_id}`}
+                            {payment.tenant_name || getTenantDisplayName(payment.tenant, `Tenant #${payment.tenant_id}`)}
                           </div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">
                             {payment.property_name ||

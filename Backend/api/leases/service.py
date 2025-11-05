@@ -149,7 +149,11 @@ async def _revoke_active_lease_side_effects(lease: Lease, session: AsyncSession)
 async def check_lease_permission(
     lease_id: int, session: AsyncSession, current_user: User, action: str = "view"
 ) -> Lease:
-    query = select(Lease).options(selectinload(getattr(Lease, "property"))).where(col(Lease.id) == lease_id)
+    query = select(Lease).options(
+        selectinload(getattr(Lease, "property")),
+        selectinload(getattr(Lease, "tenant")),
+        selectinload(getattr(Lease, "unit"))
+    ).where(col(Lease.id) == lease_id)
     result = await session.execute(query)
     lease = result.scalar_one_or_none()
 
@@ -287,7 +291,7 @@ async def create_lease(lease_data: LeaseCreate, current_user: User, session: Asy
             await _apply_active_lease_side_effects(new_lease, session)
 
         await session.commit()
-        await session.refresh(new_lease, attribute_names=["tenant", "property"])
+        await session.refresh(new_lease, attribute_names=["tenant", "property", "unit"])
 
         logger.info("Lease created: %s with status %s by user %s", new_lease.id, new_lease.status, current_user.id)
         return new_lease

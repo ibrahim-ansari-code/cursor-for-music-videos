@@ -14,6 +14,7 @@ import {
 import { importInvoicesFromCSV } from "../../utils/api/accounting";
 import useProperties from "../../hooks/useProperties";
 import { fetchTenants } from "../../utils/api/tenants";
+import { getTenantDisplayName } from "../../utils/tenantUtils";
 import type { Invoice, InvoiceQueryParams, InvoicesResponse } from "../../types/accounting";
 
 interface TableColumn {
@@ -707,7 +708,7 @@ const InvoicesTab: React.FC = () => {
                         )}
                         {invoice.tenant && (
                           <div className="text-gray-500 dark:text-gray-400 text-xs">
-                            {invoice.tenant.full_name}
+                            {getTenantDisplayName(invoice.tenant, 'N/A')}
                           </div>
                         )}
                         {!invoice.property && !invoice.tenant && (

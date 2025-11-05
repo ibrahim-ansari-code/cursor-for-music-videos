@@ -62,7 +62,11 @@ export interface Invoice {
   };
   tenant?: {
     id: number;
-    full_name: string;
+    full_name?: string;
+    first_name?: string;
+    last_name?: string;
+    company_name?: string;
+    tenant_type?: string;
   };
   taxes?: TaxDetail[];
   created_at?: string;

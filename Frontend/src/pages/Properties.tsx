@@ -21,7 +21,7 @@ import { SortOption } from '../components/properties/PropertiesPage/constants/so
 
 const Properties: React.FC = () => {
   // Data hooks
-  const { properties, loading, error, refetch } = useProperties();
+  const { properties, loading, error } = useProperties();
   
   // Feature hooks
   const filtersState = usePropertiesFilters();
@@ -47,6 +47,13 @@ const Properties: React.FC = () => {
   const statusCounts = useMemo(() => {
     return calculateStatusCounts(filteredProperties);
   }, [filteredProperties]);
+
+  // Convert error to string for PropertyTable
+  const errorMessage = useMemo(() => {
+    if (!error) return null;
+    if (typeof error === 'string') return error;
+    return error.message || 'An error occurred';
+  }, [error]);
 
   // Preload Google Maps when Properties page mounts for optimal UX
   useEffect(() => {
@@ -101,10 +108,9 @@ const Properties: React.FC = () => {
         <PropertyTable
           properties={sortedProperties}
           loading={loading || actionsState.deletePropertyMutation.isPending}
-          error={error}
+          error={errorMessage}
           onDelete={actionsState.handleDeleteClick}
           onEdit={actionsState.handleEditProperty}
-          onRetry={refetch}
         />
       </div>
 
@@ -122,7 +128,6 @@ const Properties: React.FC = () => {
           isOpen={actionsState.isEditModalOpen}
           onClose={actionsState.handleCloseEditModal}
           propertyData={actionsState.currentProperty}
-          onSuccess={refetch}
         />
       )}
 

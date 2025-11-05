@@ -21,6 +21,62 @@ interface UseLeaseFileParserReturn {
   } | null>;
 }
 
+/**
+ * Custom hook for parsing and analyzing lease PDF files
+ *
+ * Handles file upload, AI-powered lease document parsing via OpenAI,
+ * PDF upload to Azure Blob Storage, and intelligent matching of parsed
+ * data to existing tenants and units. Includes comprehensive error handling
+ * with user-friendly error messages.
+ *
+ * Features:
+ * - Extracts lease terms (rent, deposit, dates) from PDF
+ * - Matches tenant names to existing tenant records (supports company & individual)
+ * - Matches unit names to available units
+ * - Uploads PDF to blob storage for later reference
+ * - Provides detailed error messages for various failure scenarios
+ *
+ * @returns {UseLeaseFileParserReturn} Object containing:
+ *   - file: Currently selected file for upload
+ *   - parsedFileUrl: URL of uploaded PDF in blob storage
+ *   - isAnalyzing: Loading state during file analysis
+ *   - analyzeError: User-friendly error message if parsing fails
+ *   - setFile: Function to set the file to be analyzed
+ *   - analyzeLease: Function to parse the lease file and match data
+ *
+ * @example
+ * const {
+ *   file,
+ *   isAnalyzing,
+ *   analyzeError,
+ *   setFile,
+ *   analyzeLease,
+ *   parsedFileUrl
+ * } = useLeaseFileParser();
+ *
+ * // Handle file selection
+ * const handleFileChange = (e) => {
+ *   const selectedFile = e.target.files[0];
+ *   setFile(selectedFile);
+ * };
+ *
+ * // Analyze the lease
+ * const handleAnalyze = async () => {
+ *   const result = await analyzeLease(
+ *     propertyId,
+ *     availableUnits,
+ *     loadTenantsForProperty
+ *   );
+ *
+ *   if (result) {
+ *     updateFormData(result.formUpdates);
+ *     setSelectedTenant(result.matchedTenant);
+ *   }
+ * };
+ *
+ * // Later submit with the parsed file URL
+ * await submitLease(parsedFileUrl);
+ */
 export const useLeaseFileParser = (): UseLeaseFileParserReturn => {
   const [file, setFile] = useState<File | null>(null);
   const [parsedFileUrl, setParsedFileUrl] = useState<string | null>(null);

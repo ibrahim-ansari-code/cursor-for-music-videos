@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import * as Sentry from "@sentry/react";
 import { useCreateLease } from "../../../../hooks/useLeasesQueries";
 import { LeaseStatus } from "../../../../types/lease";
+import { parseIntSafe, parseFloatSafe } from "../../../../utils/numberUtils";
 import type { Lease } from "../../../../types/lease";
 import type { Tenant } from "../../../../types/tenant";
 import type { FormData, FieldErrors } from "../types";
@@ -34,6 +35,10 @@ interface UseLeaseFormReturn {
   resetForm: () => void;
 }
 
+/**
+ * Get initial form data for lease creation
+ * @internal
+ */
 const getInitialFormData = (
   initialPropertyId?: number | null,
   initialUnitId?: number | null,
@@ -53,6 +58,58 @@ const getInitialFormData = (
   special_terms: "",
 });
 
+/**
+ * Custom hook for managing lease form state and submission
+ *
+ * Handles form state management, validation, field-level error tracking,
+ * and lease submission with optimistic updates via TanStack Query.
+ * All event handlers are memoized with useCallback for performance.
+ *
+ * @param {UseLeaseFormProps} props - Configuration object
+ * @param {number | null} [props.initialPropertyId] - Pre-selected property ID
+ * @param {number | null} [props.initialUnitId] - Pre-selected unit ID
+ * @param {string} [props.initialUnitName] - Pre-selected unit name for display
+ * @param {'file' | 'manual'} props.mode - Current import mode (affects validation)
+ * @param {Function} props.onSuccess - Callback invoked after successful lease creation
+ *
+ * @returns {UseLeaseFormReturn} Object containing form state and handlers:
+ *   - formData: Current form field values
+ *   - fieldErrors: Field-level validation errors
+ *   - error: General error message
+ *   - isLoading: Form submission loading state
+ *   - selectedTenant: Currently selected tenant object
+ *   - setters: Various state setters for external control
+ *   - handlers: Event handlers for form interactions
+ *   - submitLease: Function to validate and submit the lease
+ *   - resetForm: Function to reset form to initial state
+ *
+ * @example
+ * const {
+ *   formData,
+ *   fieldErrors,
+ *   handleFormChange,
+ *   submitLease,
+ *   isLoading
+ * } = useLeaseForm({
+ *   mode: 'manual',
+ *   onSuccess: (lease) => {
+ *     console.log('Lease created:', lease.id);
+ *     onClose();
+ *   }
+ * });
+ *
+ * // In your form
+ * <input
+ *   name="monthly_rent"
+ *   value={formData.monthly_rent}
+ *   onChange={handleFormChange}
+ * />
+ * {fieldErrors.monthly_rent && <span>{fieldErrors.monthly_rent}</span>}
+ *
+ * <button onClick={() => submitLease(null)} disabled={isLoading}>
+ *   Create Lease
+ * </button>
+ */
 export const useLeaseForm = ({
   initialPropertyId,
   initialUnitId,
@@ -189,17 +246,7 @@ export const useLeaseForm = ({
     setError(null);
 
     try {
-      // Prepare lease data with NaN checks
-      const parseIntSafe = (value: string): number | null => {
-        const parsed = Number.parseInt(value);
-        return isNaN(parsed) ? null : parsed;
-      };
-      
-      const parseFloatSafe = (value: string): number | null => {
-        const parsed = Number.parseFloat(value);
-        return isNaN(parsed) ? null : parsed;
-      };
-
+      // Prepare lease data with safe parsing utilities
       const leaseData = {
         property_id: parseIntSafe(formData.property_id)!,
         unit_id: formData.unit_id ? parseIntSafe(formData.unit_id) : null,

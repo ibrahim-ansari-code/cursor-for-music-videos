@@ -22,6 +22,41 @@ interface UsePropertyDataReturn {
   setError: (error: string | null) => void;
 }
 
+/**
+ * Custom hook for managing property-related data in the ImportLeaseModal
+ *
+ * Provides property, unit, and tenant data loading with proper state management
+ * and error handling. All loading functions are memoized with useCallback for
+ * stable references.
+ *
+ * @returns {UsePropertyDataReturn} Object containing:
+ *   - properties: Array of all properties
+ *   - availableUnits: Filtered units available for lease (no active leases)
+ *   - availableTenants: Tenants without assigned properties (unassigned_only)
+ *   - isLoadingUnits: Loading state for units
+ *   - isLoadingTenants: Loading state for tenants
+ *   - loadProperties: Function to fetch all properties
+ *   - loadUnitsForProperty: Function to fetch and filter available units for a property
+ *   - loadTenantsForProperty: Function to fetch unassigned tenants
+ *   - setError: Function to set error state
+ *
+ * @example
+ * const {
+ *   properties,
+ *   availableUnits,
+ *   isLoadingUnits,
+ *   loadProperties,
+ *   loadUnitsForProperty
+ * } = usePropertyData();
+ *
+ * useEffect(() => {
+ *   loadProperties();
+ * }, [loadProperties]);
+ *
+ * const handlePropertyChange = (propertyId) => {
+ *   loadUnitsForProperty(propertyId);
+ * };
+ */
 export const usePropertyData = (): UsePropertyDataReturn => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [availableUnits, setAvailableUnits] = useState<Unit[]>([]);

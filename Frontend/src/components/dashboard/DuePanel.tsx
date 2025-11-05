@@ -14,6 +14,10 @@ interface InvoiceData extends Partial<PaymentDue> {
   id: number;
   tenant?: {
     full_name?: string;
+    first_name?: string;
+    last_name?: string;
+    company_name?: string;
+    tenant_type?: string;
   };
   property?: {
     name?: string;
@@ -47,6 +51,15 @@ const DuePanel: React.FC<DuePanelProps> = ({
   invoicesLoading = false,
   invoicesData = [],
 }) => {
+  // Helper function to get tenant display name
+  const getTenantName = (tenant?: InvoiceData['tenant']): string => {
+    if (!tenant) return '';
+    if (tenant.tenant_type === 'COMPANY') {
+      return tenant.company_name || '';
+    }
+    return `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim() || tenant.full_name || '';
+  };
+
   if (isLoading) {
     return <DuePanelSkeleton />;
   }
@@ -163,12 +176,12 @@ const DuePanel: React.FC<DuePanelProps> = ({
                   <tr key={inv.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/40">
                     <td className="px-4 py-3 whitespace-nowrap overflow-hidden" style={{width: '40%'}}>
                       <div className="flex items-center min-w-0">
-                        <div className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(inv.tenant?.full_name || inv.property?.name || "-")} flex items-center justify-center text-white font-medium`}>
-                          {getTenantInitials(inv.tenant?.full_name || inv.property?.name || "-")}
+                        <div className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(getTenantName(inv.tenant) || inv.property?.name || "-")} flex items-center justify-center text-white font-medium`}>
+                          {getTenantInitials(getTenantName(inv.tenant) || inv.property?.name || "-")}
                         </div>
                         <div className="ml-3 min-w-0 flex-1">
                           <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {inv.tenant?.full_name || inv.property?.name || "Invoice"}
+                            {getTenantName(inv.tenant) || inv.property?.name || "Invoice"}
                           </p>
                           {inv.invoice_number && (
                             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">#{inv.invoice_number}</p>

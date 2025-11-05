@@ -5,10 +5,9 @@ import FinancialSummary from "../components/dashboard/FinancialSummary";
 import DuePanel from "../components/dashboard/DuePanel";
 import PortfolioOverview from "../components/dashboard/PortfolioOverview";
 import RevenueTrendsCard from "../components/dashboard/RevenueTrendsCard";
-import { fetchDashboardData } from "../utils/api";
 import usePreviousPeriodData from "../hooks/usePreviousPeriodData";
 import { getPresetRange, toIsoDate } from "../utils/dateRanges";
-import { getAvatarColor, getInitials, percentChange, computeDelta, humanizePeriodLabel } from "../utils/formatters";
+import { getAvatarColor, getInitials, computeDelta, humanizePeriodLabel } from "../utils/formatters";
 import useProperties from "../hooks/useProperties";
 import useDashboardData from "../hooks/useDashboardData";
 import useRentTracker from "../hooks/useRentTracker";
@@ -135,22 +134,6 @@ const DashboardPage: React.FC = () => {
     if (hookPrevData) setPrevPeriodData(hookPrevData);
   }, [selectedProperty, timePeriod, hookDashboardLoading, hookDashboardData, hookDashboardError, hookRentLoading, hookRentData, hookPrevData, activeRange]);
 
-  const getRevenueChange = (): number => {
-    if (!dashboardData?.summary || !prevPeriodData?.summary) return 0;
-    return percentChange(
-      dashboardData.summary.monthly_revenue,
-      prevPeriodData.summary.monthly_revenue
-    );
-  };
-
-  const getMaintenanceChange = (): number => {
-    if (!dashboardData?.summary || !prevPeriodData?.summary) return 0;
-    return percentChange(
-      dashboardData.summary.maintenance_expenses,
-      prevPeriodData.summary.maintenance_expenses
-    );
-  };
-
   const getTenantInitials = getInitials;
 
   // With component-level skeletons, never block on page-level loading
@@ -168,9 +151,6 @@ const DashboardPage: React.FC = () => {
       </div>
     );
   }
-
-  const revenueChange = getRevenueChange();
-  const maintenanceChange = getMaintenanceChange();
 
   // Compute rich deltas for modern chips
   const revenueDelta = computeDelta({
@@ -205,8 +185,6 @@ const DashboardPage: React.FC = () => {
         summary={dashboardData?.summary}
         timePeriod={timePeriod}
         periodLabel={periodLabel}
-        revenueChange={revenueChange}
-        maintenanceChange={maintenanceChange}
         revenueDelta={revenueDelta}
         expensesDelta={expensesDelta}
         maintenanceDelta={maintenanceDelta}
