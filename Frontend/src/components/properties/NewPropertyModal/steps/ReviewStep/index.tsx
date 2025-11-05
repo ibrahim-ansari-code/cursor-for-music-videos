@@ -9,6 +9,7 @@ import ApartmentComplexReview from './ApartmentComplexReview';
 import CommercialReview from './CommercialReview';
 import IndustrialReview from './IndustrialReview';
 import MixedUseReview from './MixedUseReview';
+import LandReview from './LandReview';
 
 interface ReviewStepProps {
   isEditing: boolean;
@@ -36,6 +37,8 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ isEditing: _ }) => {
       return <MixedUseReview />;
     
     case PropertyType.LAND:
+      return <LandReview />;
+    
     case PropertyType.SPECIAL_PURPOSE:
     case PropertyType.OTHER:
       // These types might have minimal review requirements

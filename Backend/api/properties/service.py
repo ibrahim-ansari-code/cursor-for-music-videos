@@ -20,6 +20,7 @@ from Backend.models.property_types.commercial import PropertyCommercial
 from Backend.models.property_types.residential import PropertyResidential
 from Backend.models.property_types.industrial import PropertyIndustrial
 from Backend.models.property_types.mixed_use import PropertyMixedUse
+from Backend.models.property_types.land import PropertyLand
 from Backend.models.user import User
 from Backend.utils.datetime_utils import create_audit_datetime
 
@@ -44,6 +45,8 @@ from .schemas import (
     IndustrialPropertyDetailsUpdate,
     MixedUsePropertyDetailsCreate,
     MixedUsePropertyDetailsUpdate,
+    LandPropertyDetailsCreate,
+    LandPropertyDetailsUpdate,
 )
 
 logger = logging.getLogger(__name__)
@@ -103,7 +106,7 @@ class PropertyService:
     async def _create_type_specific_details(
         property_id: int,
         property_type: PropertyType,
-        details: ApartmentComplexPropertyDetailsCreate | CommercialPropertyDetailsCreate | ResidentialPropertyDetailsCreate | IndustrialPropertyDetailsCreate | MixedUsePropertyDetailsCreate,
+        details: ApartmentComplexPropertyDetailsCreate | CommercialPropertyDetailsCreate | ResidentialPropertyDetailsCreate | IndustrialPropertyDetailsCreate | MixedUsePropertyDetailsCreate | LandPropertyDetailsCreate,
         session: AsyncSession
     ) -> None:
         """Create type-specific property details based on property type."""
@@ -156,6 +159,12 @@ class PropertyService:
                 **details.model_dump(exclude_unset=True, exclude={'property_type'})
             )
             session.add(mixed_use)
+        elif property_type == PropertyType.LAND and isinstance(details, LandPropertyDetailsCreate):
+            land = PropertyLand(
+                property_id=property_id,
+                **details.model_dump(exclude_unset=True, exclude={'property_type'})
+            )
+            session.add(land)
     
     @staticmethod
     async def _get_type_specific_details(
@@ -170,6 +179,7 @@ class PropertyService:
             ResidentialPropertyDetailsResponse,
             IndustrialPropertyDetailsResponse,
             MixedUsePropertyDetailsResponse,
+            LandPropertyDetailsResponse,
         )
         result = None
         
@@ -214,6 +224,15 @@ class PropertyService:
             mix_details = mix_result.scalar_one_or_none()
             if mix_details:
                 return MixedUsePropertyDetailsResponse.model_validate(mix_details)
+        elif property_type == PropertyType.LAND:
+            land_query = select(PropertyLand).where(
+                col(PropertyLand.property_id) == property_id
+            )
+            land_result = await session.execute(land_query)
+            land_details = land_result.scalar_one_or_none()
+            if land_details:
+                from Backend.api.properties.schemas.types.land import LandPropertyDetailsResponse
+                return LandPropertyDetailsResponse.model_validate(land_details)
         
         return None
     
@@ -258,6 +277,7 @@ class PropertyService:
             PropertyType.RESIDENTIAL: (PropertyResidential, ResidentialPropertyDetailsUpdate),
             PropertyType.INDUSTRIAL: (PropertyIndustrial, IndustrialPropertyDetailsUpdate),
             PropertyType.MIXED_USE: (PropertyMixedUse, MixedUsePropertyDetailsUpdate),
+            PropertyType.LAND: (PropertyLand, LandPropertyDetailsUpdate),
         }
         
         model_class, schema_class = model_mapping.get(property_type, (None, None))
@@ -415,6 +435,24 @@ class PropertyService:
                     **details.model_dump(exclude_unset=True, exclude={'property_type'})
                 )
                 session.add(new_mix)
+        elif property_type == PropertyType.LAND and isinstance(details, LandPropertyDetailsUpdate):
+            land_query = select(PropertyLand).where(
+                col(PropertyLand.property_id) == property_id
+            )
+            land_result = await session.execute(land_query)
+            land_existing = land_result.scalar_one_or_none()
+            
+            if land_existing:
+                update_data = details.model_dump(exclude_unset=True, exclude={'property_type'})
+                for key, value in update_data.items():
+                    setattr(land_existing, key, value)
+                land_existing.updated_at = create_audit_datetime()
+            else:
+                new_land = PropertyLand(
+                    property_id=property_id,
+                    **details.model_dump(exclude_unset=True, exclude={'property_type'})
+                )
+                session.add(new_land)
 
     @staticmethod
     async def get_property(

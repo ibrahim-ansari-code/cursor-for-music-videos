@@ -18,13 +18,15 @@ CREATE TABLE IF NOT EXISTS notification_scheduler_config (
 ALTER TABLE notification_scheduler_config ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies: Only service role (used by functions) can access
-CREATE POLICY IF NOT EXISTS "Service role can read config"
+DROP POLICY IF EXISTS "Service role can read config" ON notification_scheduler_config;
+CREATE POLICY "Service role can read config"
 ON notification_scheduler_config
 FOR SELECT
 TO service_role
 USING (true);
 
-CREATE POLICY IF NOT EXISTS "Service role can write config"
+DROP POLICY IF EXISTS "Service role can write config" ON notification_scheduler_config;
+CREATE POLICY "Service role can write config"
 ON notification_scheduler_config
 FOR ALL
 TO service_role
@@ -32,7 +34,8 @@ USING (true)
 WITH CHECK (true);
 
 -- Block all other access (authenticated users, anon)
-CREATE POLICY IF NOT EXISTS "Block public access to config"
+DROP POLICY IF EXISTS "Block public access to config" ON notification_scheduler_config;
+CREATE POLICY "Block public access to config"
 ON notification_scheduler_config
 FOR ALL
 TO authenticated, anon

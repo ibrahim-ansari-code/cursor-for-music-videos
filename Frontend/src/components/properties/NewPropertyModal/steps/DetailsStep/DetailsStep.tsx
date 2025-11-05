@@ -3,7 +3,7 @@ import { useFormContext } from 'react-hook-form';
 import { PropertyFormData, PropertyType, PropertyStatus } from '@/types/property';
 import {
   Building2, Home, Store, Factory, Building, CheckCircle, Shield,
-  Info, FileText, Calendar, MapPin, Briefcase, ChevronDown, ArrowRight
+  Info, FileText, Calendar, MapPin, Briefcase, ChevronDown, ArrowRight, Trees
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Select from '@radix-ui/react-select';
@@ -23,6 +23,7 @@ import CommercialForm from './typeSpecificForms/CommercialForm';
 import ApartmentComplexForm from './typeSpecificForms/ApartmentComplexForm';
 import IndustrialForm from './typeSpecificForms/IndustrialForm';
 import MixedUseForm from './typeSpecificForms/MixedUseForm';
+import LandForm from './typeSpecificForms/LandForm';
 import SectionErrorBoundary from '../../components/SectionErrorBoundary';
 
 export interface DetailsStepRef {
@@ -67,6 +68,12 @@ const colorClassMap = {
     lightGradient: 'from-red-50 to-red-100',
     border: 'border-red-200',
     text: 'text-red-600'
+  },
+  green: {
+    gradient: 'from-green-400 to-green-600',
+    lightGradient: 'from-green-50 to-green-100',
+    border: 'border-green-200',
+    text: 'text-green-600'
   }
 };
 
@@ -106,6 +113,13 @@ const propertyTypes = [
     icon: Factory,
     color: 'red' as keyof typeof colorClassMap,
     description: 'Warehouse space'
+  },
+  { 
+    value: PropertyType.LAND, 
+    label: 'Land', 
+    icon: Trees,
+    color: 'green' as keyof typeof colorClassMap,
+    description: 'Ground lease / vacant land'
   },
 ];
 
@@ -245,6 +259,12 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
         return (
           <SectionErrorBoundary sectionName="MixedUseForm">
             <MixedUseForm />
+          </SectionErrorBoundary>
+        );
+      case PropertyType.LAND:
+        return (
+          <SectionErrorBoundary sectionName="LandForm">
+            <LandForm />
           </SectionErrorBoundary>
         );
       default:
@@ -469,7 +489,7 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                         <button
                           type="button"
                           onClick={() => setIsCreateEntityModalOpen(true)}
-                          className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors flex items-center gap-1"
+                          className="mt-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors flex items-center gap-1"
                         >
                           <Briefcase className="h-3.5 w-3.5" />
                           Create New Ownership Entity
@@ -483,7 +503,7 @@ const DetailsStep = React.forwardRef<DetailsStepRef, DetailsStepProps>((_props, 
                     <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3 block">
                       Property Type *
                     </label>
-                    <div className="grid grid-cols-5 gap-3 p-2">
+                    <div className="grid grid-cols-3 gap-2.5 p-2">
                       {propertyTypes.map((type) => {
                         const Icon = type.icon;
                         const isSelected = propertyType === type.value;

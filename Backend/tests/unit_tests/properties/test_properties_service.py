@@ -716,7 +716,7 @@ async def test_discriminator_validation_errors():
     del no_discriminator_details.property_type  # Remove the attribute
     with pytest.raises(HTTPException) as exc_info:
         await PropertyService._update_type_specific_details(
-            property_id, PropertyType.LAND, no_discriminator_details, session  # Unsupported type
+            property_id, PropertyType.OTHER, no_discriminator_details, session  # Unsupported type
         )
     assert exc_info.value.status_code == 422
     assert "Unsupported property type" in exc_info.value.detail

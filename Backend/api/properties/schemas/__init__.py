@@ -58,6 +58,12 @@ from .types import (
     MixedUsePropertyDetailsCreate,
     MixedUsePropertyDetailsUpdate,
     MixedUsePropertyDetailsResponse,
+    
+    # Land
+    LandPropertyDetailsBase,
+    LandPropertyDetailsCreate,
+    LandPropertyDetailsUpdate,
+    LandPropertyDetailsResponse,
 )
 
 __all__ = [
@@ -114,4 +120,10 @@ __all__ = [
     'MixedUsePropertyDetailsCreate',
     'MixedUsePropertyDetailsUpdate',
     'MixedUsePropertyDetailsResponse',
+    
+    # Land
+    'LandPropertyDetailsBase',
+    'LandPropertyDetailsCreate',
+    'LandPropertyDetailsUpdate',
+    'LandPropertyDetailsResponse',
 ]

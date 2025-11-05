@@ -51,6 +51,14 @@ from .mixed_use import (
     MixedUsePropertyDetailsResponse,
 )
 
+# Land property schemas
+from .land import (
+    LandPropertyDetailsBase,
+    LandPropertyDetailsCreate,
+    LandPropertyDetailsUpdate,
+    LandPropertyDetailsResponse,
+)
+
 # Discriminated union types for robust polymorphic handling
 PropertyTypeDetailsCreate = Annotated[
     Union[
@@ -59,6 +67,7 @@ PropertyTypeDetailsCreate = Annotated[
         ResidentialPropertyDetailsCreate,
         IndustrialPropertyDetailsCreate,
         MixedUsePropertyDetailsCreate,
+        LandPropertyDetailsCreate,
     ],
     Field(discriminator='property_type')
 ]
@@ -70,6 +79,7 @@ PropertyTypeDetailsUpdate = Annotated[
         ResidentialPropertyDetailsUpdate,
         IndustrialPropertyDetailsUpdate,
         MixedUsePropertyDetailsUpdate,
+        LandPropertyDetailsUpdate,
     ],
     Field(discriminator='property_type')
 ]
@@ -81,6 +91,7 @@ PropertyTypeDetailsResponse = Annotated[
         ResidentialPropertyDetailsResponse,
         IndustrialPropertyDetailsResponse,
         MixedUsePropertyDetailsResponse,
+        LandPropertyDetailsResponse,
     ],
     Field(discriminator='property_type')
 ]
@@ -119,6 +130,12 @@ __all__ = [
     'MixedUsePropertyDetailsCreate',
     'MixedUsePropertyDetailsUpdate',
     'MixedUsePropertyDetailsResponse',
+    
+    # Land
+    'LandPropertyDetailsBase',
+    'LandPropertyDetailsCreate',
+    'LandPropertyDetailsUpdate',
+    'LandPropertyDetailsResponse',
     
     # Union types
     'PropertyTypeDetailsCreate',

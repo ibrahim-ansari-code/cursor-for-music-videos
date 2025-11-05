@@ -41,7 +41,11 @@ interface PropertyUnit {
 
 interface Tenant {
   id: number;
-  full_name: string;
+  full_name?: string;
+  first_name?: string;
+  last_name?: string;
+  company_name?: string;
+  tenant_type?: string;
   property_units?: PropertyUnit[];
 }
 
@@ -681,7 +685,7 @@ const InvoicesTab: React.FC = () => {
             </thead>
             <tbody className="dark-panel divide-y dark-divider">
               {invoices.length > 0 ? (
-                invoices.map((invoice, index) => {
+                invoices.map((invoice) => {
                   return (
                   <tr key={invoice.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
