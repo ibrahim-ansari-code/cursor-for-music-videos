@@ -346,7 +346,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="relative px-6 py-4 bg-gradient-to-br from-brand-green to-brand-teal dark:from-gray-700 dark:to-gray-600 text-white">
+            <div className="relative px-6 py-4 bg-brand-green dark:bg-gray-700 text-white">
               <div className="flex justify-between items-center">
                 <div>
                   <h2 className="text-xl font-semibold text-white dark:text-gray-100">Log New Payment</h2>
@@ -822,7 +822,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                 </button>
                 <button
                   onClick={handleSubmit}
-                  className="px-5 py-2.5 bg-gradient-to-br from-brand-green to-brand-teal text-white rounded-md hover:from-brand-green/90 hover:to-brand-teal/90 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium flex items-center gap-2 min-w-[140px] justify-center shadow-sm"
+                  className="px-5 py-2.5 bg-brand-green text-white rounded-md hover:bg-brand-green-hover focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium flex items-center gap-2 min-w-[140px] justify-center shadow-sm"
                   disabled={!lease || isLoading || receiptState.isParsingReceipt}
                 >
                   {isLoading ? (

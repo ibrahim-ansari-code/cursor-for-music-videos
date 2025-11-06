@@ -77,7 +77,7 @@ const Button = ({
 
   const variants = {
     primary:
-      "bg-gradient-to-br from-brand-green to-brand-teal hover:from-brand-green/90 hover:to-brand-teal/90 text-white border border-transparent focus:ring-brand-green shadow-sm",
+      "bg-brand-green hover:bg-brand-green-hover text-white border border-transparent focus:ring-brand-green shadow-sm",
     secondary:
       "bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-offset-gray-800",
     danger:
@@ -378,7 +378,7 @@ const UpdateTenantModal = ({ isOpen, onClose, tenant, onSave }) => {
         className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden"
       >
         {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-br from-brand-green to-brand-teal text-white">
+        <div className="px-6 py-4 bg-brand-green text-white">
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xl font-semibold text-white">Edit Tenant</h2>

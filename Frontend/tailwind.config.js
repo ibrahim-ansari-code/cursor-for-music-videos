@@ -5,7 +5,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        "brand-green": "#0B3D1F",
+        "brand-green": "#0e3d0e",
+        "brand-green-hover": "#135e15",
         "brand-teal": "#1BC5AE",
       },
       animation: {

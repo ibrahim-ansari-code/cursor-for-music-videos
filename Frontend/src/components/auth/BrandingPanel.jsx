@@ -54,7 +54,7 @@ const BrandingPanel = () => {
   ];
 
   return (
-    <div className="hidden md:flex flex-col h-full w-full bg-gradient-to-br from-brand-green to-brand-teal text-white relative overflow-hidden"
+    <div className="hidden md:flex flex-col h-full w-full bg-brand-green text-white relative overflow-hidden"
          style={{ padding: 'calc(32px + 1.5625vw)' }}>
       {/* Background effects */}
       <BackgroundEffects />

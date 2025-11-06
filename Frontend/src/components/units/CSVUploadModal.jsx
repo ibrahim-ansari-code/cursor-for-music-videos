@@ -228,7 +228,7 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Header */}
-                    <div className="relative px-6 py-4 bg-gradient-to-br from-brand-green to-brand-teal text-white">
+                    <div className="relative px-6 py-4 bg-brand-green text-white">
                         <div className="flex justify-between items-center">
                             <div>
                                 <h2 className="text-xl font-semibold text-white">
@@ -883,7 +883,7 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
                                         type="button"
                                         onClick={handleUpload}
                                         disabled={!csvData || csvData.length === 0 || isUploading || parseErrors.length > 0}
-                                        className="px-5 py-2.5 bg-gradient-to-br from-brand-green to-brand-teal text-white rounded-md hover:from-brand-green/90 hover:to-brand-teal/90 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium flex items-center gap-2 min-w-[180px] justify-center shadow-sm"
+                                        className="px-5 py-2.5 bg-brand-green text-white rounded-md hover:bg-brand-green-hover focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium flex items-center gap-2 min-w-[180px] justify-center shadow-sm"
                                     >
                                         {isUploading ? (
                                             <>
@@ -920,7 +920,7 @@ const CSVUploadModal = ({ propertyId, isOpen, onClose, onSuccess }) => {
                                         handleClose();
                                     }}
                                     className={`px-5 py-2.5 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all text-sm font-medium shadow-sm ${uploadResults.successful_assignments > 0
-                                        ? "bg-gradient-to-br from-brand-green to-brand-teal text-white hover:from-brand-green/90 hover:to-brand-teal/90 focus:ring-brand-green"
+                                        ? "bg-brand-green text-white hover:bg-brand-green-hover focus:ring-brand-green"
                                         : "bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500"
                                         }`}
                                 >

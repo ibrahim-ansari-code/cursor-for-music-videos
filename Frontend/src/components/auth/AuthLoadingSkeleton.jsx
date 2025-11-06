@@ -4,7 +4,7 @@ const AuthLoadingSkeleton = () => {
   return (
     <div className="min-h-screen flex bg-gray-50">
       {/* Left Column - Branding Panel Skeleton */}
-      <div className="hidden md:block md:w-3/5 bg-gradient-to-br from-brand-green to-brand-teal relative overflow-hidden"
+      <div className="hidden md:block md:w-3/5 bg-brand-green relative overflow-hidden"
            style={{ padding: 'calc(32px + 1.5625vw)' }}>
         
         {/* Background effects to match BrandingPanel */}
