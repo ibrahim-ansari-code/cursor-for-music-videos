@@ -62,8 +62,16 @@ export interface CalendarEvent {
   priority: CalendarEventPriority;
   link?: string;
   property?: RelatedEntity;
+  property_id?: number;
+  property_name?: string;
   unit?: RelatedEntity;
+  unit_id?: number;
   tenant?: RelatedEntity;
+  tenant_id?: number;
+  tenant_name?: string;
+  lease_id?: number;
+  source_type?: string;
+  source_id: string;
   color: string;
   quick_actions: string[];
   metadata: Record<string, any>;

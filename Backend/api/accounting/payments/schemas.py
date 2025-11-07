@@ -34,7 +34,10 @@ class PaymentBase(BaseModel): # Not directly used by endpoints, but good for inh
         return v
 
 class PaymentCreate(BaseModel):
-    lease_id: int
+    lease_id: int | None = None  # Optional - payments can exist without leases
+    tenant_id: int | None = None  # Optional - payments can be made by non-tenants
+    property_id: int | None = None  # Optional - for context/filtering only
+    invoice_id: int | None = None  # Optional - link payment to specific invoice for allocation
     amount: Decimal
     payment_date: datetime | None = None
     payment_method: PaymentMethod | None = PaymentMethod.OTHER

@@ -106,12 +106,20 @@ export interface Payment {
 }
 
 export interface CreatePaymentRequest {
+  lease_id?: number | null;
+  tenant_id?: number | null;
+  property_id?: number | null;
   invoice_id?: number;
-  tenant_id?: number;
-  amount: string; // Backend uses Decimal which serializes to string
-  payment_date: string;
-  payment_method: string;
+  tenant_name?: string | null;
+  amount: string | number; // Backend uses Decimal which serializes to string
+  payment_date?: string | null;
+  payment_method?: string;
+  status?: string;
   description?: string;
+  receipt_url?: string | null;
+  transaction_reference?: string | null;
+  reduction_amount?: number | null;
+  reduction_reason?: string | null;
 }
 
 export interface UpdatePaymentRequest extends Partial<CreatePaymentRequest> {

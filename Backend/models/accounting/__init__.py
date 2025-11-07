@@ -11,6 +11,7 @@ This package contains models for:
 
 from .common import PaymentStatus, IntegrationStatus, IntegrationType
 from .payment import Payment, PaymentMethod
+from .payment_allocation import PaymentAllocation
 from .invoice import Invoice
 from .invoice_tax_detail import InvoiceTaxDetail
 from .expense import Expense, ExpenseTaxDetail
@@ -19,10 +20,11 @@ from .quickbooks_integration import QuickBooksIntegration
 
 __all__ = [
     "PaymentStatus",
-    "IntegrationStatus", 
+    "IntegrationStatus",
     "IntegrationType",
     "Payment",
-    "PaymentMethod", 
+    "PaymentMethod",
+    "PaymentAllocation",
     "Invoice",
     "InvoiceTaxDetail",
     "Expense",

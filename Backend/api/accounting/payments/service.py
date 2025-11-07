@@ -12,6 +12,8 @@ from sqlmodel import col, select
 
 from Backend.models.accounting.common import PaymentStatus
 from Backend.models.accounting.payment import Payment, PaymentMethod
+from Backend.models.accounting.payment_allocation import PaymentAllocation
+from Backend.models.accounting.invoice import Invoice
 from Backend.models.enums import UserType
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.property import Property
@@ -60,23 +62,107 @@ OUTSTANDING_PAYMENT_STATUSES = (PaymentStatus.PENDING, PaymentStatus.OVERDUE)
 
 logger = logging.getLogger(__name__)
 
+
+async def _create_payment_allocation(
+    payment_id: int,
+    invoice_id: int,
+    amount: Decimal,
+    reduction_amount: Decimal | None,
+    session: AsyncSession,
+    current_user: User
+) -> None:
+    """
+    Creates a payment allocation linking a payment to an invoice.
+
+    This implements the industry-standard payment allocation pattern. The database trigger
+    will automatically update the invoice status (Paid/Partial/Pending) when the allocation
+    is created.
+
+    Args:
+        payment_id: ID of the payment
+        invoice_id: ID of the invoice to allocate payment to
+        amount: Total payment amount
+        reduction_amount: Optional reduction/discount amount
+        session: Database session
+        current_user: Current user (for authorization)
+
+    Raises:
+        HTTPException: If invoice doesn't exist or doesn't belong to user
+    """
+    # Validate invoice exists and belongs to current user
+    invoice_query = select(Invoice).where(col(Invoice.id) == invoice_id)
+
+    # Apply ownership filter based on user type
+    if current_user.user_type == UserType.LANDLORD:
+        # For landlords, check via property ownership
+        invoice_query = invoice_query.join(
+            Property, col(Invoice.property_id) == col(Property.id)
+        ).where(col(Property.user_id) == current_user.id)
+    elif current_user.user_type == UserType.TENANT:
+        # Tenants are blocked from creating payments (see create_payment line 76-78)
+        # This code path should never be reached, but adding defensive check
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tenants cannot create payment allocations."
+        )
+    # Admins can access any invoice (no filter applied)
+
+    invoice = await session.scalar(invoice_query)
+
+    if not invoice:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Invoice {invoice_id} not found or you don't have access to it"
+        )
+
+    # Calculate amount to apply (payment amount - reduction if any)
+    amount_applied = amount
+    if reduction_amount:
+        amount_applied = amount - reduction_amount
+
+    # Create payment allocation
+    allocation = PaymentAllocation(
+        payment_id=payment_id,
+        invoice_id=invoice_id,
+        amount_applied=amount_applied
+    )
+
+    session.add(allocation)
+    await session.commit()
+
+    logger.info(
+        "Payment allocation created: payment_id=%s, invoice_id=%s, amount_applied=%s",
+        payment_id, invoice_id, amount_applied
+    )
+
+
 async def create_payment(
     payment: PaymentCreate,
     session: AsyncSession,
     current_user: User
 ) -> PaymentResponse:
     """
-    Creates a new payment record for a specified lease.
+    Creates a new payment record.
 
-    Only landlords and admins are permitted to create payments. Validates lease ownership,
-    assigns the tenant from the lease, and sets the payment date to the provided value or the current UTC time.
+    Only landlords and admins are permitted to create payments. Payments can be created
+    with or without a lease:
+    - With lease_id: Standard rent payment (validates lease ownership, derives tenant from lease)
+    - Without lease_id: Generic payment (utility, vendor, misc income - uses tenant_id if provided)
     """
     if current_user.user_type == UserType.TENANT:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail="Tenants cannot directly create payment records.")
 
-    lease = await check_lease_ownership(payment.lease_id, session, current_user)
-    actual_tenant_id_for_payment = lease.tenant.id if lease.tenant else None
+    # Initialize tenant_id
+    actual_tenant_id_for_payment = payment.tenant_id
+    lease = None
+
+    # If lease_id provided, validate lease ownership and extract tenant_id
+    if payment.lease_id:
+        lease = await check_lease_ownership(payment.lease_id, session, current_user)
+        # Override tenant_id with the one from the lease if lease has a tenant
+        if lease.tenant:
+            actual_tenant_id_for_payment = lease.tenant.id
 
     final_payment_date: datetime
     if payment.payment_date:
@@ -85,8 +171,9 @@ async def create_payment(
         final_payment_date = utc_now()
 
     payment_obj = Payment(
-        lease_id=payment.lease_id,
-        tenant_id=actual_tenant_id_for_payment,
+        lease_id=payment.lease_id,  # Can be None
+        tenant_id=actual_tenant_id_for_payment,  # Can be None
+        user_id=current_user.id,  # Landlord who owns this payment
         amount=payment.amount,
         payment_date=final_payment_date,
         status=payment.status or PaymentStatus.PENDING,
@@ -104,24 +191,44 @@ async def create_payment(
         await session.refresh(payment_obj)
         _ensure_id_is_not_none(payment_obj.id, "Payment",
                                "after database commit")
-        await session.refresh(payment_obj, attribute_names=["lease"])
-        if payment_obj.lease:
-            await session.refresh(payment_obj.lease, attribute_names=["property", "tenant"])
+        assert payment_obj.id is not None  # For type checker
+        payment_id: int = payment_obj.id
+
+        # Refresh relationships based on what exists
+        if payment_obj.lease_id:
+            # Payment has a lease - load lease with its relationships
+            await session.refresh(payment_obj, attribute_names=["lease"])
+            if payment_obj.lease:
+                await session.refresh(payment_obj.lease, attribute_names=["property", "tenant"])
+        elif payment_obj.tenant_id:
+            # Payment has tenant but no lease - load tenant directly
+            await session.refresh(payment_obj, attribute_names=["tenant"])
+
+        # Create payment allocation if invoice_id is provided
+        if payment.invoice_id:
+            await _create_payment_allocation(
+                payment_id=payment_id,
+                invoice_id=payment.invoice_id,
+                amount=payment_obj.amount,
+                reduction_amount=payment_obj.reduction_amount,
+                session=session,
+                current_user=current_user
+            )
 
         payment_response = build_payment_response_from_orm(payment_obj)
         if not payment_response:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Payment data integrity error")
 
-        logger.info("Payment %s created for lease %s by user %s",
-                    payment_obj.id, lease.id, current_user.id)
+        logger.info("Payment %s created (lease_id=%s, tenant_id=%s) by user %s",
+                    payment_obj.id, payment.lease_id, payment_obj.tenant_id, current_user.id)
         return payment_response
     except HTTPException:
         raise
     except Exception as e:
         await session.rollback()
         logger.exception(
-            "Error creating payment for lease %s", payment.lease_id)
+            "Error creating payment (lease_id=%s)", payment.lease_id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail="Failed to create payment.") from e
 

@@ -473,25 +473,25 @@ INSERT INTO leases (id, start_date, end_date, monthly_rent, security_deposit, st
 -- ===================================================================
 -- PAYMENTS
 -- ===================================================================
-INSERT INTO payments (id, amount, payment_date, lease_id, tenant_id, payment_method, transaction_reference, status, receipt_url, created_at, updated_at) VALUES
+INSERT INTO payments (id, amount, payment_date, lease_id, tenant_id, user_id, payment_method, transaction_reference, status, receipt_url, created_at, updated_at) VALUES
 -- Paid (last month)
-(1, 1900.00, date_trunc('month', current_date) - interval '1 month', 1, 1, 'Bank Transfer', 'TXN-001-LASTMONTH', 'Paid', NULL, date_trunc('month', current_date) - interval '1 month', date_trunc('month', current_date) - interval '1 month'),
-(2, 4500.00, date_trunc('month', current_date) - interval '1 month', 2, 2, 'Credit Card', 'CC-002-LASTMONTH', 'Paid', NULL, date_trunc('month', current_date) - interval '1 month', date_trunc('month', current_date) - interval '1 month'),
-(3, 800.00, date_trunc('month', current_date) - interval '1 month', 3, 3, 'Credit Card', 'CC-003-LASTMONTH', 'Paid', NULL, date_trunc('month', current_date) - interval '1 month', date_trunc('month', current_date) - interval '1 month'),
-(4, 2800.00, date_trunc('month', current_date) - interval '1 month', 4, 4, 'Check', 'CHK-004-LASTMONTH', 'Paid', NULL, date_trunc('month', current_date) - interval '1 month', date_trunc('month', current_date) - interval '1 month'),
-(5, 1700.00, date_trunc('month', current_date) - interval '1 month' + interval '14 days', 5, 6, 'Bank Transfer', 'TXN-005-LASTMONTH', 'Paid', NULL, date_trunc('month', current_date) - interval '1 month' + interval '14 days', date_trunc('month', current_date) - interval '1 month' + interval '14 days'),
+(1, 1900.00, date_trunc('month', current_date) - interval '1 month', 1, 1, '1894ba74-571a-4270-9072-9bea9486e0b1', 'Bank Transfer', 'TXN-001-LASTMONTH', 'Paid', NULL, date_trunc('month', current_date) - interval '1 month', date_trunc('month', current_date) - interval '1 month'),
+(2, 4500.00, date_trunc('month', current_date) - interval '1 month', 2, 2, '1894ba74-571a-4270-9072-9bea9486e0b1', 'Credit Card', 'CC-002-LASTMONTH', 'Paid', NULL, date_trunc('month', current_date) - interval '1 month', date_trunc('month', current_date) - interval '1 month'),
+(3, 800.00, date_trunc('month', current_date) - interval '1 month', 3, 3, '1894ba74-571a-4270-9072-9bea9486e0b1', 'Credit Card', 'CC-003-LASTMONTH', 'Paid', NULL, date_trunc('month', current_date) - interval '1 month', date_trunc('month', current_date) - interval '1 month'),
+(4, 2800.00, date_trunc('month', current_date) - interval '1 month', 4, 4, '1894ba74-571a-4270-9072-9bea9486e0b1', 'Check', 'CHK-004-LASTMONTH', 'Paid', NULL, date_trunc('month', current_date) - interval '1 month', date_trunc('month', current_date) - interval '1 month'),
+(5, 1700.00, date_trunc('month', current_date) - interval '1 month' + interval '14 days', 5, 6, '1894ba74-571a-4270-9072-9bea9486e0b1', 'Bank Transfer', 'TXN-005-LASTMONTH', 'Paid', NULL, date_trunc('month', current_date) - interval '1 month' + interval '14 days', date_trunc('month', current_date) - interval '1 month' + interval '14 days'),
 
 -- Paid (2 months ago)
-(6, 1900.00, date_trunc('month', current_date) - interval '2 months', 1, 1, 'Bank Transfer', 'TXN-001-2MONTHSAGO', 'Paid', NULL, date_trunc('month', current_date) - interval '2 months', date_trunc('month', current_date) - interval '2 months'),
-(7, 4500.00, date_trunc('month', current_date) - interval '2 months', 2, 2, 'Credit Card', 'CC-002-2MONTHSAGO', 'Paid', NULL, date_trunc('month', current_date) - interval '2 months', date_trunc('month', current_date) - interval '2 months'),
+(6, 1900.00, date_trunc('month', current_date) - interval '2 months', 1, 1, '1894ba74-571a-4270-9072-9bea9486e0b1', 'Bank Transfer', 'TXN-001-2MONTHSAGO', 'Paid', NULL, date_trunc('month', current_date) - interval '2 months', date_trunc('month', current_date) - interval '2 months'),
+(7, 4500.00, date_trunc('month', current_date) - interval '2 months', 2, 2, '1894ba74-571a-4270-9072-9bea9486e0b1', 'Credit Card', 'CC-002-2MONTHSAGO', 'Paid', NULL, date_trunc('month', current_date) - interval '2 months', date_trunc('month', current_date) - interval '2 months'),
 
 -- Current Month: Overdue and Partial payments to trigger UI bug
-(8, 2000.00, date_trunc('month', current_date) + interval '1 day', 6, 8, 'Credit Card', 'CC-006-THISMONTH', 'Partial', NULL, date_trunc('month', current_date) + interval '1 day', date_trunc('month', current_date) + interval '1 day'),
-(9, 1700.00, date_trunc('month', current_date) + interval '1 day', 5, 6, 'Bank Transfer', NULL, 'Overdue', NULL, date_trunc('month', current_date), date_trunc('month', current_date)),
-(10, 1900.00, date_trunc('month', current_date) + interval '1 day', 1, 1, 'Bank Transfer', NULL, 'Overdue', NULL, date_trunc('month', current_date), date_trunc('month', current_date)),
-(11, 4500.00, date_trunc('month', current_date) + interval '1 day', 2, 2, 'Credit Card', NULL, 'Overdue', NULL, date_trunc('month', current_date), date_trunc('month', current_date)),
-(12, 800.00, date_trunc('month', current_date) + interval '1 day', 3, 3, 'Credit Card', NULL, 'Overdue', NULL, date_trunc('month', current_date), date_trunc('month', current_date)),
-(13, 2800.00, date_trunc('month', current_date) + interval '1 day', 4, 4, 'Check', NULL, 'Overdue', NULL, date_trunc('month', current_date), date_trunc('month', current_date));
+(8, 2000.00, date_trunc('month', current_date) + interval '1 day', 6, 8, '1894ba74-571a-4270-9072-9bea9486e0b1', 'Credit Card', 'CC-006-THISMONTH', 'Partial', NULL, date_trunc('month', current_date) + interval '1 day', date_trunc('month', current_date) + interval '1 day'),
+(9, 1700.00, date_trunc('month', current_date) + interval '1 day', 5, 6, '1894ba74-571a-4270-9072-9bea9486e0b1', 'Bank Transfer', NULL, 'Overdue', NULL, date_trunc('month', current_date), date_trunc('month', current_date)),
+(10, 1900.00, date_trunc('month', current_date) + interval '1 day', 1, 1, '1894ba74-571a-4270-9072-9bea9486e0b1', 'Bank Transfer', NULL, 'Overdue', NULL, date_trunc('month', current_date), date_trunc('month', current_date)),
+(11, 4500.00, date_trunc('month', current_date) + interval '1 day', 2, 2, '1894ba74-571a-4270-9072-9bea9486e0b1', 'Credit Card', NULL, 'Overdue', NULL, date_trunc('month', current_date), date_trunc('month', current_date)),
+(12, 800.00, date_trunc('month', current_date) + interval '1 day', 3, 3, '1894ba74-571a-4270-9072-9bea9486e0b1', 'Credit Card', NULL, 'Overdue', NULL, date_trunc('month', current_date), date_trunc('month', current_date)),
+(13, 2800.00, date_trunc('month', current_date) + interval '1 day', 4, 4, '1894ba74-571a-4270-9072-9bea9486e0b1', 'Check', NULL, 'Overdue', NULL, date_trunc('month', current_date), date_trunc('month', current_date));
 
 -- ===================================================================
 -- INVOICES

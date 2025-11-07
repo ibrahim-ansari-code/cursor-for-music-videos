@@ -40,36 +40,41 @@ const PAYMENT_STATUSES = [
 ];
 
 const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
+  // Handle both null and undefined initialData
+  const safeInitialData = initialData || {};
+
   const memoizedInitialData = useMemo(() => ({
-    property_id: initialData.property_id || "",
-    property_name: initialData.property_name || "",
-    tenant_id: initialData.tenant_id || "",
-    tenant_name: initialData.tenant_name || "",
-    amount: initialData.amount || "",
-    payment_date: initialData.payment_date || new Date().toISOString().split("T")[0],
-    payment_method: initialData.payment_method || "Other",
-    status: initialData.status || "Paid",
-    notes: initialData.notes || "",
-    receipt_url: initialData.receipt_url || null,
-    transaction_reference: initialData.transaction_reference || "",
-    reduction: initialData.reduction || "",
-    reduction_reason: initialData.reduction_reason || "",
-    lease_id: initialData.lease_id || null,
+    property_id: safeInitialData.property_id || "",
+    property_name: safeInitialData.property_name || "",
+    tenant_id: safeInitialData.tenant_id || "",
+    tenant_name: safeInitialData.tenant_name || "",
+    invoice_id: safeInitialData.invoice_id || null,
+    amount: safeInitialData.amount || "",
+    payment_date: safeInitialData.payment_date || new Date().toISOString().split("T")[0],
+    payment_method: safeInitialData.payment_method || "Other",
+    status: safeInitialData.status || "Paid",
+    notes: safeInitialData.notes || "",
+    receipt_url: safeInitialData.receipt_url || null,
+    transaction_reference: safeInitialData.transaction_reference || "",
+    reduction: safeInitialData.reduction || "",
+    reduction_reason: safeInitialData.reduction_reason || "",
+    lease_id: safeInitialData.lease_id || null,
   }), [
-    initialData.property_id,
-    initialData.property_name,
-    initialData.tenant_id,
-    initialData.tenant_name,
-    initialData.amount,
-    initialData.payment_date,
-    initialData.payment_method,
-    initialData.status,
-    initialData.notes,
-    initialData.receipt_url,
-    initialData.transaction_reference,
-    initialData.reduction,
-    initialData.reduction_reason,
-    initialData.lease_id
+    safeInitialData.property_id,
+    safeInitialData.property_name,
+    safeInitialData.tenant_id,
+    safeInitialData.tenant_name,
+    safeInitialData.invoice_id,
+    safeInitialData.amount,
+    safeInitialData.payment_date,
+    safeInitialData.payment_method,
+    safeInitialData.status,
+    safeInitialData.notes,
+    safeInitialData.receipt_url,
+    safeInitialData.transaction_reference,
+    safeInitialData.reduction,
+    safeInitialData.reduction_reason,
+    safeInitialData.lease_id
   ]);
 
   const getInitialFormData = () => memoizedInitialData;
@@ -116,12 +121,12 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
           const data = await fetchTenantsByProperty(formData.property_id);
           setTenants(data);
           // Only reset tenant if it wasn't provided as initial data
-          if (!initialData.tenant_id) {
+          if (!safeInitialData.tenant_id) {
             setFormData((prev) => ({ ...prev, tenant_id: "", tenant_name: "" }));
             setLease(null);
           } else {
             // Validate preselected tenant exists in the loaded list
-            const exists = Array.isArray(data) && data.some(t => String(t.id) === String(initialData.tenant_id));
+            const exists = Array.isArray(data) && data.some(t => String(t.id) === String(safeInitialData.tenant_id));
             if (!exists) {
               setFormData((prev) => ({ ...prev, tenant_id: "", tenant_name: "" }));
               setLease(null);
@@ -137,7 +142,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
       }
     };
     loadTenants();
-  }, [formData.property_id, initialData.tenant_id]);
+  }, [formData.property_id, safeInitialData.tenant_id]);
 
   useEffect(() => {
     const findActiveLease = async () => {
@@ -159,10 +164,9 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
             setLease(activeLease);
             setError(null);
           } else {
-            setError(
-              "No active lease found for this tenant on the selected property."
-            );
+            // No active lease found - this is OK, payments don't require leases
             setLease(null);
+            setError(null);  // Don't show error - this is not a blocking issue
           }
         } catch (err) {
           console.error("Failed to find active lease:", err);
@@ -228,20 +232,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
     e.preventDefault();
     setError(null);
 
-    if (!formData.property_id) {
-      setError("Please select a property.");
-      return;
-    }
-    if (!formData.tenant_id) {
-      setError("Please select a tenant.");
-      return;
-    }
-    if (!lease) {
-      setError(
-        "No active lease found for this tenant and property. Cannot create payment."
-      );
-      return;
-    }
+    // Only validate the truly required fields
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
       setError("Please enter a valid amount greater than 0.");
       return;
@@ -262,8 +253,11 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
     setIsLoading(true);
     try {
       const paymentPayload = {
-        lease_id: lease.id,
-        tenant_name: formData.tenant_name,
+        lease_id: lease?.id || null,  // Optional - can be null
+        tenant_id: formData.tenant_id ? Number.parseInt(formData.tenant_id) : null,  // Optional
+        property_id: formData.property_id ? Number.parseInt(formData.property_id) : null,  // Optional - for context
+        invoice_id: formData.invoice_id ? Number.parseInt(formData.invoice_id) : null,  // Optional - for payment allocation
+        tenant_name: formData.tenant_name || null,
         amount: Number.parseFloat(formData.amount),
         payment_date: formData.payment_date
           ? new Date(formData.payment_date).toISOString()
@@ -282,10 +276,30 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
       onClose();
     } catch (err) {
       console.error("Failed to create payment:", err);
-      const errorMsg =
-        err.data?.detail ||
-        err.message ||
-        "Failed to create payment. Please try again.";
+
+      // Extract user-friendly error message
+      let errorMsg = "Failed to create payment. Please try again.";
+
+      if (err.data?.detail) {
+        const detail = err.data.detail;
+        // Handle common backend errors with user-friendly messages
+        if (typeof detail === 'string') {
+          if (detail.includes("data integrity")) {
+            errorMsg = "Unable to save payment. Please ensure all required fields are filled correctly.";
+          } else if (detail.includes("Invalid payment_method")) {
+            errorMsg = "Invalid payment method selected. Please choose a valid option.";
+          } else if (detail.includes("lease")) {
+            errorMsg = "There was an issue with the lease information. Please verify property and tenant details.";
+          } else if (detail.includes("tenant")) {
+            errorMsg = "Invalid tenant information. Please select a valid tenant.";
+          } else {
+            errorMsg = detail;
+          }
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -351,7 +365,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                 <div>
                   <h2 className="text-xl font-semibold text-white dark:text-gray-100">Log New Payment</h2>
                   <p className="text-white/80 dark:text-gray-300/80 mt-0.5 text-sm">
-                    Record a payment from a tenant
+                    Record any payment - rent, deposit, utility, or other income
                   </p>
                 </div>
                 <button
@@ -475,7 +489,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                   <div className="space-y-4">
                     <div ref={propertyDropdownRef} className="relative">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Property <span className="text-red-500">*</span>
+                        Property
                       </label>
                       <input
                         type="text"
@@ -520,7 +534,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
 
                     <div ref={tenantDropdownRef} className="relative">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Tenant <span className="text-red-500">*</span>
+                        Tenant
                       </label>
                       <input
                         type="text"
@@ -582,9 +596,16 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                   </div>
 
                   {lease && (
-                    <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg text-sm text-green-700 dark:text-green-300">
-                      Active lease found: ID {lease.id}, Rent: $
-                      {lease.monthly_rent?.toLocaleString()}
+                    <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                      <div className="flex items-start">
+                        <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="text-sm text-blue-700 dark:text-blue-300">
+                          <span className="font-medium">Active lease detected</span>
+                          <span className="block mt-0.5">Monthly rent: ${lease.monthly_rent?.toLocaleString()}</span>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -679,15 +700,23 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                             const reductionValue = e.target.value;
                             const reduction = parseFloat(reductionValue) || 0;
                             const currentAmount = parseFloat(formData.amount) || 0;
-                            
-                            const newAmount = lease ? Math.max(0, lease.monthly_rent - reduction) : 0;
-                            
-                            setFormData(prev => ({
-                              ...prev,
-                              reduction: reductionValue,
-                              amount: newAmount.toFixed(2)
-                            }));
-                            
+
+                            // Only auto-calculate amount if lease exists
+                            if (lease) {
+                              const newAmount = Math.max(0, lease.monthly_rent - reduction);
+                              setFormData(prev => ({
+                                ...prev,
+                                reduction: reductionValue,
+                                amount: newAmount.toFixed(2)
+                              }));
+                            } else {
+                              // No lease - just update reduction, keep amount as-is
+                              setFormData(prev => ({
+                                ...prev,
+                                reduction: reductionValue
+                              }));
+                            }
+
                             // Show warning if reduction exceeds current amount (but don't block input)
                             if (currentAmount > 0 && reduction > currentAmount) {
                               toast.warn("Reduction exceeds the payment amount");
@@ -823,7 +852,7 @@ const NewPaymentModal = ({ isOpen, onClose, onSuccess, initialData = {} }) => {
                 <button
                   onClick={handleSubmit}
                   className="px-5 py-2.5 bg-brand-green text-white rounded-md hover:bg-brand-green-hover focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium flex items-center gap-2 min-w-[140px] justify-center shadow-sm"
-                  disabled={!lease || isLoading || receiptState.isParsingReceipt}
+                  disabled={isLoading || receiptState.isParsingReceipt || !formData.amount || parseFloat(formData.amount) <= 0}
                 >
                   {isLoading ? (
                     <>

@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from Backend.models.property import Property
     from Backend.models.tenant import Tenant
     from Backend.models.accounting.invoice_tax_detail import InvoiceTaxDetail
+    from Backend.models.accounting.payment_allocation import PaymentAllocation
 
 class Invoice(SQLModel, table=True):
     """Invoice model for billing tenants or other parties"""
@@ -69,9 +70,10 @@ class Invoice(SQLModel, table=True):
     taxes: list["InvoiceTaxDetail"] = Relationship(
         back_populates="invoice",
         sa_relationship_kwargs={
-            "cascade": "all, delete-orphan", 
+            "cascade": "all, delete-orphan",
             "lazy": "selectin",
             "order_by": "InvoiceTaxDetail.tax_name"
         },
     )
+    payment_allocations: list["PaymentAllocation"] = Relationship(back_populates="invoice")
 

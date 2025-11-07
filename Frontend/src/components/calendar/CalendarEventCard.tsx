@@ -28,13 +28,13 @@ export const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event, onQ
   const getStatusIcon = () => {
     switch (event.status) {
       case CalendarEventStatus.COMPLETED:
-        return <CheckCircleIcon className="w-5 h-5 text-green-600" />;
+        return <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400" />;
       case CalendarEventStatus.OVERDUE:
-        return <AlertCircleIcon className="w-5 h-5 text-red-600" />;
+        return <AlertCircleIcon className="w-5 h-5 text-red-600 dark:text-red-400" />;
       case CalendarEventStatus.DUE:
-        return <ClockIcon className="w-5 h-5 text-amber-600" />;
+        return <ClockIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />;
       default:
-        return <CalendarIcon className="w-5 h-5 text-blue-600" />;
+        return <CalendarIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />;
     }
   };
 
@@ -43,13 +43,13 @@ export const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event, onQ
     
     switch (event.status) {
       case CalendarEventStatus.COMPLETED:
-        return <span className={`${baseClasses} bg-green-100 text-green-800`}>Completed</span>;
+        return <span className={`${baseClasses} bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300`}>Completed</span>;
       case CalendarEventStatus.OVERDUE:
-        return <span className={`${baseClasses} bg-red-100 text-red-800`}>Overdue</span>;
+        return <span className={`${baseClasses} bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300`}>Overdue</span>;
       case CalendarEventStatus.DUE:
-        return <span className={`${baseClasses} bg-amber-100 text-amber-800`}>Due Today</span>;
+        return <span className={`${baseClasses} bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300`}>Due Today</span>;
       default:
-        return <span className={`${baseClasses} bg-blue-100 text-blue-800`}>Upcoming</span>;
+        return <span className={`${baseClasses} bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300`}>Upcoming</span>;
     }
   };
 
@@ -65,7 +65,7 @@ export const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event, onQ
 
   return (
     <div 
-      className="bg-white border-l-4 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow"
+      className="bg-white dark:bg-gray-800 border-l-4 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow"
       style={{ borderLeftColor: event.color }}
     >
       {/* Header */}
@@ -73,8 +73,8 @@ export const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event, onQ
         <div className="flex items-start space-x-3 flex-1">
           {getStatusIcon()}
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
-            <p className="text-sm text-gray-600 mt-1">{formatEventDate()}</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{event.title}</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{formatEventDate()}</p>
           </div>
         </div>
         {getStatusBadge()}
@@ -82,11 +82,11 @@ export const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event, onQ
 
       {/* Description */}
       {event.description && (
-        <p className="text-sm text-gray-700 mb-3 ml-8">{event.description}</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300 mb-3 ml-8">{event.description}</p>
       )}
 
       {/* Related Entities */}
-      <div className="flex flex-wrap gap-3 ml-8 mb-3 text-sm text-gray-600">
+      <div className="flex flex-wrap gap-3 ml-8 mb-3 text-sm text-gray-600 dark:text-gray-400">
         {event.property && (
           <div className="flex items-center space-x-1">
             <MapPinIcon className="w-4 h-4" />
@@ -108,7 +108,7 @@ export const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event, onQ
             <button
               key={action}
               onClick={() => onQuickAction?.(event.id, action)}
-              className="px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+              className="px-3 py-1 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
             >
               {action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
             </button>
@@ -116,7 +116,7 @@ export const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event, onQ
           {event.link && (
             <a
               href={event.link}
-              className="px-3 py-1 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+              className="px-3 py-1 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
               View Details →
             </a>

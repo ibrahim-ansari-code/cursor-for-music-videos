@@ -34,10 +34,10 @@ export const CalendarFilters: React.FC<CalendarFiltersProps> = ({
   ];
 
   const statuses = [
-    { value: CalendarEventStatus.UPCOMING, label: 'Upcoming', color: 'bg-blue-100 text-blue-800' },
-    { value: CalendarEventStatus.DUE, label: 'Due Today', color: 'bg-amber-100 text-amber-800' },
-    { value: CalendarEventStatus.OVERDUE, label: 'Overdue', color: 'bg-red-100 text-red-800' },
-    { value: CalendarEventStatus.COMPLETED, label: 'Completed', color: 'bg-green-100 text-green-800' },
+    { value: CalendarEventStatus.UPCOMING, label: 'Upcoming', color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' },
+    { value: CalendarEventStatus.DUE, label: 'Due Today', color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300' },
+    { value: CalendarEventStatus.OVERDUE, label: 'Overdue', color: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' },
+    { value: CalendarEventStatus.COMPLETED, label: 'Completed', color: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' },
   ];
 
   const clearFilters = () => {
@@ -56,12 +56,12 @@ export const CalendarFilters: React.FC<CalendarFiltersProps> = ({
     <div className="h-full overflow-y-auto p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-gray-900">Filters</h2>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Filters</h2>
         <div className="flex items-center space-x-2">
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="text-sm text-blue-600 hover:text-blue-700"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
             >
               Clear All
             </button>
@@ -69,7 +69,7 @@ export const CalendarFilters: React.FC<CalendarFiltersProps> = ({
           {onClose && (
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 lg:hidden"
+              className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 lg:hidden"
             >
               <XIcon className="w-5 h-5" />
             </button>
@@ -79,7 +79,7 @@ export const CalendarFilters: React.FC<CalendarFiltersProps> = ({
 
       {/* Date Range */}
       <div className="mb-4">
-        <label className="block text-xs font-medium text-gray-700 mb-1.5">
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
           Date Range
         </label>
         <div className="space-y-1.5">
@@ -87,21 +87,21 @@ export const CalendarFilters: React.FC<CalendarFiltersProps> = ({
             type="date"
             value={filters.from_date}
             onChange={(e) => onFilterChange({ from_date: e.target.value })}
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-transparent"
           />
-          <span className="block text-xs text-gray-500 text-center">to</span>
+          <span className="block text-xs text-gray-500 dark:text-gray-400 text-center">to</span>
           <input
             type="date"
             value={filters.to_date}
             onChange={(e) => onFilterChange({ to_date: e.target.value })}
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
       </div>
 
       {/* Event Type */}
       <div className="mb-4">
-        <label className="block text-xs font-medium text-gray-700 mb-2">
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
           Event Type
         </label>
         <div className="space-y-1.5">
@@ -114,7 +114,7 @@ export const CalendarFilters: React.FC<CalendarFiltersProps> = ({
                 onChange={() => onFilterChange({ event_type: type.value })}
                 className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500"
               />
-              <span className="text-xs text-gray-700">{type.label}</span>
+              <span className="text-xs text-gray-700 dark:text-gray-300">{type.label}</span>
             </label>
           ))}
           <label className="flex items-center space-x-2 cursor-pointer">
@@ -125,14 +125,14 @@ export const CalendarFilters: React.FC<CalendarFiltersProps> = ({
               onChange={() => onFilterChange({ event_type: undefined })}
               className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500"
             />
-            <span className="text-xs text-gray-700">All Types</span>
+            <span className="text-xs text-gray-700 dark:text-gray-300">All Types</span>
           </label>
         </div>
       </div>
 
       {/* Status */}
       <div className="mb-4">
-        <label className="block text-xs font-medium text-gray-700 mb-2">
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
           Status
         </label>
         <div className="space-y-1.5">
@@ -158,7 +158,7 @@ export const CalendarFilters: React.FC<CalendarFiltersProps> = ({
               onChange={() => onFilterChange({ status: undefined })}
               className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500"
             />
-            <span className="text-xs text-gray-700">All Statuses</span>
+            <span className="text-xs text-gray-700 dark:text-gray-300">All Statuses</span>
           </label>
         </div>
       </div>

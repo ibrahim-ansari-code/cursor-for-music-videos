@@ -52,6 +52,7 @@ from .maintenance import MaintenanceRequest, MaintenancePriority, MaintenanceSta
 # Accounting models & enums from the 'accounting' subdirectory
 from .accounting.common import PaymentStatus, IntegrationStatus, IntegrationType
 from .accounting.payment import Payment, PaymentMethod
+from .accounting.payment_allocation import PaymentAllocation
 from .accounting.invoice import Invoice
 from .accounting.invoice_tax_detail import InvoiceTaxDetail
 from .accounting.expense import Expense, ExpenseTaxDetail
@@ -96,6 +97,7 @@ __all__ = [
     "OwnershipEntity",
     "EntityType",
     "Payment",
+    "PaymentAllocation",
     "PaymentMethod",
     "PaymentStatus",
     "Property",

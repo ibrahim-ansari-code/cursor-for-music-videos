@@ -17,7 +17,11 @@ import { useCalendar } from '../hooks/useCalendar';
 import { CalendarEventCard } from '../components/calendar/CalendarEventCard';
 import { CalendarFilters } from '../components/calendar/CalendarFilters';
 import { CreateReminderModal } from '../components/calendar/CreateReminderModal';
+import NewPaymentModal from '../components/accounting/modals/NewPaymentModal';
+import ViewInvoiceModal from '../components/accounting/modals/ViewInvoiceModal';
 import { CalendarEvent, updateCustomReminder, deleteCustomReminder } from '../utils/api/calendar';
+import { fetchInvoice } from '../utils/api/accounting';
+import type { Invoice } from '../types/accounting';
 import {
   CalendarIcon,
   ListIcon,
@@ -45,6 +49,10 @@ const CalendarPage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [reminderModalOpen, setReminderModalOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState<any>(null);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentModalData, setPaymentModalData] = useState<any>(null);
+  const [viewInvoiceModalOpen, setViewInvoiceModalOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
   // Transform calendar events to react-big-calendar format
   const calendarEvents = useMemo(() => {
@@ -77,9 +85,19 @@ const CalendarPage: React.FC = () => {
     try {
       switch (action) {
         case 'view_invoice':
-          // Navigate to invoice page
-          if (event.metadata?.invoice_id) {
-            navigate(`/accounting/invoices/${event.metadata.invoice_id}`);
+          // Fetch and display invoice in modal
+          if (event.source_type !== 'invoice') {
+            toast.error('This action is only available for invoice events.');
+            return;
+          }
+          try {
+            const invoiceId = parseInt(event.source_id);
+            const invoice = await fetchInvoice(invoiceId);
+            setSelectedInvoice(invoice);
+            setViewInvoiceModalOpen(true);
+          } catch (error: any) {
+            console.error('Failed to load invoice:', error);
+            toast.error('Failed to load invoice details');
           }
           break;
 
@@ -91,10 +109,24 @@ const CalendarPage: React.FC = () => {
           break;
 
         case 'record_payment':
-          // Navigate to payments page with invoice pre-selected
-          if (event.metadata?.invoice_id) {
-            navigate(`/accounting/payments/new?invoice_id=${event.metadata.invoice_id}`);
+          // Open payment modal with pre-filled data from calendar event
+          if (event.source_type !== 'invoice') {
+            toast.error('This action is only available for invoice events.');
+            return;
           }
+          setPaymentModalData({
+            property_id: event.property_id?.toString() || "",
+            property_name: event.property_name || "",
+            tenant_id: event.tenant_id?.toString() || "",
+            tenant_name: event.tenant_name || "",
+            invoice_id: event.source_id || null,  // Invoice ID for payment allocation
+            amount: event.metadata?.amount?.toString() || "",
+            payment_date: new Date().toISOString().split("T")[0],
+            notes: event.metadata?.invoice_number
+              ? `Payment for Invoice #${event.metadata.invoice_number}`
+              : "",
+          });
+          setPaymentModalOpen(true);
           break;
 
         case 'view_lease':
@@ -188,14 +220,31 @@ const CalendarPage: React.FC = () => {
     // For now, keep existing date range
   };
 
+  const handleEventClick = async (calendarEvent: any) => {
+    const event = calendarEvent.resource as CalendarEvent;
+    
+    // Only handle invoice events
+    if (event.source_type === 'invoice') {
+      try {
+        const invoiceId = parseInt(event.source_id);
+        const invoice = await fetchInvoice(invoiceId);
+        setSelectedInvoice(invoice);
+        setViewInvoiceModalOpen(true);
+      } catch (error: any) {
+        console.error('Failed to load invoice:', error);
+        toast.error('Failed to load invoice details');
+      }
+    }
+  };
+
   if (error) {
     return (
       <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800">Failed to load calendar: {error.message}</p>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-800 dark:text-red-200">Failed to load calendar: {error.message}</p>
           <button
             onClick={refetch}
-            className="mt-2 text-sm text-red-600 hover:text-red-700 underline"
+            className="mt-2 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline"
           >
             Try Again
           </button>
@@ -205,26 +254,63 @@ const CalendarPage: React.FC = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+      {/* Dark mode calendar overrides */}
+      <style>{`
+        .dark .rbc-calendar {
+          background: #1f2937;
+          color: #f3f4f6;
+        }
+        .dark .rbc-day-bg, .dark .rbc-month-view {
+          background: #374151;
+          border-color: #4b5563;
+        }
+        .dark .rbc-header {
+          color: #f3f4f6;
+          border-color: #4b5563;
+        }
+        .dark .rbc-off-range-bg {
+          background: #1f2937;
+        }
+        .dark .rbc-today {
+          background: #1e3a5f;
+        }
+        .dark .rbc-show-more {
+          color: #60a5fa;
+          font-weight: 600;
+        }
+        .dark .rbc-date-cell {
+          color: #9ca3af;
+        }
+        .dark .rbc-overlay {
+          background: #1f2937;
+          border-color: #4b5563;
+        }
+        .dark .rbc-overlay-header {
+          background: #374151;
+          border-color: #4b5563;
+          color: #f3f4f6;
+        }
+      `}</style>
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-3">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Calendar</h1>
-            <p className="text-xs text-gray-600 mt-0.5">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Calendar</h1>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
               Track all your property events in one place
             </p>
           </div>
 
           <div className="flex items-center space-x-3">
             {/* View Toggle */}
-            <div className="flex bg-gray-100 rounded-lg p-1">
+            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
               <button
                 onClick={() => setViewMode('list')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2 ${
                   viewMode === 'list'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
                 }`}
               >
                 <ListIcon className="w-4 h-4" />
@@ -234,8 +320,8 @@ const CalendarPage: React.FC = () => {
                 onClick={() => setViewMode('month')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2 ${
                   viewMode === 'month'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
                 }`}
               >
                 <CalendarIcon className="w-4 h-4" />
@@ -246,7 +332,7 @@ const CalendarPage: React.FC = () => {
             {/* Filter Toggle (Mobile) */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="lg:hidden px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-2"
+              className="lg:hidden px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center space-x-2"
             >
               <FilterIcon className="w-4 h-4" />
               <span>Filters</span>
@@ -255,7 +341,7 @@ const CalendarPage: React.FC = () => {
             {/* Create Reminder Button */}
             <button
               onClick={handleCreateReminder}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center space-x-2"
             >
               <PlusIcon className="w-4 h-4" />
               <span>Add Reminder</span>
@@ -270,7 +356,7 @@ const CalendarPage: React.FC = () => {
         <div
           className={`${
             showFilters ? 'block' : 'hidden'
-          } lg:block w-full lg:w-60 bg-white border-r border-gray-200 overflow-y-auto`}
+          } lg:block w-full lg:w-60 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto`}
         >
           <CalendarFilters
             filters={filters}
@@ -283,7 +369,7 @@ const CalendarPage: React.FC = () => {
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
             <div className="flex items-center justify-center h-full">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
             </div>
           ) : (
             <>
@@ -292,9 +378,9 @@ const CalendarPage: React.FC = () => {
                 <div className="space-y-4">
                   {events.length === 0 ? (
                     <div className="text-center py-12">
-                      <CalendarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                      <p className="text-gray-500">No events found for the selected period</p>
-                      <p className="text-sm text-gray-400 mt-2">
+                      <CalendarIcon className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">No events found for the selected period</p>
+                      <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
                         Try adjusting your filters or date range
                       </p>
                     </div>
@@ -310,7 +396,7 @@ const CalendarPage: React.FC = () => {
                 </div>
               ) : (
                 /* Month View */
-                <div className="bg-white rounded-lg shadow-sm p-3 h-full">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 h-full">
                   <BigCalendar
                     localizer={localizer}
                     events={calendarEvents}
@@ -319,6 +405,7 @@ const CalendarPage: React.FC = () => {
                     style={{ height: '100%', minHeight: '700px' }}
                     eventPropGetter={eventStyleGetter}
                     onNavigate={handleNavigate}
+                    onSelectEvent={handleEventClick}
                     date={selectedDate}
                     views={['month']}
                     defaultView="month"
@@ -344,6 +431,30 @@ const CalendarPage: React.FC = () => {
         }}
         onSuccess={handleReminderSuccess}
         editReminder={editingReminder}
+      />
+
+      {/* Payment Modal */}
+      <NewPaymentModal
+        isOpen={paymentModalOpen}
+        onClose={() => {
+          setPaymentModalOpen(false);
+          setPaymentModalData(null);
+        }}
+        onSuccess={() => {
+          refetch(); // Refresh calendar events
+          toast.success('Payment recorded successfully');
+        }}
+        initialData={paymentModalData}
+      />
+
+      {/* View Invoice Modal */}
+      <ViewInvoiceModal
+        isOpen={viewInvoiceModalOpen}
+        onClose={() => {
+          setViewInvoiceModalOpen(false);
+          setSelectedInvoice(null);
+        }}
+        invoice={selectedInvoice}
       />
     </div>
   );

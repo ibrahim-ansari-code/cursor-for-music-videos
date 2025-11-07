@@ -4,6 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
+from uuid import UUID
 
 from sqlalchemy import (
     DateTime,
@@ -25,6 +26,8 @@ from .common import PaymentStatus # Import PaymentStatus from common
 if TYPE_CHECKING:
     from Backend.models.lease import Lease
     from Backend.models.tenant import Tenant
+    from Backend.models.accounting.payment_allocation import PaymentAllocation
+    from Backend.models.user import User
 
 class PaymentMethod(str, Enum):
     CREDIT_CARD = "Credit Card"
@@ -102,6 +105,14 @@ class Payment(SQLModel, table=True):
         foreign_key="tenants.id"
     )
 
+    # Landlord/user who owns this payment
+    # Enables direct querying: "get all payments for user X" without joins
+    # Backfilled from lease→property→user_id or tenant→landlord_id
+    user_id: Optional["UUID"] = Field(
+        default=None,
+        foreign_key="users.id"
+    )
+
     # QuickBooks specific fields
     quickbooks_id: str | None = Field(
         default=None,
@@ -122,11 +133,13 @@ class Payment(SQLModel, table=True):
         sa_column=Column(DateTime(timezone=True), nullable=False, onupdate=utc_now)
     )
 
-    lease: "Lease" = Relationship(back_populates="payments")
+    lease: Optional["Lease"] = Relationship(back_populates="payments")
     tenant: Optional["Tenant"] = Relationship(
         back_populates="payments",
         sa_relationship_kwargs={"lazy": "selectin"}
     )
+    user: Optional["User"] = Relationship()
+    allocations: list["PaymentAllocation"] = Relationship(back_populates="payment")
     
     @model_validator(mode='after')
     def validate_reduction_amount(self):

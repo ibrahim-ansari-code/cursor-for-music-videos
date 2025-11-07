@@ -138,20 +138,16 @@ async def build_payments_query(
         filters.append(col(Payment.tenant_id) == user_tenant.id)
 
     elif current_user.user_type == UserType.LANDLORD:
-        # Landlord-specific logic using subquery for owned leases
-        owned_leases_query = (
-            select(Lease.id)
-            .join(Property)
-            .where(Property.user_id == current_user.id)
-        )
+        # Landlord-specific logic using user_id for direct ownership
+        # This is simple and efficient - no complex joins needed!
+        filters.append(col(Payment.user_id) == current_user.id)
 
+        # Filter by property if specified (requires join)
         if property_id:
-            owned_leases_query = owned_leases_query.where(
-                Property.id == property_id)
-
-        # Use inner join to exclude orphaned payments
-        owned = owned_leases_query.subquery()
-        query = query.join(owned, owned.c.id == Payment.lease_id)
+            query = query.outerjoin(getattr(Payment, "lease")).outerjoin(
+                getattr(Lease, "property")
+            )
+            filters.append(col(Property.id) == property_id)
 
         if tenant_id:
             filters.append(col(Payment.tenant_id) == tenant_id)
