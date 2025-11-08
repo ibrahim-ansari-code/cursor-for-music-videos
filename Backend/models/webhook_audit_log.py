@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID, uuid4
 
+from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
 from Backend.utils.datetime_utils import create_audit_datetime
@@ -48,7 +49,10 @@ class WebhookAuditLog(SQLModel, table=True):
     processing_time_ms: Optional[float] = Field(default=None)  # Processing duration in milliseconds
     
     # Audit trail
-    created_at: datetime = Field(default_factory=create_audit_datetime, index=True)
+    created_at: datetime = Field(
+        default_factory=create_audit_datetime,
+        sa_column=Column(DateTime(timezone=True), index=True, nullable=False)
+    )
     
     # Optional: Store full payload for debugging (be careful with PII)
     # payload_snapshot: Optional[str] = Field(default=None)  # JSON string of payload
