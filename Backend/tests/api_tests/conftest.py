@@ -12,7 +12,9 @@ from typing import AsyncGenerator
 from unittest.mock import patch, AsyncMock
 
 # Import shared utilities
-from tests.shared_fixtures import (
+# Use absolute import for CI/CD compatibility
+# Path is added by root conftest.py
+from tests.shared_fixtures import (  # type: ignore
     assert_api_success,
     assert_api_error,
     assert_valid_json_response,
@@ -92,6 +94,29 @@ async def api_client(shared_auth_token: str) -> AsyncGenerator[httpx.AsyncClient
         yield client
 
 
+@pytest.fixture(scope="function")
+async def unauthenticated_client() -> AsyncGenerator[httpx.AsyncClient, None]:
+    """
+    Provide an unauthenticated httpx client for webhook and public API tests.
+    
+    This client includes:
+    - Base URL configuration
+    - Appropriate timeout settings
+    - JSON content type (no auth header)
+    """
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    async with httpx.AsyncClient(
+        base_url=BASE_URL,
+        headers=headers,
+        timeout=API_TIMEOUT,
+        follow_redirects=True
+    ) as client:
+        yield client
+
+
 @pytest.fixture
 def mock_recaptcha_success():
     """
@@ -146,7 +171,7 @@ async def cleanup_quickbooks_integration(current_user_id: str):
 
     Use this fixture when you need a clean slate for QuickBooks integration tests.
     """
-    import asyncpg
+    import asyncpg # type: ignore
 
     # Connect directly to the database
     conn = await asyncpg.connect(os.getenv("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:54322/postgres"))

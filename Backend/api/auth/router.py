@@ -9,7 +9,7 @@ import logging
 from typing import Optional
 from uuid import UUID as PythonUUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Header
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from Backend.config import settings
@@ -17,6 +17,7 @@ from Backend.database import get_session
 from Backend.models.user import User
 from .dependencies import get_current_user
 from .helpers import validate_webhook_secret
+from .webhook_rate_limiter import check_webhook_rate_limit
 from .schemas import (
     UserResponse,
     ProfileUpdateRequest,
@@ -144,17 +145,50 @@ async def upload_user_avatar(
 @router.post("/webhook/user-sync", status_code=status.HTTP_200_OK)
 async def supabase_webhook_handler(
     payload: SupabaseWebhookPayload,
+    request: Request,
     x_webhook_secret: str = Header(None, alias="X-Webhook-Secret"),
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Handle Supabase webhook events for user creation in the `auth.users` table.
+    Handle Supabase webhook events for user synchronization.
     
-    Validates a custom webhook secret header for authentication. Processes only 
-    `INSERT` events for the `auth.users` table, creating a new user in the local 
-    database if the user does not already exist. Returns a message indicating 
-    the result of the operation.
+    Enterprise-grade webhook handler with:
+    - Rate limiting per IP
+    - Authentication via webhook secret
+    - Audit logging for all requests
+    - Processing time tracking
+    - Comprehensive error handling
+    
+    Processes INSERT and UPDATE events from auth.users table to keep
+    local database in sync with Supabase authentication state.
+    
+    Args:
+        payload: Webhook payload from Supabase
+        request: FastAPI request object (for IP extraction)
+        x_webhook_secret: Webhook secret header
+        session: Database session
+        
+    Returns:
+        Operation result message
+        
+    Raises:
+        HTTPException: For authentication or rate limit failures
     """
+    import time
+    start_time = time.time()
+    
+    # Extract client IP for rate limiting and audit logging
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Rate limiting check
+    if not await check_webhook_rate_limit(client_ip):
+        logger.warning("Webhook rate limit exceeded for IP: %s", client_ip)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please try again later.",
+            headers={"Retry-After": "60"}
+        )
+    
     # Verify webhook secret
     if not validate_webhook_secret(x_webhook_secret, settings.SUPABASE_WEBHOOK_SECRET):
         if not settings.SUPABASE_WEBHOOK_SECRET:
@@ -164,13 +198,21 @@ async def supabase_webhook_handler(
                 detail="Webhook secret not configured"
             )
         else:
-            logger.warning("Invalid webhook secret received")
+            logger.warning("Invalid webhook secret received from IP: %s", client_ip)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid webhook secret"
             )
     
-    return await AuthService.handle_webhook_user_sync(payload, session)
+    # Process webhook with audit logging
+    result = await AuthService.handle_webhook_user_sync(
+        payload, 
+        session,
+        client_ip=client_ip,
+        processing_start_time=start_time
+    )
+    
+    return result
 
 
 @router.post("/sync-user", response_model=UserSyncResponse, status_code=status.HTTP_200_OK)

@@ -12,7 +12,7 @@ from typing import Any, Dict
 import uuid
 
 # Import shared utilities
-from tests.shared_fixtures import (
+from tests.shared_fixtures import ( # type: ignore
     generate_test_email,
     generate_test_name,
 )
@@ -47,6 +47,9 @@ def mock_db_session():
     session.execute = AsyncMock()
     session.scalar = AsyncMock()
     session.scalars = AsyncMock()
+    session.add = Mock()  # Synchronous add (not async)
+    session.flush = AsyncMock()
+    session.get = AsyncMock()
     
     # Add context manager support
     session.__aenter__ = AsyncMock(return_value=session)

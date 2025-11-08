@@ -628,10 +628,12 @@ async def test_request_email_verification_user_not_found(mock_session):
 
 
 @pytest.mark.asyncio
-@patch('Backend.api.auth.service.AuthService.create_user_from_supabase')
+@patch('Backend.api.auth.service.AuthService.create_user_from_supabase', new_callable=AsyncMock)
 @patch('Backend.api.auth.service.extract_user_metadata_from_supabase')
 async def test_webhook_user_sync_new_user(mock_extract, mock_create, mock_session):
     """Test webhook sync for new user creation."""
+    from unittest.mock import Mock
+    
     # Arrange
     user_id = str(uuid4())
     payload = SupabaseWebhookPayload(
@@ -647,7 +649,13 @@ async def test_webhook_user_sync_new_user(mock_extract, mock_create, mock_sessio
             }
         }
     )
-    mock_session.get.return_value = None  # User doesn't exist
+    mock_session.get.return_value = None  # User doesn't exist by ID
+    
+    # Mock execute to return None for email lookup
+    mock_result = Mock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_session.execute.return_value = mock_result
+    
     mock_extract.return_value = {
         "first_name": "New",
         "last_name": "User"
@@ -682,24 +690,42 @@ async def test_webhook_user_sync_existing_user(mock_session):
     result = await AuthService.handle_webhook_user_sync(payload, mock_session)
     
     # Assert
-    assert result["message"] == "User already exists"
+    assert "already exists" in result["message"].lower()
+    assert "idempotent" in result["message"].lower()
 
 
 @pytest.mark.asyncio
-async def test_webhook_user_sync_wrong_event_type(mock_session):
-    """Test webhook sync with non-INSERT event."""
+async def test_webhook_user_sync_update_event(mock_session):
+    """Test webhook sync with UPDATE event."""
+    from unittest.mock import Mock
+    
     # Arrange
+    user_id = str(uuid4())
+    existing_user = MagicMock()
+    existing_user.id = user_id
+    existing_user.email = "existing@example.com"
+    
     payload = SupabaseWebhookPayload(
         type="UPDATE",
         table="users",
-        schema="auth"
+        schema="auth",
+        record={
+            "id": user_id,
+            "email": "existing@example.com",
+            "raw_user_meta_data": {
+                "first_name": "Updated",
+                "last_name": "User"
+            }
+        }
     )
+    
+    mock_session.get.return_value = existing_user  # User exists
     
     # Act
     result = await AuthService.handle_webhook_user_sync(payload, mock_session)
     
     # Assert
-    assert result["message"] == "Event ignored"
+    assert "updated" in result["message"].lower()
 
 
 @pytest.mark.asyncio

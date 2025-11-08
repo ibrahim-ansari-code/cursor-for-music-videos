@@ -8,11 +8,12 @@ separated from the API route handlers for better organization and testing.
 import json
 import logging
 import sentry_sdk
+from datetime import datetime, timezone
 from uuid import UUID as PythonUUID
 
 from fastapi import HTTPException, UploadFile, status
 from supabase_auth.errors import AuthApiError, AuthError, AuthInvalidCredentialsError, AuthWeakPasswordError
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -218,23 +219,99 @@ class AuthService:
     @staticmethod
     async def handle_webhook_user_sync(
         payload: SupabaseWebhookPayload,
-        session: AsyncSession
+        session: AsyncSession,
+        client_ip: str = "unknown",
+        processing_start_time: float | None = None
     ) -> dict:
         """
         Handle Supabase webhook for user synchronization.
         
+        This webhook handles proactive user synchronization from Supabase auth.users
+        to the local users table. It processes both INSERT and UPDATE events to ensure
+        the local database stays in sync with Supabase authentication state.
+        
+        Key features:
+        - OAuth account linking: If a user signs in with a different OAuth provider
+          (e.g., Google then Microsoft) using the same email, this will link the accounts
+          by updating the existing user's Supabase ID to the new one.
+        - Idempotency: Safely handles duplicate webhook calls.
+        - Metadata updates: Keeps user profile data in sync.
+        - Audit logging: All webhook events are logged for monitoring and debugging.
+        
         Args:
             payload: The webhook payload from Supabase.
-            session: Database session for user creation.
+            session: Database session for user operations.
+            client_ip: Client IP address for audit logging.
+            processing_start_time: Start time for performance tracking.
             
         Returns:
             Dictionary with operation result message.
+            
+        Raises:
+            HTTPException: If user creation/update fails.
         """
-        # Only process INSERT events for auth.users table
-        if payload.type != "INSERT" or payload.table != "users" or payload.schema_name != "auth":
-            return {"message": "Event ignored"}
+        import time
+        from Backend.models.webhook_audit_log import WebhookAuditLog
+        
+        # Track processing time
+        start_time = processing_start_time or time.time()
+        # Helper function to create audit log
+        async def create_audit_log(
+            success: bool,
+            action_taken: str | None = None,
+            error_message: str | None = None,
+            error_type: str | None = None,
+            record_id: str | None = None,
+            record_email: str | None = None
+        ):
+            """Create webhook audit log entry (without committing)."""
+            processing_time_ms = (time.time() - start_time) * 1000
+            
+            audit_log = WebhookAuditLog(
+                webhook_type="user_sync",
+                event_type=payload.type,
+                source_ip=client_ip,
+                table_name=f"{payload.schema_name}.{payload.table}",
+                record_id=record_id,
+                record_email=record_email,
+                success=success,
+                action_taken=action_taken,
+                error_message=error_message,
+                error_type=error_type,
+                processing_time_ms=processing_time_ms
+            )
+            
+            session.add(audit_log)
+            # Session will be committed by parent function for atomicity
+        
+        # Only process INSERT/UPDATE events for auth.users table
+        if payload.table != "users" or payload.schema_name != "auth":
+            logger.debug("Ignoring webhook for table %s.%s", payload.schema_name, payload.table)
+            await create_audit_log(
+                success=True,
+                action_taken="ignored_table"
+            )
+            await session.commit()
+            return {"message": "Event ignored - not auth.users table"}
+        
+        if payload.type not in ["INSERT", "UPDATE"]:
+            logger.debug("Ignoring %s event for auth.users", payload.type)
+            await create_audit_log(
+                success=True,
+                action_taken="ignored_event_type"
+            )
+            await session.commit()
+            return {"message": f"Event ignored - {payload.type} not supported"}
         
         if not payload.record:
+            logger.warning("Webhook received with no record data")
+            await create_audit_log(
+                success=False,
+                action_taken="error",
+                error_type="missing_record_data",
+                error_message="No record data in webhook payload"
+            )
+            await session.commit()
             return {"message": "No record data"}
         
         # Extract user data from webhook payload
@@ -252,34 +329,175 @@ class AuthService:
         
         if not user_id or not email:
             logger.error("Missing user_id or email in webhook payload")
-            return {"message": "Invalid user data"}
+            await create_audit_log(
+                success=False,
+                action_taken="error",
+                error_type="missing_required_fields",
+                error_message="Missing user_id or email"
+            )
+            await session.commit()
+            return {"message": "Invalid user data - missing required fields"}
         
         # Convert user_id string to UUID
         try:
             uuid_obj = PythonUUID(user_id)
         except ValueError:
-            logger.error(f"Invalid UUID format for user_id: {user_id}")
+            logger.error("Invalid UUID format for user_id: %s", user_id)
+            await create_audit_log(
+                success=False,
+                action_taken="error",
+                error_type="invalid_uuid_format",
+                error_message=f"Invalid UUID: {user_id}",
+                record_id=str(user_id),
+                record_email=email
+            )
             return {"message": "Invalid user ID format"}
         
-        # Check if user already exists
+        logger.info(
+            "[Webhook] Processing %s event for user %s (email: %s)",
+            payload.type,
+            uuid_obj,
+            email
+        )
+        
+        # Check if user already exists by Supabase ID
         existing_user = await session.get(User, uuid_obj)
+        
         if existing_user:
-            logger.info("User %s already exists in local DB", uuid_obj)
-            return {"message": "User already exists"}
+            # User exists with this Supabase ID - idempotent operation
+            if payload.type == "INSERT":
+                logger.info(
+                    "[Webhook] User %s already exists in local DB (idempotent INSERT)",
+                    uuid_obj
+                )
+                await create_audit_log(
+                    success=True,
+                    action_taken="idempotent",
+                    record_id=str(uuid_obj),
+                    record_email=email
+                )
+                await session.commit()
+                return {"message": "User already exists - idempotent"}
+            
+            # UPDATE event - update user metadata
+            logger.info("[Webhook] Updating existing user %s metadata", uuid_obj)
+            metadata = extract_user_metadata_from_supabase(raw_user_meta_data)
+            
+            # Update fields if they changed
+            if metadata.get("first_name") and existing_user.first_name != metadata["first_name"]:
+                existing_user.first_name = metadata["first_name"]
+            if metadata.get("last_name") and existing_user.last_name != metadata["last_name"]:
+                existing_user.last_name = metadata["last_name"]
+            if metadata.get("phone") and existing_user.phone != metadata["phone"]:
+                existing_user.phone = metadata["phone"]
+            if existing_user.is_email_verified != metadata.get("is_email_verified", False):
+                existing_user.is_email_verified = metadata["is_email_verified"]
+            
+            existing_user.updated_at = datetime.now(timezone.utc)
+            
+            await create_audit_log(
+                success=True,
+                action_taken="updated",
+                record_id=str(uuid_obj),
+                record_email=email
+            )
+            await session.commit()
+            return {"message": "User metadata updated successfully"}
+        
+        # User doesn't exist with this Supabase ID - check for email conflict (OAuth linking)
+        result = await session.execute(
+            select(User).where(User.email == email)
+        )
+        user_with_same_email = result.scalar_one_or_none()
+        
+        if user_with_same_email:
+            # Email conflict detected - this should NOT happen with enable_manual_linking=true
+            # Supabase should prompt user to link accounts and maintain same user_id
+            logger.error(
+                "[Webhook] UNEXPECTED: User with email %s exists with different Supabase ID. "
+                "Old ID: %s, New ID: %s. This indicates Supabase account linking failed or was declined.",
+                email,
+                user_with_same_email.id,
+                uuid_obj
+            )
+            
+            # Capture in Sentry for monitoring
+            with sentry_sdk.push_scope() as scope:
+                scope.set_tag("component", "webhook")
+                scope.set_tag("error_type", "duplicate_email_different_id")
+                scope.set_context("email_conflict", {
+                    "email": email,
+                    "existing_user_id": str(user_with_same_email.id),
+                    "new_supabase_id": str(uuid_obj),
+                    "action": "rejected"
+                })
+                sentry_sdk.capture_message(
+                    "Webhook detected email conflict - Supabase account linking may have failed",
+                    level="warning"
+                )
+            
+            await create_audit_log(
+                success=False,
+                action_taken="error",
+                error_type="email_conflict",
+                error_message=f"Email {email} already exists with different Supabase ID",
+                record_id=str(uuid_obj),
+                record_email=email
+            )
+            await session.commit()
+            
+            # Return error - user should use existing account or contact support
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "An account with this email already exists. "
+                    "Please sign in with your existing authentication method or contact support."
+                )
+            )
+        
+        # No existing user found - create new user
+        logger.info("[Webhook] Creating new user %s in local DB", uuid_obj)
         
         # Extract metadata
         metadata = extract_user_metadata_from_supabase(raw_user_meta_data)
         
-        # Use the new helper method to create user
+        # Use the helper method to create user
         try:
             await AuthService.create_user_from_supabase(
                 user_id, email, metadata, session
             )
+            logger.info("[Webhook] Successfully created user %s", uuid_obj)
+            
+            await create_audit_log(
+                success=True,
+                action_taken="created",
+                record_id=str(uuid_obj),
+                record_email=email
+            )
+            await session.commit()
             return {"message": "User created successfully"}
         except HTTPException:
+            await create_audit_log(
+                success=False,
+                action_taken="error",
+                error_type="http_exception",
+                error_message="Failed to create user - HTTP exception",
+                record_id=str(uuid_obj),
+                record_email=email
+            )
+            await session.commit()
             raise
         except Exception as e:
-            logger.exception("Error creating user %s from webhook", uuid_obj)
+            logger.exception("[Webhook] Error creating user %s", uuid_obj)
+            await create_audit_log(
+                success=False,
+                action_taken="error",
+                error_type=type(e).__name__,
+                error_message=str(e),
+                record_id=str(uuid_obj),
+                record_email=email
+            )
+            await session.commit()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to create user"

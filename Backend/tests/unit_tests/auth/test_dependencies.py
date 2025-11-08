@@ -99,17 +99,21 @@ class TestAuthDependencies:
         mock_supabase.auth.get_user.assert_called_once_with(valid_token)
 
     @patch('Backend.api.auth.dependencies.get_supabase_client')
-    @patch('Backend.models.user.User.model_validate')
-    async def test_get_current_user_jit_creation(self, mock_model_validate, mock_get_supabase_client, mock_session, mock_user, valid_token):
-        """Test JIT user creation when user does not exist in local DB."""
+    @patch('Backend.api.auth.dependencies.sentry_sdk')
+    async def test_get_current_user_not_synced_from_webhook(self, mock_sentry, mock_get_supabase_client, mock_session, mock_user, valid_token):
+        """Test user not found returns 401 when webhook hasn't synced user yet."""
         # Arrange
         mock_supabase = MagicMock()
         mock_user_response = MagicMock()
-        mock_user_response.user = MagicMock(id=mock_user.id, email=mock_user.email, user_metadata={"full_name": "Test User"})
+        mock_user_response.user = MagicMock(
+            id=mock_user.id, 
+            email=mock_user.email,
+            user_metadata={"full_name": "Test User"}
+        )
         mock_supabase.auth.get_user.return_value = mock_user_response
         mock_get_supabase_client.return_value = mock_supabase
 
-        # Return None for both session.get calls (initial check and re-check)
+        # User not found in local DB (webhook hasn't synced yet)
         mock_session.get = AsyncMock(return_value=None)
         
         # Mock the scalar result for the select query fallback
@@ -117,31 +121,27 @@ class TestAuthDependencies:
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute = AsyncMock(return_value=mock_result)
         
-        # Mock begin_nested with proper context manager
-        mock_nested_transaction = AsyncMock()
-        mock_nested_transaction.__aenter__ = AsyncMock(return_value=None)
-        mock_nested_transaction.__aexit__ = AsyncMock(return_value=None)
-        mock_session.begin_nested = MagicMock(return_value=mock_nested_transaction)
-        
-        # Mock User.model_validate to return our mock user
-        mock_model_validate.return_value = mock_user
-        
-        mock_session.add = MagicMock()
-        mock_session.flush = AsyncMock()
-        mock_session.refresh = AsyncMock()
+        # Mock Sentry
+        mock_scope = MagicMock()
+        mock_sentry.push_scope.return_value.__enter__ = MagicMock(return_value=mock_scope)
+        mock_sentry.push_scope.return_value.__exit__ = MagicMock(return_value=None)
 
         credentials = MagicMock(spec=HTTPAuthorizationCredentials)
         credentials.credentials = valid_token
         
-        # Act
-        user = await get_current_user(credentials, mock_session)
-
-        # Assert
-        assert user == mock_user
-        mock_model_validate.assert_called_once()
-        mock_session.add.assert_called_once_with(mock_user)
-        mock_session.flush.assert_called_once()
-        mock_session.refresh.assert_called_once_with(mock_user)
+        # Act & Assert
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_user(credentials, mock_session)
+        
+        # Verify error details
+        assert exc_info.value.status_code == 401
+        assert "not been properly synchronized" in exc_info.value.detail
+        assert "support@brikli.com" in exc_info.value.detail
+        assert exc_info.value.headers["X-Error-Type"] == "user_not_synced"
+        
+        # Verify Sentry was called
+        mock_sentry.capture_message.assert_called_once()
+        assert "not synced from Supabase" in mock_sentry.capture_message.call_args[0][0]
         
     @patch('Backend.api.auth.dependencies.get_supabase_client')
     async def test_get_current_user_sse_success(self, mock_get_supabase_client, mock_session, mock_user, valid_token, mock_request):

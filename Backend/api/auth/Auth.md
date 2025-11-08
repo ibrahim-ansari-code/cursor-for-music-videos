@@ -43,9 +43,11 @@ The Brikli Authentication API provides secure user authentication and authorizat
 
 - **Stateless Authentication**: JWT tokens contain all necessary claims
 - **Single Source of Truth**: Supabase manages authentication state
-- **Just-In-Time Provisioning**: Users are created in local DB on first access
+- **Proactive User Sync**: Users are synchronized to local DB via webhooks on sign-up
+- **Native Account Linking**: Supabase handles multi-provider linking (`enable_manual_linking = true`)
 - **Role-Based Access Control**: User types determine permissions (currently only LANDLORD)
 - **Security First**: All endpoints require authentication unless specified
+- **Comprehensive Audit Trail**: All webhook events logged for monitoring and debugging
 
 ### Component Overview
 
@@ -68,7 +70,8 @@ Backend Components:
 
 ## Authentication Flow
 
-### 1. User Registration
+### 1. User Registration (Webhook-Based Sync)
+
 ```mermaid
 sequenceDiagram
     participant Client
@@ -80,10 +83,11 @@ sequenceDiagram
     Client->>Frontend: Submit registration form
     Frontend->>Supabase: supabase.auth.signUp() with metadata
     Supabase->>Supabase: Create auth.users entry
+    Supabase->>Backend: Webhook: INSERT event
+    Backend->>Backend: Process webhook (rate limit, auth)
+    Backend->>Database: Create local user record + audit log
+    Backend->>Supabase: Return 200 OK
     Supabase->>Client: Send verification email
-    Supabase->>Backend: Webhook: user.created
-    Backend->>Database: Create local user record
-    Backend->>Supabase: Return success
     Supabase->>Frontend: Return session + JWT
     Frontend->>Client: Show "verify email" message
 ```
@@ -92,7 +96,9 @@ sequenceDiagram
 
 - `RegisterForm.jsx` collects: email, password, first name, last name, phone
 - Password requirements enforced client-side
-- Metadata passed to Supabase for webhook processing
+- Supabase triggers webhook on user creation (INSERT event)
+- Backend creates user proactively (no JIT on first login)
+- Webhook includes rate limiting and audit logging
 - Shows success message but no automatic login until email verified
 
 ### 2. User Login
@@ -114,7 +120,7 @@ sequenceDiagram
     App.jsx->>App.jsx: onAuthStateChange(SIGNED_IN)
     App.jsx->>Backend: GET /api/auth/me with JWT
     Backend->>Supabase: Verify JWT
-    Backend->>Database: Get/Create user (JIT)
+    Backend->>Database: Get user (created by webhook)
     Backend->>App.jsx: Return user profile
     App.jsx->>Frontend: Update AuthContext
     Frontend->>Client: Navigate to dashboard
@@ -125,8 +131,9 @@ sequenceDiagram
 - `LoginForm.jsx` uses `login()` function from AuthContext
 - JWT stored in localStorage as "token"
 - User profile fetched and cached in localStorage
+- User must exist in local DB (created by webhook on sign-up)
 - Automatic redirect to dashboard on success
-- Google OAuth follows same flow after redirect
+- Google/Microsoft OAuth follow same flow after redirect
 
 ### 3. Password Reset
 
@@ -195,7 +202,8 @@ Authorization: Bearer <token>
 **Implementation Notes:**
 
 - Used by App.jsx on login and session restore
-- Performs JIT user creation if user not in local DB
+- User must exist in local DB (created by webhook)
+- Returns 401 with clear error if user not synced
 - Validates JWT with Supabase before proceeding
 
 #### Resend Email Verification ✅
@@ -421,7 +429,7 @@ Authorization: Bearer <token>
 
 ### Webhook Endpoints
 
-#### Supabase User Sync Webhook
+#### Supabase User Sync Webhook (Production)
 
 ```http
 POST /api/auth/webhook/user-sync
@@ -429,7 +437,7 @@ X-Webhook-Secret: <webhook_secret>
 Content-Type: application/json
 
 {
-  "type": "INSERT",
+  "type": "INSERT",  # or "UPDATE"
   "table": "users",
   "schema": "auth",
   "record": {
@@ -438,19 +446,48 @@ Content-Type: application/json
     "raw_user_meta_data": {
       "first_name": "John",
       "last_name": "Doe",
-      "phone": "1234567890"
+      "phone": "1234567890",
+      "email_verified": true
     }
   }
 }
 ```
 
-**Response:**
+**Response (Success):**
 
 ```json
 {
   "message": "User created successfully"
 }
 ```
+
+**Response (OAuth Account Linking):**
+
+```json
+{
+  "message": "OAuth account linked successfully",
+  "action": "updated_supabase_id"
+}
+```
+
+**Features:**
+
+- **Rate Limiting**: 1000 requests/minute per IP
+- **Audit Logging**: All requests logged to `webhook_audit_logs` table
+- **OAuth Account Linking**: Automatically links when user signs in with different provider
+- **Idempotency**: Safe to retry - handles duplicate INSERTs gracefully
+- **Performance Tracking**: Logs processing time for monitoring
+- **Error Handling**: Comprehensive error capture with Sentry integration
+
+**Configuration:**
+
+Webhook must be configured in Supabase Dashboard:
+
+- Table: `auth.users`
+- Events: INSERT, UPDATE
+- URL: `https://api.brikli.com/api/auth/webhook/user-sync`
+- Headers: `X-Webhook-Secret: <secret>`
+- Timeout: 5000ms
 
 #### Manual User Sync
 
@@ -813,7 +850,8 @@ Google Sign-In is fully implemented through Supabase OAuth integration.
 - Set up in Supabase Dashboard under Authentication → Providers
 - Redirect URLs configured in Supabase
 - No additional backend endpoints required
-- JIT user creation handles first-time OAuth users
+- Webhook creates user on first sign-in (proactive sync)
+- OAuth account linking handles provider switching
 
 #### Microsoft OAuth ✅
 
@@ -842,10 +880,146 @@ Microsoft Sign-In is fully implemented through Supabase OAuth integration (Azure
 - Enable Azure provider and configure:
   - Client ID (from Azure AD App Registration)
   - Client Secret (from Azure AD App Registration)
-  - Tenant URL (optional, for single-tenant: `https://login.microsoftonline.com/your-tenant-id`)
+  - Tenant URL: `https://login.microsoftonline.com/common` (supports both work and personal accounts)
 - Redirect URLs are automatically handled by Supabase
 - No additional backend endpoints required
-- JIT user creation handles first-time OAuth users
+- Webhook creates user on first sign-in (proactive sync)
+- OAuth account linking handles switching between Google/Microsoft
+
+**Account Linking (Supabase Native):**
+
+When a user signs in with different OAuth providers using the same email:
+
+1. User signs in with Google → Supabase creates `auth.users` record (ID: `abc-123`)
+2. User later tries Microsoft → Supabase detects same email
+3. Supabase prompts: *"An account with this email exists. Link accounts?"*
+   - **User accepts** → Microsoft added to `auth.identities`, same ID `abc-123` ✅
+   - **User declines** → OAuth flow fails, user must use original method
+4. Webhook receives `INSERT` or `UPDATE` with stable Supabase ID → Syncs to local DB
+
+**Why This Works:**
+
+- ✅ **Native Supabase feature**: `enable_manual_linking = true` in config
+- ✅ **Stable user IDs**: Same `auth.users.id` across all providers
+- ✅ **Zero backend complexity**: No data transfer or migration logic needed
+- ✅ **User control**: Users explicitly consent to linking accounts
+- ✅ **Multiple providers**: Email + Google + Microsoft all link to same account
+- ✅ **Monitored**: Email conflicts logged to Sentry (shouldn't happen)
+
+## Webhook System & Monitoring
+
+### Webhook Audit Logs
+
+All webhook requests are logged to the `webhook_audit_logs` table for comprehensive monitoring and debugging.
+
+**Table Schema:**
+
+```sql
+CREATE TABLE webhook_audit_logs (
+    id UUID PRIMARY KEY,
+    webhook_type TEXT,  -- "user_sync"
+    event_type TEXT,  -- "INSERT", "UPDATE"
+    source_ip TEXT,
+    table_name TEXT,  -- "auth.users"
+    record_id TEXT,  -- User UUID
+    record_email TEXT,
+    success BOOLEAN,
+    action_taken TEXT,  -- "created", "updated", "oauth_account_linked", "idempotent", "error"
+    error_message TEXT,
+    error_type TEXT,
+    processing_time_ms DOUBLE PRECISION,
+    created_at TIMESTAMP WITH TIME ZONE
+);
+```
+
+**Action Types:**
+
+| Action | Description |
+|--------|-------------|
+| `created` | New user created successfully |
+| `updated` | Existing user metadata updated |
+| `oauth_account_linked` | OAuth accounts linked (different providers, same email) |
+| `idempotent` | Duplicate INSERT ignored (user already exists) |
+| `ignored_table` | Event for non-auth.users table |
+| `ignored_event_type` | DELETE event (not processed) |
+| `error` | Processing failed |
+
+### Monitoring Queries
+
+**Check webhook success rate (last 24 hours):**
+
+```sql
+SELECT 
+    COUNT(*) as total_webhooks,
+    SUM(CASE WHEN success THEN 1 ELSE 0 END) as successful,
+    ROUND(100.0 * SUM(CASE WHEN success THEN 1 ELSE 0 END) / COUNT(*), 2) as success_rate_pct,
+    AVG(processing_time_ms) as avg_processing_time_ms
+FROM webhook_audit_logs
+WHERE created_at > NOW() - INTERVAL '24 hours';
+```
+
+**Find recent failures:**
+
+```sql
+SELECT 
+    created_at,
+    record_email,
+    event_type,
+    error_type,
+    error_message
+FROM webhook_audit_logs
+WHERE success = FALSE
+ORDER BY created_at DESC
+LIMIT 20;
+```
+
+**OAuth account linking events:**
+
+```sql
+SELECT 
+    created_at,
+    record_email,
+    record_id
+FROM webhook_audit_logs
+WHERE action_taken = 'oauth_account_linked'
+ORDER BY created_at DESC
+LIMIT 50;
+```
+
+#### User Not Synced Errors
+
+**Symptom:** User gets "account has not been properly synchronized" error when trying to sign in
+
+**Cause:** Webhook didn't create user in local database
+
+**Solution:**
+
+1. Check Supabase webhook logs in dashboard
+2. Verify webhook configuration:
+   - Table: `auth.users` (NOT `public.users`)
+   - Events: INSERT, UPDATE enabled
+   - URL correct and accessible
+   - Webhook secret matches `SUPABASE_WEBHOOK_SECRET`
+3. Check backend logs: `grep "\[Webhook\]" logs/app.log`
+4. Check webhook_audit_logs for failures:
+
+   ```sql
+   SELECT * FROM webhook_audit_logs 
+   WHERE record_email = 'user@example.com'
+   ORDER BY created_at DESC;
+   ```
+
+#### Webhook Rate Limiting
+
+**Symptom:** Webhooks returning 429 errors
+
+**Cause:** Too many requests from one IP (>1000/minute)
+
+**Solution:**
+
+1. Check if Supabase is retrying failed webhooks in a loop
+2. Review webhook_audit_logs for patterns
+3. Increase rate limit if legitimate high traffic (edit `Backend/api/auth/webhook_rate_limiter.py`)
 
 ## Future Enhancements
 
