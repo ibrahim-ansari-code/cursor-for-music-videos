@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import GoogleSignInButton from "./GoogleSignInButton";
+import MicrosoftSignInButton from "./MicrosoftSignInButton";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Sentry from "@sentry/react";
 import { Eye, EyeOff } from "lucide-react";
@@ -495,6 +496,7 @@ const RegisterForm: React.FC = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full">
         <GoogleSignInButton setLoading={setLoading} setError={setError} />
+        <MicrosoftSignInButton setLoading={setLoading} setError={setError} />
 
         <div className="relative my-4">
           <div

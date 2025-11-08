@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import GoogleSignInButton from "./GoogleSignInButton";
+import MicrosoftSignInButton from "./MicrosoftSignInButton";
 import { supabase } from "../../utils/supabaseClient";
 
 const LoginForm = () => {
@@ -119,6 +120,7 @@ const LoginForm = () => {
 
         <div className="mt-8 sm:mx-auto sm:w-full">
           <GoogleSignInButton setLoading={setLoading} setError={setError} />
+          <MicrosoftSignInButton setLoading={setLoading} setError={setError} />
 
           <div className="relative my-4">
             <div

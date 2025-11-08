@@ -50,6 +50,7 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
         setError(
           error.message || "Failed to sign in with Google. Please try again."
         );
+        setLoading(false);
         
         if (import.meta.env.MODE === 'development') {
           console.log("Google Sign-In Failed", { error: error.message });
@@ -58,14 +59,13 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
     } catch (err) {
       console.error("Unexpected error during Google Sign-In:", err);
       setError("An unexpected error occurred. Please try again.");
+      setLoading(false);
       
       if (import.meta.env.MODE === 'development') {
         console.log("Google Sign-In Unexpected Error", { 
           error: err instanceof Error ? err.message : String(err) 
         });
       }
-    } finally {
-      setLoading(false);
     }
   };
 

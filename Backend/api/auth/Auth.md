@@ -815,6 +815,38 @@ Google Sign-In is fully implemented through Supabase OAuth integration.
 - No additional backend endpoints required
 - JIT user creation handles first-time OAuth users
 
+#### Microsoft OAuth ✅
+
+Microsoft Sign-In is fully implemented through Supabase OAuth integration (Azure AD).
+
+**Frontend Implementation:**
+
+- Component: `MicrosoftSignInButton.tsx` (Frontend) / `MicrosoftSignInButton.jsx` (Tenant-Frontend)
+- Used in: `LoginForm.jsx` and `RegisterForm.tsx` (both frontends)
+- Styling: Microsoft branding with official Microsoft logo colors
+- Error handling: Shows user-friendly error messages
+
+**Flow:**
+
+1. User clicks "Continue with Microsoft" button
+2. `supabase.auth.signInWithOAuth({ provider: "azure" })` called
+3. Redirects to Microsoft/Azure AD consent screen
+4. Microsoft redirects back to Supabase callback URL
+5. Supabase creates/updates user and issues JWT
+6. App receives SIGNED_IN event and fetches user profile
+7. User redirected to dashboard
+
+**Configuration:**
+
+- Set up in Supabase Dashboard under Authentication → Sign in → Providers
+- Enable Azure provider and configure:
+  - Client ID (from Azure AD App Registration)
+  - Client Secret (from Azure AD App Registration)
+  - Tenant URL (optional, for single-tenant: `https://login.microsoftonline.com/your-tenant-id`)
+- Redirect URLs are automatically handled by Supabase
+- No additional backend endpoints required
+- JIT user creation handles first-time OAuth users
+
 ## Future Enhancements
 
 ### Planned Features
@@ -825,7 +857,6 @@ Google Sign-In is fully implemented through Supabase OAuth integration.
    - Backup codes
 
 2. **Additional OAuth Providers**
-   - Microsoft OAuth
    - Facebook OAuth
    - Apple Sign In
    - LinkedIn OAuth
