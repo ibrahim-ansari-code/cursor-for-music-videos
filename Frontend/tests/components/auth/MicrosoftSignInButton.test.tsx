@@ -40,7 +40,7 @@ describe('MicrosoftSignInButton', () => {
     expect(screen.getByRole('button')).toBeInTheDocument();
   });
 
-  it('calls signInWithOAuth with azure provider when clicked', async () => {
+  it('calls signInWithOAuth with azure provider and options when clicked', async () => {
     mockSignInWithOAuth.mockResolvedValue({ 
       data: { provider: 'azure', url: 'https://login.microsoftonline.com/...' }, 
       error: null 
@@ -60,6 +60,10 @@ describe('MicrosoftSignInButton', () => {
       expect(mockSetLoading).toHaveBeenCalledWith(true);
       expect(mockSignInWithOAuth).toHaveBeenCalledWith({
         provider: 'azure',
+        options: {
+          scopes: 'openid email profile',
+          redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}dashboard`,
+        },
       });
     });
   });

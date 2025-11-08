@@ -31,6 +31,10 @@ const MicrosoftSignInButton: React.FC<MicrosoftSignInButtonProps> = ({
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "azure",
+        options: {
+          scopes: "openid email profile",
+          redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}dashboard`,
+        },
       });
 
       if (error) {
