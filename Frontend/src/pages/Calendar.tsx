@@ -19,13 +19,18 @@ import { CalendarFilters } from '../components/calendar/CalendarFilters';
 import { CreateReminderModal } from '../components/calendar/CreateReminderModal';
 import NewPaymentModal from '../components/accounting/modals/NewPaymentModal';
 import ViewInvoiceModal from '../components/accounting/modals/ViewInvoiceModal';
+import ViewLeaseModal from '../components/leases/modals/ViewLeaseModal';
 import MaintenanceRequestModal from '../components/maintenance/MaintenanceRequestModal';
 import RescheduleMaintenanceModal from '../components/calendar/RescheduleMaintenanceModal';
 import ConfirmCompleteMaintenanceModal from '../components/calendar/ConfirmCompleteMaintenanceModal';
+import ConfirmCompleteReminderModal from '../components/calendar/ConfirmCompleteReminderModal';
+import ConfirmDeleteReminderModal from '../components/calendar/ConfirmDeleteReminderModal';
 import { CalendarEvent, updateCustomReminder, deleteCustomReminder } from '../utils/api/calendar';
 import { fetchInvoice } from '../utils/api/accounting';
+import { fetchLease } from '../utils/api/leases';
 import { getMaintenanceRequest, updateMaintenanceRequest } from '../utils/api/maintenance';
 import type { Invoice } from '../types/accounting';
+import type { Lease } from '../types/lease';
 import { MaintenanceStatus, type MaintenanceRequest } from '../types/tenant';
 import { formatDateToYYYYMMDD } from '../utils/dateHelpers';
 import {
@@ -59,6 +64,18 @@ interface CompletingMaintenanceState {
   scheduledDate?: string;
 }
 
+interface CompletingReminderState {
+  id: string;
+  title: string;
+  reminderDate?: string;
+}
+
+interface DeletingReminderState {
+  id: string;
+  title: string;
+  reminderDate?: string;
+}
+
 const CalendarPage: React.FC = () => {
   const navigate = useNavigate();
   const { events, loading, error, filters, updateFilters, refetch } = useCalendar();
@@ -71,6 +88,8 @@ const CalendarPage: React.FC = () => {
   const [paymentModalData, setPaymentModalData] = useState<any>(null);
   const [viewInvoiceModalOpen, setViewInvoiceModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [viewLeaseModalOpen, setViewLeaseModalOpen] = useState(false);
+  const [selectedLease, setSelectedLease] = useState<Lease | null>(null);
   const [maintenanceModalOpen, setMaintenanceModalOpen] = useState(false);
   const [viewingMaintenanceRequest, setViewingMaintenanceRequest] = useState<MaintenanceRequest | null>(null);
   const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
@@ -78,6 +97,12 @@ const CalendarPage: React.FC = () => {
   const [confirmCompleteModalOpen, setConfirmCompleteModalOpen] = useState(false);
   const [completingMaintenance, setCompletingMaintenance] = useState<CompletingMaintenanceState | null>(null);
   const [isCompletingMaintenance, setIsCompletingMaintenance] = useState(false);
+  const [confirmCompleteReminderModalOpen, setConfirmCompleteReminderModalOpen] = useState(false);
+  const [completingReminder, setCompletingReminder] = useState<CompletingReminderState | null>(null);
+  const [isCompletingReminder, setIsCompletingReminder] = useState(false);
+  const [confirmDeleteReminderModalOpen, setConfirmDeleteReminderModalOpen] = useState(false);
+  const [deletingReminder, setDeletingReminder] = useState<DeletingReminderState | null>(null);
+  const [isDeletingReminder, setIsDeletingReminder] = useState(false);
 
   // Transform calendar events to react-big-calendar format
   const calendarEvents = useMemo(() => {
@@ -155,9 +180,19 @@ const CalendarPage: React.FC = () => {
           break;
 
         case 'view_lease':
-          // Navigate to lease details
-          if (event.metadata?.lease_id) {
-            navigate(`/leases/${event.metadata.lease_id}`);
+          // Fetch and display lease in modal
+          if (!event.source_id) {
+            toast.error('Lease information not available.');
+            return;
+          }
+          try {
+            const leaseId = parseInt(event.source_id);
+            const lease = await fetchLease(leaseId);
+            setSelectedLease(lease);
+            setViewLeaseModalOpen(true);
+          } catch (error: any) {
+            console.error('Failed to load lease:', error);
+            toast.error('Failed to load lease details');
           }
           break;
 
@@ -217,43 +252,53 @@ const CalendarPage: React.FC = () => {
 
         case 'edit_reminder':
           // Open edit modal for custom reminder
-          if (event.type === 'custom_reminder') {
-            const reminderData = {
-              id: event.metadata?.reminder_id || eventId.replace('custom_reminder_', ''),
-              title: event.title,
-              description: event.description,
-              reminder_date: event.start_at.split('T')[0], // Format to YYYY-MM-DD
-              all_day: event.all_day,
-              property_id: event.metadata?.property_id,
-              unit_id: event.metadata?.unit_id,
-              tenant_id: event.metadata?.tenant_id,
-              notify_before_hours: event.metadata?.notify_before_hours || 24,
-            };
-            setEditingReminder(reminderData);
-            setReminderModalOpen(true);
+          if (event.source_type !== 'custom') {
+            toast.error('This action is only available for custom reminders.');
+            return;
           }
+          const reminderData = {
+            id: event.source_id,
+            title: event.title,
+            description: event.description,
+            reminder_date: event.start_at.split('T')[0], // Format to YYYY-MM-DD
+            all_day: event.all_day,
+            property_id: event.metadata?.property_id,
+            unit_id: event.metadata?.unit_id,
+            tenant_id: event.metadata?.tenant_id,
+            notify_before_hours: event.metadata?.notify_before_hours || 24,
+          };
+          setEditingReminder(reminderData);
+          setReminderModalOpen(true);
           break;
 
         case 'complete_reminder':
-          // Mark reminder as complete
-          if (event.type === 'custom_reminder') {
-            const reminderId = event.metadata?.reminder_id || eventId.replace('custom_reminder_', '');
-            await updateCustomReminder(reminderId, { is_completed: true });
-            toast.success('Reminder marked as complete');
-            refetch();
+          // Open confirmation modal to mark reminder as complete
+          if (event.source_type !== 'custom') {
+            toast.error('This action is only available for custom reminders.');
+            return;
           }
+
+          setCompletingReminder({
+            id: event.source_id,
+            title: event.title,
+            reminderDate: event.start_at.split('T')[0],
+          });
+          setConfirmCompleteReminderModalOpen(true);
           break;
 
         case 'delete_reminder':
-          // Delete custom reminder
-          if (event.type === 'custom_reminder') {
-            if (window.confirm('Are you sure you want to delete this reminder?')) {
-              const reminderId = event.metadata?.reminder_id || eventId.replace('custom_reminder_', '');
-              await deleteCustomReminder(reminderId);
-              toast.success('Reminder deleted');
-              refetch();
-            }
+          // Open confirmation modal to delete reminder
+          if (event.source_type !== 'custom') {
+            toast.error('This action is only available for custom reminders.');
+            return;
           }
+
+          setDeletingReminder({
+            id: event.source_id,
+            title: event.title,
+            reminderDate: event.start_at.split('T')[0],
+          });
+          setConfirmDeleteReminderModalOpen(true);
           break;
 
         default:
@@ -517,6 +562,16 @@ const CalendarPage: React.FC = () => {
         invoice={selectedInvoice}
       />
 
+      {/* View Lease Modal */}
+      <ViewLeaseModal
+        isOpen={viewLeaseModalOpen}
+        onClose={() => {
+          setViewLeaseModalOpen(false);
+          setSelectedLease(null);
+        }}
+        lease={selectedLease}
+      />
+
       {/* View Maintenance Request Modal */}
       <MaintenanceRequestModal
         isOpen={maintenanceModalOpen}
@@ -575,18 +630,78 @@ const CalendarPage: React.FC = () => {
             });
             toast.success('Maintenance marked as complete');
             refetch();
-            setConfirmCompleteModalOpen(false);
-            setCompletingMaintenance(null);
           } catch (error: any) {
             console.error('Failed to complete maintenance request:', error);
             toast.error('Failed to mark maintenance as complete. Please try again.');
           } finally {
             setIsCompletingMaintenance(false);
+            setConfirmCompleteModalOpen(false);
+            setCompletingMaintenance(null);
           }
         }}
         maintenanceTitle={completingMaintenance?.title || ''}
         scheduledDate={completingMaintenance?.scheduledDate}
         isSubmitting={isCompletingMaintenance}
+      />
+
+      {/* Confirm Complete Reminder Modal */}
+      <ConfirmCompleteReminderModal
+        isOpen={confirmCompleteReminderModalOpen}
+        onClose={() => {
+          setConfirmCompleteReminderModalOpen(false);
+          setCompletingReminder(null);
+          setIsCompletingReminder(false);
+        }}
+        onConfirm={async () => {
+          if (!completingReminder) return;
+
+          setIsCompletingReminder(true);
+          try {
+            await updateCustomReminder(completingReminder.id, { is_completed: true });
+            toast.success('Reminder marked as complete');
+            refetch();
+          } catch (error: any) {
+            console.error('Failed to complete reminder:', error);
+            toast.error('Failed to mark reminder as complete. Please try again.');
+          } finally {
+            setIsCompletingReminder(false);
+            setConfirmCompleteReminderModalOpen(false);
+            setCompletingReminder(null);
+          }
+        }}
+        reminderTitle={completingReminder?.title || ''}
+        reminderDate={completingReminder?.reminderDate}
+        isSubmitting={isCompletingReminder}
+      />
+
+      {/* Confirm Delete Reminder Modal */}
+      <ConfirmDeleteReminderModal
+        isOpen={confirmDeleteReminderModalOpen}
+        onClose={() => {
+          setConfirmDeleteReminderModalOpen(false);
+          setDeletingReminder(null);
+          setIsDeletingReminder(false);
+        }}
+        onConfirm={async () => {
+          if (!deletingReminder) return;
+
+          setIsDeletingReminder(true);
+          try {
+            await deleteCustomReminder(deletingReminder.id);
+            toast.success('Reminder deleted successfully');
+            refetch();
+          } catch (error: any) {
+            console.error('Failed to delete reminder:', error);
+            toast.error('Failed to delete reminder. Please try again.');
+          } finally {
+            setIsDeletingReminder(false);
+            setConfirmDeleteReminderModalOpen(false);
+            setDeletingReminder(null);
+          }
+        }}
+        reminderTitle={deletingReminder?.title || ''}
+        reminderDate={deletingReminder?.reminderDate}
+        isSubmitting={isDeletingReminder}
       />
     </div>
   );

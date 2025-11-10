@@ -503,7 +503,7 @@ async def build_custom_reminder_events(
             source_type="custom",
             source_id=str(reminder.id),
             color=compute_event_color(status),
-            quick_actions=get_quick_actions(CalendarEventType.CUSTOM_REMINDER),
+            quick_actions=get_quick_actions(CalendarEventType.CUSTOM_REMINDER, reminder.is_completed),
             metadata={
                 "notify_before_hours": reminder.notify_before_hours,
                 "completed_at": reminder.completed_at.isoformat() if reminder.completed_at else None

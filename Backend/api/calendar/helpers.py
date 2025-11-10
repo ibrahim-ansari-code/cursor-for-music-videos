@@ -68,7 +68,7 @@ def compute_event_color(status: CalendarEventStatus) -> str:
 
 def get_quick_actions(
     event_type: CalendarEventType,
-    source_status: Optional[str | PaymentStatus | MaintenanceStatus] = None
+    source_status: Optional[str | PaymentStatus | MaintenanceStatus | bool] = None
 ) -> List[str]:
     """
     Determine available quick actions for an event.
@@ -105,7 +105,10 @@ def get_quick_actions(
         actions.extend(["view_property", "add_reminder"])
     
     elif event_type == CalendarEventType.CUSTOM_REMINDER:
-        actions.extend(["mark_complete", "snooze", "edit", "delete"])
+        # Only show complete action if reminder is not already completed
+        if not source_status:  # is_completed == False
+            actions.append("complete_reminder")
+        actions.extend(["edit_reminder", "delete_reminder"])
     
     return actions
 

@@ -12,11 +12,14 @@ import { QUERY_KEYS } from '../hooks/queryKeys';
 import TenantProfileHeader from '../components/tenants/TenantProfile/ProfileHeader';
 import FilePreviewModal from '../components/FilePreviewModal';
 import NewPaymentModal from '../components/accounting/modals/NewPaymentModal';
+import ViewLeaseModal from '../components/leases/modals/ViewLeaseModal';
 import EmergencyContactModal from '../components/tenants/modals/EmergencyContactModal';
 import MaintenanceRequestModal from '../components/maintenance/MaintenanceRequestModal.tsx';
 import DocumentUploadModal from '../components/tenants/TenantProfile/tabs/DocumentsTab/DocumentUploadModal';
 import { createMaintenanceRequest } from '../utils/api';
 import { updateMaintenanceRequest } from '../utils/api/maintenance';
+import { fetchLease } from '../utils/api/leases';
+import type { Lease } from '../types/lease';
 
 const TenantProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +47,10 @@ const TenantProfile: React.FC = () => {
 
   // Document Upload modal state (lifted to this level for proper fixed positioning and z-index)
   const [showDocumentUploadModal, setShowDocumentUploadModal] = useState(false);
+
+  // Lease modal state (lifted to this level for proper fixed positioning and z-index)
+  const [showLeaseModal, setShowLeaseModal] = useState(false);
+  const [selectedLease, setSelectedLease] = useState<Lease | null>(null);
 
   // Fetch tenant data with optimized caching strategy
   // - staleTime: 2 minutes (allows tab switching without refetch)
@@ -215,6 +222,22 @@ const TenantProfile: React.FC = () => {
     setShowDocumentUploadModal(false);
   };
 
+  const openLeaseModal = async (leaseId: number) => {
+    try {
+      const lease = await fetchLease(leaseId);
+      setSelectedLease(lease);
+      setShowLeaseModal(true);
+    } catch (error: any) {
+      console.error('Failed to load lease:', error);
+      toast.error('Failed to load lease details');
+    }
+  };
+
+  const closeLeaseModal = () => {
+    setShowLeaseModal(false);
+    setSelectedLease(null);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
@@ -314,7 +337,7 @@ const TenantProfile: React.FC = () => {
 
       {/* Main Content */}
       <div className="p-6 max-w-[1600px] mx-auto">
-        <Outlet context={{ tenant, refetch, openFilePreviewModal, closeFilePreviewModal, openPaymentModal, openEmergencyContactModal, openMaintenanceModal, openDocumentUploadModal }} />
+        <Outlet context={{ tenant, refetch, openFilePreviewModal, closeFilePreviewModal, openPaymentModal, openEmergencyContactModal, openMaintenanceModal, openDocumentUploadModal, openLeaseModal }} />
       </div>
 
       {/* File Preview Modal - Rendered at root level for proper fixed positioning */}
@@ -371,6 +394,13 @@ const TenantProfile: React.FC = () => {
           }
         />
       )}
+
+      {/* View Lease Modal - Rendered at root level for proper fixed positioning and z-index */}
+      <ViewLeaseModal
+        isOpen={showLeaseModal}
+        onClose={closeLeaseModal}
+        lease={selectedLease}
+      />
     </div>
   );
 };

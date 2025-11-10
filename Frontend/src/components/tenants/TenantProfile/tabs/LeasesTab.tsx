@@ -6,6 +6,7 @@ import { formatDate } from '../../../../utils/tenantUtils';
 interface OutletContext {
   tenant: EnrichedTenant;
   refetch: () => void;
+  openLeaseModal: (leaseId: number) => Promise<void>;
 }
 
 const LeasesTab: React.FC = () => {
@@ -23,7 +24,7 @@ const LeasesTab: React.FC = () => {
     );
   }
 
-  const { tenant } = context;
+  const { tenant, openLeaseModal } = context;
 
   const formatCurrency = (value: number | string | undefined | null): string => {
     if (value === undefined || value === null) return 'N/A';
@@ -98,7 +99,10 @@ const LeasesTab: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <button className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium">
+                      <button
+                        onClick={() => openLeaseModal(lease.id)}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium transition-colors"
+                      >
                         View Details
                       </button>
                     </td>

@@ -172,8 +172,9 @@ class TestGetQuickActions:
         )
         
         # Assert
-        assert "edit" in actions
-        assert "mark_complete" in actions
+        assert "edit_reminder" in actions
+        assert "complete_reminder" in actions
+        assert "delete_reminder" in actions
     
     def test_property_expiry(self):
         """Test quick actions for property insurance/mortgage expiry."""
