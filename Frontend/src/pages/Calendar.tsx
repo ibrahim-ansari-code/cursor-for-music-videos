@@ -19,9 +19,15 @@ import { CalendarFilters } from '../components/calendar/CalendarFilters';
 import { CreateReminderModal } from '../components/calendar/CreateReminderModal';
 import NewPaymentModal from '../components/accounting/modals/NewPaymentModal';
 import ViewInvoiceModal from '../components/accounting/modals/ViewInvoiceModal';
+import MaintenanceRequestModal from '../components/maintenance/MaintenanceRequestModal';
+import RescheduleMaintenanceModal from '../components/calendar/RescheduleMaintenanceModal';
+import ConfirmCompleteMaintenanceModal from '../components/calendar/ConfirmCompleteMaintenanceModal';
 import { CalendarEvent, updateCustomReminder, deleteCustomReminder } from '../utils/api/calendar';
 import { fetchInvoice } from '../utils/api/accounting';
+import { getMaintenanceRequest, updateMaintenanceRequest } from '../utils/api/maintenance';
 import type { Invoice } from '../types/accounting';
+import { MaintenanceStatus, type MaintenanceRequest } from '../types/tenant';
+import { formatDateToYYYYMMDD } from '../utils/dateHelpers';
 import {
   CalendarIcon,
   ListIcon,
@@ -41,6 +47,18 @@ const localizer = dateFnsLocalizer({
 
 type ViewMode = 'month' | 'list';
 
+interface ReschedulingMaintenanceState {
+  id: number;
+  title: string;
+  currentDate?: string;
+}
+
+interface CompletingMaintenanceState {
+  id: number;
+  title: string;
+  scheduledDate?: string;
+}
+
 const CalendarPage: React.FC = () => {
   const navigate = useNavigate();
   const { events, loading, error, filters, updateFilters, refetch } = useCalendar();
@@ -53,6 +71,13 @@ const CalendarPage: React.FC = () => {
   const [paymentModalData, setPaymentModalData] = useState<any>(null);
   const [viewInvoiceModalOpen, setViewInvoiceModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [maintenanceModalOpen, setMaintenanceModalOpen] = useState(false);
+  const [viewingMaintenanceRequest, setViewingMaintenanceRequest] = useState<MaintenanceRequest | null>(null);
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+  const [reschedulingMaintenance, setReschedulingMaintenance] = useState<ReschedulingMaintenanceState | null>(null);
+  const [confirmCompleteModalOpen, setConfirmCompleteModalOpen] = useState(false);
+  const [completingMaintenance, setCompletingMaintenance] = useState<CompletingMaintenanceState | null>(null);
+  const [isCompletingMaintenance, setIsCompletingMaintenance] = useState(false);
 
   // Transform calendar events to react-big-calendar format
   const calendarEvents = useMemo(() => {
@@ -137,15 +162,50 @@ const CalendarPage: React.FC = () => {
           break;
 
         case 'view_maintenance':
-          // Navigate to maintenance request
-          if (event.metadata?.maintenance_id) {
-            navigate(`/maintenance/${event.metadata.maintenance_id}`);
+          // Fetch and display maintenance request in modal
+          if (event.source_type !== 'maintenance') {
+            toast.error('This action is only available for maintenance events.');
+            return;
+          }
+          try {
+            const maintenanceId = parseInt(event.source_id);
+            const maintenanceRequest = await getMaintenanceRequest(maintenanceId);
+            setViewingMaintenanceRequest(maintenanceRequest);
+            setMaintenanceModalOpen(true);
+          } catch (error: any) {
+            console.error('Failed to load maintenance request:', error);
+            toast.error('Failed to load maintenance request details');
           }
           break;
 
-        case 'complete_maintenance':
-          // Mark maintenance as complete
-          toast.info('Complete maintenance feature coming soon');
+        case 'mark_complete':
+          // Mark maintenance as complete with secure confirmation modal
+          if (event.source_type !== 'maintenance') {
+            toast.error('This action is only available for maintenance events.');
+            return;
+          }
+
+          setCompletingMaintenance({
+            id: parseInt(event.source_id),
+            title: event.title,
+            scheduledDate: event.metadata?.scheduled_date || event.start_at.split('T')[0],
+          });
+          setConfirmCompleteModalOpen(true);
+          break;
+
+        case 'reschedule':
+          // Open reschedule modal for maintenance
+          if (event.source_type !== 'maintenance') {
+            toast.error('This action is only available for maintenance events.');
+            return;
+          }
+
+          setReschedulingMaintenance({
+            id: parseInt(event.source_id),
+            title: event.title,
+            currentDate: event.metadata?.scheduled_date || event.start_at.split('T')[0],
+          });
+          setRescheduleModalOpen(true);
           break;
 
         case 'view_property':
@@ -455,6 +515,78 @@ const CalendarPage: React.FC = () => {
           setSelectedInvoice(null);
         }}
         invoice={selectedInvoice}
+      />
+
+      {/* View Maintenance Request Modal */}
+      <MaintenanceRequestModal
+        isOpen={maintenanceModalOpen}
+        onClose={() => {
+          setMaintenanceModalOpen(false);
+          setViewingMaintenanceRequest(null);
+        }}
+        onSubmit={async () => {}} // No-op for view mode
+        request={viewingMaintenanceRequest}
+        isViewing={true}
+      />
+
+      {/* Reschedule Maintenance Modal */}
+      <RescheduleMaintenanceModal
+        isOpen={rescheduleModalOpen}
+        onClose={() => {
+          setRescheduleModalOpen(false);
+          setReschedulingMaintenance(null);
+        }}
+        onReschedule={async (newDate: string) => {
+          if (!reschedulingMaintenance) return;
+
+          try {
+            await updateMaintenanceRequest(reschedulingMaintenance.id, {
+              scheduled_date: newDate,
+            });
+            toast.success('Maintenance rescheduled successfully');
+            refetch();
+            setRescheduleModalOpen(false);
+            setReschedulingMaintenance(null);
+          } catch (error: any) {
+            console.error('Failed to reschedule maintenance:', error);
+            throw error; // Let modal handle error display
+          }
+        }}
+        currentDate={reschedulingMaintenance?.currentDate}
+        maintenanceTitle={reschedulingMaintenance?.title || ''}
+      />
+
+      {/* Confirm Complete Maintenance Modal */}
+      <ConfirmCompleteMaintenanceModal
+        isOpen={confirmCompleteModalOpen}
+        onClose={() => {
+          setConfirmCompleteModalOpen(false);
+          setCompletingMaintenance(null);
+          setIsCompletingMaintenance(false);
+        }}
+        onConfirm={async () => {
+          if (!completingMaintenance) return;
+
+          setIsCompletingMaintenance(true);
+          try {
+            await updateMaintenanceRequest(completingMaintenance.id, {
+              status: MaintenanceStatus.COMPLETED,
+              completed_date: formatDateToYYYYMMDD(new Date()),
+            });
+            toast.success('Maintenance marked as complete');
+            refetch();
+            setConfirmCompleteModalOpen(false);
+            setCompletingMaintenance(null);
+          } catch (error: any) {
+            console.error('Failed to complete maintenance request:', error);
+            toast.error('Failed to mark maintenance as complete. Please try again.');
+          } finally {
+            setIsCompletingMaintenance(false);
+          }
+        }}
+        maintenanceTitle={completingMaintenance?.title || ''}
+        scheduledDate={completingMaintenance?.scheduledDate}
+        isSubmitting={isCompletingMaintenance}
       />
     </div>
   );
