@@ -336,6 +336,9 @@ export interface TenantTableProps {
   onDeleteTenant: (tenantId: number) => void;
   onAddTenant: () => void;
   isLoading: boolean;
+  selectedTenants: number[];
+  onToggleSelectAll: () => void;
+  onToggleSelect: (tenantId: number) => void;
 }
 
 // Maintenance Form Types

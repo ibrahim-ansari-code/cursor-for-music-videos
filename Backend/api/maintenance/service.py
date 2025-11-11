@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import func
+from sqlalchemy import delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -375,6 +375,68 @@ class MaintenanceService:
         logger.info(
             f"User {current_user.id} deleted maintenance request {request_id}"
         )
+
+    @staticmethod
+    async def bulk_delete_maintenance_requests(
+        request_ids: list[int],
+        current_user: User,
+        session: AsyncSession
+    ) -> None:
+        logger.info(
+            f"User {current_user.id} attempting to bulk delete maintenance requests: {request_ids}"
+        )
+        
+        if not request_ids:
+            return
+
+        try:
+            # Step 1: Fetch all requests in a single query with ownership validation
+            query = select(MaintenanceRequest).where(
+                col(MaintenanceRequest.id).in_(request_ids)
+            )
+            if not current_user.is_admin:
+                query = query.join(Property, col(MaintenanceRequest.property_id) == col(Property.id)).where(
+                    col(Property.user_id) == current_user.id
+                )
+            
+            result = await session.execute(query)
+            requests_to_delete = result.scalars().all()
+
+            # Step 2: Validate that all requested records were found
+            if len(requests_to_delete) != len(set(request_ids)):
+                found_ids = {req.id for req in requests_to_delete}
+                missing_ids = set(request_ids) - found_ids
+                logger.warning(
+                    "User %s attempted to delete non-existent or unauthorized maintenance requests: %s",
+                    current_user.id,
+                    missing_ids,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="One or more maintenance requests not found or you do not have permission to delete them.",
+                )
+
+            # Step 3: Delete all verified requests using bulk delete (avoids N+1 queries)
+            await session.execute(
+                delete(MaintenanceRequest).where(col(MaintenanceRequest.id).in_(request_ids))
+            )
+
+            # Step 4: Commit the transaction
+            await session.commit()
+            logger.info(
+                f"User {current_user.id} successfully deleted maintenance requests: {request_ids}"
+            )
+
+        except HTTPException:
+            await session.rollback()
+            raise
+        except Exception as e:
+            await session.rollback()
+            logger.exception("Error during bulk deletion of maintenance requests")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"An unexpected error occurred during bulk deletion: {str(e)}"
+            ) from e
 
     @staticmethod
     async def get_maintenance_summary(

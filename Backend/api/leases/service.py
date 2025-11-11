@@ -765,3 +765,73 @@ async def delete_lease(lease_id: int, current_user: User, session: AsyncSession)
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete lease: {str(e)}",
         ) from e 
+
+
+async def bulk_delete_leases(lease_ids: list[int], current_user: User, session: AsyncSession) -> None:
+    logger.info("Bulk delete request for leases %s by user %s", lease_ids, current_user.id)
+    
+    # Early return for empty list (matches Maintenance and Tenants services)
+    if not lease_ids:
+        return
+
+    try:
+        # Step 1: Fetch all leases in a single query with ownership validation
+        query = select(Lease).where(col(Lease.id).in_(lease_ids))
+        if not current_user.is_admin:
+            # For landlords, ensure they own the property associated with the lease
+            query = query.join(Property, col(Lease.property_id) == col(Property.id)).where(
+                col(Property.user_id) == current_user.id
+            )
+        
+        result = await session.execute(query)
+        leases_to_delete = result.scalars().all()
+
+        # Step 2: Validate that all requested leases were found
+        if len(leases_to_delete) != len(set(lease_ids)):
+            found_ids = {lease.id for lease in leases_to_delete}
+            missing_ids = set(lease_ids) - found_ids
+            logger.warning(
+                "User %s attempted to delete non-existent or unauthorized leases: %s",
+                current_user.id,
+                missing_ids,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="One or more leases not found or you do not have permission to delete them.",
+            )
+
+        # Step 3: Check for active leases and collect IDs for better error message
+        active_lease_ids = [lease.id for lease in leases_to_delete if lease.status == LeaseStatus.ACTIVE]
+
+        if active_lease_ids:
+            logger.warning("User %s attempted to delete active leases %s. Aborting.", current_user.id, active_lease_ids)
+            # Use 409 CONFLICT because this is a business logic conflict (resource state prevents action)
+            # not an authorization issue (which would be 403)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Cannot delete active leases: {', '.join(map(str, active_lease_ids))}. Please terminate them first.",
+            )
+
+        # Step 4: Delete all verified leases using ORM delete (triggers ORM hooks/cascades)
+        for lease in leases_to_delete:
+            await session.delete(lease)
+
+        # Step 5: Commit the transaction
+        await session.commit()
+        logger.info("Leases %s deleted successfully by user %s", lease_ids, current_user.id)
+
+    except HTTPException:
+        await session.rollback()
+        raise
+    except Exception as e:
+        await session.rollback()
+        logger.exception("Error during bulk deletion of leases for user %s", current_user.id)
+        if "violates foreign key constraint" in str(e).lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot delete one or more leases because they are still referenced by other records.",
+            ) from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete one or more leases: {str(e)}",
+        ) from e

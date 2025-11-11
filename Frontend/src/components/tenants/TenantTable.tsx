@@ -3,15 +3,35 @@ import { useNavigate } from "react-router-dom";
 import { getInitials, formatDate } from "../../utils/tenantUtils";
 import { TenantTableProps, EnrichedTenant } from "../../types/tenant";
 
-const TenantTable: React.FC<TenantTableProps> = ({ tenants, onEditTenant, onDeleteTenant, onAddTenant, isLoading }) => {
+const TenantTable: React.FC<TenantTableProps> = ({
+  tenants,
+  onEditTenant,
+  onDeleteTenant,
+  onAddTenant,
+  isLoading,
+  selectedTenants,
+  onToggleSelectAll,
+  onToggleSelect,
+}) => {
   const navigate = useNavigate();
+  const selectAllRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate =
+        selectedTenants.length > 0 && selectedTenants.length < tenants.length;
+    }
+  }, [selectedTenants.length, tenants.length]);
 
   // Helper function to get tenant display name
   const getTenantDisplayName = (tenant: EnrichedTenant): string => {
     if (tenant.tenant_type === "Company") {
       return tenant.company_name || "Company Tenant";
     } else {
-      return `${tenant.first_name || ""} ${tenant.last_name || ""}`.trim() || "Individual Tenant";
+      return (
+        `${tenant.first_name || ""} ${tenant.last_name || ""}`.trim() ||
+        "Individual Tenant"
+      );
     }
   };
 
@@ -31,7 +51,7 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, onEditTenant, onDele
 
     // Find the most recent active lease
     const today = new Date();
-    const activeLease = tenant.leases.find(lease => {
+    const activeLease = tenant.leases.find((lease) => {
       // Validate dates before comparison
       if (!lease.start_date || !lease.end_date) return false;
       const startDate = new Date(lease.start_date);
@@ -46,16 +66,19 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, onEditTenant, onDele
     });
 
     let targetLease = activeLease;
-    
+
     // If no active lease, use the most recent lease
     if (!targetLease && tenant.leases.length > 0) {
       // Filter leases with valid start_date before reduce operation
-      const validLeases = tenant.leases.filter(lease => 
-        lease.start_date && !isNaN(new Date(lease.start_date).getTime())
+      const validLeases = tenant.leases.filter(
+        (lease) =>
+          lease.start_date && !isNaN(new Date(lease.start_date).getTime())
       );
       if (validLeases.length > 0) {
         targetLease = validLeases.reduce((latest, current) => {
-          return new Date(current.start_date) > new Date(latest.start_date) ? current : latest;
+          return new Date(current.start_date) > new Date(latest.start_date)
+            ? current
+            : latest;
         });
       }
     }
@@ -66,7 +89,7 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, onEditTenant, onDele
 
     const startDate = formatDate(targetLease.start_date);
     const endDate = formatDate(targetLease.end_date);
-    
+
     return `${startDate} - ${endDate}`;
   };
 
@@ -78,7 +101,10 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, onEditTenant, onDele
             <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
             <div className="space-y-3">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-12 bg-gray-100 dark:bg-gray-600 rounded"></div>
+                <div
+                  key={i}
+                  className="h-12 bg-gray-100 dark:bg-gray-600 rounded"
+                ></div>
               ))}
             </div>
           </div>
@@ -143,13 +169,65 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, onEditTenant, onDele
         <table className="data-table min-w-full">
           <thead>
             <tr>
-              <th scope="col" className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Tenant</th>
-              <th scope="col" className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Property</th>
-              <th scope="col" className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Unit</th>
-              <th scope="col" className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Email</th>
-              <th scope="col" className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Phone</th>
-              <th scope="col" className="px-6 py-4 text-center font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Lease & Status</th>
-              <th scope="col" className="px-6 py-4 text-center font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Actions</th>
+              <th
+                scope="col"
+                className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+              >
+                <input
+                  type="checkbox"
+                  ref={selectAllRef}
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  onChange={onToggleSelectAll}
+                  checked={
+                    tenants.length > 0 &&
+                    tenants.every((tenant) =>
+                      selectedTenants.includes(tenant.id)
+                    )
+                  }
+                />
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+              >
+                Tenant
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+              >
+                Property
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+              >
+                Unit
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+              >
+                Email
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+              >
+                Phone
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-4 text-center font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+              >
+                Lease & Status
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-4 text-center font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+              >
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -157,7 +235,7 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, onEditTenant, onDele
               const leaseDuration = getLeaseDuration(tenant);
               const displayName = getTenantDisplayName(tenant);
               const subtitle = getTenantSubtitle(tenant);
-              
+
               // data-table CSS now handles zebra striping
               return (
                 <tr
@@ -165,6 +243,17 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, onEditTenant, onDele
                   onClick={() => navigate(`/tenants/${tenant.id}`)}
                   className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                 >
+                  <td
+                    className="px-6 py-4 whitespace-nowrap"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      checked={selectedTenants.includes(tenant.id)}
+                      onChange={() => onToggleSelect(tenant.id)}
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
@@ -201,26 +290,24 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, onEditTenant, onDele
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-left">
                     {tenant.email ? (
-                      <a 
-                        href={`mailto:${tenant.email}`}
-                        className="email-link"
-                      >
+                      <a href={`mailto:${tenant.email}`} className="email-link">
                         {tenant.email}
                       </a>
                     ) : (
-                      <span className="text-gray-500 dark:text-gray-400">--</span>
+                      <span className="text-gray-500 dark:text-gray-400">
+                        --
+                      </span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-left">
                     {tenant.phone ? (
-                      <a 
-                        href={`tel:${tenant.phone}`}
-                        className="phone-link"
-                      >
+                      <a href={`tel:${tenant.phone}`} className="phone-link">
                         {tenant.phone}
                       </a>
                     ) : (
-                      <span className="text-gray-500 dark:text-gray-400">--</span>
+                      <span className="text-gray-500 dark:text-gray-400">
+                        --
+                      </span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -232,10 +319,13 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, onEditTenant, onDele
                       )}
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          tenant.status?.toLowerCase() === 'active' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' :
-                          tenant.status?.toLowerCase() === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200' :
-                          tenant.status?.toLowerCase() === 'overdue' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200' :
-                          'bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-200'
+                          tenant.status?.toLowerCase() === "active"
+                            ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
+                            : tenant.status?.toLowerCase() === "pending"
+                            ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200"
+                            : tenant.status?.toLowerCase() === "overdue"
+                            ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200"
+                            : "bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-200"
                         }`}
                       >
                         {tenant.status || "Unknown"}

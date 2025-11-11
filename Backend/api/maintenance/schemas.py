@@ -150,6 +150,10 @@ class MaintenancePhotoUploadResponse(BaseModel):
     photo_url: str
 
 
+class MaintenanceRequestBulkDelete(BaseModel):
+    request_ids: list[int]
+
+
 class SecurePhotoUrlResponse(BaseModel):
     """Response schema for secure, time-limited photo URLs"""
     secure_url: str

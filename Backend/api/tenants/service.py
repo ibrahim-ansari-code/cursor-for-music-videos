@@ -822,3 +822,143 @@ async def delete_emergency_contact(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete emergency contact"
         ) from e
+
+
+async def bulk_delete_tenants(
+    tenant_ids: list[int], session: AsyncSession, current_user: User
+) -> None:
+    """
+    Deletes multiple tenants, skipping those with active leases.
+
+    Args:
+        tenant_ids: A list of tenant IDs to delete.
+        session: The database session.
+        current_user: The user performing the action.
+
+    Raises:
+        HTTPException: If any tenants have active leases or if deletion fails.
+    """
+    if not tenant_ids:
+        return
+
+    # First, verify ownership and existence of all tenants
+    query = select(Tenant).where(col(Tenant.id).in_(tenant_ids))
+    if not current_user.is_admin:
+        query = query.where(col(Tenant.landlord_id) == current_user.id)
+
+    result = await session.execute(query)
+    tenants_to_process = result.scalars().all()
+
+    if len(tenants_to_process) != len(set(tenant_ids)):
+        found_ids = {tenant.id for tenant in tenants_to_process}
+        not_found_ids = set(tenant_ids) - found_ids
+        if not_found_ids:
+            logger.warning(
+                "User %s attempted to delete non-existent or unauthorized tenants: %s",
+                current_user.id,
+                not_found_ids,
+            )
+            # Note: The error message is generic to avoid leaking information
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="One or more tenants not found or you do not have permission to delete them.",
+            )
+
+    # Identify tenants with active leases
+    # Use SELECT FOR UPDATE to lock rows and prevent race conditions
+    active_lease_query = (
+        select(col(Lease.tenant_id))
+        .where(
+            and_(
+                col(Lease.tenant_id).in_(tenant_ids),
+                col(Lease.status) == LeaseStatus.ACTIVE,
+            )
+        )
+        .distinct()
+        .with_for_update()
+    )
+    active_lease_tenant_ids_result = await session.execute(active_lease_query)
+    active_lease_tenant_ids = set(active_lease_tenant_ids_result.scalars().all())
+
+    deletable_tenants = []
+    tenants_with_active_leases = []
+
+    for tenant in tenants_to_process:
+        if tenant.id in active_lease_tenant_ids:
+            tenants_with_active_leases.append(tenant)
+        else:
+            deletable_tenants.append(tenant)
+
+    # If some tenants have active leases, do not delete any and return an error
+    if tenants_with_active_leases:
+        active_tenant_names = ", ".join(
+            [
+                tenant.first_name or f"ID {tenant.id}"
+                for tenant in tenants_with_active_leases
+            ]
+        )
+        logger.warning(
+            "User %s failed to bulk delete tenants due to active leases for: %s",
+            current_user.id,
+            active_tenant_names,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete tenants with active leases: {active_tenant_names}. Please terminate their leases first.",
+        )
+
+    if not deletable_tenants:
+        logger.info("No tenants to delete after filtering for active leases.")
+        return
+
+    # CASCADE will automatically delete all associated leases when tenant is deleted
+    # Use bulk delete to avoid N+1 queries
+    from sqlalchemy import delete as sql_delete
+    deletable_tenant_ids = [tenant.id for tenant in deletable_tenants]
+    await session.execute(
+        sql_delete(Tenant).where(col(Tenant.id).in_(deletable_tenant_ids))
+    )
+
+    try:
+        await session.commit()
+        deleted_ids = [tenant.id for tenant in deletable_tenants]
+        logger.info(
+            "User %s successfully bulk deleted tenants with IDs: %s (CASCADE deleted associated leases)",
+            current_user.id,
+            deleted_ids,
+        )
+    except IntegrityError as e:
+        await session.rollback()
+        error_str = str(e).lower()
+        logger.exception(
+            "Failed to bulk delete tenants due to an integrity error. IDs: %s, Error: %s",
+            [t.id for t in deletable_tenants],
+            str(e),
+        )
+        
+        # Provide more specific error messages based on the constraint violation
+        if "tenant_id" in error_str and "leases" in error_str:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not delete tenants. They still have associated leases that could not be removed. Please ensure all leases are properly terminated.",
+            ) from e
+        elif "tenant_id" in error_str and ("payments" in error_str or "invoices" in error_str):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not delete tenants. They have associated payments or invoices that prevent deletion.",
+            ) from e
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not delete tenants. They may be associated with other data like payments, invoices, or maintenance history.",
+            ) from e
+    except Exception as e:
+        await session.rollback()
+        logger.exception(
+            "An unexpected error occurred during bulk tenant deletion. IDs: %s",
+            [t.id for t in deletable_tenants],
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while deleting tenants.",
+        ) from e

@@ -14,6 +14,7 @@ from Backend.api.tenants.schemas import (
     EmergencyContactUpdate,
     OpenBalanceMetrics,
     PaymentPerformanceMetrics,
+    TenantBulkDeleteRequest,
     TenantCreate,
     TenantMetricsResponse,
     TenantResponse,
@@ -22,6 +23,7 @@ from Backend.api.tenants.schemas import (
 )
 from Backend.api.tenants.service import (
     add_emergency_contact,
+    bulk_delete_tenants,
     build_filtered_tenants_query,
     build_unassigned_tenants_query,
     check_tenant_permission,
@@ -76,7 +78,6 @@ async def return_enriched_tenant(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to {action} tenant details for tenant ID {tenant.id}"
         )
-
 
 @router.get("/{tenant_id}", response_model=TenantResponse)
 async def get_tenant(
@@ -300,6 +301,56 @@ async def update_tenant(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update tenant due to an internal error.",
         )
+
+@router.delete("/delete-bulk", status_code=status.HTTP_204_NO_CONTENT)
+async def bulk_delete_tenants_endpoint(
+    payload: TenantBulkDeleteRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Deletes multiple tenants in a single transaction.
+    """
+    # Store user ID early to avoid lazy loading issues (ID is always loaded as it's the PK)
+    user_id = current_user.id
+    
+    try:
+        # Validate that tenant_ids is provided and not empty
+        if not payload.tenant_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No tenant IDs provided for bulk deletion.",
+            )
+        
+        logger.info(
+            "User ID %s is bulk deleting tenants: %s",
+            user_id,
+            payload.tenant_ids,
+        )
+        await bulk_delete_tenants(
+            tenant_ids=payload.tenant_ids, session=session, current_user=current_user
+        )
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except HTTPException:
+        # Re-raise HTTP exceptions to preserve status codes and error messages
+        raise
+    except Exception as e:
+        # Catch any unexpected errors and log them properly
+        logger.exception(
+            "Unexpected error in bulk_delete_tenants_endpoint for user ID %s: %s",
+            user_id,
+            str(e)
+        )
+        # Ensure we rollback the session if there's an error
+        try:
+            await session.rollback()
+        except Exception:
+            pass  # Ignore rollback errors
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while deleting tenants.",
+        ) from e
+
 
 
 @router.delete("/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)

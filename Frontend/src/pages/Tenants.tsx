@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { toast } from "react-toastify";
+import * as Sentry from "@sentry/react";
 import TenantModal from "../components/tenants/TenantModal";
 import UpdateTenantModal from "../components/tenants/UpdateTenantModal";
 import TenantTable from "../components/tenants/TenantTable";
@@ -6,23 +8,26 @@ import { TenantsTableSkeleton } from "../components/ui/skeletons";
 import useDebounce from "../hooks/useDebounce";
 import useFilteredTenants from "../hooks/useFilteredTenants";
 import {
-    countActiveLeases,
-    getExpiringLeases,
-    getInitials,
-    formatDate,
+  countActiveLeases,
+  getExpiringLeases,
+  getInitials,
+  formatDate,
 } from "../utils/tenantUtils";
-import { useTenants, useDeleteTenant } from "../hooks/useTenants";
+import {
+  useTenants,
+  useDeleteTenant,
+  useBulkDeleteTenants,
+} from "../hooks/useTenants";
 import { useLeases } from "../hooks/useLeasesQueries";
 import useDashboardData from "../hooks/useDashboardData";
 import { useOutstandingPayments } from "../hooks/useAccountingQueries";
 import { EnrichedTenant } from "../types/tenant";
-import type { Lease } from "../types/lease";
 import type { FetchTenantsParams } from "../utils/api/tenants";
 
-type ActiveFilter = null | 'active_leases' | 'expiring' | 'overdue';
+type ActiveFilter = null | "active_leases" | "expiring" | "overdue";
 
 interface Notification {
-  type: 'success' | 'error';
+  type: "success" | "error";
   message: string;
 }
 
@@ -32,7 +37,12 @@ const Tenants: React.FC = () => {
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState<boolean>(false);
-  const [selectedTenant, setSelectedTenant] = useState<EnrichedTenant | null>(null);
+  const [selectedTenant, setSelectedTenant] = useState<EnrichedTenant | null>(
+    null
+  );
+  const [selectedTenants, setSelectedTenants] = useState<Set<number>>(
+    new Set()
+  );
   const [notification, setNotification] = useState<Notification | null>(null);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>(null); // null, 'active_leases', 'expiring', 'overdue'
 
@@ -46,26 +56,55 @@ const Tenants: React.FC = () => {
   }, [debouncedSearchTerm]);
 
   // TanStack Query hooks
-  const { data: tenants = [], isLoading: tenantsLoading, error: tenantsError } = useTenants(tenantParams);
-  const { data: allLeases = [], isLoading: leasesLoading, error: leasesError } = useLeases();
-  const { data: dashData, loading: dashLoading, error: dashError } = useDashboardData({ 
-    propertyId: undefined, 
-    timePeriod: undefined, 
-    startDate: undefined, 
-    endDate: undefined 
+  const {
+    data: tenants = [],
+    isLoading: tenantsLoading,
+    error: tenantsError,
+  } = useTenants(tenantParams);
+  const {
+    data: allLeases = [],
+    isLoading: leasesLoading,
+    error: leasesError,
+  } = useLeases();
+  const {
+    data: dashData,
+    loading: dashLoading,
+    error: dashError,
+  } = useDashboardData({
+    propertyId: undefined,
+    timePeriod: undefined,
+    startDate: undefined,
+    endDate: undefined,
   });
-  const { data: outstandingPayments = [], isLoading: paymentsLoading, error: paymentsError } = useOutstandingPayments();
+  const {
+    data: outstandingPayments = [],
+    isLoading: paymentsLoading,
+    error: paymentsError,
+  } = useOutstandingPayments();
   const deleteTenantMutation = useDeleteTenant();
+  const bulkDeleteMutation = useBulkDeleteTenants();
 
   // Combine tenant and lease data
   const tenantsWithLeases = useMemo(() => {
     return tenants.map((tenant) => {
       const tenantLeases = allLeases.filter(
-        (lease: Lease) => lease.tenant_id === tenant.id
+        (lease) => lease.tenant_id === tenant.id
       );
+      // Map leases to match EnrichedTenant's expected Lease type
+      const mappedLeases = tenantLeases.map((lease) => ({
+        ...lease,
+        monthly_rent:
+          typeof lease.monthly_rent === "string"
+            ? parseFloat(lease.monthly_rent) || 0
+            : lease.monthly_rent,
+        security_deposit:
+          typeof lease.security_deposit === "string"
+            ? parseFloat(lease.security_deposit) || 0
+            : lease.security_deposit,
+      }));
       return {
         ...tenant,
-        leases: tenantLeases,
+        leases: mappedLeases as any, // Type assertion needed due to type mismatch between lease types
       };
     });
   }, [tenants, allLeases]);
@@ -74,28 +113,140 @@ const Tenants: React.FC = () => {
   const dashboardData = useMemo(() => {
     const activeLeaseCount = countActiveLeases(tenantsWithLeases);
     const expiringLeasesList = getExpiringLeases(tenantsWithLeases);
-    
+
     return {
-      totalTenants: dashData?.summary?.total_tenants || tenants.length || 0,
+      totalTenants: tenants.length || 0,
       activeLeases: activeLeaseCount,
       expiringSoon: expiringLeasesList.length,
-      overduePayments: outstandingPayments?.length || dashData?.payments_due?.length || 0,
+      overduePayments:
+        outstandingPayments?.length || dashData?.payments_due?.length || 0,
     };
-  }, [dashData, tenants.length, tenantsWithLeases, outstandingPayments]);
+  }, [dashData, tenants, tenantsWithLeases, outstandingPayments]);
 
-  const expiringLeases = useMemo(() => getExpiringLeases(tenantsWithLeases), [tenantsWithLeases]);
+  const expiringLeases = useMemo(
+    () => getExpiringLeases(tenantsWithLeases),
+    [tenantsWithLeases]
+  );
 
   // Filter tenants based on active filter using custom hook
-  const filteredTenants = useFilteredTenants(tenantsWithLeases, activeFilter, expiringLeases, outstandingPayments);
+  const filteredTenants = useFilteredTenants(
+    tenantsWithLeases,
+    activeFilter,
+    expiringLeases,
+    outstandingPayments
+  );
 
   // Combined loading and error states
-  const isLoading = tenantsLoading || leasesLoading || dashLoading || paymentsLoading;
+  const isLoading =
+    tenantsLoading || leasesLoading || dashLoading || paymentsLoading;
   const error = tenantsError || leasesError || dashError || paymentsError;
 
+  // Clear selection when filtered tenants change (e.g., after filter changes or deletion)
+  useEffect(() => {
+    const currentTenantIds = new Set(filteredTenants.map((t) => t.id));
+    setSelectedTenants((prev) => {
+      const filtered = Array.from(prev).filter((id) => currentTenantIds.has(id));
+      return filtered.length !== prev.size ? new Set(filtered) : prev;
+    });
+  }, [filteredTenants]);
 
+  const handleToggleSelectAll = () => {
+    const allVisibleSelected =
+      filteredTenants.length > 0 &&
+      filteredTenants.every((tenant) => selectedTenants.has(tenant.id));
+
+    if (allVisibleSelected) {
+      setSelectedTenants(new Set());
+    } else {
+      setSelectedTenants(new Set(filteredTenants.map((t) => t.id)));
+    }
+  };
+
+  const handleToggleSelect = (tenantId: number) => {
+    setSelectedTenants((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(tenantId)) {
+        newSet.delete(tenantId);
+      } else {
+        newSet.add(tenantId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTenants.size === 0) return;
+
+    const tenantIdsArray = Array.from(selectedTenants);
+
+    if (
+      window.confirm(
+        `Are you sure you want to delete ${tenantIdsArray.length} selected tenant${tenantIdsArray.length !== 1 ? "s" : ""}?`
+      )
+    ) {
+      await Sentry.startSpan(
+        {
+          op: "ui.click",
+          name: "Bulk Delete Tenants",
+        },
+        async (span) => {
+          span.setAttribute("tenantCount", tenantIdsArray.length);
+          span.setAttribute("tenantIds", tenantIdsArray.join(","));
+
+          try {
+            Sentry.logger.info("Bulk deleting tenants after confirmation", {
+              tenantCount: tenantIdsArray.length,
+              tenantIds: tenantIdsArray,
+            });
+
+            await bulkDeleteMutation.mutateAsync(tenantIdsArray);
+
+            toast.success(
+              `${tenantIdsArray.length} tenant${tenantIdsArray.length !== 1 ? "s" : ""} deleted successfully.`
+            );
+
+            Sentry.logger.info("Tenants bulk deleted successfully", {
+              tenantCount: tenantIdsArray.length,
+            });
+
+            setSelectedTenants(new Set());
+          } catch (err: any) {
+            const errorMessage =
+              err?.response?.data?.detail ||
+              err?.message ||
+              "Failed to delete selected tenants. They may have active leases or other associated data.";
+
+            toast.error(errorMessage);
+
+            Sentry.captureException(err, {
+              tags: {
+                component: "Tenants",
+                action: "bulk_delete_tenants",
+                feature: "tenants",
+                operation: "bulk_delete",
+              },
+              contexts: {
+                bulkDelete: {
+                  tenantCount: tenantIdsArray.length,
+                  tenantIds: tenantIdsArray,
+                },
+              },
+            });
+
+            throw err;
+          }
+        }
+      );
+    }
+  };
 
   // Handle sending renewal email via email client
-  const handleSendRenewal = (tenantName: string, tenantEmail: string | undefined, expiryDate: string, unitInfo: string) => {
+  const handleSendRenewal = (
+    tenantName: string,
+    tenantEmail: string | undefined,
+    expiryDate: string,
+    unitInfo: string
+  ) => {
     if (!tenantEmail) {
       setNotification({
         type: "error",
@@ -107,14 +258,7 @@ const Tenants: React.FC = () => {
 
     const formattedDate = new Date(expiryDate).toLocaleDateString();
     const subject = `Lease Renewal - ${unitInfo}`;
-    const body = `Dear ${tenantName},
-
-Your lease for ${unitInfo} is set to expire on ${formattedDate}.
-
-We wanted to reach out to discuss your renewal options. Please let us know if you would like to renew your lease.
-
-Best regards,
-Property Management`;
+    const body = `Dear ${tenantName},\n\nYour lease for ${unitInfo} is set to expire on ${formattedDate}.\n\nWe wanted to reach out to discuss your renewal options. Please let us know if you would like to renew your lease.\n\nBest regards,\nProperty Management`;
 
     // Open email client with prefilled data
     window.location.href = `mailto:${tenantEmail}?subject=${encodeURIComponent(
@@ -147,15 +291,14 @@ Property Management`;
     if (window.confirm("Are you sure you want to delete this tenant?")) {
       try {
         await deleteTenantMutation.mutateAsync(tenantId);
-      } catch (err) {
+        toast.success("Tenant deleted successfully.");
+      } catch (err: any) {
+        const errorMessage =
+          err?.response?.data?.detail ||
+          err?.message ||
+          "Failed to delete tenant. The tenant may have active leases or other associated data.";
+        toast.error(errorMessage);
         console.error("Failed to delete tenant:", err);
-        // Display the specific error message from the backend if available
-        if (err && typeof err === 'object' && 'data' in err) {
-          const error = err as { data?: { detail?: string } };
-          if (error.data?.detail) {
-            console.error("Delete error details:", error.data.detail);
-          }
-        }
       }
     }
   };
@@ -174,15 +317,23 @@ Property Management`;
     }
   };
 
-
   return (
     <div className="p-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {/* Total Tenants */}
-        <div className="kpi-card cursor-pointer" onClick={() => setActiveFilter(null)}>
+        <div
+          className="kpi-card cursor-pointer"
+          onClick={() => setActiveFilter(null)}
+        >
           <div className="flex items-center">
-            <div className={`flex-shrink-0 ${activeFilter === null ? 'bg-indigo-100 dark:bg-indigo-900' : 'bg-indigo-50 dark:bg-indigo-900/50'} rounded-md p-3`}>
+            <div
+              className={`flex-shrink-0 ${
+                activeFilter === null
+                  ? "bg-indigo-100 dark:bg-indigo-900"
+                  : "bg-indigo-50 dark:bg-indigo-900/50"
+              } rounded-md p-3`}
+            >
               <svg
                 className="h-6 w-6 text-indigo-600 dark:text-indigo-400"
                 xmlns="http://www.w3.org/2000/svg"
@@ -220,9 +371,18 @@ Property Management`;
         </div>
 
         {/* Active Leases */}
-        <div className="kpi-card cursor-pointer" onClick={() => handleFilterClick('active_leases')}>
+        <div
+          className="kpi-card cursor-pointer"
+          onClick={() => handleFilterClick("active_leases")}
+        >
           <div className="flex items-center">
-            <div className={`flex-shrink-0 ${activeFilter === 'active_leases' ? 'bg-green-100 dark:bg-green-900' : 'bg-green-50 dark:bg-green-900/50'} rounded-md p-3`}>
+            <div
+              className={`flex-shrink-0 ${
+                activeFilter === "active_leases"
+                  ? "bg-green-100 dark:bg-green-900"
+                  : "bg-green-50 dark:bg-green-900/50"
+              } rounded-md p-3`}
+            >
               <svg
                 className="h-6 w-6 text-green-600 dark:text-green-400"
                 xmlns="http://www.w3.org/2000/svg"
@@ -260,9 +420,18 @@ Property Management`;
         </div>
 
         {/* Expiring Soon */}
-        <div className="kpi-card cursor-pointer" onClick={() => handleFilterClick('expiring')}>
+        <div
+          className="kpi-card cursor-pointer"
+          onClick={() => handleFilterClick("expiring")}
+        >
           <div className="flex items-center">
-            <div className={`flex-shrink-0 ${activeFilter === 'expiring' ? 'bg-yellow-100 dark:bg-yellow-900' : 'bg-yellow-50 dark:bg-yellow-900/50'} rounded-md p-3`}>
+            <div
+              className={`flex-shrink-0 ${
+                activeFilter === "expiring"
+                  ? "bg-yellow-100 dark:bg-yellow-900"
+                  : "bg-yellow-50 dark:bg-yellow-900/50"
+              } rounded-md p-3`}
+            >
               <svg
                 className="h-6 w-6 text-yellow-600 dark:text-yellow-400"
                 xmlns="http://www.w3.org/2000/svg"
@@ -300,9 +469,18 @@ Property Management`;
         </div>
 
         {/* Overdue Payments */}
-        <div className="kpi-card cursor-pointer" onClick={() => handleFilterClick('overdue')}>
+        <div
+          className="kpi-card cursor-pointer"
+          onClick={() => handleFilterClick("overdue")}
+        >
           <div className="flex items-center">
-            <div className={`flex-shrink-0 ${activeFilter === 'overdue' ? 'bg-red-100 dark:bg-red-900' : 'bg-red-50 dark:bg-red-900/50'} rounded-md p-3`}>
+            <div
+              className={`flex-shrink-0 ${
+                activeFilter === "overdue"
+                  ? "bg-red-100 dark:bg-red-900"
+                  : "bg-red-50 dark:bg-red-900/50"
+              } rounded-md p-3`}
+            >
               <svg
                 className="h-6 w-6 text-red-600 dark:text-red-400"
                 xmlns="http://www.w3.org/2000/svg"
@@ -397,6 +575,28 @@ Property Management`;
             Tenant Directory
           </h2>
           <div className="flex items-center gap-3">
+            {selectedTenants.size > 0 && (
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={selectedTenants.size === 0}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                <svg
+                  className="-ml-1 mr-2 h-5 w-5"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Delete Selected ({selectedTenants.size})
+              </button>
+            )}
             <button
               type="button"
               onClick={handleAddTenant}
@@ -475,6 +675,9 @@ Property Management`;
         ) : (
           <TenantTable
             tenants={filteredTenants}
+            selectedTenants={Array.from(selectedTenants)}
+            onToggleSelectAll={handleToggleSelectAll}
+            onToggleSelect={handleToggleSelect}
             onEditTenant={handleEditTenant}
             onDeleteTenant={handleDeleteTenant}
             onAddTenant={handleAddTenant}

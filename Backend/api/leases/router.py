@@ -13,6 +13,7 @@ from Backend.models.user import User
 
 from .schemas import (
     LeaseAnalysisResponse,
+    LeaseBulkDelete,
     LeaseCreate,
     LeaseDocumentResponse,
     LeaseResponse,
@@ -22,6 +23,7 @@ from .schemas import (
 )
 from .service import (
     analyze_lease,
+    bulk_delete_leases,
     create_lease,
     delete_lease,
     get_lease,
@@ -422,6 +424,40 @@ async def parse_lease_endpoint(
     """
     result = await parse_lease(file, current_user)
     return result
+
+
+@router.delete("/bulk-lease-delete", status_code=status.HTTP_204_NO_CONTENT)
+async def bulk_delete_leases_endpoint(
+    payload: LeaseBulkDelete,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """
+    Deletes multiple leases by their IDs after verifying user permissions.
+
+    Active leases cannot be deleted. If any of the provided lease IDs corresponds to an active lease,
+    the entire operation will be aborted.
+
+    Raises:
+        HTTPException: If any lease is active or if a database error occurs.
+    """
+    try:
+        if not payload.lease_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No lease IDs provided for bulk deletion."
+            )
+
+        await bulk_delete_leases(payload.lease_ids, current_user, session)
+    except HTTPException:
+        # Preserve intended HTTP error semantics from the service
+        raise
+    except Exception as e:
+        logger.exception("Unexpected error in bulk_delete_leases_endpoint")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from e
 
 
 @router.delete("/{lease_id}", status_code=status.HTTP_204_NO_CONTENT)

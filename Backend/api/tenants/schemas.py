@@ -486,3 +486,7 @@ class TenantResponse(BaseModel):
             return self.company_name or "Company Tenant"
         else:
             return self._get_individual_name()
+
+
+class TenantBulkDeleteRequest(BaseModel):
+    tenant_ids: list[int]

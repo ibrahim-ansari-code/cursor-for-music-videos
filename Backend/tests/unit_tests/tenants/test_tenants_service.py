@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch, call
 from uuid import uuid4, UUID
 from datetime import datetime, timezone
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -23,6 +23,7 @@ from Backend.api.tenants.service import (
     build_filtered_tenants_query,
     build_unassigned_tenants_query,
     enrich_tenants_with_details,
+    bulk_delete_tenants,
 )
 from Backend.api.tenants.schemas import (
     TenantCreate,
@@ -954,3 +955,316 @@ async def test_enrich_tenants_with_details_lease_with_unit_processing(mock_sessi
         assert len(result) == 1
         tenant_response = result[0]
         assert tenant_response.id == 1
+
+
+# =============================================================================
+# bulk_delete_tenants TESTS
+# =============================================================================
+
+@pytest.mark.asyncio
+async def test_bulk_delete_tenants_success_admin(mock_session, mock_admin_user):
+    """Test successful bulk deletion of tenants by admin."""
+    # Mock tenants to delete
+    mock_tenant1 = MagicMock(spec=Tenant)
+    mock_tenant1.id = 1
+    mock_tenant1.first_name = "John"
+    
+    mock_tenant2 = MagicMock(spec=Tenant)
+    mock_tenant2.id = 2
+    mock_tenant2.first_name = "Jane"
+    
+    # Mock query result for tenants
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_tenant1, mock_tenant2]
+    
+    # Mock active lease query result (empty - no active leases)
+    mock_active_lease_result = MagicMock()
+    mock_active_lease_result.scalars.return_value.all.return_value = []
+    
+    # Mock non-active leases query result (empty - no non-active leases)
+    mock_non_active_leases_result = MagicMock()
+    mock_non_active_leases_result.scalars.return_value.all.return_value = []
+    
+    # Configure session execute to return different results for different queries
+    # Order: tenants query, active leases query, non-active leases query
+    mock_session.execute.side_effect = [mock_result, mock_active_lease_result, mock_non_active_leases_result]
+    
+    # Act
+    await bulk_delete_tenants([1, 2], mock_session, mock_admin_user)
+    
+    # Assert
+    # Verify bulk delete was executed (one SQL delete statement, not individual deletes)
+    assert mock_session.execute.call_count >= 3  # At least one for query, one for active leases check, one for delete
+    mock_session.commit.assert_called_once()
+    mock_session.rollback.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_tenants_success_landlord(mock_session, mock_user):
+    """Test successful bulk deletion of tenants by landlord (ownership filtered)."""
+    # Mock tenants owned by landlord
+    mock_tenant1 = MagicMock(spec=Tenant)
+    mock_tenant1.id = 1
+    mock_tenant1.first_name = "John"
+    mock_tenant1.landlord_id = mock_user.id
+    
+    mock_tenant2 = MagicMock(spec=Tenant)
+    mock_tenant2.id = 2
+    mock_tenant2.first_name = "Jane"
+    mock_tenant2.landlord_id = mock_user.id
+    
+    # Mock query result for tenants
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_tenant1, mock_tenant2]
+    
+    # Mock active lease query result (empty - no active leases)
+    mock_active_lease_result = MagicMock()
+    mock_active_lease_result.scalars.return_value.all.return_value = []
+    
+    # Mock non-active leases query result (empty - no non-active leases)
+    mock_non_active_leases_result = MagicMock()
+    mock_non_active_leases_result.scalars.return_value.all.return_value = []
+    
+    # Order: tenants query, active leases query, non-active leases query
+    mock_session.execute.side_effect = [mock_result, mock_active_lease_result, mock_non_active_leases_result]
+    
+    # Act
+    await bulk_delete_tenants([1, 2], mock_session, mock_user)
+    
+    # Assert
+    # Verify bulk delete was executed (one SQL delete statement, not individual deletes)
+    assert mock_session.execute.call_count >= 3  # At least one for query, one for active leases check, one for delete
+    mock_session.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_tenants_empty_list(mock_session, mock_user):
+    """Test bulk deletion with empty list - should return early."""
+    # Act
+    await bulk_delete_tenants([], mock_session, mock_user)
+    
+    # Assert - Should return early without executing queries
+    mock_session.execute.assert_not_called()
+    mock_session.delete.assert_not_called()
+    mock_session.commit.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_tenants_not_found(mock_session, mock_user):
+    """Test bulk deletion when some tenants are not found or unauthorized."""
+    # Mock only one tenant found (missing one)
+    mock_tenant1 = MagicMock(spec=Tenant)
+    mock_tenant1.id = 1
+    mock_tenant1.landlord_id = mock_user.id
+    
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_tenant1]
+    mock_session.execute.return_value = mock_result
+    
+    # Act & Assert
+    with pytest.raises(HTTPException) as exc_info:
+        await bulk_delete_tenants([1, 2], mock_session, mock_user)
+    
+    assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
+    assert "One or more tenants not found" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_tenants_active_lease_blocked(mock_session, mock_user):
+    """Test bulk deletion when tenant has active lease - should block deletion."""
+    # Mock tenant
+    mock_tenant = MagicMock(spec=Tenant)
+    mock_tenant.id = 1
+    mock_tenant.first_name = "John"
+    mock_tenant.landlord_id = mock_user.id
+    
+    # Mock query result for tenants
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_tenant]
+    
+    # Mock active lease query result (tenant has active lease)
+    mock_active_lease_result = MagicMock()
+    mock_active_lease_result.scalars.return_value.all.return_value = [1]  # tenant_id with active lease
+    
+    mock_session.execute.side_effect = [mock_result, mock_active_lease_result]
+    
+    # Act & Assert
+    with pytest.raises(HTTPException) as exc_info:
+        await bulk_delete_tenants([1], mock_session, mock_user)
+    
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "Cannot delete tenants with active leases" in exc_info.value.detail
+    mock_session.delete.assert_not_called()
+    mock_session.commit.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_tenants_mixed_active_leases(mock_session, mock_user):
+    """Test bulk deletion when some tenants have active leases."""
+    # Mock tenants - one with active lease, one without
+    mock_tenant1 = MagicMock(spec=Tenant)
+    mock_tenant1.id = 1
+    mock_tenant1.first_name = "John"
+    mock_tenant1.landlord_id = mock_user.id
+    
+    mock_tenant2 = MagicMock(spec=Tenant)
+    mock_tenant2.id = 2
+    mock_tenant2.first_name = "Jane"
+    mock_tenant2.landlord_id = mock_user.id
+    
+    # Mock query result for tenants
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_tenant1, mock_tenant2]
+    
+    # Mock active lease query result (tenant 1 has active lease)
+    mock_active_lease_result = MagicMock()
+    mock_active_lease_result.scalars.return_value.all.return_value = [1]  # tenant_id 1 has active lease
+    
+    mock_session.execute.side_effect = [mock_result, mock_active_lease_result]
+    
+    # Act & Assert - Should block on any tenant with active lease
+    with pytest.raises(HTTPException) as exc_info:
+        await bulk_delete_tenants([1, 2], mock_session, mock_user)
+    
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "Cannot delete tenants with active leases" in exc_info.value.detail
+    mock_session.delete.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_tenants_integrity_error(mock_session, mock_user):
+    """Test bulk deletion handles integrity errors."""
+    # Mock tenant
+    mock_tenant = MagicMock(spec=Tenant)
+    mock_tenant.id = 1
+    mock_tenant.first_name = "John"
+    mock_tenant.landlord_id = mock_user.id
+    
+    # Mock query result for tenants
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_tenant]
+    
+    # Mock active lease query result (empty - no active leases)
+    mock_active_lease_result = MagicMock()
+    mock_active_lease_result.scalars.return_value.all.return_value = []
+    
+    # Mock non-active leases query result (empty - no non-active leases)
+    mock_non_active_leases_result = MagicMock()
+    mock_non_active_leases_result.scalars.return_value.all.return_value = []
+    
+    # Order: tenants query, active leases query, non-active leases query
+    mock_session.execute.side_effect = [mock_result, mock_active_lease_result, mock_non_active_leases_result]
+    
+    # Mock commit to raise IntegrityError
+    mock_session.commit.side_effect = IntegrityError(
+        statement="DELETE FROM tenants ...",
+        params={},
+        orig=Exception("Foreign key constraint violation")
+    )
+    
+    # Act & Assert
+    with pytest.raises(HTTPException) as exc_info:
+        await bulk_delete_tenants([1], mock_session, mock_user)
+    
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "Could not delete tenants" in exc_info.value.detail
+    assert "associated with other data" in exc_info.value.detail
+    mock_session.rollback.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_tenants_general_exception(mock_session, mock_user):
+    """Test bulk deletion handles general exceptions."""
+    # Mock tenant
+    mock_tenant = MagicMock(spec=Tenant)
+    mock_tenant.id = 1
+    mock_tenant.first_name = "John"
+    mock_tenant.landlord_id = mock_user.id
+    
+    # Mock query result for tenants
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_tenant]
+    
+    # Mock active lease query result (empty - no active leases)
+    mock_active_lease_result = MagicMock()
+    mock_active_lease_result.scalars.return_value.all.return_value = []
+    
+    # Mock non-active leases query result (empty - no non-active leases)
+    mock_non_active_leases_result = MagicMock()
+    mock_non_active_leases_result.scalars.return_value.all.return_value = []
+    
+    # Order: tenants query, active leases query, non-active leases query
+    mock_session.execute.side_effect = [mock_result, mock_active_lease_result, mock_non_active_leases_result]
+    
+    # Mock commit to raise general exception
+    mock_session.commit.side_effect = Exception("Database connection lost")
+    
+    # Act & Assert
+    with pytest.raises(HTTPException) as exc_info:
+        await bulk_delete_tenants([1], mock_session, mock_user)
+    
+    assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert "An unexpected error occurred while deleting tenants" in exc_info.value.detail
+    mock_session.rollback.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_tenants_single_tenant(mock_session, mock_user):
+    """Test bulk deletion with single tenant."""
+    # Mock tenant
+    mock_tenant = MagicMock(spec=Tenant)
+    mock_tenant.id = 1
+    mock_tenant.first_name = "John"
+    mock_tenant.landlord_id = mock_user.id
+    
+    # Mock query result for tenants
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_tenant]
+    
+    # Mock active lease query result (empty - no active leases)
+    mock_active_lease_result = MagicMock()
+    mock_active_lease_result.scalars.return_value.all.return_value = []
+    
+    # Mock non-active leases query result (empty - no non-active leases)
+    mock_non_active_leases_result = MagicMock()
+    mock_non_active_leases_result.scalars.return_value.all.return_value = []
+    
+    # Order: tenants query, active leases query, non-active leases query
+    mock_session.execute.side_effect = [mock_result, mock_active_lease_result, mock_non_active_leases_result]
+    
+    # Act
+    await bulk_delete_tenants([1], mock_session, mock_user)
+    
+    # Assert
+    # Verify bulk delete was executed (one SQL delete statement, even for single tenant)
+    assert mock_session.execute.call_count >= 3  # At least one for query, one for active leases check, one for delete
+    mock_session.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_tenants_company_tenant_name(mock_session, mock_user):
+    """Test bulk deletion handles company tenant names correctly."""
+    # Mock company tenant (no first_name)
+    mock_tenant = MagicMock(spec=Tenant)
+    mock_tenant.id = 1
+    mock_tenant.first_name = None
+    mock_tenant.landlord_id = mock_user.id
+    
+    # Mock query result for tenants
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_tenant]
+    
+    # Mock active lease query result (tenant has active lease)
+    mock_active_lease_result = MagicMock()
+    mock_active_lease_result.scalars.return_value.all.return_value = [1]
+    
+    mock_session.execute.side_effect = [mock_result, mock_active_lease_result]
+    
+    # Act & Assert - Should use ID when first_name is None
+    with pytest.raises(HTTPException) as exc_info:
+        await bulk_delete_tenants([1], mock_session, mock_user)
+    
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    assert "Cannot delete tenants with active leases" in exc_info.value.detail
+    # Should include ID in error message when first_name is None
+    assert "ID 1" in exc_info.value.detail or "1" in exc_info.value.detail

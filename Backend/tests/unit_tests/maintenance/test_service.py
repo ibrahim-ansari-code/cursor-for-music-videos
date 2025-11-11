@@ -5,7 +5,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from datetime import date, datetime
 from decimal import Decimal
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
 from Backend.api.maintenance.service import MaintenanceService
 from Backend.api.maintenance.schemas import (
@@ -782,3 +782,218 @@ async def test_upload_maintenance_photo_upload_error():
                 
                 assert exc_info.value.status_code == 500
                 assert "Failed to upload maintenance photo" in exc_info.value.detail
+
+
+# =============================================================================
+# bulk_delete_maintenance_requests TESTS
+# =============================================================================
+
+@pytest.mark.asyncio
+async def test_bulk_delete_maintenance_requests_success_admin():
+    """Test successful bulk deletion of maintenance requests by admin."""
+    mock_session = AsyncMock()
+    mock_user = MagicMock()
+    mock_user.id = "admin123"
+    mock_user.is_admin = True
+    
+    # Mock requests to delete
+    mock_request1 = MagicMock(spec=MaintenanceRequest)
+    mock_request1.id = 1
+    
+    mock_request2 = MagicMock(spec=MaintenanceRequest)
+    mock_request2.id = 2
+    
+    # Mock query result
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_request1, mock_request2]
+    mock_session.execute.return_value = mock_result
+    
+    # Act
+    await MaintenanceService.bulk_delete_maintenance_requests(
+        request_ids=[1, 2],
+        current_user=mock_user,
+        session=mock_session
+    )
+    
+    # Assert
+    # Verify bulk delete was executed via SQL delete statement
+    assert mock_session.execute.call_count >= 2  # At least: query to fetch requests, bulk delete statement
+    mock_session.commit.assert_called_once()
+    mock_session.rollback.assert_not_called()
+    # Should NOT use individual session.delete() calls
+    mock_session.delete.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_maintenance_requests_success_landlord():
+    """Test successful bulk deletion of maintenance requests by landlord."""
+    mock_session = AsyncMock()
+    mock_user = MagicMock()
+    mock_user.id = "landlord123"
+    mock_user.is_admin = False
+    
+    # Mock requests owned by landlord
+    mock_request1 = MagicMock(spec=MaintenanceRequest)
+    mock_request1.id = 1
+    
+    mock_request2 = MagicMock(spec=MaintenanceRequest)
+    mock_request2.id = 2
+    
+    # Mock query result (with join for ownership validation)
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_request1, mock_request2]
+    mock_session.execute.return_value = mock_result
+    
+    # Act
+    await MaintenanceService.bulk_delete_maintenance_requests(
+        request_ids=[1, 2],
+        current_user=mock_user,
+        session=mock_session
+    )
+    
+    # Assert
+    # Verify bulk delete was executed via SQL delete statement
+    assert mock_session.execute.call_count >= 2  # At least: query to fetch requests, bulk delete statement
+    mock_session.commit.assert_called_once()
+    # Should NOT use individual session.delete() calls
+    mock_session.delete.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_maintenance_requests_empty_list():
+    """Test bulk deletion with empty list - should return early."""
+    mock_session = AsyncMock()
+    mock_user = MagicMock()
+    mock_user.id = "user123"
+    
+    # Act
+    await MaintenanceService.bulk_delete_maintenance_requests(
+        request_ids=[],
+        current_user=mock_user,
+        session=mock_session
+    )
+    
+    # Assert - Should return early without executing queries
+    mock_session.execute.assert_not_called()
+    mock_session.delete.assert_not_called()
+    mock_session.commit.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_maintenance_requests_not_found():
+    """Test bulk deletion when some requests are not found or unauthorized."""
+    mock_session = AsyncMock()
+    mock_user = MagicMock()
+    mock_user.id = "landlord123"
+    mock_user.is_admin = False
+    
+    # Mock only one request found (missing one)
+    mock_request1 = MagicMock(spec=MaintenanceRequest)
+    mock_request1.id = 1
+    
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_request1]
+    mock_session.execute.return_value = mock_result
+    
+    # Act & Assert
+    with pytest.raises(HTTPException) as exc_info:
+        await MaintenanceService.bulk_delete_maintenance_requests(
+            request_ids=[1, 2],
+            current_user=mock_user,
+            session=mock_session
+        )
+    
+    assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
+    assert "One or more maintenance requests not found" in exc_info.value.detail
+    mock_session.rollback.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_maintenance_requests_single_request():
+    """Test bulk deletion with single request."""
+    mock_session = AsyncMock()
+    mock_user = MagicMock()
+    mock_user.id = "admin123"
+    mock_user.is_admin = True
+    
+    # Mock single request
+    mock_request = MagicMock(spec=MaintenanceRequest)
+    mock_request.id = 1
+    
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_request]
+    mock_session.execute.return_value = mock_result
+    
+    # Act
+    await MaintenanceService.bulk_delete_maintenance_requests(
+        request_ids=[1],
+        current_user=mock_user,
+        session=mock_session
+    )
+    
+    # Assert
+    # Verify bulk delete was executed via SQL delete statement (even for single request)
+    assert mock_session.execute.call_count >= 2  # At least: query to fetch requests, bulk delete statement
+    mock_session.commit.assert_called_once()
+    # Should NOT use individual session.delete() calls
+    mock_session.delete.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_maintenance_requests_general_exception():
+    """Test bulk deletion handles general exceptions."""
+    mock_session = AsyncMock()
+    mock_user = MagicMock()
+    mock_user.id = "admin123"
+    mock_user.is_admin = True
+    
+    # Mock request
+    mock_request = MagicMock(spec=MaintenanceRequest)
+    mock_request.id = 1
+    
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_request]
+    mock_session.execute.return_value = mock_result
+    
+    # Mock commit to raise exception
+    mock_session.commit.side_effect = Exception("Database connection lost")
+    
+    # Act & Assert
+    with pytest.raises(HTTPException) as exc_info:
+        await MaintenanceService.bulk_delete_maintenance_requests(
+            request_ids=[1],
+            current_user=mock_user,
+            session=mock_session
+        )
+    
+    assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert "An unexpected error occurred during bulk deletion" in exc_info.value.detail
+    mock_session.rollback.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_maintenance_requests_duplicate_ids():
+    """Test bulk deletion with duplicate IDs - should handle correctly."""
+    mock_session = AsyncMock()
+    mock_user = MagicMock()
+    mock_user.id = "admin123"
+    mock_user.is_admin = True
+    
+    # Mock request (duplicate IDs in list)
+    mock_request = MagicMock(spec=MaintenanceRequest)
+    mock_request.id = 1
+    
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_request]
+    mock_session.execute.return_value = mock_result
+    
+    # Act & Assert - Should fail because we have duplicate IDs but only one found
+    with pytest.raises(HTTPException) as exc_info:
+        await MaintenanceService.bulk_delete_maintenance_requests(
+            request_ids=[1, 1, 2],  # Duplicate 1, missing 2
+            current_user=mock_user,
+            session=mock_session
+        )
+    
+    assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
+    mock_session.rollback.assert_called_once()

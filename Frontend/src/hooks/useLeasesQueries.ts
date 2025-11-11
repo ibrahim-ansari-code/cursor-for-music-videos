@@ -8,6 +8,7 @@ import {
   fetchLeaseDocuments,
   uploadLeaseDocument,
   updateLeaseStatus,
+  bulkDeleteLeases,
 } from '../utils/api/leases';
 import { QUERY_KEYS } from './queryKeys';
 import type {
@@ -380,6 +381,74 @@ export const useDeleteLease = (): UseMutationResult<void, ApiError, number> => {
       return { previousData };
     },
     onError: (_err, _leaseId, context) => {
+      // Rollback on error - restore all previous data
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSuccess: () => {
+      // ONLY invalidate related data - NEVER refetch or invalidate lease data
+      // The optimistic update IS the source of truth after successful deletion
+      queryClient.invalidateQueries({ queryKey: ['tenants'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+};
+
+
+/**
+ * Mutation hook to bulk delete multiple leases
+ * 
+ * Uses optimistic updates to remove leases from UI immediately
+ * 
+ * @returns Mutation result with mutate/mutateAsync functions
+ * 
+ * @example
+ * ```tsx
+ * const bulkDeleteMutation = useBulkDeleteLeases();
+ * 
+ * const handleBulkDelete = async (leaseIds) => {
+ *   await bulkDeleteMutation.mutateAsync(leaseIds);
+ *   toast.success('Leases deleted!');
+ * };
+ * ```
+ */
+export const useBulkDeleteLeases = (): UseMutationResult<void, ApiError, number[]> => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: bulkDeleteLeases,
+    // Optimistic update: Remove from UI immediately for instant UX
+    onMutate: async (leaseIds) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['leases'] });
+
+      // Snapshot current data for rollback
+      const previousData = queryClient.getQueriesData({ queryKey: ['leases'] });
+
+      // Remove from all queries - deletes affect all filters
+      queryClient.setQueriesData<LeaseWithDocuments[]>(
+        { queryKey: ['leases', 'withDocuments'], exact: false },
+        (old) => {
+          if (!old) return old;
+          return old.filter((lease) => !leaseIds.includes(lease.id));
+        }
+      );
+
+      // Also remove from all base leases queries
+      queryClient.setQueriesData<Lease[]>(
+        { queryKey: ['leases', 'list'], exact: false },
+        (old) => {
+          if (!old) return old;
+          return old.filter((lease) => !leaseIds.includes(lease.id));
+        }
+      );
+
+      return { previousData };
+    },
+    onError: (_err, _leaseIds, context) => {
       // Rollback on error - restore all previous data
       if (context?.previousData) {
         context.previousData.forEach(([queryKey, data]) => {

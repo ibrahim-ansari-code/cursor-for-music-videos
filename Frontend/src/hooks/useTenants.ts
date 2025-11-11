@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
-import { fetchTenants, createTenant, updateTenant, deleteTenant, fetchTenant } from "../utils/api/tenants";
+import { fetchTenants, createTenant, updateTenant, deleteTenant, fetchTenant, bulkDeleteTenants } from "../utils/api/tenants";
 import { fetchTenantsByProperty } from "../utils/api/tenants";
 import { QUERY_KEYS } from "./queryKeys";
 import { EnrichedTenant, Tenant, TenantStatus } from "../types/tenant";
@@ -84,5 +84,17 @@ export const useDeleteTenant = (): UseMutationResult<void, Error, number> => {
     },
   });
 };
+
+export const useBulkDeleteTenants = (): UseMutationResult<void, Error, number[]> => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: bulkDeleteTenants,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.tenants.all() });
+    },
+  });
+};
+
 
 export default useTenants;

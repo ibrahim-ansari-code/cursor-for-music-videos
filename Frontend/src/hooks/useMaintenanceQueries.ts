@@ -5,6 +5,7 @@ import {
   createMaintenanceRequest,
   updateMaintenanceRequest,
   deleteMaintenanceRequest,
+  bulkDeleteMaintenanceRequests,
 } from '../utils/api/maintenance';
 import { QUERY_KEYS } from './queryKeys';
 import type { MaintenanceRequest, MaintenanceSummary, MaintenanceStatus, MaintenancePriority } from '../types/tenant';
@@ -283,6 +284,67 @@ export const useDeleteMaintenanceRequest = (): UseMutationResult<
     },
     onSuccess: () => {
       // Refetch in background to sync with server and update summary stats
+      queryClient.refetchQueries({ queryKey: ['maintenance'], type: 'active' });
+      queryClient.refetchQueries({ queryKey: ['tenants'], type: 'active' });
+    },
+  });
+};
+
+/**
+ * Mutation hook to bulk delete maintenance requests
+ *
+ * @returns Mutation result for bulk deleting requests
+ */
+export const useBulkDeleteMaintenanceRequests = (): UseMutationResult<
+  void,
+  Error,
+  number[]
+> => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: bulkDeleteMaintenanceRequests,
+    onMutate: async (requestIds) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.maintenance.requests() });
+
+      const previousData = queryClient.getQueriesData({ queryKey: QUERY_KEYS.maintenance.requests() });
+
+      queryClient.setQueriesData<MaintenanceRequestsResponse | MaintenanceRequest[]>(
+        { queryKey: ['maintenance', 'requests'] },
+        (old: any) => {
+          if (!old) return old;
+
+          const idSet = new Set(requestIds);
+
+          if (Array.isArray(old)) {
+            return old.filter((req: MaintenanceRequest) => !idSet.has(req.id));
+          }
+          if (old.results) {
+            const filteredResults = old.results.filter((req: MaintenanceRequest) => !idSet.has(req.id));
+            const removedCount = old.results.length - filteredResults.length;
+            return {
+              ...old,
+              results: filteredResults,
+              total:
+                typeof old.total === 'number'
+                  ? Math.max(0, old.total - removedCount)
+                  : old.total,
+            };
+          }
+          return old;
+        }
+      );
+
+      return { previousData };
+    },
+    onError: (_err, _requestIds, context) => {
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['maintenance'], type: 'active' });
       queryClient.refetchQueries({ queryKey: ['tenants'], type: 'active' });
     },

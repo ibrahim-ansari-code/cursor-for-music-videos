@@ -97,6 +97,19 @@ export const deleteMaintenanceRequest = async (requestId: number): Promise<void>
 };
 
 /**
+ * Deletes multiple maintenance requests in bulk.
+ * @param {number[]} requestIds - An array of maintenance request IDs to delete.
+ * @returns {Promise<void>} A promise that resolves when the requests are deleted.
+ */
+export const bulkDeleteMaintenanceRequests = async (requestIds: number[]): Promise<void> => {
+  return apiRequest("/maintenance/requests/bulk", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ request_ids: requestIds }),
+  });
+};
+
+/**
  * Uploads a photo for a maintenance request.
  *
  * Security: This function performs client-side validation before upload to prevent:

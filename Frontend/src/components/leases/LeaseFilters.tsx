@@ -4,6 +4,11 @@ import { ChevronDown, CheckCircle } from 'lucide-react';
 import * as Sentry from '@sentry/react';
 import type { LeaseFiltersProps } from '../../types/lease';
 
+interface LeaseFiltersWithBulkDeleteProps extends LeaseFiltersProps {
+  onBulkDelete?: () => void;
+  selectedCount?: number;
+}
+
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
   { value: 'DRAFT', label: 'Draft' },
@@ -14,10 +19,12 @@ const STATUS_OPTIONS = [
   { value: 'RENEWED', label: 'Renewed' },
 ];
 
-const LeaseFilters: React.FC<LeaseFiltersProps> = ({
+const LeaseFilters: React.FC<LeaseFiltersWithBulkDeleteProps> = ({
   statusFilter,
   onStatusFilterChange,
   onNewLease,
+  onBulkDelete,
+  selectedCount = 0,
 }) => {
   // Get display label for selected status
   const selectedStatusLabel = STATUS_OPTIONS.find(s => s.value === statusFilter)?.label || 'All Statuses';
@@ -71,6 +78,22 @@ const LeaseFilters: React.FC<LeaseFiltersProps> = ({
             </Select.Content>
           </Select.Portal>
         </Select.Root>
+
+        {/* Delete Selected Button */}
+        {onBulkDelete && selectedCount > 0 && (
+          <button
+            onClick={() => {
+              Sentry.logger.debug('Delete Selected button clicked', {
+                selectedCount,
+              });
+              onBulkDelete();
+            }}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i className="fas fa-trash mr-2"></i>
+            Delete Selected ({selectedCount})
+          </button>
+        )}
 
         {/* New Lease Button */}
         <button

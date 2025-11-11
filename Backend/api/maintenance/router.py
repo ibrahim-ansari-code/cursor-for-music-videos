@@ -11,6 +11,7 @@ from Backend.models.user import User
 
 from .schemas import (
     MaintenancePhotoUploadResponse,
+    MaintenanceRequestBulkDelete,
     MaintenanceRequestCreate,
     MaintenanceRequestResponse,
     MaintenanceRequestUpdate,
@@ -110,6 +111,26 @@ async def create_maintenance_request(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create maintenance request: {str(e)}"
+        )
+
+
+@router.delete("/requests/bulk", status_code=status.HTTP_204_NO_CONTENT)
+async def bulk_delete_maintenance_requests(
+    data: MaintenanceRequestBulkDelete,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        await MaintenanceService.bulk_delete_maintenance_requests(
+            request_ids=data.request_ids, current_user=current_user, session=session
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.exception("Error bulk deleting maintenance requests")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to bulk delete maintenance requests: {str(e)}",
         )
 
 

@@ -49,6 +49,13 @@ export const deleteTenant = async (tenantId: number): Promise<void> => {
   });
 };
 
+export const bulkDeleteTenants = async (tenantIds: number[]): Promise<void> => {
+  return apiRequest(`/tenants/delete-bulk`, {
+    method: "DELETE",
+    body: JSON.stringify({ tenant_ids: tenantIds }),
+  });
+};
+
 export const fetchTenantsByProperty = async (propertyId: number): Promise<EnrichedTenant[]> => {
   if (!propertyId) {
     console.error("fetchTenantsByProperty called without propertyId");

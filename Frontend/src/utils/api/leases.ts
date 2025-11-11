@@ -46,6 +46,13 @@ export const deleteLease = async (leaseId: number): Promise<void> => {
   });
 };
 
+export const bulkDeleteLeases = async (leaseIds: number[]): Promise<void> => {
+  return apiRequest(`/leases/bulk-lease-delete`, {
+    method: "DELETE",
+    body: JSON.stringify({ lease_ids: leaseIds }),
+  });
+};
+
 export const validateLease = async (leaseId: number): Promise<Lease> => {
   return apiRequest(`/leases/${leaseId}/validate`, {
     method: "POST",

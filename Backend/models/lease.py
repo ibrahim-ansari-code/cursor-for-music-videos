@@ -62,7 +62,7 @@ class Lease(SQLModel, table=True):
     # Foreign keys
     property_id: int = Field(foreign_key="properties.id")
     unit_id: int | None = Field(default=None, foreign_key="property_units.id")
-    tenant_id: int = Field(foreign_key="tenants.id")
+    tenant_id: int = Field(sa_column=Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False))
 
     # Timestamps
     created_at: datetime = Field(
@@ -113,4 +113,3 @@ class LeaseDocument(SQLModel, table=True):
     # Relationships
     lease: "Lease" = Relationship(back_populates="documents")
     uploaded_by: "User" = Relationship()
-

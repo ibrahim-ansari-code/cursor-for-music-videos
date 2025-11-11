@@ -120,3 +120,7 @@ class SecureDocumentUrlResponse(BaseModel):
 
 # Rebuild the LeaseResponse model to resolve forward references
 LeaseResponse.model_rebuild()
+
+
+class LeaseBulkDelete(BaseModel):
+    lease_ids: list[int]

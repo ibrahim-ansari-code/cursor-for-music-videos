@@ -1,24 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
-import { motion } from 'framer-motion';
-import * as Sentry from '@sentry/react';
-import { X, AlertTriangle, Trash2 } from 'lucide-react';
-import type { LeaseWithDocuments } from '../../types/lease';
+import React, { useState, useEffect } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { motion } from "framer-motion";
+import * as Sentry from "@sentry/react";
+import { X, AlertTriangle, Trash2 } from "lucide-react";
+import type { LeaseWithDocuments } from "../../types/lease";
 
 interface DeleteLeaseConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  lease: LeaseWithDocuments;
+  lease: LeaseWithDocuments | null;
   onConfirm: () => Promise<void>;
+  bulkDeleteCount?: number;
 }
 
-const DeleteLeaseConfirmationModal: React.FC<DeleteLeaseConfirmationModalProps> = ({
-  isOpen,
-  onClose,
-  lease,
-  onConfirm,
-}) => {
-  const [confirmText, setConfirmText] = useState('');
+const DeleteLeaseConfirmationModal: React.FC<
+  DeleteLeaseConfirmationModalProps
+> = ({ isOpen, onClose, lease, onConfirm, bulkDeleteCount }) => {
+  const isBulkDelete = bulkDeleteCount !== undefined && bulkDeleteCount > 0;
+  const [confirmText, setConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [countdown, setCountdown] = useState(3);
 
@@ -38,7 +37,7 @@ const DeleteLeaseConfirmationModal: React.FC<DeleteLeaseConfirmationModalProps> 
   // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
-      setConfirmText('');
+      setConfirmText("");
       setIsDeleting(false);
       setCountdown(3);
     }
@@ -46,8 +45,10 @@ const DeleteLeaseConfirmationModal: React.FC<DeleteLeaseConfirmationModalProps> 
 
   const handleClose = () => {
     if (isDeleting) return; // Prevent closing during deletion
-    Sentry.logger.debug('User cancelled lease deletion via modal close', { 
-      leaseId: lease.id 
+    Sentry.logger.debug("User cancelled lease deletion via modal close", {
+      leaseId: lease?.id,
+      isBulkDelete,
+      bulkDeleteCount,
     });
     onClose();
   };
@@ -57,12 +58,20 @@ const DeleteLeaseConfirmationModal: React.FC<DeleteLeaseConfirmationModalProps> 
 
     Sentry.startSpan(
       {
-        op: 'lease.delete.confirm',
-        name: 'Delete Lease Confirmation',
+        op: "lease.delete.confirm",
+        name: "Delete Lease Confirmation",
       },
       async (span) => {
-        span.setAttribute('leaseId', lease.id);
-        span.setAttribute('confirmationMethod', 'typed_confirmation');
+        if (lease) {
+          span.setAttribute("leaseId", lease.id);
+        }
+        if (isBulkDelete) {
+          span.setAttribute("bulkDeleteCount", bulkDeleteCount || 0);
+        }
+        span.setAttribute(
+          "confirmationMethod",
+          isBulkDelete ? "countdown" : "typed_confirmation"
+        );
 
         setIsDeleting(true);
 
@@ -70,9 +79,11 @@ const DeleteLeaseConfirmationModal: React.FC<DeleteLeaseConfirmationModalProps> 
           await onConfirm();
           onClose();
         } catch (error) {
-          Sentry.logger.error('Deletion failed in confirmation modal', {
+          Sentry.logger.error("Deletion failed in confirmation modal", {
             error: error instanceof Error ? error.message : String(error),
-            leaseId: lease.id,
+            leaseId: lease?.id,
+            isBulkDelete,
+            bulkDeleteCount,
           });
         } finally {
           setIsDeleting(false);
@@ -82,18 +93,24 @@ const DeleteLeaseConfirmationModal: React.FC<DeleteLeaseConfirmationModalProps> 
   };
 
   const getTenantName = () => {
+    if (!lease) return "";
     const { tenant } = lease;
-    if (!tenant) return 'No tenant assigned';
+    if (!tenant) return "No tenant assigned";
     if (tenant.full_name) return tenant.full_name;
     if (tenant.first_name || tenant.last_name) {
-      return `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim();
+      return `${tenant.first_name || ""} ${tenant.last_name || ""}`.trim();
     }
     return `Tenant #${tenant.id}`;
   };
 
-  const expectedConfirmText = `delete-${lease.id}`;
-  const isConfirmValid = confirmText.trim().toLowerCase() === expectedConfirmText.toLowerCase();
-  const canDelete = isConfirmValid && countdown === 0;
+  const expectedConfirmText = isBulkDelete
+    ? `delete-${bulkDeleteCount}`
+    : `delete-${lease?.id}`;
+  const isConfirmValid =
+    confirmText.trim().toLowerCase() === expectedConfirmText.toLowerCase();
+  const canDelete = isBulkDelete
+    ? countdown === 0
+    : isConfirmValid && countdown === 0;
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={handleClose}>
@@ -113,7 +130,12 @@ const DeleteLeaseConfirmationModal: React.FC<DeleteLeaseConfirmationModalProps> 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.3, type: 'spring', stiffness: 300, damping: 30 }}
+            transition={{
+              duration: 0.3,
+              type: "spring",
+              stiffness: 300,
+              damping: 30,
+            }}
             className="w-[90vw] max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden"
           >
             {/* Header with warning styling */}
@@ -125,7 +147,9 @@ const DeleteLeaseConfirmationModal: React.FC<DeleteLeaseConfirmationModalProps> 
                   </div>
                   <div>
                     <Dialog.Title className="text-lg font-semibold text-red-900 dark:text-red-100">
-                      Delete Lease
+                      {isBulkDelete
+                        ? `Delete ${bulkDeleteCount} Lease${bulkDeleteCount !== 1 ? 's' : ''}`
+                        : "Delete Lease"}
                     </Dialog.Title>
                     <Dialog.Description className="text-sm text-red-700 dark:text-red-300 mt-0.5">
                       This action cannot be undone
@@ -156,15 +180,49 @@ const DeleteLeaseConfirmationModal: React.FC<DeleteLeaseConfirmationModalProps> 
                 <div className="flex items-start space-x-3">
                   <Trash2 className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-2">
-                      You are about to permanently delete this lease:
-                    </p>
-                    <div className="space-y-1 text-sm text-red-800 dark:text-red-200">
-                      <p><strong>Tenant:</strong> {getTenantName()}</p>
-                      <p><strong>Property:</strong> {lease.property?.name || `Property #${lease.property_id}`}</p>
-                      {lease.unit && <p><strong>Unit:</strong> {lease.unit.name}</p>}
-                      <p><strong>Monthly Rent:</strong> ${Number(lease.monthly_rent).toFixed(2)}</p>
-                    </div>
+                    {isBulkDelete ? (
+                      <>
+                        <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-2">
+                          You are about to permanently delete {bulkDeleteCount}{" "}
+                          lease(s):
+                        </p>
+                        <div className="space-y-1 text-sm text-red-800 dark:text-red-200">
+                          <p>
+                            <strong>Selected Leases:</strong> {bulkDeleteCount}{" "}
+                            lease(s) will be deleted
+                          </p>
+                          <p className="mt-2 text-xs text-red-700 dark:text-red-300">
+                            ⚠️ The operation will fail if any selected lease is active.
+                            Active leases must be ended before deletion.
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-2">
+                          You are about to permanently delete this lease:
+                        </p>
+                        <div className="space-y-1 text-sm text-red-800 dark:text-red-200">
+                          <p>
+                            <strong>Tenant:</strong> {getTenantName()}
+                          </p>
+                          <p>
+                            <strong>Property:</strong>{" "}
+                            {lease?.property?.name ||
+                              `Property #${lease?.property_id}`}
+                          </p>
+                          {lease?.unit && (
+                            <p>
+                              <strong>Unit:</strong> {lease.unit.name}
+                            </p>
+                          )}
+                          <p>
+                            <strong>Monthly Rent:</strong> $
+                            {Number(lease?.monthly_rent || 0).toFixed(2)}
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -182,28 +240,41 @@ const DeleteLeaseConfirmationModal: React.FC<DeleteLeaseConfirmationModalProps> 
               </div>
 
               {/* Confirmation Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Type <code className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-red-600 dark:text-red-400 font-mono text-xs">
-                    {expectedConfirmText}
-                  </code> to confirm:
-                </label>
-                <input
-                  type="text"
-                  value={confirmText}
-                  onChange={(e) => setConfirmText(e.target.value)}
-                  placeholder={expectedConfirmText}
-                  disabled={isDeleting}
-                  className="block w-full px-4 py-2.5 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:focus:ring-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-mono"
-                  autoComplete="off"
-                  autoFocus
-                />
-                {confirmText && !isConfirmValid && (
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                    Text doesn't match. Please type exactly: {expectedConfirmText}
+              {!isBulkDelete && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Type{" "}
+                    <code className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-red-600 dark:text-red-400 font-mono text-xs">
+                      {expectedConfirmText}
+                    </code>{" "}
+                    to confirm:
+                  </label>
+                  <input
+                    type="text"
+                    value={confirmText}
+                    onChange={(e) => setConfirmText(e.target.value)}
+                    placeholder={expectedConfirmText}
+                    disabled={isDeleting}
+                    className="block w-full px-4 py-2.5 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:focus:ring-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-mono"
+                    autoComplete="off"
+                    autoFocus
+                  />
+                  {confirmText && !isConfirmValid && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                      Text doesn't match. Please type exactly:{" "}
+                      {expectedConfirmText}
+                    </p>
+                  )}
+                </div>
+              )}
+              {isBulkDelete && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    Please wait for the countdown timer to complete before
+                    confirming deletion.
                   </p>
-                )}
-              </div>
+                </div>
+              )}
             </motion.div>
 
             {/* Footer with countdown protection */}
@@ -229,10 +300,16 @@ const DeleteLeaseConfirmationModal: React.FC<DeleteLeaseConfirmationModalProps> 
                   disabled={!canDelete || isDeleting}
                   className={`px-5 py-2 text-sm font-medium text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 ${
                     isDeleting || !canDelete
-                      ? 'bg-gray-400 dark:bg-gray-600'
-                      : 'bg-red-600 dark:bg-red-700 hover:bg-red-700 dark:hover:bg-red-600'
+                      ? "bg-gray-400 dark:bg-gray-600"
+                      : "bg-red-600 dark:bg-red-700 hover:bg-red-700 dark:hover:bg-red-600"
                   }`}
-                  title={!canDelete ? 'Type confirmation text and wait for countdown' : 'Delete lease'}
+                  title={
+                    !canDelete
+                      ? isBulkDelete
+                        ? "Wait for the countdown to finish before deleting"
+                        : "Type confirmation text and wait for countdown"
+                      : "Delete lease"
+                  }
                 >
                   {isDeleting ? (
                     <>
@@ -242,7 +319,11 @@ const DeleteLeaseConfirmationModal: React.FC<DeleteLeaseConfirmationModalProps> 
                   ) : (
                     <>
                       <Trash2 className="w-4 h-4" />
-                      <span>Delete Lease</span>
+                      <span>
+                        {isBulkDelete
+                          ? `Delete ${bulkDeleteCount} Lease${bulkDeleteCount !== 1 ? 's' : ''}`
+                          : "Delete Lease"}
+                      </span>
                     </>
                   )}
                 </button>
@@ -256,4 +337,3 @@ const DeleteLeaseConfirmationModal: React.FC<DeleteLeaseConfirmationModalProps> 
 };
 
 export default DeleteLeaseConfirmationModal;
-
