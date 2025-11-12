@@ -45,7 +45,7 @@ class TenantUnitLink(SQLModel, table=True):
     __table_args__ = (Index("ix_tenant_unit_link_unit_id", "unit_id"),)
 
     tenant_id: int | None = Field(
-        default=None, foreign_key="tenants.id", primary_key=True
+        default=None, sa_column=Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True)
     )
     unit_id: int | None = Field(
         default=None, foreign_key="property_units.id", primary_key=True

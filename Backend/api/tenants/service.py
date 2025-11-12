@@ -866,19 +866,20 @@ async def bulk_delete_tenants(
 
     # Identify tenants with active leases
     # Use SELECT FOR UPDATE to lock rows and prevent race conditions
+    # Fetch only needed columns (id, tenant_id) for performance
     active_lease_query = (
-        select(col(Lease.tenant_id))
+        select(col(Lease.id), col(Lease.tenant_id))
         .where(
             and_(
                 col(Lease.tenant_id).in_(tenant_ids),
                 col(Lease.status) == LeaseStatus.ACTIVE,
             )
         )
-        .distinct()
         .with_for_update()
     )
-    active_lease_tenant_ids_result = await session.execute(active_lease_query)
-    active_lease_tenant_ids = set(active_lease_tenant_ids_result.scalars().all())
+    active_leases_result = await session.execute(active_lease_query)
+    # Extract distinct tenant_ids from the result tuples
+    active_lease_tenant_ids = {row.tenant_id for row in active_leases_result.all()}
 
     deletable_tenants = []
     tenants_with_active_leases = []
@@ -911,10 +912,13 @@ async def bulk_delete_tenants(
         logger.info("No tenants to delete after filtering for active leases.")
         return
 
-    # CASCADE will automatically delete all associated leases when tenant is deleted
+    # CASCADE constraints will automatically delete associated records:
+    # - TenantUnitLink records (CASCADE on tenant_id FK)
+    # - Other related records with CASCADE constraints
     # Use bulk delete to avoid N+1 queries
     from sqlalchemy import delete as sql_delete
     deletable_tenant_ids = [tenant.id for tenant in deletable_tenants]
+
     await session.execute(
         sql_delete(Tenant).where(col(Tenant.id).in_(deletable_tenant_ids))
     )

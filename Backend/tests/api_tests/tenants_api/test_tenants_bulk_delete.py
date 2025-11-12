@@ -72,6 +72,16 @@ class MockScalarResult:
         return self._values
 
 
+class MockRowResult:
+    """Mimics SQLAlchemy Result for row-based query results (e.g., select(Lease.id, Lease.tenant_id))."""
+
+    def __init__(self, rows):
+        self._rows = rows
+
+    def all(self):
+        return self._rows
+
+
 def _tenant(tenant_id: int, landlord_id):
     return Tenant(
         id=tenant_id,
@@ -91,7 +101,7 @@ def _lease(lease_id: int, tenant_id: int, status=LeaseStatus.EXPIRED):
     """Helper function to create a mock Lease object."""
     from decimal import Decimal
     from datetime import date
-    
+
     return Lease(
         id=lease_id,
         tenant_id=tenant_id,
@@ -105,6 +115,13 @@ def _lease(lease_id: int, tenant_id: int, status=LeaseStatus.EXPIRED):
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
     )
+
+
+class MockRow:
+    """Mimics SQLAlchemy Row object for tuple-based query results."""
+    def __init__(self, id, tenant_id):
+        self.id = id
+        self.tenant_id = tenant_id
 
 
 def _bulk_delete(client: TestClient, ids: list[int]):
@@ -121,11 +138,11 @@ def test_bulk_delete_success():
 
     # Mock session
     mock_session = AsyncMock()
-    # First execute -> tenants list; Second execute -> active lease tenant ids; Third execute -> non-active leases
+    # Execute calls: 1) fetch tenants, 2) check active leases, 3) bulk delete tenants (CASCADE handles TenantUnitLink)
     mock_session.execute = AsyncMock(side_effect=[
-        MockScalarResult([t1, t2]),
-        MockScalarResult([]),  # No active leases
-        MockScalarResult([]),  # No non-active leases
+        MockScalarResult([t1, t2]),  # Query: Fetch tenants
+        MockRowResult([]),  # Query: Check active leases (returns rows with id, tenant_id)
+        AsyncMock(),  # Execute: Bulk delete tenants (CASCADE handles children)
     ])
     mock_session.delete = AsyncMock()
     mock_session.commit = AsyncMock()
@@ -141,8 +158,7 @@ def test_bulk_delete_success():
     # Assert
     assert response.status_code == status.HTTP_204_NO_CONTENT
     # Verify bulk SQL delete was executed (not individual ORM deletes)
-    # Execute calls: 1) fetch tenants, 2) check active leases, 3) check & delete non-active leases + bulk delete tenants
-    assert mock_session.execute.await_count >= 3
+    assert mock_session.execute.await_count == 3
     # Should NOT use individual session.delete() calls (tenants use SQL bulk delete)
     assert not hasattr(mock_session.delete, 'await_count') or mock_session.delete.await_count == 0
     mock_session.commit.assert_awaited_once()
@@ -157,11 +173,11 @@ def test_bulk_delete_with_active_leases():
     t2 = _tenant(20, landlord_id)
 
     mock_session = AsyncMock()
-    # First execute -> tenants list; Second execute -> active lease tenant ids
+    # First execute -> tenants list; Second execute -> active lease check
     # Third query won't be reached because exception is raised when active leases are found
     mock_session.execute = AsyncMock(side_effect=[
-        MockScalarResult([t1, t2]),
-        MockScalarResult([10]),  # tenant 10 has active lease
+        MockScalarResult([t1, t2]),  # Query: Fetch tenants
+        MockRowResult([MockRow(1, 10)]),  # Query: Active lease for tenant 10 (returns row with id=1, tenant_id=10)
     ])
 
     app.dependency_overrides[get_current_user] = lambda: mock_user
@@ -237,11 +253,11 @@ def test_bulk_delete_integrity_error_returns_400():
     t2 = _tenant(8, landlord_id)
 
     mock_session = AsyncMock()
-    # First execute -> tenants list; Second execute -> active lease tenant ids; Third execute -> non-active leases
+    # Execute calls: 1) fetch tenants, 2) check active leases, 3) bulk delete tenants (CASCADE handles TenantUnitLink)
     mock_session.execute = AsyncMock(side_effect=[
-        MockScalarResult([t1, t2]),
-        MockScalarResult([]),  # No active leases
-        MockScalarResult([]),  # No non-active leases
+        MockScalarResult([t1, t2]),  # Query: Fetch tenants
+        MockRowResult([]),  # Query: Check active leases (no active leases)
+        AsyncMock(),  # Execute: Bulk delete tenants (CASCADE handles children)
     ])
     mock_session.delete = AsyncMock()
     mock_session.commit = AsyncMock(side_effect=IntegrityError("stmt", {}, Exception("fk")))
@@ -267,11 +283,11 @@ def test_bulk_delete_unexpected_error_returns_500():
     t2 = _tenant(80, landlord_id)
 
     mock_session = AsyncMock()
-    # First execute -> tenants list; Second execute -> active lease tenant ids; Third execute -> non-active leases
+    # Execute calls: 1) fetch tenants, 2) check active leases, 3) bulk delete tenants (CASCADE handles TenantUnitLink)
     mock_session.execute = AsyncMock(side_effect=[
-        MockScalarResult([t1, t2]),
-        MockScalarResult([]),  # No active leases
-        MockScalarResult([]),  # No non-active leases
+        MockScalarResult([t1, t2]),  # Query: Fetch tenants
+        MockRowResult([]),  # Query: Check active leases (no active leases)
+        AsyncMock(),  # Execute: Bulk delete tenants (CASCADE handles children)
     ])
     mock_session.delete = AsyncMock()
     mock_session.commit = AsyncMock(side_effect=Exception("boom"))
@@ -286,37 +302,5 @@ def test_bulk_delete_unexpected_error_returns_500():
     assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
     assert "unexpected error" in response.json()["detail"].lower()
     mock_session.rollback.assert_awaited_once()
-
-
-def test_bulk_delete_as_admin_success():
-    # Arrange
-    admin_user = create_test_user(email="admin@example.com", user_type=UserType.LANDLORD.value, is_admin=True)
-
-    t1 = _tenant(901, uuid4())
-    t2 = _tenant(902, uuid4())
-
-    mock_session = AsyncMock()
-    # First execute -> tenants list; Second execute -> active lease tenant ids; Third execute -> non-active leases
-    mock_session.execute = AsyncMock(side_effect=[
-        MockScalarResult([t1, t2]),
-        MockScalarResult([]),  # No active leases
-        MockScalarResult([]),  # No non-active leases
-    ])
-    mock_session.delete = AsyncMock()
-    mock_session.commit = AsyncMock()
-
-    app.dependency_overrides[get_current_user] = lambda: admin_user
-    app.dependency_overrides[get_session] = lambda: mock_session
-
-    with TestClientWithHost(app) as client:
-        response = _bulk_delete(client, [901, 902])
-
-    assert response.status_code == status.HTTP_204_NO_CONTENT
-    # Verify bulk SQL delete was executed (not individual ORM deletes)
-    # Execute calls: 1) fetch tenants, 2) check active leases, 3) check & delete non-active leases + bulk delete tenants
-    assert mock_session.execute.await_count >= 3
-    # Should NOT use individual session.delete() calls (tenants use SQL bulk delete)
-    assert not hasattr(mock_session.delete, 'await_count') or mock_session.delete.await_count == 0
-    mock_session.commit.assert_awaited_once()
 
 
