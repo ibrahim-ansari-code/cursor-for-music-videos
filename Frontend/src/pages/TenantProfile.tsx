@@ -14,7 +14,8 @@ import FilePreviewModal from '../components/FilePreviewModal';
 import NewPaymentModal from '../components/accounting/modals/NewPaymentModal';
 import ViewLeaseModal from '../components/leases/modals/ViewLeaseModal';
 import EmergencyContactModal from '../components/tenants/modals/EmergencyContactModal';
-import MaintenanceRequestModal from '../components/maintenance/MaintenanceRequestModal.tsx';
+import CreateMaintenanceModal from '../components/maintenance/CreateMaintenanceModal/index';
+import EditMaintenanceModal from '../components/maintenance/EditMaintenanceModal';
 import DocumentUploadModal from '../components/tenants/TenantProfile/tabs/DocumentsTab/DocumentUploadModal';
 import { createMaintenanceRequest } from '../utils/api';
 import { updateMaintenanceRequest } from '../utils/api/maintenance';
@@ -372,14 +373,27 @@ const TenantProfile: React.FC = () => {
       )}
 
       {/* Maintenance Request Modal - Rendered at root level for proper fixed positioning and z-index */}
-      <MaintenanceRequestModal
-        isOpen={showMaintenanceModal}
-        onClose={closeMaintenanceModal}
-        onSubmit={handleSubmitMaintenanceRequest}
-        request={maintenanceModalData}
-        isViewing={isViewingMaintenance}
-        isSubmitting={isSubmittingMaintenance}
-      />
+      {/* Create Modal */}
+      {showMaintenanceModal && !maintenanceModalData && (
+        <CreateMaintenanceModal
+          isOpen={showMaintenanceModal}
+          onClose={closeMaintenanceModal}
+          onSubmit={handleSubmitMaintenanceRequest}
+          isSubmitting={isSubmittingMaintenance}
+        />
+      )}
+
+      {/* Edit/View Modal */}
+      {showMaintenanceModal && maintenanceModalData && (
+        <EditMaintenanceModal
+          isOpen={showMaintenanceModal}
+          onClose={closeMaintenanceModal}
+          onSubmit={handleSubmitMaintenanceRequest}
+          request={maintenanceModalData}
+          isViewing={isViewingMaintenance}
+          isSubmitting={isSubmittingMaintenance}
+        />
+      )}
 
       {/* Document Upload Modal - Rendered at root level for proper fixed positioning and z-index */}
       {tenant && (

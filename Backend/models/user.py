@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from Backend.models.accounting.integration import Integration
     from Backend.models.ownership_entity import OwnershipEntity
     from Backend.models.calendar import CustomReminder
+    from Backend.models.vendor import UserVendor
 
 
 class User(SQLModel, table=True):
@@ -88,6 +89,12 @@ class User(SQLModel, table=True):
     
     # Custom calendar reminders
     custom_reminders: list["CustomReminder"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    
+    # Vendor associations (join table)
+    vendor_associations: list["UserVendor"] = Relationship(
         back_populates="user",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )

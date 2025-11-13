@@ -376,17 +376,19 @@ async def test_create_maintenance_request_success():
         with patch.object(MaintenanceRequestResponse, 'model_validate') as mock_response:
             mock_response.return_value = MagicMock()
             
-            result = await MaintenanceService.create_maintenance_request(
-                data=data,
-                current_user=mock_user,
-                session=mock_session
-            )
-            
-            mock_session.add.assert_called_once()
-            mock_session.commit.assert_called_once()
-            # We now re-query instead of refresh
-            mock_session.execute.assert_called_once()
-            assert result is not None
+            # Mock the vendor notification service to prevent email queries
+            with patch('Backend.api.maintenance.vendor_notification_service.VendorNotificationService') as mock_notif:
+                result = await MaintenanceService.create_maintenance_request(
+                    data=data,
+                    current_user=mock_user,
+                    session=mock_session
+                )
+                
+                mock_session.add.assert_called_once()
+                mock_session.commit.assert_called_once()
+                # We now re-query instead of refresh
+                mock_session.execute.assert_called_once()
+                assert result is not None
 
 
 @pytest.mark.asyncio

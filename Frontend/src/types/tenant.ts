@@ -251,6 +251,16 @@ export interface LeaseDocument {
   mime_type?: string;
 }
 
+// Vendor Contact Info (basic info embedded in maintenance requests)
+export interface VendorContactInfo {
+  id: number;
+  company_name: string;
+  contact_person: string | null;
+  trade_category: string;
+  phone: string;
+  email: string | null;
+}
+
 // Maintenance Request Interface
 export interface MaintenanceRequest {
   id: number;
@@ -271,6 +281,9 @@ export interface MaintenanceRequest {
   created_at: string;
   updated_at: string;
   assigned_to?: string;
+  vendor_id?: number | null;
+  vendor?: VendorContactInfo | null;
+  notify_tenant: boolean;
   property?: Property;
   unit?: PropertyUnit;
   tenant?: Tenant;  // Populated by backend when loading maintenance requests
@@ -351,8 +364,12 @@ export interface MaintenanceFormData {
   unit_id?: string;
   tenant_id?: string;
   assigned_to?: string;
+  vendor_id?: string;
+  notify_tenant?: boolean;
   scheduled_date?: string;
   estimated_cost?: string;
+  start_date?: string;
+  end_date?: string;
   photos?: string[];
 }
 

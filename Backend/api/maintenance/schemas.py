@@ -2,6 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, model_validator
+from sqlalchemy import inspect
 
 from Backend.models.enums import MaintenancePriority, MaintenanceStatus
 
@@ -18,6 +19,8 @@ class MaintenanceRequestCreate(BaseModel):
     actual_cost: Decimal | None = None
     photos: list[str] | None = None
     assigned_to: str | None = None
+    vendor_id: int | None = None
+    notify_tenant: bool = False
 
 
 class MaintenanceRequestUpdate(BaseModel):
@@ -34,6 +37,8 @@ class MaintenanceRequestUpdate(BaseModel):
     actual_cost: Decimal | None = None
     photos: list[str] | None = None
     assigned_to: str | None = None
+    vendor_id: int | None = None
+    notify_tenant: bool | None = None
 
 
 class PropertyInfo(BaseModel):
@@ -54,6 +59,16 @@ class TenantInfo(BaseModel):
     tenant_type: str | None = None
 
 
+class VendorContactInfo(BaseModel):
+    """Basic vendor contact information for maintenance request responses"""
+    id: int
+    company_name: str
+    contact_person: str | None = None
+    trade_category: str
+    phone: str
+    email: str | None = None
+
+
 class MaintenanceRequestResponse(BaseModel):
     id: int
     issue_title: str
@@ -72,6 +87,9 @@ class MaintenanceRequestResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     assigned_to: str | None
+    vendor_id: int | None
+    vendor: VendorContactInfo | None
+    notify_tenant: bool
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -104,35 +122,75 @@ class MaintenanceRequestResponse(BaseModel):
             'created_at': data.created_at,
             'updated_at': data.updated_at,
             'assigned_to': getattr(data, 'assigned_to', None),
+            'vendor_id': getattr(data, 'vendor_id', None),
+            'notify_tenant': getattr(data, 'notify_tenant', False),
         }
         
-        # Handle nested relationships (must be eager-loaded)
-        if hasattr(data, 'property') and data.property is not None:
-            result['property'] = {
-                'id': data.property.id,
-                'name': data.property.name
-            }
+        # Handle nested relationships (check if loaded to avoid lazy-loading)
+        try:
+            insp = inspect(data)
+        except Exception:
+            # Not a SQLAlchemy-instrumented object, return as-is
+            return data
+        
+        # Property relationship
+        if 'property' not in insp.unloaded:
+            prop = data.property
+            if prop is not None:
+                result['property'] = {
+                    'id': prop.id,
+                    'name': prop.name
+                }
+            else:
+                result['property'] = None
         else:
             result['property'] = None
             
-        if hasattr(data, 'unit') and data.unit is not None:
-            result['unit'] = {
-                'id': data.unit.id,
-                'name': data.unit.name
-            }
+        # Unit relationship
+        if 'unit' not in insp.unloaded:
+            unit = data.unit
+            if unit is not None:
+                result['unit'] = {
+                    'id': unit.id,
+                    'name': unit.name
+                }
+            else:
+                result['unit'] = None
         else:
             result['unit'] = None
             
-        if hasattr(data, 'tenant') and data.tenant is not None:
-            result['tenant'] = {
-                'id': data.tenant.id,
-                'first_name': getattr(data.tenant, 'first_name', None),
-                'last_name': getattr(data.tenant, 'last_name', None),
-                'company_name': getattr(data.tenant, 'company_name', None),
-                'tenant_type': data.tenant.tenant_type.value if hasattr(data.tenant, 'tenant_type') else None
-            }
+        # Tenant relationship
+        if 'tenant' not in insp.unloaded:
+            tenant = data.tenant
+            if tenant is not None:
+                result['tenant'] = {
+                    'id': tenant.id,
+                    'first_name': getattr(tenant, 'first_name', None),
+                    'last_name': getattr(tenant, 'last_name', None),
+                    'company_name': getattr(tenant, 'company_name', None),
+                    'tenant_type': tenant.tenant_type.value if hasattr(tenant, 'tenant_type') else None
+                }
+            else:
+                result['tenant'] = None
         else:
             result['tenant'] = None
+            
+        # Vendor relationship
+        if 'vendor' not in insp.unloaded:
+            vendor = data.vendor
+            if vendor is not None:
+                result['vendor'] = {
+                    'id': vendor.id,
+                    'company_name': vendor.company_name,
+                    'contact_person': getattr(vendor, 'contact_person', None),
+                    'trade_category': vendor.trade_category,
+                    'phone': vendor.phone,
+                    'email': getattr(vendor, 'email', None)
+                }
+            else:
+                result['vendor'] = None
+        else:
+            result['vendor'] = None
                 
         return result
 

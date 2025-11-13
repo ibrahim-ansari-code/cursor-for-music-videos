@@ -192,7 +192,10 @@ def test_maintenance_request_response_from_dict():
         "photos": ["photo1.jpg"],
         "created_at": datetime(2024, 3, 15, 10, 0),
         "updated_at": datetime(2024, 3, 15, 10, 0),
-        "assigned_to": "Jane Maintenance"
+        "assigned_to": "Jane Maintenance",
+        "vendor_id": None,
+        "vendor": None,
+        "notify_tenant": False
     }
     
     response = MaintenanceRequestResponse(**data)
@@ -247,6 +250,9 @@ def test_maintenance_request_response_convert_nested_objects():
     mock_request.created_at = datetime(2024, 3, 15, 10, 0)
     mock_request.updated_at = datetime(2024, 3, 15, 10, 0)
     mock_request.assigned_to = "Jane Maintenance"
+    mock_request.vendor_id = None
+    mock_request.vendor = None
+    mock_request.notify_tenant = False
     
     response = MaintenanceRequestResponse.model_validate(mock_request)
     
@@ -282,6 +288,9 @@ def test_maintenance_request_response_none_relationships():
     mock_request.created_at = datetime(2024, 3, 15, 10, 0)
     mock_request.updated_at = datetime(2024, 3, 15, 10, 0)
     mock_request.assigned_to = None
+    mock_request.vendor_id = None
+    mock_request.vendor = None
+    mock_request.notify_tenant = False
     
     response = MaintenanceRequestResponse.model_validate(mock_request)
     

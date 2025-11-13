@@ -281,7 +281,20 @@ const MaintenanceTable: React.FC<MaintenanceTableProps> = ({
                 <PriorityBadge priority={request.priority} />
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 transition-colors duration-300">
-                {request.assigned_to || "N/A"}
+                {request.vendor ? (
+                  <div>
+                    <div className="font-medium">{request.vendor.company_name}</div>
+                    {request.vendor.contact_person && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {request.vendor.contact_person}
+                      </div>
+                    )}
+                  </div>
+                ) : request.assigned_to ? (
+                  request.assigned_to
+                ) : (
+                  "N/A"
+                )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-center">
                 <StatusBadge status={request.status} />

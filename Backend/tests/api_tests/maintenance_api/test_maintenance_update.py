@@ -100,7 +100,10 @@ def test_update_maintenance_request_success():
         photos=None,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
-        assigned_to="new-maintenance@company.com"
+        assigned_to="new-maintenance@company.com",
+        vendor_id=None,
+        vendor=None,
+        notify_tenant=False
     )
     
     # Mock the service layer
@@ -155,7 +158,10 @@ def test_update_maintenance_request_partial_update():
         photos=None,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
-        assigned_to=None
+        assigned_to=None,
+        vendor_id=None,
+        vendor=None,
+        notify_tenant=False
     )
     
     # Mock the service layer
@@ -205,7 +211,10 @@ def test_update_maintenance_request_change_property():
         photos=None,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
-        assigned_to=None
+        assigned_to=None,
+        vendor_id=None,
+        vendor=None,
+        notify_tenant=False
     )
     
     # Mock the service layer
@@ -258,7 +267,10 @@ def test_update_maintenance_request_mark_completed():
         photos=None,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
-        assigned_to="maintenance@company.com"
+        assigned_to="maintenance@company.com",
+        vendor_id=None,
+        vendor=None,
+        notify_tenant=False
     )
     
     # Mock the service layer
@@ -447,7 +459,10 @@ def test_update_maintenance_request_admin_any_property():
         photos=None,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
-        assigned_to="admin-assigned@company.com"
+        assigned_to="admin-assigned@company.com",
+        vendor_id=None,
+        vendor=None,
+        notify_tenant=False
     )
     
     # Mock the service layer
@@ -504,7 +519,10 @@ def test_update_maintenance_request_add_photos():
         ],
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
-        assigned_to=None
+        assigned_to=None,
+        vendor_id=None,
+        vendor=None,
+        notify_tenant=False
     )
     
     # Mock the service layer

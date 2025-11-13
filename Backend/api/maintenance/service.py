@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Optional
 
@@ -15,6 +16,7 @@ from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
 from Backend.utils.azure_blob import upload_maintenance_photo_to_blob, generate_secure_document_url
+from Backend.api.maintenance.vendor_notification_service import VendorNotificationService
 
 from .helpers import check_permission, validate_file_content, validate_file_size
 from .schemas import (
@@ -142,7 +144,8 @@ class MaintenanceService:
         query = select(MaintenanceRequest).options(
             selectinload(getattr(MaintenanceRequest, "property")),
             selectinload(getattr(MaintenanceRequest, "unit")),
-            selectinload(getattr(MaintenanceRequest, "tenant"))  
+            selectinload(getattr(MaintenanceRequest, "tenant")),
+            selectinload(getattr(MaintenanceRequest, "vendor"))
         ).order_by(col(MaintenanceRequest.created_at).desc())  # Add ordering for better UX
 
         if not current_user.is_admin:
@@ -205,7 +208,9 @@ class MaintenanceService:
                 estimated_cost=data.estimated_cost,
                 actual_cost=data.actual_cost,
                 photos=data.photos,
-                assigned_to=data.assigned_to
+                assigned_to=data.assigned_to,
+                vendor_id=data.vendor_id,
+                notify_tenant=data.notify_tenant
             )
 
             session.add(db_request)
@@ -218,7 +223,8 @@ class MaintenanceService:
                 .options(
                     selectinload(getattr(MaintenanceRequest, "property")),
                     selectinload(getattr(MaintenanceRequest, "unit")),
-                    selectinload(getattr(MaintenanceRequest, "tenant"))
+                    selectinload(getattr(MaintenanceRequest, "tenant")),
+                    selectinload(getattr(MaintenanceRequest, "vendor"))
                 )
                 .where(col(MaintenanceRequest.id) == db_request.id)
             )
@@ -230,6 +236,34 @@ class MaintenanceService:
                     status_code=500,
                     detail="Created maintenance request not found after commit"
                 )
+            
+            # Send vendor notification if vendor assigned (run in background)
+            if created_request.vendor_id:
+                async def _notify():
+                    try:
+                        # Send email to vendor
+                        await VendorNotificationService.notify_vendor_of_assignment(
+                            created_request,
+                            session
+                        )
+                        
+                        # Send confirmation to landlord
+                        await VendorNotificationService.notify_landlord_of_assignment(
+                            created_request,
+                            session
+                        )
+                        
+                        logger.info(
+                            f"Vendor notifications sent for maintenance request {created_request.id}"
+                        )
+                    except Exception as e:
+                        # Log error but don't fail the request creation
+                        logger.exception(
+                            f"Failed to send vendor notifications for request {created_request.id}: {str(e)}"
+                        )
+                
+                # Run notifications in background to avoid blocking API response
+                asyncio.create_task(_notify())
             
             return MaintenanceRequestResponse.model_validate(created_request)
 
@@ -257,7 +291,8 @@ class MaintenanceService:
             .options(
                 selectinload(getattr(MaintenanceRequest, "property")),
                 selectinload(getattr(MaintenanceRequest, "unit")),
-                selectinload(getattr(MaintenanceRequest, "tenant"))
+                selectinload(getattr(MaintenanceRequest, "tenant")),
+                selectinload(getattr(MaintenanceRequest, "vendor"))
             )
             .where(col(MaintenanceRequest.id) == request_id)
         )
@@ -286,7 +321,8 @@ class MaintenanceService:
             .options(
                 selectinload(getattr(MaintenanceRequest, "property")),
                 selectinload(getattr(MaintenanceRequest, "unit")),
-                selectinload(getattr(MaintenanceRequest, "tenant"))
+                selectinload(getattr(MaintenanceRequest, "tenant")),
+                selectinload(getattr(MaintenanceRequest, "vendor"))
             )
             .where(col(MaintenanceRequest.id) == request_id)
         )
@@ -320,11 +356,37 @@ class MaintenanceService:
                 session=session
             )
 
+        # Capture old status for tenant notification
+        old_status = req.status
+        
         for key, value in update_data.items():
             setattr(req, key, value)
 
         session.add(req)
         await session.commit()
+        
+        # Send tenant notification if status changed and notifications enabled (run in background)
+        if 'status' in update_data and old_status != req.status:
+            async def _notify_tenant():
+                try:
+                    await VendorNotificationService.notify_tenant_of_status_change(
+                        req,
+                        old_status,
+                        req.status,
+                        session
+                    )
+                    
+                    logger.info(
+                        f"Status change notification sent for maintenance request {req.id}: {old_status} → {req.status}"
+                    )
+                except Exception as e:
+                    # Log error but don't fail the update
+                    logger.exception(
+                        f"Failed to send status change notification for request {req.id}: {str(e)}"
+                    )
+            
+            # Run notification in background to avoid blocking API response
+            asyncio.create_task(_notify_tenant())
         
         # After commit, all attributes are expired. Re-query with fresh session to get updated data
         # This is the industry-standard pattern (Stripe, Airbnb, etc.)
@@ -333,7 +395,8 @@ class MaintenanceService:
             .options(
                 selectinload(getattr(MaintenanceRequest, "property")),
                 selectinload(getattr(MaintenanceRequest, "unit")),
-                selectinload(getattr(MaintenanceRequest, "tenant"))
+                selectinload(getattr(MaintenanceRequest, "tenant")),
+                selectinload(getattr(MaintenanceRequest, "vendor"))
             )
             .where(col(MaintenanceRequest.id) == request_id)
         )
@@ -359,7 +422,10 @@ class MaintenanceService:
         """
         result = await session.execute(
             select(MaintenanceRequest)
-            .options(selectinload(getattr(MaintenanceRequest, "property")))
+            .options(
+                selectinload(getattr(MaintenanceRequest, "property")),
+                selectinload(getattr(MaintenanceRequest, "vendor"))
+            )
             .where(col(MaintenanceRequest.id) == request_id)
         )
         req = result.scalar_one_or_none()

@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import * as Select from '@radix-ui/react-select';
+import { ChevronDown, Check } from 'lucide-react';
 import type { MaintenanceFormData, MaintenancePhotoState, Property, PropertyUnit, Tenant } from '../../types/tenant';
+import type { VendorContact } from '../../types/vendor';
 import MaintenancePhotoUpload from './MaintenancePhotoUpload';
 import { getSecurePhotoUrl } from '../../utils/api/maintenance';
 
@@ -9,6 +12,7 @@ interface MaintenanceFormFieldsProps {
   properties: Property[];
   units: PropertyUnit[];
   tenants: Tenant[];
+  vendors: VendorContact[];
   photoState: MaintenancePhotoState;
   onUpdateField: <K extends keyof MaintenanceFormData>(field: K, value: MaintenanceFormData[K]) => void;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -17,6 +21,7 @@ interface MaintenanceFormFieldsProps {
   isViewing?: boolean;
   isLoadingUnits?: boolean;
   isLoadingTenants?: boolean;
+  isLoadingVendors?: boolean;
 }
 
 // Helper to get tenant name
@@ -37,7 +42,8 @@ const MaintenanceViewMode: React.FC<{
   properties: Property[];
   units: PropertyUnit[];
   tenants: Tenant[];
-}> = ({ formData, properties, units, tenants }) => {
+  vendors: VendorContact[];
+}> = ({ formData, properties, units, tenants, vendors }) => {
   const [securePhotoUrls, setSecurePhotoUrls] = useState<Record<string, string>>({});
   const [loadingPhotos, setLoadingPhotos] = useState(false);
 
@@ -105,6 +111,10 @@ const MaintenanceViewMode: React.FC<{
   const property = propertyIdNum !== null ? properties.find(p => p.id === propertyIdNum) : undefined;
   const unit = unitIdNum !== null ? units.find(u => u.id === unitIdNum) : undefined;
   const tenant = tenantIdNum !== null ? tenants.find(t => t.id === tenantIdNum) : undefined;
+  
+  // Find vendor if vendor_id exists
+  const vendorIdNum = formData.vendor_id ? Number(formData.vendor_id) : null;
+  const vendor = vendorIdNum !== null ? vendors.find(v => v.id === vendorIdNum) : undefined;
 
   return (
     <div className="p-6 space-y-4">
@@ -230,7 +240,7 @@ const MaintenanceViewMode: React.FC<{
           {renderField('Issue Title', formData.issue_title)}
           {renderField('Priority', formData.priority)}
           {renderField('Status', formData.status)}
-          {renderField('Assign To', formData.assigned_to)}
+          {renderField('Vendor', vendor ? `${vendor.company_name} (${vendor.trade_category})` : '')}
         </div>
         <div className="mt-4">
           {renderField('Description', formData.description)}
@@ -248,12 +258,16 @@ const MaintenanceViewMode: React.FC<{
           <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-300">Additional Information</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {renderField(
-            'Scheduled Date',
-            formData.scheduled_date ? new Date(formData.scheduled_date).toLocaleDateString() : ''
-          )}
-          {renderField('Estimated Cost', formData.estimated_cost ? `$${formData.estimated_cost}` : '')}
           {renderField('Tenant', getTenantName(tenant))}
+          {renderField('Notify Tenant via Email', formData.notify_tenant ? 'Yes' : 'No')}
+          {renderField(
+            'Requested Start Date',
+            formData.start_date ? new Date(formData.start_date).toLocaleDateString() : ''
+          )}
+          {renderField(
+            'Requested End Date',
+            formData.end_date ? new Date(formData.end_date).toLocaleDateString() : ''
+          )}
         </div>
       </div>
 
@@ -268,6 +282,7 @@ const MaintenanceFormFields: React.FC<MaintenanceFormFieldsProps> = ({
   properties,
   units,
   tenants,
+  vendors,
   photoState,
   onUpdateField,
   onFileChange,
@@ -276,10 +291,11 @@ const MaintenanceFormFields: React.FC<MaintenanceFormFieldsProps> = ({
   isViewing,
   isLoadingUnits,
   isLoadingTenants,
+  isLoadingVendors,
 }) => {
   // If viewing mode, render view component
   if (isViewing) {
-    return <MaintenanceViewMode formData={formData} properties={properties} units={units} tenants={tenants} />;
+    return <MaintenanceViewMode formData={formData} properties={properties} units={units} tenants={tenants} vendors={vendors} />;
   }
 
   const getInputClassName = (fieldName: string): string => {
@@ -418,6 +434,27 @@ const MaintenanceFormFields: React.FC<MaintenanceFormFieldsProps> = ({
             </select>
           </div>
         </div>
+
+        {/* Notify Tenant Checkbox - Moved here under tenant selector */}
+        {formData.tenant_id && (
+          <div className="mt-3">
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="notify_tenant"
+                checked={formData.notify_tenant || false}
+                onChange={(e) => onUpdateField('notify_tenant', e.target.checked)}
+                className="w-4 h-4 text-green-600 border-gray-300 dark:border-gray-600 rounded focus:ring-green-500 dark:focus:ring-green-400 dark:bg-gray-700"
+              />
+              <label htmlFor="notify_tenant" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                Notify Tenant via Email
+              </label>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 ml-7 mt-1">
+              Tenant will receive email notifications about request updates
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Request Details Section */}
@@ -515,54 +552,117 @@ const MaintenanceFormFields: React.FC<MaintenanceFormFieldsProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Assigned To */}
+        <div className="space-y-4">
+          {/* Vendor Dropdown - Radix UI */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Assign To
+              Assign Vendor
             </label>
-            <input
-              type="text"
-              value={formData.assigned_to || ''}
-              onChange={(e) => onUpdateField('assigned_to', e.target.value)}
-              placeholder="Name of person or company"
-              className={getInputClassName('assigned_to')}
-            />
+            <Select.Root
+              value={formData.vendor_id || 'NONE'}
+              onValueChange={(value) => onUpdateField('vendor_id', value === 'NONE' ? '' : value)}
+              disabled={isLoadingVendors}
+            >
+              <Select.Trigger
+                className={`w-full px-4 py-2.5 pr-9 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent flex items-center justify-between transition-colors text-sm ${
+                  isLoadingVendors
+                    ? 'bg-gray-100 dark:bg-gray-900/50 cursor-not-allowed border-gray-300 dark:border-gray-600'
+                    : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                } text-gray-900 dark:text-gray-100`}
+                disabled={isLoadingVendors}
+              >
+                <Select.Value placeholder="Select a vendor...">
+                  {formData.vendor_id && vendors.find(v => v.id === Number(formData.vendor_id)) ? (() => {
+                    const vendor = vendors.find(v => v.id === Number(formData.vendor_id));
+                    return vendor ? `${vendor.company_name} (${vendor.trade_category})` : 'Select a vendor...';
+                  })() : 'Select a vendor...'}
+                </Select.Value>
+                <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400 ml-2 flex-shrink-0" />
+              </Select.Trigger>
+              <Select.Portal>
+                <Select.Content className="overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-[10001] max-h-80">
+                  <Select.Viewport className="p-1">
+                    <Select.Item
+                      value="NONE"
+                      className="relative flex items-center px-8 py-2 text-sm text-gray-900 dark:text-gray-100 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 outline-none"
+                    >
+                      <Select.ItemText>No vendor assigned</Select.ItemText>
+                      <Select.ItemIndicator className="absolute left-2 inline-flex items-center">
+                        <Check className="h-4 w-4" />
+                      </Select.ItemIndicator>
+                    </Select.Item>
+                    {vendors.length === 0 && !isLoadingVendors && (
+                      <div className="px-8 py-2 text-sm text-gray-500 dark:text-gray-400">
+                        No vendors available. Add vendors in the Vendors page first.
+                      </div>
+                    )}
+                    {vendors.map((vendor) => (
+                      <Select.Item
+                        key={vendor.id}
+                        value={String(vendor.id)}
+                        className="relative flex items-center px-8 py-2 text-sm text-gray-900 dark:text-gray-100 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 outline-none"
+                      >
+                        <Select.ItemText>
+                          <div>
+                            <div className="font-medium">{vendor.company_name}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {vendor.trade_category} • {vendor.phone}
+                            </div>
+                          </div>
+                        </Select.ItemText>
+                        <Select.ItemIndicator className="absolute left-2 inline-flex items-center">
+                          <Check className="h-4 w-4" />
+                        </Select.ItemIndicator>
+                      </Select.Item>
+                    ))}
+                  </Select.Viewport>
+                </Select.Content>
+              </Select.Portal>
+            </Select.Root>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Vendor will be notified via email and SMS when assigned
+            </p>
           </div>
 
-          {/* Scheduled Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Scheduled Date
-            </label>
-            <input
-              type="date"
-              value={formData.scheduled_date || ''}
-              onChange={(e) => onUpdateField('scheduled_date', e.target.value)}
-              className={getInputClassName('scheduled_date')}
-            />
-            {errors.scheduled_date && (
-              <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.scheduled_date}</p>
-            )}
-          </div>
+          {/* Date Range: Start Date and End Date */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Start Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Requested Start Date
+              </label>
+              <input
+                type="date"
+                value={formData.start_date || ''}
+                onChange={(e) => onUpdateField('start_date', e.target.value)}
+                className={getInputClassName('start_date')}
+              />
+              {errors.start_date && (
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.start_date}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Earliest date for repair to begin
+              </p>
+            </div>
 
-          {/* Estimated Cost */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Estimated Cost
-            </label>
-            <input
-              type="number"
-              value={formData.estimated_cost || ''}
-              onChange={(e) => onUpdateField('estimated_cost', e.target.value)}
-              placeholder="0.00"
-              min="0"
-              step="0.01"
-              className={getInputClassName('estimated_cost')}
-            />
-            {errors.estimated_cost && (
-              <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.estimated_cost}</p>
-            )}
+            {/* End Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Requested End Date
+              </label>
+              <input
+                type="date"
+                value={formData.end_date || ''}
+                onChange={(e) => onUpdateField('end_date', e.target.value)}
+                className={getInputClassName('end_date')}
+              />
+              {errors.end_date && (
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.end_date}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Latest date for repair to be completed
+              </p>
+            </div>
           </div>
         </div>
       </div>

@@ -271,6 +271,7 @@ try:
     from Backend.api.units.router import router as units_router
     from Backend.api.maintenance.router import router as maintenance_router
     from Backend.api.quickbooks.router import router as quickbooks_router
+    from Backend.api.vendors.router import router as vendors_router
 
     # Include routers into the central api_main_router
     # Their internal prefixes (e.g., /auth, /properties) will apply
@@ -292,6 +293,7 @@ try:
     api_main_router.include_router(reports_router)
     api_main_router.include_router(health_router)
     api_main_router.include_router(maintenance_router)
+    api_main_router.include_router(vendors_router)
     api_main_router.include_router(quickbooks_router, prefix="/quickbooks", tags=["QuickBooks"])
 
     # Define comprehensive health check endpoints

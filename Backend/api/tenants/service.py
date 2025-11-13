@@ -508,7 +508,7 @@ async def enrich_tenants_with_details(
             select(Lease)
             .options(
                 selectinload(getattr(Lease, "property")),
-                selectinload(getattr(Lease, "unit")),
+                selectinload(getattr(Lease, "unit")).selectinload(getattr(PropertyUnit, "property")),
                 selectinload(getattr(Lease, "documents"))
             )
             .where(col(Lease.tenant_id) == tenant.id)

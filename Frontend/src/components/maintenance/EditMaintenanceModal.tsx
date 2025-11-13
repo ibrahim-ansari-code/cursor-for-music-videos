@@ -8,23 +8,22 @@ import { useVendors } from '../../hooks/useVendorQueries';
 import MaintenanceFormFields from './MaintenanceFormFields';
 import type { MaintenanceRequest, Property, PropertyUnit, Tenant } from '../../types/tenant';
 
-interface MaintenanceRequestModalProps {
+interface EditMaintenanceModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: any) => Promise<void>;
-  request?: MaintenanceRequest | null;
+  request: MaintenanceRequest;
   isViewing?: boolean;
   isSubmitting?: boolean;
 }
 
 /**
- * Refactored MaintenanceRequestModal with modular TypeScript architecture
- * - Business logic extracted to useMaintenanceForm and useMaintenancePhotos hooks
- * - UI presentation delegated to MaintenanceFormFields component
- * - Follows NewExpenseModal pattern for consistency
- * - Supports create, edit, and view modes
+ * EditMaintenanceModal - For editing and viewing existing maintenance requests
+ * 
+ * Split from MaintenanceRequestModal to allow independent evolution
+ * of create vs edit/view functionality
  */
-const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
+const EditMaintenanceModal: React.FC<EditMaintenanceModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
@@ -41,11 +40,13 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch active vendors for dropdown
-  const { data: vendorsData, isLoading: isLoadingVendors } = useVendors({ 
-    is_active: true,
-    limit: 100 
-  });
+  // Fetch active vendors for dropdown (only when modal is open)
+  const { data: vendorsData, isLoading: isLoadingVendors } = useVendors(
+    isOpen ? { 
+      is_active: true,
+      limit: 100 
+    } : undefined
+  );
 
   // Form management hook
   const {
@@ -56,7 +57,7 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
     resetForm,
     validateForm,
   } = useMaintenanceForm({
-    mode: request?.id ? 'edit' : 'create',
+    mode: 'edit',
     initialData: request,
     onSuccess: async (payload) => {
       await onSubmit(payload);
@@ -122,10 +123,9 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
 
         // Reset unit and tenant if property changed (check both nested and direct property ID)
         const prevPropId = String(request?.property?.id || request?.property_id || '');
-        const hasInitialTenant = request?.tenant_id;
 
-        // Only reset if property actually changed AND there was no pre-populated tenant
-        if (prevPropId !== String(formData.property_id) && !hasInitialTenant) {
+        // Only reset if property actually changed
+        if (prevPropId !== String(formData.property_id)) {
           updateField('unit_id', '');
           updateField('tenant_id', '');
         }
@@ -197,7 +197,7 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
         // Combine existing Azure URLs with newly uploaded ones  
         finalPhotos = [...existingUploadedPhotos, ...uploadedUrls];
         
-        console.log('[MaintenanceSubmit] Replaced preview URLs with Azure URLs:', {
+        console.log('[MaintenanceEdit] Replaced preview URLs with Azure URLs:', {
           original: formData.photos,
           final: finalPhotos,
           uploadedCount: uploadedUrls.length
@@ -205,7 +205,6 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
       }
       
       // Build the final payload with proper type conversions
-      // This mirrors what submitForm does in useMaintenanceForm
       const payload = {
         issue_title: formData.issue_title.trim(),
         description: formData.description && formData.description.trim() !== ''
@@ -238,20 +237,14 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
       await onSubmit(payload);
       
     } catch (err: any) {
-      setError(err?.message || 'Failed to save the request.');
+      setError(err?.message || 'Failed to update the request.');
       throw err; // Re-throw so parent can handle if needed
     }
   };
 
   const isSubmitting = formSubmitting || externalSubmitting || false;
 
-  const modalTitle = isViewing
-    ? 'View Maintenance Request'
-    : request && request.id
-    ? 'Edit Maintenance Request'
-    : 'New Maintenance Request';
-
-  const submitLabel = request && request.id ? 'Update Request' : 'Create Request';
+  const modalTitle = isViewing ? 'View Maintenance Request' : 'Edit Maintenance Request';
 
   if (!isOpen) return null;
 
@@ -272,7 +265,7 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
           className="relative w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col z-[10000] transition-colors duration-300"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Clean Header matching NewExpenseModal */}
+          {/* Header */}
           <div className="relative bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -284,9 +277,7 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                     {isViewing
                       ? 'View maintenance request details'
-                      : request
-                      ? 'Update maintenance request information'
-                      : 'Create a new maintenance request for your property'}
+                      : 'Update maintenance request information'}
                   </p>
                 </div>
               </div>
@@ -301,7 +292,7 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
             </div>
           </div>
 
-          {/* Content area matching NewExpenseModal */}
+          {/* Content area */}
           <div className="flex-1 overflow-y-auto bg-gray-50/50 dark:bg-gray-800/50 transition-colors duration-300">
             {error && (
               <motion.div
@@ -328,7 +319,7 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
                 <p className="text-sm text-gray-500 dark:text-gray-400">Loading properties...</p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} id="maintenance-request-form">
+              <form onSubmit={handleSubmit} id="edit-maintenance-request-form">
                 <MaintenanceFormFields
                   formData={formData}
                   errors={errors}
@@ -350,7 +341,7 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
             )}
           </div>
 
-          {/* Clean Footer matching NewExpenseModal */}
+          {/* Footer */}
           <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-3 flex justify-between items-center bg-white dark:bg-gray-800 flex-shrink-0">
             {/* Info text on left */}
             {!isViewing && (
@@ -378,7 +369,6 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
               {!isViewing && (
                 <button
                   type="submit"
-                  onClick={handleSubmit}
                   disabled={isSubmitting}
                   className={`px-5 py-2 text-sm font-medium text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 ${
                     isSubmitting
@@ -389,10 +379,10 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
                   {isSubmitting ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>{request && request.id ? 'Updating...' : 'Creating...'}</span>
+                      <span>Updating...</span>
                     </>
                   ) : (
-                    submitLabel
+                    'Update Request'
                   )}
                 </button>
               )}
@@ -404,4 +394,5 @@ const MaintenanceRequestModal: React.FC<MaintenanceRequestModalProps> = ({
   );
 };
 
-export default MaintenanceRequestModal;
+export default EditMaintenanceModal;
+

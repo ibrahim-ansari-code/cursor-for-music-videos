@@ -29,7 +29,7 @@ import PageLoader from "./components/ui/PageLoader";
 
 // Pages (lazy-loaded for automatic code splitting)
 const Leases = React.lazy(() => import("./pages/Leases"));
-const Vendors = React.lazy(() => import("./pages/Vendors"));
+const Vendors = React.lazy(() => import("./pages/Vendors.tsx"));
 const Messages = React.lazy(() => import("./pages/Messages"));
 const Properties = React.lazy(() => import("./pages/Properties"));
 const PropertyDetail = React.lazy(() => import("./pages/PropertyDetail"));
@@ -136,6 +136,7 @@ const AppRoutes = () => {
           <Route path="settings" element={<Suspense fallback={<PageLoader />}><TenantSettingsTab /></Suspense>} />
         </Route>
         <Route path="maintenance" element={<Suspense fallback={<PageLoader />}><Maintenance /></Suspense>} />
+        <Route path="vendors" element={<Suspense fallback={<PageLoader />}><Vendors /></Suspense>} />
         <Route path="calendar" element={<Suspense fallback={<PageLoader />}><Calendar /></Suspense>} />
         <Route path="reports" element={<Suspense fallback={<PageLoader />}><Reports /></Suspense>} />
         <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />

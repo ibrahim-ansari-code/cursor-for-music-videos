@@ -96,7 +96,10 @@ def test_create_maintenance_request_success():
         photos=None,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
-        assigned_to="maintenance@company.com"
+        assigned_to="maintenance@company.com",
+        vendor_id=None,
+        vendor=None,
+        notify_tenant=False
     )
     
     # Mock the service layer
@@ -154,7 +157,10 @@ def test_create_maintenance_request_minimal_fields():
         photos=None,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
-        assigned_to=None
+        assigned_to=None,
+        vendor_id=None,
+        vendor=None,
+        notify_tenant=False
     )
     
     # Mock the service layer
@@ -214,7 +220,10 @@ def test_create_maintenance_request_with_photos():
         ],
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
-        assigned_to=None
+        assigned_to=None,
+        vendor_id=None,
+        vendor=None,
+        notify_tenant=False
     )
     
     # Mock the service layer
@@ -439,7 +448,10 @@ def test_create_maintenance_request_admin_any_property():
         photos=None,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
-        assigned_to=None
+        assigned_to=None,
+        vendor_id=None,
+        vendor=None,
+        notify_tenant=False
     )
     
     # Mock the service layer

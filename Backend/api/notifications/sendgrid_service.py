@@ -262,4 +262,85 @@ class SendGridService:
                 'notification_type': notification_type,
             })
             return False
+    
+    @staticmethod
+    async def send_raw_email(
+        to_email: str,
+        to_name: str,
+        subject: str,
+        html_content: str,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Send an email with raw HTML content via SendGrid.
+        
+        Use this for custom-generated HTML emails (e.g., vendor notifications).
+        
+        Args:
+            to_email: Recipient email address
+            to_name: Recipient name
+            subject: Email subject line
+            html_content: Complete HTML email content
+            metadata: Optional additional metadata for tracking
+            
+        Returns:
+            True if email sent successfully, False otherwise
+        """
+        try:
+            client = SendGridService._get_sendgrid_client()
+            if not client:
+                logger.error("SendGrid client not configured")
+                return False
+            
+            # Create email message
+            from_email = Email(settings.SENDGRID_FROM_EMAIL, settings.SENDGRID_FROM_NAME)
+            to_email_obj = To(to_email, to_name)
+            
+            mail = Mail(
+                from_email=from_email,
+                to_emails=to_email_obj,
+                subject=subject,
+                html_content=html_content
+            )
+            
+            # Add metadata as custom args for tracking
+            if metadata:
+                mail.custom_args = {
+                    "email_type": metadata.get('email_type', 'custom'),
+                    "request_id": str(metadata.get('request_id', ''))
+                }
+            
+            # Send email in thread executor to avoid blocking event loop
+            import asyncio
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(None, client.send, mail)
+            
+            if response.status_code in [200, 201, 202]:
+                logger.info(
+                    f"Raw HTML email sent successfully to {to_email}",
+                    extra={
+                        'to_email': to_email,
+                        'status_code': response.status_code,
+                        'metadata': metadata
+                    }
+                )
+                return True
+            else:
+                logger.error(
+                    f"SendGrid API returned non-success status: {response.status_code}",
+                    extra={
+                        'status_code': response.status_code,
+                        'body': response.body,
+                        'headers': dict(response.headers)
+                    }
+                )
+                return False
+                
+        except Exception as e:
+            logger.exception(f"Failed to send raw HTML email to {to_email}")
+            sentry_sdk.capture_exception(e, extra={
+                'to_email': to_email,
+                'metadata': metadata
+            })
+            return False
 

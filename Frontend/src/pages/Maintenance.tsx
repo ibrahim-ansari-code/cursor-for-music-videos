@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { toast } from "react-toastify";
 import * as Sentry from "@sentry/react";
 import MaintenanceTable from "../components/maintenance/MaintenanceTable";
-import MaintenanceRequestModal from "../components/maintenance/MaintenanceRequestModal";
+import CreateMaintenanceModal from "../components/maintenance/CreateMaintenanceModal/index";
+import EditMaintenanceModal from "../components/maintenance/EditMaintenanceModal";
 import StatusCard from "../components/maintenance/StatusCard";
 import MaintenanceSkeleton, {
   MaintenanceTableSkeleton,
@@ -438,16 +439,25 @@ const Maintenance: React.FC = () => {
         )}
       </div>
 
-      {isModalOpen && (
-        <MaintenanceRequestModal
+      {/* Create Modal */}
+      {isModalOpen && !editingRequest && !viewingRequest && (
+        <CreateMaintenanceModal
           isOpen={isModalOpen}
           onClose={closeModal}
           onSubmit={handleModalSubmit}
-          request={editingRequest || viewingRequest}
+          isSubmitting={createRequestMutation.isPending}
+        />
+      )}
+
+      {/* Edit/View Modal */}
+      {isModalOpen && (editingRequest || viewingRequest) && (
+        <EditMaintenanceModal
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          onSubmit={handleModalSubmit}
+          request={editingRequest || viewingRequest!}
           isViewing={!!viewingRequest}
-          isSubmitting={
-            createRequestMutation.isPending || updateRequestMutation.isPending
-          }
+          isSubmitting={updateRequestMutation.isPending}
         />
       )}
     </div>

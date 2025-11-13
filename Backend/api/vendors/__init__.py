@@ -1,0 +1,2 @@
+"""Vendor Contacts API module"""
+

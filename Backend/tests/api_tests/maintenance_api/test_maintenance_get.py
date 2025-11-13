@@ -168,7 +168,10 @@ def test_get_maintenance_request_owner_success():
         photos=None,
         created_at=fake_request.created_at,
         updated_at=fake_request.updated_at,
-        assigned_to=None
+        assigned_to=None,
+        vendor_id=None,
+        vendor=None,
+        notify_tenant=False
     )
     
     # Mock the service layer
@@ -238,7 +241,10 @@ def test_get_maintenance_request_admin_can_view_any():
         photos=None,
         created_at=fake_request.created_at,
         updated_at=fake_request.updated_at,
-        assigned_to=None
+        assigned_to=None,
+        vendor_id=None,
+        vendor=None,
+        notify_tenant=False
     )
     
     # Mock the service layer
@@ -361,7 +367,10 @@ def test_get_maintenance_requests_regular_user_sees_only_own():
             photos=None,
             created_at=request1.created_at,
             updated_at=request1.updated_at,
-            assigned_to=None
+            assigned_to=None,
+            vendor_id=None,
+            vendor=None,
+            notify_tenant=False
         ),
         MaintenanceRequestResponse(
             id=2,
@@ -380,7 +389,10 @@ def test_get_maintenance_requests_regular_user_sees_only_own():
             photos=None,
             created_at=request2.created_at,
             updated_at=request2.updated_at,
-            assigned_to=None
+            assigned_to=None,
+            vendor_id=None,
+            vendor=None,
+            notify_tenant=False
         )
     ]
     
@@ -444,7 +456,10 @@ def test_get_maintenance_requests_with_filters():
             photos=None,
             created_at=filtered_request.created_at,
             updated_at=filtered_request.updated_at,
-            assigned_to=None
+            assigned_to=None,
+            vendor_id=None,
+            vendor=None,
+            notify_tenant=False
         )
     ]
     
@@ -499,7 +514,10 @@ def test_get_maintenance_requests_pagination():
                 photos=None,
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
-                assigned_to=None
+                assigned_to=None,
+                vendor_id=None,
+                vendor=None,
+                notify_tenant=False
             )
         )
     

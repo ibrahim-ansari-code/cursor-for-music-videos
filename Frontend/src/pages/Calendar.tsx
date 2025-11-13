@@ -20,7 +20,7 @@ import { CreateReminderModal } from '../components/calendar/CreateReminderModal'
 import NewPaymentModal from '../components/accounting/modals/NewPaymentModal';
 import ViewInvoiceModal from '../components/accounting/modals/ViewInvoiceModal';
 import ViewLeaseModal from '../components/leases/modals/ViewLeaseModal';
-import MaintenanceRequestModal from '../components/maintenance/MaintenanceRequestModal';
+import EditMaintenanceModal from '../components/maintenance/EditMaintenanceModal';
 import RescheduleMaintenanceModal from '../components/calendar/RescheduleMaintenanceModal';
 import ConfirmCompleteMaintenanceModal from '../components/calendar/ConfirmCompleteMaintenanceModal';
 import ConfirmCompleteReminderModal from '../components/calendar/ConfirmCompleteReminderModal';
@@ -573,16 +573,18 @@ const CalendarPage: React.FC = () => {
       />
 
       {/* View Maintenance Request Modal */}
-      <MaintenanceRequestModal
-        isOpen={maintenanceModalOpen}
-        onClose={() => {
-          setMaintenanceModalOpen(false);
-          setViewingMaintenanceRequest(null);
-        }}
-        onSubmit={async () => {}} // No-op for view mode
-        request={viewingMaintenanceRequest}
-        isViewing={true}
-      />
+      {maintenanceModalOpen && viewingMaintenanceRequest && (
+        <EditMaintenanceModal
+          isOpen={maintenanceModalOpen}
+          onClose={() => {
+            setMaintenanceModalOpen(false);
+            setViewingMaintenanceRequest(null);
+          }}
+          onSubmit={async () => {}} // No-op for view mode
+          request={viewingMaintenanceRequest}
+          isViewing={true}
+        />
+      )}
 
       {/* Reschedule Maintenance Modal */}
       <RescheduleMaintenanceModal

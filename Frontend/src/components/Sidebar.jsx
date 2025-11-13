@@ -21,6 +21,7 @@ const Sidebar = () => {
     { name: "Accounting", path: "/accounting", icon: "fa-calculator" },
     { name: "Calendar", path: "/calendar", icon: "fa-calendar" },
     { name: "Maintenance", path: "/maintenance", icon: "fa-wrench" },
+    { name: "Vendors", path: "/vendors", icon: "fa-address-book" },
   ];
 
   // Configuration section

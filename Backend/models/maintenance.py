@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from Backend.models.units import PropertyUnit
     from Backend.models.tenant import Tenant
     from Backend.models.user import User
+    from Backend.models.vendor import Vendor
 
 
 class MaintenanceRequest(SQLModel, table=True):
@@ -63,6 +64,12 @@ class MaintenanceRequest(SQLModel, table=True):
          TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP"), onupdate=sa.func.now()))
     assigned_to: str | None = Field(
          default=None, sa_column=Column(String, nullable=True))
+    vendor_id: int | None = Field(
+        default=None, sa_column=Column(Integer, sa.ForeignKey("vendors.id", ondelete="SET NULL"), nullable=True))
+    notify_tenant: bool = Field(
+        default=False,
+        sa_column=Column(sa.Boolean, nullable=False, server_default=sa.text("false")),
+    )
 
     @staticmethod
     def validate_photos(value: list[str] | None) -> list[str] | None:
@@ -82,5 +89,7 @@ class MaintenanceRequest(SQLModel, table=True):
     tenant: Optional["Tenant"] = Relationship(
         back_populates="maintenance_requests")
     user: Optional["User"] = Relationship(
+        back_populates="maintenance_requests")
+    vendor: Optional["Vendor"] = Relationship(
         back_populates="maintenance_requests")
 

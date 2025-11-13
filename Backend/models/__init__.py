@@ -14,6 +14,7 @@ from . import tenant
 from . import tenant_documents
 from . import lease
 from . import maintenance
+from . import vendor
 from . import reports
 from . import agent
 from . import notification
@@ -48,6 +49,7 @@ from .lease import Lease, LeaseDocument, LeaseStatus
 from .tenant import Tenant, TenantStatus # TenantStatus is in tenant.py
 from .tenant_documents import TenantDocument
 from .maintenance import MaintenanceRequest, MaintenancePriority, MaintenanceStatus
+from .vendor import Vendor, UserVendor
 
 # Accounting models & enums from the 'accounting' subdirectory
 from .accounting.common import PaymentStatus, IntegrationStatus, IntegrationType
@@ -112,6 +114,9 @@ __all__ = [
     "User",
     "UserAgentThread",
     "UserType",
+    # Vendor models
+    "Vendor",
+    "UserVendor",
     # Notification models
     "Notification",
     "NotificationPreference",
