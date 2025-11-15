@@ -10,3 +10,5 @@ export function useUpdateProperty(): UseMutationResult<
 >;
 
 export function useDeleteProperty(): UseMutationResult<void, Error, number>;
+
+export function useBulkDeleteProperties(): UseMutationResult<void, Error, number[]>;

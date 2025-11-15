@@ -14,6 +14,7 @@ from .schemas import (
     PropertyDetailResponse,
     PropertyResponse,
     PropertyUpdate,
+    PropertyBulkDelete,
 )
 from .service import PropertyService
 
@@ -128,6 +129,36 @@ async def update_property(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update property: {str(e)}",
+        )
+
+
+@router.delete("/bulk-delete-property", status_code=status.HTTP_204_NO_CONTENT)
+async def bulk_delete_properties(
+    data: PropertyBulkDelete,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Bulk deletes multiple properties if the current user is the owner or an admin.
+    
+    Prevents deletion of properties with:
+    - Active or pending leases
+    - Rented units (is_rented=True)
+    - Tenants with current_property_id pointing to the property
+    """
+    try:
+        await PropertyService.bulk_delete_properties(
+            data.property_ids, current_user, session
+        )
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Service layer handles rollback, just log and re-raise
+        logger.exception("Error bulk deleting properties")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to bulk delete properties: {str(e)}",
         )
 
 

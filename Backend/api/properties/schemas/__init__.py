@@ -16,6 +16,7 @@ from .property import (
     PropertyImageResponse,
     OwnerResponse,
     UnitResponse,
+    PropertyBulkDelete,
 )
 
 # Type-specific schemas
@@ -74,6 +75,7 @@ __all__ = [
     'PropertyResponse',
     'PropertyDetailResponse',
     'PropertyStats',
+    'PropertyBulkDelete',
     
     # Images
     'PropertyImageCreate',

@@ -1,7 +1,7 @@
-import React from 'react';
-import { Property } from '../../../../../types/property';
-import { PropertiesTableSkeleton } from '../../../../ui/skeletons';
-import { PropertyRow } from './PropertyRow';
+import React from "react";
+import { Property } from "../../../../../types/property";
+import { PropertiesTableSkeleton } from "../../../../ui/skeletons";
+import { PropertyRow } from "./PropertyRow";
 
 interface PropertyTableProps {
   properties: Property[];
@@ -10,6 +10,12 @@ interface PropertyTableProps {
   onDelete: (property: Property) => void;
   onEdit: (propertyId: number) => void;
   onRetry?: () => void;
+  // Selection props
+  allSelected?: boolean;
+  someSelected?: boolean;
+  onToggleSelectAll?: () => void;
+  isSelected?: (propertyId: number | undefined) => boolean;
+  onToggleProperty?: (propertyId: number) => void;
 }
 
 export const PropertyTable: React.FC<PropertyTableProps> = ({
@@ -19,6 +25,11 @@ export const PropertyTable: React.FC<PropertyTableProps> = ({
   onDelete,
   onEdit,
   onRetry,
+  allSelected = false,
+  someSelected = false,
+  onToggleSelectAll,
+  isSelected,
+  onToggleProperty,
 }) => {
   if (loading) return <PropertiesTableSkeleton rowCount={8} />;
 
@@ -41,7 +52,9 @@ export const PropertyTable: React.FC<PropertyTableProps> = ({
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm leading-5 text-red-700 dark:text-red-300">{error}</p>
+              <p className="text-sm leading-5 text-red-700 dark:text-red-300">
+                {error}
+              </p>
             </div>
           </div>
         </div>
@@ -68,12 +81,56 @@ export const PropertyTable: React.FC<PropertyTableProps> = ({
       <table className="data-table min-w-full">
         <thead>
           <tr>
-            <th scope="col" className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Property</th>
-            <th scope="col" className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Type</th>
-            <th scope="col" className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Address</th>
-            <th scope="col" className="px-6 py-4 text-center font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Status</th>
-            <th scope="col" className="px-6 py-4 text-right font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Added</th>
-            <th scope="col" className="px-6 py-4 text-center font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800">Actions</th>
+            <th scope="col" className="px-6 py-4 w-12">
+              {onToggleSelectAll && (
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(input) => {
+                    if (input) input.indeterminate = someSelected;
+                  }}
+                  onChange={onToggleSelectAll}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer bg-gray-50 dark:bg-gray-800"
+                  aria-label="Select all properties"
+                />
+              )}
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+            >
+              Property
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+            >
+              Type
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+            >
+              Address
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-4 text-center font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+            >
+              Status
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-4 text-right font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+            >
+              Added
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-4 text-center font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+            >
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -84,6 +141,10 @@ export const PropertyTable: React.FC<PropertyTableProps> = ({
               onEdit={onEdit}
               onDelete={onDelete}
               index={index}
+              isSelected={isSelected?.(property.id)}
+              onToggleSelect={() =>
+                property.id && onToggleProperty?.(property.id)
+              }
             />
           ))}
         </tbody>

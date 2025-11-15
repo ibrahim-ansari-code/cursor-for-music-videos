@@ -244,7 +244,7 @@ const TenantProfile: React.FC = () => {
       <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
         <div className="flex items-center justify-center h-96">
           <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin" />
+            <div className="w-12 h-12 border-4 border-gray-200 dark:border-gray-700 border-t-green-600 dark:border-t-green-400 rounded-full animate-spin" />
             <p className="text-sm text-gray-500 dark:text-gray-400">Loading tenant profile...</p>
           </div>
         </div>
@@ -307,7 +307,7 @@ const TenantProfile: React.FC = () => {
 
       {/* Fetching Indicator - Subtle loading bar when refetching in background */}
       {isFetching && (
-        <div className="h-1 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-500 animate-pulse" />
+        <div className="h-1 bg-gradient-to-r from-green-500 via-green-600 to-green-500 animate-pulse" />
       )}
 
       {/* Tab Navigation */}

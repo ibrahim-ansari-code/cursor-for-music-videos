@@ -1,43 +1,49 @@
-import React, { MouseEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Property, PropertyStatus } from '../../../../../types/property';
-import { StatusBadge } from './StatusBadge';
-import { useSecureImageUrl } from '../../../../../hooks/useSecureImageUrl';
+import React, { MouseEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { Property, PropertyStatus } from "../../../../../types/property";
+import { StatusBadge } from "./StatusBadge";
+import { useSecureImageUrl } from "../../../../../hooks/useSecureImageUrl";
 
 interface PropertyRowProps {
   property: Property;
   onEdit: (propertyId: number) => void;
   onDelete: (property: Property) => void;
   index: number;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 export const PropertyRow: React.FC<PropertyRowProps> = ({
   property,
   onEdit,
   onDelete,
+  isSelected = false,
+  onToggleSelect,
 }) => {
   const navigate = useNavigate();
 
   const getImageInitial = (name: string): string => {
-    if (!name) return '';
+    if (!name) return "";
     return name.charAt(0).toUpperCase();
   };
 
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    e.currentTarget.style.display = 'none';
+  const handleImageError = (
+    e: React.SyntheticEvent<HTMLImageElement, Event>
+  ) => {
+    e.currentTarget.style.display = "none";
     const fallback = e.currentTarget.nextElementSibling as HTMLElement;
     if (fallback) {
-      fallback.style.display = 'flex';
+      fallback.style.display = "flex";
     }
   };
 
   const getPrimaryImage = (): string | null => {
     if (!property.images || property.images.length === 0) return null;
-    
+
     // First try to get the primary image
-    const primaryImage = property.images.find(img => img.is_primary);
+    const primaryImage = property.images.find((img) => img.is_primary);
     if (primaryImage) return primaryImage.image_url;
-    
+
     // If no primary image, get the first image
     return property.images[0]?.image_url || null;
   };
@@ -47,18 +53,22 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({
   const secureImageUrl = useSecureImageUrl(primaryImageUrl);
 
   const getFormattedAddress = (): { display: string; title: string } => {
-    const addressParts = [property.address, property.city, property.province].filter(Boolean);
-    const formattedAddress = addressParts.join(', ');
+    const addressParts = [
+      property.address,
+      property.city,
+      property.province,
+    ].filter(Boolean);
+    const formattedAddress = addressParts.join(", ");
     return {
-      display: formattedAddress || 'No address',
-      title: formattedAddress
+      display: formattedAddress || "No address",
+      title: formattedAddress,
     };
   };
 
   const handleDelete = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     if (!property.id) {
-      console.error('Cannot delete property: missing property ID');
+      console.error("Cannot delete property: missing property ID");
       return;
     }
     onDelete(property);
@@ -66,10 +76,27 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({
 
   // The data-table CSS class now handles zebra striping automatically
   return (
-    <tr 
-      className="cursor-pointer"
+    <tr
+      className={`cursor-pointer ${
+        isSelected ? "bg-blue-50 dark:bg-blue-900/20" : ""
+      }`}
       onClick={() => property.id && navigate(`/properties/${property.id}`)}
     >
+      <td
+        className="px-6 py-4 whitespace-nowrap"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {onToggleSelect && (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={onToggleSelect}
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+            aria-label={`Select ${property.name}`}
+            onClick={(e) => e.stopPropagation()}
+          />
+        )}
+      </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="flex items-center">
           <div className="relative flex-shrink-0 h-10 w-10 rounded-lg overflow-hidden">
@@ -81,9 +108,9 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({
                 onError={handleImageError}
               />
             )}
-            <div 
+            <div
               className={`absolute inset-0 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold ${
-                secureImageUrl ? 'hidden' : 'flex'
+                secureImageUrl ? "hidden" : "flex"
               }`}
             >
               {getImageInitial(property.name)}
@@ -100,10 +127,7 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({
         {property.property_type}
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-left">
-        <div
-          className="max-w-xs truncate"
-          title={getFormattedAddress().title}
-        >
+        <div className="max-w-xs truncate" title={getFormattedAddress().title}>
           {getFormattedAddress().display}
         </div>
       </td>
@@ -111,7 +135,8 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({
         <StatusBadge status={property.status || PropertyStatus.ACTIVE} />
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">
-        {property.created_at && new Date(property.created_at).toLocaleDateString()}
+        {property.created_at &&
+          new Date(property.created_at).toLocaleDateString()}
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
         <div className="inline-flex space-x-3">

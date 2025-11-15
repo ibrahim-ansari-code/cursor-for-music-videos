@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from typing import Optional
 
@@ -217,14 +216,15 @@ class MaintenanceService:
             await session.commit()
             
             # After commit, re-query to get fresh object with all relationships loaded
-            # This avoids any lazy loading issues in async context
+            # Eagerly load ALL relationships needed for notifications to avoid lazy loading issues
             result = await session.execute(
                 select(MaintenanceRequest)
                 .options(
                     selectinload(getattr(MaintenanceRequest, "property")),
                     selectinload(getattr(MaintenanceRequest, "unit")),
                     selectinload(getattr(MaintenanceRequest, "tenant")),
-                    selectinload(getattr(MaintenanceRequest, "vendor"))
+                    selectinload(getattr(MaintenanceRequest, "vendor")),
+                    selectinload(getattr(MaintenanceRequest, "user"))
                 )
                 .where(col(MaintenanceRequest.id) == db_request.id)
             )
@@ -237,33 +237,30 @@ class MaintenanceService:
                     detail="Created maintenance request not found after commit"
                 )
             
-            # Send vendor notification if vendor assigned (run in background)
+            # Send vendor notification if vendor assigned
+            # Session is still valid and can be used for additional queries
             if created_request.vendor_id:
-                async def _notify():
-                    try:
-                        # Send email to vendor
-                        await VendorNotificationService.notify_vendor_of_assignment(
-                            created_request,
-                            session
-                        )
-                        
-                        # Send confirmation to landlord
-                        await VendorNotificationService.notify_landlord_of_assignment(
-                            created_request,
-                            session
-                        )
-                        
-                        logger.info(
-                            f"Vendor notifications sent for maintenance request {created_request.id}"
-                        )
-                    except Exception as e:
-                        # Log error but don't fail the request creation
-                        logger.exception(
-                            f"Failed to send vendor notifications for request {created_request.id}: {str(e)}"
-                        )
-                
-                # Run notifications in background to avoid blocking API response
-                asyncio.create_task(_notify())
+                try:
+                    # Send email to vendor
+                    await VendorNotificationService.notify_vendor_of_assignment(
+                        created_request,
+                        session
+                    )
+                    
+                    # Send confirmation to landlord
+                    await VendorNotificationService.notify_landlord_of_assignment(
+                        created_request,
+                        session
+                    )
+                    
+                    logger.info(
+                        f"Vendor notifications sent for maintenance request {created_request.id}"
+                    )
+                except Exception as e:
+                    # Log error but don't fail the request creation
+                    logger.exception(
+                        f"Failed to send vendor notifications for request {created_request.id}: {str(e)}"
+                    )
             
             return MaintenanceRequestResponse.model_validate(created_request)
 
@@ -365,28 +362,24 @@ class MaintenanceService:
         session.add(req)
         await session.commit()
         
-        # Send tenant notification if status changed and notifications enabled (run in background)
+        # Send tenant notification if status changed and notifications enabled
         if 'status' in update_data and old_status != req.status:
-            async def _notify_tenant():
-                try:
-                    await VendorNotificationService.notify_tenant_of_status_change(
-                        req,
-                        old_status,
-                        req.status,
-                        session
-                    )
-                    
-                    logger.info(
-                        f"Status change notification sent for maintenance request {req.id}: {old_status} → {req.status}"
-                    )
-                except Exception as e:
-                    # Log error but don't fail the update
-                    logger.exception(
-                        f"Failed to send status change notification for request {req.id}: {str(e)}"
-                    )
-            
-            # Run notification in background to avoid blocking API response
-            asyncio.create_task(_notify_tenant())
+            try:
+                await VendorNotificationService.notify_tenant_of_status_change(
+                    req,
+                    old_status,
+                    req.status,
+                    session
+                )
+                
+                logger.info(
+                    f"Status change notification sent for maintenance request {req.id}: {old_status} → {req.status}"
+                )
+            except Exception as e:
+                # Log error but don't fail the update
+                logger.exception(
+                    f"Failed to send status change notification for request {req.id}: {str(e)}"
+                )
         
         # After commit, all attributes are expired. Re-query with fresh session to get updated data
         # This is the industry-standard pattern (Stripe, Airbnb, etc.)

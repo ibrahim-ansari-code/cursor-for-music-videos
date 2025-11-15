@@ -146,13 +146,19 @@ class TestGenerateSasTokenForBlob:
 class TestGenerateSecureDocumentUrl:
     """Tests for generate_secure_document_url function."""
     
+    @patch('Backend.utils.azure_blob.blob_service_client')
     @patch('Backend.utils.azure_blob.settings')
     @patch('Backend.utils.azure_blob.generate_sas_token_for_blob')
-    def test_generate_secure_url_success(self, mock_gen_sas, mock_settings):
+    def test_generate_secure_url_success(self, mock_gen_sas, mock_settings, mock_blob_service):
         """Test successful secure URL generation with audit logging."""
         # Arrange
         mock_settings.DOCUMENT_SAS_EXPIRY_HOURS = 1
         mock_settings.DOCUMENT_ACCESS_LOGGING_ENABLED = True
+        
+        # Mock blob client to return exists() = True
+        mock_blob_client = AsyncMock()
+        mock_blob_client.exists = AsyncMock(return_value=True)
+        mock_blob_service.get_blob_client.return_value = mock_blob_client
         
         expiry_time = datetime(2024, 10, 9, 19, 0, 0)
         mock_gen_sas.return_value = ("sv=2021&sig=abc", expiry_time)
@@ -174,13 +180,19 @@ class TestGenerateSecureDocumentUrl:
         assert result["expires_at"] == "2024-10-09T19:00:00Z"
         assert result["expires_in_seconds"] == 3600
     
+    @patch('Backend.utils.azure_blob.blob_service_client')
     @patch('Backend.utils.azure_blob.settings')
     @patch('Backend.utils.azure_blob.generate_sas_token_for_blob')
-    def test_generate_secure_url_custom_expiry(self, mock_gen_sas, mock_settings):
+    def test_generate_secure_url_custom_expiry(self, mock_gen_sas, mock_settings, mock_blob_service):
         """Test secure URL generation with custom expiry time."""
         # Arrange
         mock_settings.DOCUMENT_SAS_EXPIRY_HOURS = 1
         mock_settings.DOCUMENT_ACCESS_LOGGING_ENABLED = False
+        
+        # Mock blob client to return exists() = True
+        mock_blob_client = AsyncMock()
+        mock_blob_client.exists = AsyncMock(return_value=True)
+        mock_blob_service.get_blob_client.return_value = mock_blob_client
         
         expiry_time = datetime(2024, 10, 9, 22, 0, 0)  # 4 hours
         mock_gen_sas.return_value = ("sv=2021&sig=xyz", expiry_time)

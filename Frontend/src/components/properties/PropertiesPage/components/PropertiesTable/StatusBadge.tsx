@@ -23,16 +23,28 @@ export const StatusBadge = ({ status }: StatusBadgeProps) => {
     PARTIALLY_RENTED: 'bg-amber-500 dark:bg-amber-400',
   };
 
+  const statusLabels: Record<string, string> = {
+    ACTIVE: 'Active',
+    INACTIVE: 'Inactive',
+    DRAFT: 'Draft',
+    ARCHIVED: 'Archived',
+    RENTED: 'Rented',
+    VACANT: 'Vacant',
+    PARTIALLY_RENTED: 'Partially Rented',
+  };
+
+  const normalizedStatus = status.toUpperCase();
+
   return (
     <span
       className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm transition-all duration-200 ${
-        statusStyles[status.toUpperCase()] || 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700'
+        statusStyles[normalizedStatus] || 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700'
       }`}
     >
       <span className={`w-2 h-2 mr-2 rounded-full ${
-        dotColors[status.toUpperCase()] || 'bg-gray-500 dark:bg-gray-400'
+        dotColors[normalizedStatus] || 'bg-gray-500 dark:bg-gray-400'
       }`}></span>
-      {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}
+      {statusLabels[normalizedStatus] || status}
     </span>
   );
 };

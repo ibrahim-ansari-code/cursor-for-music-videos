@@ -1,10 +1,12 @@
 import logging
+from collections import defaultdict
 from typing import Any
 from uuid import UUID as PythonUUID
 
 from fastapi import HTTPException, status
 from pydantic import ValidationError
-from sqlalchemy import and_
+from sqlalchemy import and_, or_, exists
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, selectinload
@@ -15,6 +17,7 @@ from Backend.models.enums import PropertyStatus
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.property import Property, PropertyType
 from Backend.models.units import PropertyUnit
+from Backend.models.tenant import Tenant
 from Backend.models.property_types.apartment_complex import PropertyApartmentComplex
 from Backend.models.property_types.commercial import PropertyCommercial
 from Backend.models.property_types.residential import PropertyResidential
@@ -987,5 +990,192 @@ class PropertyService:
                 detail="Cannot delete property with active leases",
             )
 
+        # Explicitly delete terminated/renewed leases for this property
+        terminated_leases_query = select(Lease).where(
+            and_(
+                col(Lease.property_id) == property_id,
+                col(Lease.status).in_([LeaseStatus.TERMINATED, LeaseStatus.RENEWED]),
+            )
+        )
+        terminated_leases_result = await session.execute(terminated_leases_query)
+        terminated_leases = terminated_leases_result.scalars().all()
+        
+        for lease in terminated_leases:
+            await session.delete(lease)
+            logger.debug(f"Deleting terminated/renewed lease {lease.id} for property {property_id}")
+
         await session.delete(property_to_delete)
-        await session.commit() 
+        await session.commit()
+
+    @staticmethod
+    async def bulk_delete_properties(
+        property_ids: list[int], current_user: User, session: AsyncSession
+    ) -> None:
+        """
+        Bulk delete multiple properties with validation for active associations.
+        
+        Checks for:
+        - Active or pending leases
+        - Rented units (is_rented=True)
+        - Tenants with current_property_id pointing to the property
+        
+        Explicitly deletes terminated/renewed leases before deleting properties.
+        Raises HTTPException if any property has active customer associations.
+        """
+        user_id = current_user.id  # Cache user ID to avoid accessing it after errors
+        logger.info(
+            f"User {user_id} attempting to bulk delete properties: {property_ids}"
+        )
+
+        if not property_ids:
+            logger.warning(
+                f"Bulk delete request with no property IDs from user {user_id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Property IDs list cannot be empty.",
+            )
+
+        try:
+            # Step 1: Fetch all properties in a single query with ownership validation
+            # Use SELECT FOR UPDATE to prevent race conditions during validation
+            query = select(Property).where(col(Property.id).in_(property_ids)).with_for_update()
+            if not current_user.is_admin:
+                query = query.where(col(Property.user_id) == user_id)
+
+            result = await session.execute(query)
+            properties_to_delete = result.scalars().all()
+
+            # Step 2: Validate that all requested properties were found
+            if len(properties_to_delete) != len(set(property_ids)):
+                found_ids = {prop.id for prop in properties_to_delete}
+                missing_ids = set(property_ids) - found_ids
+                logger.warning(
+                    "User %s attempted to delete non-existent or unauthorized properties: %s",
+                    user_id,
+                    missing_ids,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="One or more properties not found or you do not have permission to delete them.",
+                )
+
+            # Step 3: Check for active associations using separate queries
+            # This is more reliable than complex EXISTS subqueries
+            property_ids_list = [prop.id for prop in properties_to_delete]
+            blocked_property_ids: set[int] = set()
+
+            # Check for active or pending leases
+            active_leases_query = select(col(Lease.property_id)).where(
+                and_(   
+                    col(Lease.property_id).in_(property_ids_list),
+                    col(Lease.status).in_([LeaseStatus.ACTIVE, LeaseStatus.PENDING]),
+                )
+            ).distinct()
+            active_leases_result = await session.execute(active_leases_query)
+            blocked_property_ids.update(row[0] for row in active_leases_result.all())
+
+            # Check for rented units
+            rented_units_query = select(col(PropertyUnit.property_id)).where(
+                and_(
+                    col(PropertyUnit.property_id).in_(property_ids_list),
+                    col(PropertyUnit.is_rented).is_(True),
+                )
+            ).distinct()
+            rented_units_result = await session.execute(rented_units_query)
+            blocked_property_ids.update(row[0] for row in rented_units_result.all())
+
+            # Check for tenants pointing to properties
+            tenant_associations_query = select(col(Tenant.current_property_id)).where(
+                col(Tenant.current_property_id).in_(property_ids_list)
+            ).distinct()
+            tenant_associations_result = await session.execute(tenant_associations_query)
+            blocked_property_ids.update(row[0] for row in tenant_associations_result.all() if row[0] is not None)
+
+            # Get the Property objects for blocked properties
+            properties_with_active_associations = [
+                prop for prop in properties_to_delete if prop.id in blocked_property_ids
+            ]
+
+            # Step 4: If any properties have active associations, raise error
+            if properties_with_active_associations:
+                property_names = [prop.name for prop in properties_with_active_associations]
+                property_ids_str = ", ".join(
+                    [str(prop.id) for prop in properties_with_active_associations]
+                )
+                logger.warning(
+                    "User %s attempted to delete properties with active associations: %s",
+                    user_id,
+                    property_ids_str,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"The following properties are currently active and cannot be deleted: "
+                        f"{', '.join(property_names)}. "
+                        f"Please terminate or cancel all active leases, vacate all rented units, "
+                        f"and remove tenant associations before deleting these properties."
+                    ),
+                )
+
+            # Step 5: Explicitly delete terminated/renewed leases for these properties
+            # This handles leases that don't have CASCADE DELETE on the foreign key
+            terminated_leases_query = select(Lease).where(
+                and_(
+                    col(Lease.property_id).in_(property_ids_list),
+                    col(Lease.status).in_([LeaseStatus.TERMINATED, LeaseStatus.RENEWED]),
+                )
+            )
+            terminated_leases_result = await session.execute(terminated_leases_query)
+            terminated_leases = terminated_leases_result.scalars().all()
+            
+            for lease in terminated_leases:
+                await session.delete(lease)
+                logger.debug(f"Deleting terminated/renewed lease {lease.id} for property {lease.property_id}")
+            
+            if terminated_leases:
+                logger.info(f"Deleted {len(terminated_leases)} terminated/renewed leases before property deletion")
+
+            # Step 6: Delete all verified properties
+            for prop in properties_to_delete:
+                await session.delete(prop)
+                logger.info(f"Marked property {prop.id} ({prop.name}) for deletion.")
+
+            # Step 7: Commit the transaction
+            await session.commit()
+            logger.info(
+                f"User {user_id} successfully deleted properties: {property_ids}"
+            )
+
+        except HTTPException:
+            await session.rollback()
+            raise
+        except IntegrityError as e:
+            await session.rollback()
+            logger.exception(
+                f"Integrity constraint violation during bulk deletion for user {user_id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot delete one or more properties because they have associated records that must be removed first.",
+            ) from e
+        except Exception as e:
+            await session.rollback()
+            # Check if it's a foreign key constraint error (even if not IntegrityError)
+            error_str = str(e).lower()
+            if 'foreign key' in error_str or 'integrity' in error_str or 'constraint' in error_str:
+                logger.exception(
+                    f"Constraint violation during bulk deletion for user {user_id}"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot delete one or more properties because they have associated records that must be removed first.",
+                ) from e
+            
+            logger.exception(
+                f"Error during bulk deletion of properties for user {user_id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete one or more properties: {str(e)}",
+            ) from e

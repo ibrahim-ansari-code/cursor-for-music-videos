@@ -56,4 +56,16 @@ export const deleteProperty = async (propertyId) => {
   });
 };
 
+/**
+ * Deletes multiple properties in bulk.
+ * @param {number[]} propertyIds - An array of property IDs to delete.
+ * @returns {Promise<void>} A promise that resolves when the properties are deleted.
+ */
+export const bulkDeleteProperties = async (propertyIds) => {
+  return apiRequest("/properties/bulk-delete-property", {
+    method: "DELETE",
+    body: JSON.stringify({ property_ids: propertyIds }),
+  });
+};
+
  

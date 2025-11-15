@@ -23,6 +23,7 @@ from Backend.models.units import PropertyUnit
 from Backend.models.user import User
 from Backend.models.enums import PropertyStatus
 from Backend.models.lease import Lease, LeaseStatus
+from Backend.models.tenant import Tenant
 from Backend.models.property_types.apartment_complex import PropertyApartmentComplex
 from Backend.models.property_types.commercial import PropertyCommercial
 from Backend.models.property_types.residential import PropertyResidential
@@ -869,3 +870,407 @@ async def test_apartment_complex_unit_field_transformation_all_zero():
     # When all counts are 0, no keys are added to unit_mix
     # The existing object should not have unit_mix set
     assert not hasattr(existing_apt, 'unit_mix') or existing_apt.unit_mix == {}
+
+
+# ===== BULK DELETE TESTS =====
+
+@pytest.mark.asyncio
+async def test_bulk_delete_properties_success():
+    """Test successful bulk deletion of properties."""
+    user = MagicMock(spec=User)
+    user.id = uuid4()
+    user.is_admin = False
+    session = AsyncMock()
+    
+    property1 = MagicMock(spec=Property)
+    property1.id = 1
+    property1.name = "Property 1"
+    property1.user_id = user.id
+    
+    property2 = MagicMock(spec=Property)
+    property2.id = 2
+    property2.name = "Property 2"
+    property2.user_id = user.id
+    
+    # Mock execute calls
+    mock_properties_result = MagicMock()
+    mock_properties_scalars = MagicMock()
+    mock_properties_scalars.all.return_value = [property1, property2]
+    mock_properties_result.scalars.return_value = mock_properties_scalars
+    
+    # Mock empty results for active leases, rented units, tenants, and terminated leases
+    mock_empty_result = MagicMock()
+    mock_empty_scalars = MagicMock()
+    mock_empty_scalars.all.return_value = []
+    mock_empty_result.scalars.return_value = mock_empty_scalars
+    
+    session.execute.side_effect = [
+        mock_properties_result,  # Get properties
+        mock_empty_result,        # Check active leases
+        mock_empty_result,        # Check rented units
+        mock_empty_result,        # Check tenants
+        mock_empty_result,        # Check terminated leases
+    ]
+    
+    await PropertyService.bulk_delete_properties([1, 2], user, session)
+    
+    assert session.delete.call_count == 2
+    session.delete.assert_any_call(property1)
+    session.delete.assert_any_call(property2)
+    session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_properties_empty_list():
+    """Test bulk_delete_properties fails with empty list."""
+    user = MagicMock(spec=User)
+    user.id = uuid4()
+    session = AsyncMock()
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await PropertyService.bulk_delete_properties([], user, session)
+    
+    assert exc_info.value.status_code == 400
+    assert "cannot be empty" in exc_info.value.detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_properties_not_found():
+    """Test bulk_delete_properties fails when properties not found."""
+    user = MagicMock(spec=User)
+    user.id = uuid4()
+    user.is_admin = False
+    session = AsyncMock()
+    
+    property1 = MagicMock(spec=Property)
+    property1.id = 1
+    property1.user_id = user.id
+    
+    mock_result = MagicMock()
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [property1]  # Only one property found
+    mock_result.scalars.return_value = mock_scalars
+    session.execute.return_value = mock_result
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await PropertyService.bulk_delete_properties([1, 999], user, session)
+    
+    assert exc_info.value.status_code == 404
+    assert "not found" in exc_info.value.detail.lower()
+    session.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_properties_permission_denied():
+    """Test bulk_delete_properties fails when user doesn't own properties."""
+    user = MagicMock(spec=User)
+    user.id = uuid4()
+    user.is_admin = False
+    session = AsyncMock()
+    
+    # No properties found because user doesn't own them
+    mock_result = MagicMock()
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = []
+    mock_result.scalars.return_value = mock_scalars
+    session.execute.return_value = mock_result
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await PropertyService.bulk_delete_properties([1, 2], user, session)
+    
+    assert exc_info.value.status_code == 404
+    assert "not found" in exc_info.value.detail.lower()
+    session.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_properties_with_active_leases():
+    """Test bulk_delete_properties fails with active leases."""
+    user = MagicMock(spec=User)
+    user.id = uuid4()
+    user.is_admin = False
+    session = AsyncMock()
+    
+    property1 = MagicMock(spec=Property)
+    property1.id = 1
+    property1.name = "Property 1"
+    property1.user_id = user.id
+    
+    property2 = MagicMock(spec=Property)
+    property2.id = 2
+    property2.name = "Property 2"
+    property2.user_id = user.id
+    
+    # Mock execute calls for new optimized query structure
+    mock_properties_result = MagicMock()
+    mock_properties_scalars = MagicMock()
+    mock_properties_scalars.all.return_value = [property1, property2]
+    mock_properties_result.scalars.return_value = mock_properties_scalars
+
+    # Mock active leases result (property2 has active lease)
+    mock_leases_result = MagicMock()
+    mock_leases_result.all.return_value = [(2,)]  # Returns property_id as tuple
+
+    # Mock rented units result (empty)
+    mock_units_result = MagicMock()
+    mock_units_result.all.return_value = []
+
+    # Mock tenant associations result (empty)
+    mock_tenants_result = MagicMock()
+    mock_tenants_result.all.return_value = []
+
+    session.execute.side_effect = [
+        mock_properties_result,  # Get properties
+        mock_leases_result,      # Check active leases
+        mock_units_result,       # Check rented units
+        mock_tenants_result,     # Check tenant associations
+    ]
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await PropertyService.bulk_delete_properties([1, 2], user, session)
+    
+    assert exc_info.value.status_code == 400
+    assert "currently active and cannot be deleted" in exc_info.value.detail
+    assert "Property 2" in exc_info.value.detail
+    session.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_properties_with_rented_units():
+    """Test bulk_delete_properties fails with rented units."""
+    user = MagicMock(spec=User)
+    user.id = uuid4()
+    user.is_admin = False
+    session = AsyncMock()
+    
+    property1 = MagicMock(spec=Property)
+    property1.id = 1
+    property1.name = "Property 1"
+    property1.user_id = user.id
+    
+    # Mock execute calls for new optimized query structure
+    mock_properties_result = MagicMock()
+    mock_properties_scalars = MagicMock()
+    mock_properties_scalars.all.return_value = [property1]
+    mock_properties_result.scalars.return_value = mock_properties_scalars
+
+    # Mock active leases result (empty)
+    mock_leases_result = MagicMock()
+    mock_leases_result.all.return_value = []
+
+    # Mock rented units result (property1 has rented unit)
+    mock_units_result = MagicMock()
+    mock_units_result.all.return_value = [(1,)]  # Returns property_id as tuple
+
+    # Mock tenant associations result (empty)
+    mock_tenants_result = MagicMock()
+    mock_tenants_result.all.return_value = []
+
+    session.execute.side_effect = [
+        mock_properties_result,  # Get properties
+        mock_leases_result,      # Check active leases
+        mock_units_result,       # Check rented units
+        mock_tenants_result,     # Check tenant associations
+    ]
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await PropertyService.bulk_delete_properties([1], user, session)
+    
+    assert exc_info.value.status_code == 400
+    assert "currently active and cannot be deleted" in exc_info.value.detail
+    assert "Property 1" in exc_info.value.detail
+    session.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_properties_with_tenant_associations():
+    """Test bulk_delete_properties fails with tenant associations."""
+    user = MagicMock(spec=User)
+    user.id = uuid4()
+    user.is_admin = False
+    session = AsyncMock()
+    
+    property1 = MagicMock(spec=Property)
+    property1.id = 1
+    property1.name = "Property 1"
+    property1.user_id = user.id
+    
+    # Mock execute calls for new optimized query structure
+    mock_properties_result = MagicMock()
+    mock_properties_scalars = MagicMock()
+    mock_properties_scalars.all.return_value = [property1]
+    mock_properties_result.scalars.return_value = mock_properties_scalars
+
+    # Mock active leases result (empty)
+    mock_leases_result = MagicMock()
+    mock_leases_result.all.return_value = []
+
+    # Mock rented units result (empty)
+    mock_units_result = MagicMock()
+    mock_units_result.all.return_value = []
+
+    # Mock tenant associations result (property1 has tenant association)
+    mock_tenants_result = MagicMock()
+    mock_tenants_result.all.return_value = [(1,)]  # Returns property_id as tuple
+
+    session.execute.side_effect = [
+        mock_properties_result,  # Get properties
+        mock_leases_result,      # Check active leases
+        mock_units_result,       # Check rented units
+        mock_tenants_result,     # Check tenant associations
+    ]
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await PropertyService.bulk_delete_properties([1], user, session)
+    
+    assert exc_info.value.status_code == 400
+    assert "currently active and cannot be deleted" in exc_info.value.detail
+    assert "Property 1" in exc_info.value.detail
+    session.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_properties_admin_success():
+    """Test admin can bulk delete any properties."""
+    admin_user = MagicMock(spec=User)
+    admin_user.id = uuid4()
+    admin_user.is_admin = True
+    session = AsyncMock()
+    
+    property1 = MagicMock(spec=Property)
+    property1.id = 1
+    property1.name = "Property 1"
+    property1.user_id = uuid4()  # Different user
+    
+    property2 = MagicMock(spec=Property)
+    property2.id = 2
+    property2.name = "Property 2"
+    property2.user_id = uuid4()  # Different user
+    
+    # Mock execute calls
+    mock_properties_result = MagicMock()
+    mock_properties_scalars = MagicMock()
+    mock_properties_scalars.all.return_value = [property1, property2]
+    mock_properties_result.scalars.return_value = mock_properties_scalars
+    
+    mock_empty_result = MagicMock()
+    mock_empty_scalars = MagicMock()
+    mock_empty_scalars.all.return_value = []
+    mock_empty_result.scalars.return_value = mock_empty_scalars
+    
+    session.execute.side_effect = [
+        mock_properties_result,  # Get properties
+        mock_empty_result,       # Check active leases
+        mock_empty_result,       # Check rented units
+        mock_empty_result,       # Check tenants
+        mock_empty_result,       # Check terminated leases
+    ]
+    
+    await PropertyService.bulk_delete_properties([1, 2], admin_user, session)
+    
+    assert session.delete.call_count == 2
+    session.delete.assert_any_call(property1)
+    session.delete.assert_any_call(property2)
+    session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_properties_with_terminated_leases():
+    """Test bulk_delete_properties successfully deletes properties with terminated leases."""
+    user = MagicMock(spec=User)
+    user.id = uuid4()
+    user.is_admin = False
+    session = AsyncMock()
+    
+    property1 = MagicMock(spec=Property)
+    property1.id = 1
+    property1.name = "Property 1"
+    property1.user_id = user.id
+    
+    # Create terminated lease
+    terminated_lease = MagicMock(spec=Lease)
+    terminated_lease.id = 10
+    terminated_lease.property_id = 1
+    terminated_lease.status = LeaseStatus.TERMINATED
+    
+    # Mock execute calls
+    mock_properties_result = MagicMock()
+    mock_properties_scalars = MagicMock()
+    mock_properties_scalars.all.return_value = [property1]
+    mock_properties_result.scalars.return_value = mock_properties_scalars
+    
+    # Mock empty results for blocking checks
+    mock_empty_leases_result = MagicMock()
+    mock_empty_leases_result.all.return_value = []
+    
+    mock_empty_units_result = MagicMock()
+    mock_empty_units_result.all.return_value = []
+    
+    mock_empty_tenants_result = MagicMock()
+    mock_empty_tenants_result.all.return_value = []
+    
+    # Mock terminated leases result
+    mock_terminated_leases_result = MagicMock()
+    mock_terminated_leases_scalars = MagicMock()
+    mock_terminated_leases_scalars.all.return_value = [terminated_lease]
+    mock_terminated_leases_result.scalars.return_value = mock_terminated_leases_scalars
+    
+    session.execute.side_effect = [
+        mock_properties_result,           # Get properties
+        mock_empty_leases_result,         # Check active leases
+        mock_empty_units_result,          # Check rented units
+        mock_empty_tenants_result,        # Check tenant associations
+        mock_terminated_leases_result,    # Check terminated leases
+    ]
+    
+    await PropertyService.bulk_delete_properties([1], user, session)
+    
+    # Should delete terminated lease + property
+    assert session.delete.call_count == 2
+    session.delete.assert_any_call(terminated_lease)
+    session.delete.assert_any_call(property1)
+    session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_properties_foreign_key_conflict():
+    """Test bulk_delete_properties handles foreign key conflicts."""
+    user = MagicMock(spec=User)
+    user.id = uuid4()
+    user.is_admin = False
+    session = AsyncMock()
+    
+    property1 = MagicMock(spec=Property)
+    property1.id = 1
+    property1.name = "Property 1"
+    property1.user_id = user.id
+    
+    # Mock execute calls
+    mock_properties_result = MagicMock()
+    mock_properties_scalars = MagicMock()
+    mock_properties_scalars.all.return_value = [property1]
+    mock_properties_result.scalars.return_value = mock_properties_scalars
+    
+    mock_empty_result = MagicMock()
+    mock_empty_scalars = MagicMock()
+    mock_empty_scalars.all.return_value = []
+    mock_empty_result.scalars.return_value = mock_empty_scalars
+    
+    session.execute.side_effect = [
+        mock_properties_result,  # Get properties
+        mock_empty_result,       # Check active leases
+        mock_empty_result,       # Check rented units
+        mock_empty_result,       # Check tenants
+        mock_empty_result,       # Check terminated leases
+    ]
+
+    # Import IntegrityError for proper exception type
+    from sqlalchemy.exc import IntegrityError as SQLAlchemyIntegrityError
+    session.commit.side_effect = SQLAlchemyIntegrityError("foreign key constraint", None, None)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await PropertyService.bulk_delete_properties([1], user, session)
+
+    assert exc_info.value.status_code == 409
+    assert "associated records" in exc_info.value.detail
+    session.rollback.assert_awaited_once()

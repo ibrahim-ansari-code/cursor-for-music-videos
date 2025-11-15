@@ -269,3 +269,37 @@ class PropertyDetailResponse(PropertyResponse):
     stats: Optional[PropertyStats] = None
     
     model_config = ConfigDict(use_enum_values=True, from_attributes=True)
+
+
+# ===== BULK DELETE SCHEMA =====
+
+class PropertyBulkDelete(BaseModel):
+    """Schema for bulk property deletion"""
+    property_ids: List[int] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="List of property IDs to delete (max 100 per batch)"
+    )
+
+    @field_validator('property_ids')
+    @classmethod
+    def validate_property_ids(cls, v: List[int]) -> List[int]:
+        """Validate property IDs are positive, unique, and within limits"""
+        # Check for duplicates
+        if len(v) != len(set(v)):
+            raise ValueError("Duplicate property IDs are not allowed")
+
+        # Check for positive integers only
+        if any(id <= 0 for id in v):
+            raise ValueError("Property IDs must be positive integers")
+
+        return v
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "property_ids": [1, 2, 3]
+            }
+        }
+    )
