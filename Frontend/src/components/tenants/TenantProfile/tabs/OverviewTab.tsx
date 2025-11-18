@@ -5,8 +5,9 @@ import * as Sentry from '@sentry/react';
 import { EnrichedTenant } from '../../../../types/tenant';
 import { formatDate } from '../../../../utils/tenantUtils';
 import { getSecureDocumentUrl } from '../../../../utils/api/leases';
-import { updateTenant } from '../../../../utils/api/tenants';
+import { updateTenant, sendTenantReminder, TenantReminderRequest } from '../../../../utils/api/tenants';
 import AIAuditTrail from '../AIAuditTrail';
+import ReminderConfirmationModal from '../ReminderConfirmationModal';
 import {
   calculatePaymentPerformance,
   calculateOpenBalance,
@@ -15,7 +16,8 @@ import {
   getPaymentPerformanceColor,
   getOpenBalanceColor,
   getTicketResolutionColor,
-  getEventIcon
+  getEventIcon,
+  UpcomingEvent
 } from '../../../../utils/tenantMetrics.tsx';
 
 interface OutletContext {
@@ -35,6 +37,11 @@ const OverviewTab: React.FC = () => {
   const [deletingContactIndex, setDeletingContactIndex] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [contactIndexToDelete, setContactIndexToDelete] = useState<number | null>(null);
+  
+  // State for reminder sending
+  const [sendingReminder, setSendingReminder] = useState<string | null>(null); // event.id
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<UpcomingEvent | null>(null);
 
   // Guard: Handle undefined context gracefully (occurs during refetch or initial load)
   if (!context || !context.tenant) {
@@ -85,6 +92,78 @@ const OverviewTab: React.FC = () => {
       case 3: return 'rd';
       default: return 'th';
     }
+  };
+
+  // Handle clicking Remind button - opens confirmation modal
+  const handleRemindClick = (event: UpcomingEvent) => {
+    if (!tenant || !tenant.email) {
+      toast.error('Cannot send reminder: tenant does not have an email address');
+      return;
+    }
+    setSelectedEvent(event);
+    setShowReminderModal(true);
+  };
+
+  // Handle confirming reminder email
+  const handleConfirmReminder = async (customSubject: string | null, customMessage: string | null) => {
+    if (!selectedEvent || !tenant || !tenant.email) {
+      toast.error('Cannot send reminder: missing information');
+      setShowReminderModal(false);
+      setSelectedEvent(null);
+      return;
+    }
+
+    setSendingReminder(selectedEvent.id);
+
+    try {
+      // Prepare reminder data
+      const reminderData: TenantReminderRequest = {
+        event_type: selectedEvent.type as TenantReminderRequest['event_type'],
+        event_title: selectedEvent.title,
+        event_subtitle: selectedEvent.subtitle,
+        event_date: selectedEvent.date ? selectedEvent.date.toISOString() : null,
+        event_amount: selectedEvent.amount ?? null,
+        days_remaining: selectedEvent.daysRemaining ?? null,
+        custom_subject: customSubject,
+        custom_message: customMessage,
+      };
+
+      // Send reminder via API
+      const response = await sendTenantReminder(tenant.id, reminderData);
+
+      if (response.success) {
+        toast.success(`Reminder email sent to ${tenant.email}`);
+        setShowReminderModal(false);
+        setSelectedEvent(null);
+      } else {
+        toast.error('Failed to send reminder email');
+      }
+    } catch (error: any) {
+      console.error('Failed to send reminder:', error);
+      
+      // Report to Sentry
+      Sentry.captureException(error, {
+        tags: {
+          component: 'OverviewTab',
+          action: 'send_reminder',
+        },
+        contexts: {
+          tenant: { id: tenant?.id },
+          event: { type: selectedEvent.type, id: selectedEvent.id },
+        },
+      });
+
+      toast.error(error?.message || 'Failed to send reminder email. Please try again.');
+    } finally {
+      setSendingReminder(null);
+    }
+  };
+
+  // Handle closing reminder modal
+  const handleCloseReminderModal = () => {
+    if (sendingReminder) return; // Prevent closing while sending
+    setShowReminderModal(false);
+    setSelectedEvent(null);
   };
 
   // Handle View Lease button
@@ -582,10 +661,11 @@ const OverviewTab: React.FC = () => {
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{event.subtitle}</div>
                     </div>
                     <button 
-                      onClick={() => toast.info('Reminder feature coming soon')}
-                      className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex-shrink-0"
+                      onClick={() => handleRemindClick(event)}
+                      disabled={sendingReminder === event.id || !tenant.email}
+                      className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Remind
+                      {sendingReminder === event.id ? 'Sending...' : 'Remind'}
                     </button>
                   </div>
                 ))
@@ -789,6 +869,18 @@ const OverviewTab: React.FC = () => {
         </div>
         </div>
       </div>
+
+      {/* Reminder Confirmation Modal */}
+      {selectedEvent && (
+        <ReminderConfirmationModal
+          isOpen={showReminderModal}
+          onClose={handleCloseReminderModal}
+          onConfirm={handleConfirmReminder}
+          tenant={tenant}
+          event={selectedEvent}
+          isLoading={sendingReminder === selectedEvent.id}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (

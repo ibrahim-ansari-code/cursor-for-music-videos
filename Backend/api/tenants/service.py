@@ -48,6 +48,10 @@ async def check_tenant_permission(
     Returns:
         The Tenant object if access is permitted.
     """
+    # Refresh user to ensure attributes are loaded in current session context
+    # This prevents MissingGreenlet errors when accessing user attributes
+    await session.refresh(current_user)
+    
     tenant = await session.get(Tenant, tenant_id)
     if not tenant:
         raise HTTPException(

@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any
 
 import sentry_sdk
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Email, To
+from sendgrid.helpers.mail import Mail, Email, To, CustomArg, TrackingSettings, ClickTracking
 
 from Backend.config import settings
 
@@ -305,10 +305,18 @@ class SendGridService:
             
             # Add metadata as custom args for tracking
             if metadata:
-                mail.custom_args = {
-                    "email_type": metadata.get('email_type', 'custom'),
-                    "request_id": str(metadata.get('request_id', ''))
-                }
+                if 'email_type' in metadata:
+                    mail.add_custom_arg(CustomArg('email_type', str(metadata.get('email_type', 'custom'))))
+                if 'request_id' in metadata:
+                    mail.add_custom_arg(CustomArg('request_id', str(metadata.get('request_id', ''))))
+                if 'event_type' in metadata:
+                    mail.add_custom_arg(CustomArg('event_type', str(metadata.get('event_type', ''))))
+            
+            # Disable SendGrid click tracking to prevent SSL certificate errors
+            # SendGrid wraps links with tracking domains (e.g., url6739.brikli.com) which may not have valid certs
+            tracking_settings = TrackingSettings()
+            tracking_settings.click_tracking = ClickTracking(enable=False, enable_text=False)
+            mail.tracking_settings = tracking_settings
             
             # Send email in thread executor to avoid blocking event loop
             import asyncio

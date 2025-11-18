@@ -6,6 +6,7 @@ Uses the same professional design as password reset emails.
 """
 from typing import Optional, List
 from dataclasses import dataclass
+import html
 
 
 @dataclass
@@ -78,13 +79,17 @@ class BrikliEmailTemplate:
         """
         
         # Build content sections
-        content_html = f"<p>{greeting}</p>\n"
-        
+        # Only include greeting if it's not empty
+        # SECURITY: Escape all user-provided content to prevent XSS
+        escaped_greeting = html.escape(greeting) if greeting else ""
+        content_html = f"<p>{escaped_greeting}</p>\n" if escaped_greeting else ""
+
         for section in sections:
+            escaped_text = html.escape(section.text)
             if section.is_bold:
-                content_html += f"      <p><strong>{section.text}</strong></p>\n"
+                content_html += f"      <p><strong>{escaped_text}</strong></p>\n"
             else:
-                content_html += f"      <p>{section.text}</p>\n"
+                content_html += f"      <p>{escaped_text}</p>\n"
         
         # Add metadata table if provided
         metadata_html = ""
@@ -94,32 +99,42 @@ class BrikliEmailTemplate:
         # Add CTA button if provided
         cta_html = ""
         if cta:
+            # SECURITY: Escape CTA text and URL to prevent XSS
+            escaped_cta_text = html.escape(cta.text)
+            escaped_cta_url = html.escape(cta.url)
             cta_html = f"""
       <div class="cta">
-        <a href="{cta.url}">{cta.text}</a>
+        <a href="{escaped_cta_url}">{escaped_cta_text}</a>
       </div>
 """
         
         # Add notice box if provided
         notice_html = ""
         if notice:
+            # SECURITY: Escape notice content to prevent XSS
+            escaped_notice_emoji = html.escape(notice.emoji)
+            escaped_notice_title = html.escape(notice.title)
+            escaped_notice_message = html.escape(notice.message)
+            # Note: bg_color and color are validated elsewhere and should be hex codes
             notice_html = f"""
       <div class="notice" style="background-color: {notice.bg_color}; border-left: 4px solid {notice.color};">
-        {notice.emoji} <strong>{notice.title}</strong><br />
-        {notice.message}
+        {escaped_notice_emoji} <strong>{escaped_notice_title}</strong><br />
+        {escaped_notice_message}
       </div>
 """
         
         # Build footer note
-        footer_text = footer_note if footer_note else "Thank you for using Brikli Property Management."
-        
+        # SECURITY: Escape footer note and title to prevent XSS
+        escaped_footer_text = html.escape(footer_note) if footer_note else "Thank you for using Brikli Property Management."
+        escaped_title = html.escape(title)
+
         # Complete HTML email
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>{title}</title>
+  <title>{escaped_title}</title>
   <style>
     body {{
       margin: 0;
@@ -257,7 +272,7 @@ class BrikliEmailTemplate:
 
     <!-- Content -->
     <div class="content">
-      <h1>{title}</h1>
+      <h1>{escaped_title}</h1>
 {content_html}
 {metadata_html}
 {cta_html}
@@ -266,7 +281,7 @@ class BrikliEmailTemplate:
 
     <!-- Footer -->
     <div class="footer">
-      {footer_text}<br />
+      {escaped_footer_text}<br />
       Need help? Contact <a href="mailto:support@brikli.com">support@brikli.com</a><br /><br />
       © 2025 Brikli. All rights reserved.
     </div>
@@ -279,10 +294,14 @@ class BrikliEmailTemplate:
         """Build HTML table for structured metadata"""
         rows_html = ""
         for row in metadata:
-            emoji_prefix = f"{row.emoji} " if row.emoji else ""
+            # SECURITY: Escape all metadata content to prevent XSS
+            escaped_emoji = html.escape(row.emoji) if row.emoji else ""
+            emoji_prefix = f"{escaped_emoji} " if escaped_emoji else ""
+            escaped_label = html.escape(row.label)
+            escaped_value = html.escape(row.value)
             rows_html += f"""        <div class="metadata-row">
-          <div class="metadata-label">{emoji_prefix}{row.label}:</div>
-          <div class="metadata-value">{row.value}</div>
+          <div class="metadata-label">{emoji_prefix}{escaped_label}:</div>
+          <div class="metadata-value">{escaped_value}</div>
         </div>
 """
         
@@ -299,7 +318,10 @@ class BrikliEmailTemplate:
             "medium": ("🟡 MEDIUM", "priority-medium"),
             "low": ("🟢 LOW", "priority-low")
         }
-        
+
+        # SECURITY: Escape priority text to prevent XSS
         text, css_class = priority_map.get(priority.lower(), ("NORMAL", "priority-medium"))
-        return f'<span class="priority-badge {css_class}">{text}</span>'
+        escaped_text = html.escape(text)
+        escaped_css_class = html.escape(css_class)
+        return f'<span class="priority-badge {escaped_css_class}">{escaped_text}</span>'
 

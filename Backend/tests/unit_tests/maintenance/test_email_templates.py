@@ -36,7 +36,7 @@ def test_vendor_assignment_email_complete():
     )
     
     assert "New Maintenance Request" in subject
-    assert "John's Plumbing" in html
+    assert "John&#x27;s Plumbing" in html  # HTML-escaped apostrophe
     assert "123 Main St" in html
     assert "Unit 5A" in html
     assert "Bob Tenant" in html
@@ -151,7 +151,7 @@ def test_landlord_confirmation_email_complete():
     
     assert "Vendor Assigned" in subject or "Assigned" in subject
     assert "Jane" in html
-    assert "John's Plumbing" in html
+    assert "John&#x27;s Plumbing" in html  # HTML-escaped apostrophe
     assert "123 Main St" in html
     assert "Leaking Faucet" in html
 
@@ -201,7 +201,7 @@ def test_tenant_status_update_email_complete():
     assert "Bob Tenant" in html or "Bob" in html
     assert "123 Main St" in html
     assert "Leaking Faucet" in html
-    assert "John's Plumbing" in html
+    assert "John&#x27;s Plumbing" in html  # HTML-escaped apostrophe
 
 
 def test_tenant_status_update_email_minimal():

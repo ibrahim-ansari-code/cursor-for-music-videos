@@ -1,10 +1,10 @@
 import re
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID as PythonUUID
 
-from pydantic import BaseModel, ConfigDict, computed_field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 from Backend.api.leases.schemas import LeaseDocumentResponse
 from Backend.api.accounting.payments.schemas import PaymentResponse
@@ -490,3 +490,26 @@ class TenantResponse(BaseModel):
 
 class TenantBulkDeleteRequest(BaseModel):
     tenant_ids: list[int]
+
+
+class TenantReminderRequest(BaseModel):
+    """Request schema for sending a reminder email to a tenant."""
+    # SECURITY: Constrain event_type length while allowing flexibility for custom event types
+    # Known types: 'rent', 'lease_expiry', 'invoice', 'maintenance', 'insurance'
+    # Unknown types handled gracefully by EmailService with generic template
+    event_type: str = Field(..., min_length=1, max_length=50, description="Event type (max 50 chars)")
+    # SECURITY: Add max_length to prevent excessively long inputs
+    event_title: str = Field(..., max_length=200, description="Title of the event (max 200 chars)")
+    event_subtitle: str = Field(..., max_length=500, description="Subtitle of the event (max 500 chars)")
+    event_date: datetime | None = None
+    event_amount: float | None = None
+    days_remaining: int | None = None
+    # SECURITY: Limit custom fields to prevent email payload bloat and rendering issues
+    custom_subject: str | None = Field(None, max_length=200, description="Optional custom subject line (max 200 chars)")
+    custom_message: str | None = Field(None, max_length=2000, description="Optional custom message (max 2000 chars)")
+
+
+class TenantReminderResponse(BaseModel):
+    """Response schema for tenant reminder email."""
+    success: bool
+    message: str

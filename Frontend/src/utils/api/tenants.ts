@@ -112,4 +112,35 @@ export const deleteEmergencyContact = async (
   return apiRequest(`/tenants/${tenantId}/emergency-contacts/${contactId}`, {
     method: "DELETE",
   });
+};
+
+// === Tenant Reminder Email ===
+
+export interface TenantReminderRequest {
+  event_type: 'rent' | 'lease_expiry' | 'invoice' | 'maintenance' | 'insurance';
+  event_title: string;
+  event_subtitle: string;
+  event_date?: string | null;
+  event_amount?: number | null;
+  days_remaining?: number | null;
+  custom_subject?: string | null;
+  custom_message?: string | null;
+}
+
+export interface TenantReminderResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Send a reminder email to a tenant about an upcoming event.
+ */
+export const sendTenantReminder = async (
+  tenantId: number,
+  reminderData: TenantReminderRequest
+): Promise<TenantReminderResponse> => {
+  return apiRequest(`/tenants/${tenantId}/send-reminder`, {
+    method: "POST",
+    body: JSON.stringify(reminderData),
+  });
 }; 

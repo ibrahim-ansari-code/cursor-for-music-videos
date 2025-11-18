@@ -125,7 +125,10 @@ class Settings(BaseSettings):
     
     # === Frontend URL ===
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://app.brikli.com")
-    
+
+    # === Tenant Portal URL ===
+    TENANT_PORTAL_URL: str = os.getenv("TENANT_PORTAL_URL", "https://tenant.brikli.com")
+
     # === Internal API Key for Scheduled Jobs ===
     # Used by pg_cron to authenticate scheduled notification jobs
     INTERNAL_CRON_API_KEY: str = os.getenv("INTERNAL_CRON_API_KEY", "")

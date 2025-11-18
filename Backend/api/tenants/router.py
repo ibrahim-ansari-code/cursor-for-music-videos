@@ -1,8 +1,12 @@
 import logging
+import re
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from uuid import UUID
 
+import sentry_sdk
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Response
-from sqlalchemy import and_
+from sqlalchemy import and_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlmodel import col
@@ -17,6 +21,8 @@ from Backend.api.tenants.schemas import (
     TenantBulkDeleteRequest,
     TenantCreate,
     TenantMetricsResponse,
+    TenantReminderRequest,
+    TenantReminderResponse,
     TenantResponse,
     TenantUpdate,
     TicketResolutionMetrics,
@@ -41,8 +47,10 @@ from Backend.models.enums import UserType, TenantType
 from Backend.models.lease import Lease, LeaseStatus
 from Backend.models.property import Property
 from Backend.models.tenant import Tenant, TenantStatus
+from Backend.models.units import PropertyUnit
 from Backend.models.user import User
 from Backend.utils.datetime_utils import create_audit_datetime
+from Backend.api.notifications.email_service import EmailService
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +58,104 @@ router = APIRouter(
     prefix="/tenants",
     tags=["tenants"],
 )
+
+
+# ========================================================================
+# RATE LIMITING FOR TENANT REMINDER EMAILS
+# ========================================================================
+
+# Database-backed rate limiter for reminder emails (works with multiple workers)
+# Limit: 10 reminders per tenant per hour to prevent email spam
+_reminder_rate_limit_max = 10
+_reminder_rate_limit_window_seconds = 3600  # 1 hour
+
+
+async def check_reminder_rate_limit(
+    tenant_id: int,
+    user_id: UUID,
+    session: AsyncSession
+) -> bool:
+    """
+    Check if user is within rate limit for sending reminders to a specific tenant.
+
+    Uses PostgreSQL advisory locks to prevent race conditions between
+    concurrent requests. This ensures the check-and-insert is atomic.
+
+    Args:
+        tenant_id: Tenant ID being sent reminder
+        user_id: User ID sending the reminder
+        session: Database session
+
+    Returns:
+        True if request is allowed, False if rate limited
+    """
+    # Use PostgreSQL advisory lock to make check-and-insert atomic
+    # Lock ID combines tenant_id and user_id to ensure per-tenant-per-user locking
+    lock_id = hash(f"reminder_{tenant_id}_{user_id}") % 2147483647  # PostgreSQL max int
+
+    try:
+        # Acquire advisory lock (automatically released at transaction end)
+        lock_query = text("SELECT pg_advisory_xact_lock(:lock_id)")
+        await session.execute(lock_query, {"lock_id": lock_id})
+
+        # Calculate window start time
+        window_start = datetime.now(timezone.utc) - timedelta(seconds=_reminder_rate_limit_window_seconds)
+
+        # Count reminder emails sent to this tenant in the current window
+        count_query = text("""
+            SELECT COUNT(*)
+            FROM notification_delivery_log
+            WHERE user_id = :user_id
+            AND channel = 'tenant_reminder'
+            AND metadata->>'tenant_id' = :tenant_id
+            AND created_at > :window_start
+        """)
+
+        result = await session.execute(count_query, {
+            "user_id": str(user_id),
+            "tenant_id": str(tenant_id),
+            "window_start": window_start
+        })
+        count: int = result.scalar() or 0
+
+        if count >= _reminder_rate_limit_max:
+            return False
+
+        # Record this request
+        insert_query = text("""
+            INSERT INTO notification_delivery_log (
+                user_id,
+                notification_id,
+                channel,
+                status,
+                metadata,
+                created_at
+            )
+            VALUES (
+                :user_id,
+                :notification_id,
+                'tenant_reminder',
+                'sent',
+                :metadata::jsonb,
+                NOW()
+            )
+        """)
+
+        import json
+        await session.execute(insert_query, {
+            "user_id": str(user_id),
+            "notification_id": "00000000-0000-0000-0000-000000000000",
+            "metadata": json.dumps({"tenant_id": str(tenant_id)})
+        })
+        await session.commit()
+
+        return True
+
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Rate limit check failed for user {user_id}, tenant {tenant_id}: {e}")
+        # Fail open: allow request if rate limiting system has errors
+        return True
 
 
 async def return_enriched_tenant(
@@ -602,3 +708,157 @@ async def get_tenant_metrics(
         ),
         upcoming_events=[]
     )
+
+
+@router.post("/{tenant_id}/send-reminder", response_model=TenantReminderResponse)
+async def send_tenant_reminder(
+    tenant_id: int,
+    reminder_data: TenantReminderRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Send a reminder email to a tenant about an upcoming event.
+    
+    This endpoint allows landlords and admins to manually send reminder emails
+    to tenants about rent due, lease expiry, invoices, or maintenance.
+    
+    Args:
+        tenant_id: ID of the tenant to send reminder to
+        reminder_data: Event details for the reminder
+        
+    Returns:
+        Success status and message
+        
+    Raises:
+        HTTPException: If tenant not found, user lacks permission, or tenant has no email
+    """
+    logger.info(
+        "User %s sending reminder to tenant %s for event: %s",
+        current_user.email,
+        tenant_id,
+        reminder_data.event_type
+    )
+
+    # SECURITY: Check rate limit before proceeding
+    if not await check_reminder_rate_limit(tenant_id, current_user.id, session):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Rate limit exceeded. You can send a maximum of {_reminder_rate_limit_max} reminders per tenant per hour. Please try again later."
+        )
+
+    # Check permissions
+    tenant = await check_tenant_permission(tenant_id, session, current_user, action="view")
+    
+    # Validate tenant has email
+    if not tenant.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot send reminder: tenant does not have an email address"
+        )
+    
+    # Validate email format
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, tenant.email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid email address format: {tenant.email}"
+        )
+    
+    # Get tenant name
+    if tenant.tenant_type == TenantType.COMPANY:
+        tenant_name = tenant.company_name or tenant.contact_person or "Tenant"
+    else:
+        tenant_name = f"{tenant.first_name or ''} {tenant.last_name or ''}".strip() or "Tenant"
+    
+    # Get property and unit info if available
+    property_name = None
+    unit_name = None
+    if tenant.current_property_id:
+        property_query = select(Property).where(col(Property.id) == tenant.current_property_id)
+        property_result = await session.execute(property_query)
+        property_obj = property_result.scalar_one_or_none()
+        if property_obj:
+            property_name = property_obj.name
+    
+    # Try to get unit info from active lease using JOIN for efficiency
+    if tenant.id:
+        unit_query = (
+            select(PropertyUnit)
+            .join(Lease, col(Lease.unit_id) == PropertyUnit.id)
+            .where(
+                and_(
+                    col(Lease.tenant_id) == tenant.id,
+                    col(Lease.status) == LeaseStatus.ACTIVE
+                )
+            )
+            .limit(1)
+        )
+        unit_result = await session.execute(unit_query)
+        unit_obj = unit_result.scalar_one_or_none()
+        unit_name = unit_obj.name if unit_obj else None
+    
+    # Send email via EmailService
+    try:
+        success = await EmailService.send_tenant_reminder_email(
+            tenant_email=tenant.email,
+            tenant_name=tenant_name,
+            event_type=reminder_data.event_type,
+            event_title=reminder_data.event_title,
+            event_subtitle=reminder_data.event_subtitle,
+            event_date=reminder_data.event_date,
+            event_amount=reminder_data.event_amount,
+            days_remaining=reminder_data.days_remaining,
+            property_name=property_name,
+            unit_name=unit_name,
+            metadata={
+                'tenant_id': tenant_id,
+                'sent_by_user_id': str(current_user.id),
+                'sent_by_email': current_user.email,
+            },
+            custom_subject=reminder_data.custom_subject,
+            custom_message=reminder_data.custom_message
+        )
+        
+        if success:
+            logger.info(
+                "Reminder email sent successfully to tenant %s by user %s",
+                tenant_id,
+                current_user.id
+            )
+            return TenantReminderResponse(
+                success=True,
+                message=f"Reminder email sent successfully to {tenant_name}"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send reminder email. Please try again later."
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error sending reminder email to tenant {tenant_id}")
+
+        # IMPROVEMENT: Add Sentry context for better debugging
+        sentry_sdk.capture_exception(e, extras={
+            'tenant_id': tenant_id,
+            'tenant_email': tenant.email if tenant else None,
+            'event_type': reminder_data.event_type,
+            'user_id': str(current_user.id),
+            'user_email': current_user.email,
+            'has_custom_message': bool(reminder_data.custom_message),
+            'has_custom_subject': bool(reminder_data.custom_subject),
+            'property_name': property_name,
+            'unit_name': unit_name
+        }, tags={
+            'feature': 'tenant_reminders',
+            'action': 'send_email',
+            'event_type': reminder_data.event_type
+        })
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while sending the reminder email."
+        )
