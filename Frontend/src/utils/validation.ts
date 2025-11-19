@@ -157,3 +157,4 @@ export const validatePostalCode = (postalCode: string): boolean => {
   return postalRegex.test(postalCode);
 };
 
+

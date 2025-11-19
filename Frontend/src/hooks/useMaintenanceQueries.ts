@@ -49,7 +49,7 @@ export const useMaintenanceSummary = (
 ): UseQueryResult<MaintenanceSummary, Error> => {
   return useQuery({
     queryKey: QUERY_KEYS.maintenance.summary(params),
-    queryFn: () => getMaintenanceSummary(),
+    queryFn: () => getMaintenanceSummary(params),
     staleTime: 0, // Always consider data stale - refetch immediately on invalidation
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes for back navigation
   });

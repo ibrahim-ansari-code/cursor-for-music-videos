@@ -500,22 +500,32 @@ class MaintenanceService:
     @staticmethod
     async def get_maintenance_summary(
         current_user: User,
-        session: AsyncSession
+        session: AsyncSession,
+        property_id: Optional[int] = None
     ) -> MaintenanceSummaryResponse:
         """
         Returns a summary of maintenance requests grouped by status for the current user.
+
+        Args:
+            current_user: The authenticated user making the request.
+            session: The database session.
+            property_id: Optional property ID to filter the summary by a specific property.
         """
-        logger.info("User %s requesting maintenance summary", current_user.id)
+        logger.info("User %s requesting maintenance summary (property_id=%s)", current_user.id, property_id)
 
         query = select(
             col(MaintenanceRequest.status),
             func.count(col(MaintenanceRequest.id))
         ).group_by(col(MaintenanceRequest.status))
-        
+
         if not current_user.is_admin:
             query = query.join(Property, col(MaintenanceRequest.property_id) == col(Property.id))
             query = query.where(col(Property.user_id) == current_user.id)
-        
+
+        # Add property filter if specified
+        if property_id is not None:
+            query = query.where(col(MaintenanceRequest.property_id) == property_id)
+
         result = await session.execute(query)
 
         summary = {status.value.lower().replace(" ", "_"): 0 for status in MaintenanceStatus}

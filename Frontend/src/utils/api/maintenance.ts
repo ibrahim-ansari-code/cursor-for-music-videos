@@ -14,10 +14,25 @@ interface MaintenanceSummary {
 
 /**
  * Fetches a summary of maintenance data.
+ * @param {FetchMaintenanceParams} [params={}] - Query parameters for filtering the summary
  * @returns {Promise<MaintenanceSummary>} A promise that resolves to the maintenance summary object
  */
-export const getMaintenanceSummary = async (): Promise<MaintenanceSummary> => {
-  return apiRequest("/maintenance/summary");
+export const getMaintenanceSummary = async (params: FetchMaintenanceParams = {}): Promise<MaintenanceSummary> => {
+  const queryParams = new URLSearchParams();
+
+  (Object.keys(params) as (keyof FetchMaintenanceParams)[]).forEach((key) => {
+    const value = params[key];
+    if (value === null || value === undefined || value === "") return;
+
+    if (Array.isArray(value)) {
+      value.forEach((v) => queryParams.append(key, String(v)));
+    } else {
+      queryParams.append(key, String(value));
+    }
+  });
+
+  const queryString = queryParams.toString();
+  return apiRequest(`/maintenance/summary${formatQueryString(queryString)}`);
 };
 
 interface FetchMaintenanceParams {

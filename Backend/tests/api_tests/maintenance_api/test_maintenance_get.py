@@ -694,7 +694,47 @@ def test_get_maintenance_summary_database_error():
         with TestClientWithHost(app) as client:
             # Act
             response = client.get("/api/maintenance/summary")
-            
+
             # Assert
             assert response.status_code == 500
             assert "Failed to get maintenance summary" in response.json()["detail"]
+
+
+def test_get_maintenance_summary_with_property_filter():
+    """Test maintenance summary filtered by property ID."""
+    # Arrange
+    user_id = uuid4()
+    fake_user = create_test_user(user_id=user_id)
+    property_id = 123
+
+    # Create filtered summary response
+    fake_summary = MaintenanceSummaryResponse(
+        total_requests=5,
+        pending=2,
+        in_progress=1,
+        completed=2,
+        scheduled=0,
+        cancelled=0
+    )
+
+    # Mock the service layer
+    mock_get_summary = AsyncMock(return_value=fake_summary)
+    with patch("Backend.api.maintenance.router.MaintenanceService.get_maintenance_summary", new=mock_get_summary):
+        # Override dependencies
+        app.dependency_overrides[get_current_user] = lambda: fake_user
+        app.dependency_overrides[get_session] = lambda: AsyncMock()
+
+        with TestClientWithHost(app) as client:
+            # Act
+            response = client.get(f"/api/maintenance/summary?property_id={property_id}")
+
+            # Assert
+            assert response.status_code == 200
+            data = response.json()
+            assert data["total_requests"] == 5
+            assert data["pending"] == 2
+
+            # Verify service was called with property_id parameter
+            mock_get_summary.assert_called_once()
+            call_kwargs = mock_get_summary.call_args.kwargs
+            assert call_kwargs["property_id"] == property_id

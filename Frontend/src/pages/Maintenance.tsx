@@ -8,6 +8,8 @@ import StatusCard from "../components/maintenance/StatusCard";
 import MaintenanceSkeleton, {
   MaintenanceTableSkeleton,
 } from "../components/ui/skeletons/MaintenanceSkeleton";
+import PropertyFilterSkeleton from "../components/maintenance/PropertyFilter/PropertyFilterSkeleton";
+import PropertyFilterDropdown from "../components/maintenance/PropertyFilter/PropertyFilterDropdown";
 import {
   useMaintenanceSummary,
   useMaintenanceRequests,
@@ -16,11 +18,30 @@ import {
   useDeleteMaintenanceRequest,
   useBulkDeleteMaintenanceRequests,
 } from "../hooks/useMaintenanceQueries";
+import useProperties from "../hooks/useProperties";
 import type { MaintenanceRequest } from "../types/tenant";
 
 const Maintenance: React.FC = () => {
-  // Local UI state
+  // Fetch properties for filter
+  const {
+    properties,
+    loading: propertiesLoading,
+    error: propertiesError,
+  } = useProperties();
+
+  // Filter state management
+  const [propertyFilter, setPropertyFilter] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("All Requests");
+
+  // Helper functions for filter management
+  const clearAllFilters = () => {
+    setPropertyFilter(null);
+    setStatusFilter("All Requests");
+  };
+
+  const hasActiveFilters = propertyFilter !== null || statusFilter !== "All Requests";
+
+  // Local UI state
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize] = useState<number>(20);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -32,12 +53,17 @@ const Maintenance: React.FC = () => {
     new Set()
   );
 
-  // Build query parameters
+  // Build query parameters for requests
   const queryParams = useMemo(() => {
     const params: Record<string, any> = {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
     };
+
+    // Add property filter if selected
+    if (propertyFilter) {
+      params.property_id = propertyFilter;
+    }
 
     // Add status filter if not "All Requests"
     if (statusFilter !== "All Requests") {
@@ -46,18 +72,36 @@ const Maintenance: React.FC = () => {
         "In Progress": "in_progress",
         Completed: "completed",
       };
-      params.req_status = statusMap[statusFilter] ?? statusFilter;
+      params.req_status =
+        statusMap[statusFilter] ?? statusFilter;
     }
 
     return params;
-  }, [statusFilter, currentPage, pageSize]);
+  }, [
+    propertyFilter,
+    statusFilter,
+    currentPage,
+    pageSize,
+  ]);
+
+  // Build query parameters for summary (property filter only, not status)
+  const summaryParams = useMemo(() => {
+    const params: Record<string, any> = {};
+
+    // Add property filter if selected
+    if (propertyFilter) {
+      params.property_id = propertyFilter;
+    }
+
+    return params;
+  }, [propertyFilter]);
 
   // TanStack Query hooks
   const {
     data: summary,
     isLoading: summaryLoading,
     error: summaryError,
-  } = useMaintenanceSummary();
+  } = useMaintenanceSummary(summaryParams);
   const {
     data: requestsData,
     isLoading: requestsLoading,
@@ -95,17 +139,21 @@ const Maintenance: React.FC = () => {
   const loading = summaryLoading || requestsLoading;
   const error = summaryError || requestsError;
 
-  // Reset to first page when status filter changes
+  // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter]);
+  }, [statusFilter, propertyFilter]);
 
   // Clear selection when requests change (e.g., after filter changes or deletion)
   useEffect(() => {
     const requestArray = requests as MaintenanceRequest[];
-    const currentRequestIds = new Set(requestArray.map((r: MaintenanceRequest) => r.id));
+    const currentRequestIds = new Set(
+      requestArray.map((r: MaintenanceRequest) => r.id)
+    );
     setSelectedRequests((prev) => {
-      const filtered = Array.from(prev).filter((id) => currentRequestIds.has(id));
+      const filtered = Array.from(prev).filter((id) =>
+        currentRequestIds.has(id)
+      );
       return filtered.length !== prev.size ? new Set(filtered) : prev;
     });
   }, [requests]);
@@ -179,7 +227,9 @@ const Maintenance: React.FC = () => {
 
     if (
       window.confirm(
-        `Are you sure you want to delete ${requestIdsArray.length} selected request${requestIdsArray.length !== 1 ? "s" : ""}?`
+        `Are you sure you want to delete ${
+          requestIdsArray.length
+        } selected request${requestIdsArray.length !== 1 ? "s" : ""}?`
       )
     ) {
       await Sentry.startSpan(
@@ -192,20 +242,28 @@ const Maintenance: React.FC = () => {
           span.setAttribute("requestIds", requestIdsArray.join(","));
 
           try {
-            Sentry.logger.info("Bulk deleting maintenance requests after confirmation", {
-              requestCount: requestIdsArray.length,
-              requestIds: requestIdsArray,
-            });
+            Sentry.logger.info(
+              "Bulk deleting maintenance requests after confirmation",
+              {
+                requestCount: requestIdsArray.length,
+                requestIds: requestIdsArray,
+              }
+            );
 
             await bulkDeleteRequestMutation.mutateAsync(requestIdsArray);
 
             toast.success(
-              `${requestIdsArray.length} maintenance request${requestIdsArray.length !== 1 ? "s" : ""} deleted successfully!`
+              `${requestIdsArray.length} maintenance request${
+                requestIdsArray.length !== 1 ? "s" : ""
+              } deleted successfully!`
             );
 
-            Sentry.logger.info("Maintenance requests bulk deleted successfully", {
-              requestCount: requestIdsArray.length,
-            });
+            Sentry.logger.info(
+              "Maintenance requests bulk deleted successfully",
+              {
+                requestCount: requestIdsArray.length,
+              }
+            );
 
             setSelectedRequests(new Set());
           } catch (error: any) {
@@ -281,13 +339,18 @@ const Maintenance: React.FC = () => {
         </div>
       )}
 
+      {/* Status Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatusCard
           title="Total Requests"
           count={summary?.total_requests ?? (loading ? "..." : 0)}
           icon="fa-tools"
           color="gray"
-          onClick={() => handleStatusFilterChange("All Requests")}
+          onClick={() => {
+            setStatusFilter("All Requests");
+            setPropertyFilter(null);
+            setCurrentPage(1);
+          }}
           active={statusFilter === "All Requests"}
         />
         <StatusCard
@@ -314,6 +377,42 @@ const Maintenance: React.FC = () => {
           onClick={() => handleStatusFilterChange("Completed")}
           active={statusFilter === "Completed"}
         />
+      </div>
+
+      {/* Property Filter Section */}
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg shadow dark-divider border transition-colors duration-300">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <i className="fas fa-filter mr-2"></i>
+            Filter by Property:
+          </span>
+          {propertiesError ? (
+            <span className="text-sm text-red-600 dark:text-red-400">
+              <i className="fas fa-exclamation-triangle mr-2"></i>
+              Failed to load properties
+            </span>
+          ) : propertiesLoading ? (
+            <PropertyFilterSkeleton />
+          ) : (
+            <PropertyFilterDropdown
+              selectedProperty={propertyFilter}
+              onPropertyChange={setPropertyFilter}
+              properties={properties}
+            />
+          )}
+        </div>
+
+        {/* Clear Filters Button */}
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={clearAllFilters}
+            className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border border-red-300 dark:border-red-600 rounded-lg transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            <i className="fas fa-times-circle mr-2"></i>
+            Clear All Filters
+          </button>
+        )}
       </div>
 
       <div className="dark-panel dark-shadow rounded-lg overflow-hidden dark-divider border transition-colors duration-300">
@@ -390,7 +489,9 @@ const Maintenance: React.FC = () => {
               currentPage={currentPage}
               pageSize={pageSize}
               selectedRequests={Array.from(selectedRequests)}
-              onSelectedRequestsChange={(ids) => setSelectedRequests(new Set(ids))}
+              onSelectedRequestsChange={(ids) =>
+                setSelectedRequests(new Set(ids))
+              }
             />
 
             {/* Pagination Controls */}
@@ -400,9 +501,23 @@ const Maintenance: React.FC = () => {
                 {typeof totalCount === "number" && totalCount > 0 && (
                   <span className="ml-2">of {totalCount} total</span>
                 )}
-                {statusFilter !== "All Requests" && (
+                {hasActiveFilters && (
                   <span className="ml-2 text-blue-600 dark:text-blue-400">
-                    Filtered by: {statusFilter}
+                    {statusFilter !== "All Requests" && (
+                      <>Filtered by: {statusFilter}</>
+                    )}
+                    {propertyFilter &&
+                      statusFilter !== "All Requests" && <> • </>}
+                    {propertyFilter && (
+                      <>
+                        Property:{" "}
+                        {
+                          properties.find(
+                            (p) => p.id === propertyFilter
+                          )?.name
+                        }
+                      </>
+                    )}
                   </span>
                 )}
               </div>

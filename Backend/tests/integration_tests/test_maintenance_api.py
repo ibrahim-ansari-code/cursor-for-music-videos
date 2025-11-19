@@ -123,7 +123,7 @@ async def test_delete_request(api_client: httpx.AsyncClient, created_property_id
 async def test_get_summary(api_client: httpx.AsyncClient, created_property_id: int):
     """
     Tests retrieval of the maintenance requests summary endpoint.
-    
+
     Creates a pending maintenance request, retrieves the summary, and verifies that the total and pending request counts are greater than zero.
     """
     await api_client.post("/api/maintenance/requests", json=maintenance_payload(created_property_id, status="PENDING"))
@@ -135,6 +135,31 @@ async def test_get_summary(api_client: httpx.AsyncClient, created_property_id: i
     assert summary_data["total_requests"] > 0
     assert summary_data["pending"] > 0
     logger.info("✅ Summary Test Passed")
+
+
+@pytest.mark.asyncio
+@pytest.mark.auth
+async def test_get_summary_with_property_filter(api_client: httpx.AsyncClient, created_property_id: int):
+    """
+    Tests retrieval of maintenance summary filtered by property ID.
+
+    Creates maintenance requests for the property, retrieves the summary filtered by property_id,
+    and verifies that only requests for that property are counted.
+    """
+    # Create maintenance requests for this property
+    await api_client.post("/api/maintenance/requests", json=maintenance_payload(created_property_id, status="PENDING"))
+    await api_client.post("/api/maintenance/requests", json=maintenance_payload(created_property_id, status="IN_PROGRESS"))
+
+    # Get summary filtered by property
+    summary_res = await api_client.get(f"/api/maintenance/summary?property_id={created_property_id}")
+    assert_api_success(summary_res)
+    summary_data = summary_res.json()
+
+    # Verify the summary contains data (counts should be > 0 for this property)
+    assert summary_data["total_requests"] >= 2
+    assert summary_data["pending"] >= 1
+    assert summary_data["in_progress"] >= 1
+    logger.info("✅ Summary with Property Filter Test Passed")
 
 
 @pytest.mark.asyncio

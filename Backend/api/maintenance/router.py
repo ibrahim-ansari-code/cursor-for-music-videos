@@ -234,22 +234,27 @@ async def delete_maintenance_request(
 
 @router.get("/summary", response_model=MaintenanceSummaryResponse)
 async def get_maintenance_summary(
+    property_id: Annotated[int | None, Query(description="Filter by property ID")] = None,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """
     Returns a summary of maintenance requests grouped by status for the current user.
-    
+
     If the user is not an admin, only requests for properties owned by the user are included.
     The summary contains counts for each status and the total number of requests.
-     
+
+    Args:
+        property_id: Optional property ID to filter the summary by a specific property.
+
     Returns:
         A dictionary with counts of maintenance requests by status and a total count.
     """
     try:
         return await MaintenanceService.get_maintenance_summary(
             current_user=current_user,
-            session=session
+            session=session,
+            property_id=property_id
         )
     except Exception as e:
         logger.exception("Error getting maintenance summary")
