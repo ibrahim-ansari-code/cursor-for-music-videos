@@ -8,8 +8,7 @@ import StatusCard from "../components/maintenance/StatusCard";
 import MaintenanceSkeleton, {
   MaintenanceTableSkeleton,
 } from "../components/ui/skeletons/MaintenanceSkeleton";
-import PropertyFilterSkeleton from "../components/maintenance/PropertyFilter/PropertyFilterSkeleton";
-import PropertyFilterDropdown from "../components/maintenance/PropertyFilter/PropertyFilterDropdown";
+import { PropertyFilter, PropertyFilterSkeleton } from "../components/common/PropertyFilter";
 import {
   useMaintenanceSummary,
   useMaintenanceRequests,
@@ -394,7 +393,7 @@ const Maintenance: React.FC = () => {
           ) : propertiesLoading ? (
             <PropertyFilterSkeleton />
           ) : (
-            <PropertyFilterDropdown
+            <PropertyFilter
               selectedProperty={propertyFilter}
               onPropertyChange={setPropertyFilter}
               properties={properties}

@@ -7,6 +7,7 @@ import ExpenseBreakdownChart from "../charts/ExpenseBreakdownChart";
 import IncomeByPropertyChart from "../charts/IncomeByPropertyChart";
 import { FinancialCardSkeleton, ChartSkeleton } from "../ui/skeletons";
 import { SkeletonLine } from "../ui/skeletons/SkeletonPrimitives";
+import { PropertyFilter, PropertyFilterSkeleton } from "../common/PropertyFilter";
 import { useAccounting } from "./AccountingContext";
 import {
   useAccountingOverview,
@@ -30,12 +31,12 @@ const OverviewTab = () => {
   } = useAccounting();
 
   // Local state
-  const [selectedProperty, setSelectedProperty] = useState("all");
+  const [selectedProperty, setSelectedProperty] = useState(null);
 
   // Query parameters based on selected property
   const queryParams = useMemo(() => {
     const params = {};
-    if (selectedProperty !== "all") {
+    if (selectedProperty !== null) {
       params.property_id = selectedProperty;
     }
     return params;
@@ -55,7 +56,7 @@ const OverviewTab = () => {
   // Report summary parameters
   const reportParams = useMemo(() => {
     const params = { date_range: "Current Month" };
-    if (selectedProperty !== "all") {
+    if (selectedProperty !== null) {
       params.property_ids = [selectedProperty];
     }
     return params;
@@ -67,7 +68,7 @@ const OverviewTab = () => {
       month: currentMonth,
       year: currentYear,
     };
-    if (selectedProperty !== "all") {
+    if (selectedProperty !== null) {
       params.property_id = selectedProperty;
     }
     return params;
@@ -200,11 +201,11 @@ const OverviewTab = () => {
   if (loading) {
     return (
       <div className="space-y-6">
-        {/* Property Filter Skeleton - Match actual component height */}
-        <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-4" style={{minHeight: "72px"}}>
+        {/* Property Filter Skeleton */}
+        <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-4">
           <div className="flex items-center space-x-4">
             <SkeletonLine width="120px" height="1rem" />
-            <SkeletonLine width="200px" height="2.5rem" rounded="md" />
+            <PropertyFilterSkeleton />
           </div>
         </div>
 
@@ -383,25 +384,14 @@ const OverviewTab = () => {
       {/* Property Filter Selector */}
       <div className="dark-panel dark-shadow rounded-lg hover:shadow-md transition-shadow duration-200 p-4">
         <div className="flex items-center space-x-4">
-          <label
-            htmlFor="propertyFilter"
-            className="text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Filter by Property:
-          </label>
-          <select
-            id="propertyFilter"
-            value={selectedProperty}
-            onChange={(e) => setSelectedProperty(e.target.value)}
-            className="dark-input block rounded-md py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="all">All Properties</option>
-            {properties.map((property) => (
-              <option key={property.id} value={property.id}>
-                {property.name}
-              </option>
-            ))}
-          </select>
+          </span>
+          <PropertyFilter
+            selectedProperty={selectedProperty}
+            onPropertyChange={setSelectedProperty}
+            properties={properties}
+          />
         </div>
       </div>
 
@@ -419,10 +409,10 @@ const OverviewTab = () => {
           <div className="flex items-center mb-4">
             <h2 className="text-lg font-medium text-gray-800 dark:text-gray-200">
               Revenue Breakdown
-              {selectedProperty !== "all" && (
+              {selectedProperty !== null && (
                 <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
                   (
-                  {properties.find((p) => p.id.toString() === selectedProperty)
+                  {properties.find((p) => p.id === selectedProperty)
                     ?.name || "Selected Property"}
                   )
                 </span>
@@ -453,10 +443,10 @@ const OverviewTab = () => {
           <div className="flex items-center mb-4">
             <h2 className="text-lg font-medium text-gray-800 dark:text-gray-200">
               Expense Breakdown (Last 30 Days)
-              {selectedProperty !== "all" && (
+              {selectedProperty !== null && (
                 <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
                   (
-                  {properties.find((p) => p.id.toString() === selectedProperty)
+                  {properties.find((p) => p.id === selectedProperty)
                     ?.name || "Selected Property"}
                   )
                 </span>
@@ -474,10 +464,10 @@ const OverviewTab = () => {
           <div className="flex items-center mb-4">
             <h2 className="text-lg font-medium text-gray-800 dark:text-gray-200">
               Income by Property
-              {selectedProperty !== "all" && (
+              {selectedProperty !== null && (
                 <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
                   (
-                  {properties.find((p) => p.id.toString() === selectedProperty)
+                  {properties.find((p) => p.id === selectedProperty)
                     ?.name || "Selected Property"}
                   )
                 </span>
@@ -492,10 +482,10 @@ const OverviewTab = () => {
           <div className="flex items-center mb-4">
             <h2 className="text-lg font-medium text-gray-800 dark:text-gray-200">
               Outstanding Payments
-              {selectedProperty !== "all" && (
+              {selectedProperty !== null && (
                 <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
                   (
-                  {properties.find((p) => p.id.toString() === selectedProperty)
+                  {properties.find((p) => p.id === selectedProperty)
                     ?.name || "Selected Property"}
                   )
                 </span>

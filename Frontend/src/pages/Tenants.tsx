@@ -5,8 +5,10 @@ import TenantModal from "../components/tenants/TenantModal";
 import UpdateTenantModal from "../components/tenants/UpdateTenantModal";
 import TenantTable from "../components/tenants/TenantTable";
 import { TenantsTableSkeleton } from "../components/ui/skeletons";
+import { PropertyFilter, PropertyFilterSkeleton } from "../components/common/PropertyFilter";
 import useDebounce from "../hooks/useDebounce";
 import useFilteredTenants from "../hooks/useFilteredTenants";
+import useProperties from "../hooks/useProperties";
 import {
   countActiveLeases,
   getExpiringLeases,
@@ -32,6 +34,16 @@ interface Notification {
 }
 
 const Tenants: React.FC = () => {
+  // Fetch properties for filter
+  const {
+    properties,
+    loading: propertiesLoading,
+    error: propertiesError,
+  } = useProperties();
+
+  // Filter state management
+  const [propertyFilter, setPropertyFilter] = useState<number | null>(null);
+
   // Local UI state
   const [searchTerm, setSearchTerm] = useState<string>("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -46,14 +58,24 @@ const Tenants: React.FC = () => {
   const [notification, setNotification] = useState<Notification | null>(null);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>(null); // null, 'active_leases', 'expiring', 'overdue'
 
+  // Helper functions for filter management
+  const clearAllFilters = () => {
+    setPropertyFilter(null);
+    setActiveFilter(null);
+  };
+
   // Build query parameters
   const tenantParams = useMemo<FetchTenantsParams>(() => {
     const params: FetchTenantsParams = {};
     if (debouncedSearchTerm) {
       params.search = debouncedSearchTerm;
     }
+    // Add property filter if selected
+    if (propertyFilter !== null) {
+      params.property_id = propertyFilter;
+    }
     return params;
-  }, [debouncedSearchTerm]);
+  }, [debouncedSearchTerm, propertyFilter]);
 
   // TanStack Query hooks
   const {
@@ -109,6 +131,13 @@ const Tenants: React.FC = () => {
     });
   }, [tenants, allLeases]);
 
+  // Memoize selected property name to prevent recalculation on every render
+  // and fix UI bug where name disappears during loading states
+  const selectedPropertyName = useMemo(() => {
+    if (!propertyFilter) return null;
+    return properties.find((p) => p.id === propertyFilter)?.name;
+  }, [properties, propertyFilter]);
+
   // Calculate dashboard metrics
   const dashboardData = useMemo(() => {
     const activeLeaseCount = countActiveLeases(tenantsWithLeases);
@@ -145,7 +174,9 @@ const Tenants: React.FC = () => {
   useEffect(() => {
     const currentTenantIds = new Set(filteredTenants.map((t) => t.id));
     setSelectedTenants((prev) => {
-      const filtered = Array.from(prev).filter((id) => currentTenantIds.has(id));
+      const filtered = Array.from(prev).filter((id) =>
+        currentTenantIds.has(id)
+      );
       return filtered.length !== prev.size ? new Set(filtered) : prev;
     });
   }, [filteredTenants]);
@@ -181,7 +212,9 @@ const Tenants: React.FC = () => {
 
     if (
       window.confirm(
-        `Are you sure you want to delete ${tenantIdsArray.length} selected tenant${tenantIdsArray.length !== 1 ? "s" : ""}?`
+        `Are you sure you want to delete ${
+          tenantIdsArray.length
+        } selected tenant${tenantIdsArray.length !== 1 ? "s" : ""}?`
       )
     ) {
       await Sentry.startSpan(
@@ -202,7 +235,9 @@ const Tenants: React.FC = () => {
             await bulkDeleteMutation.mutateAsync(tenantIdsArray);
 
             toast.success(
-              `${tenantIdsArray.length} tenant${tenantIdsArray.length !== 1 ? "s" : ""} deleted successfully.`
+              `${tenantIdsArray.length} tenant${
+                tenantIdsArray.length !== 1 ? "s" : ""
+              } deleted successfully.`
             );
 
             Sentry.logger.info("Tenants bulk deleted successfully", {
@@ -324,7 +359,7 @@ const Tenants: React.FC = () => {
         {/* Total Tenants */}
         <div
           className="kpi-card cursor-pointer"
-          onClick={() => setActiveFilter(null)}
+          onClick={clearAllFilters}
         >
           <div className="flex items-center">
             <div
@@ -568,11 +603,52 @@ const Tenants: React.FC = () => {
         </div>
       )}
 
+      {/* Property Filter Section */}
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg shadow dark-divider border transition-colors duration-300">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <i className="fas fa-filter mr-2"></i>
+            Filter by Property:
+          </span>
+          {propertiesError ? (
+            <span className="text-sm text-red-600 dark:text-red-400">
+              <i className="fas fa-exclamation-triangle mr-2"></i>
+              Failed to load properties
+            </span>
+          ) : propertiesLoading ? (
+            <PropertyFilterSkeleton />
+          ) : (
+            <PropertyFilter
+              selectedProperty={propertyFilter}
+              onPropertyChange={setPropertyFilter}
+              properties={properties}
+            />
+          )}
+        </div>
+
+        {/* Clear Filters Button */}
+        {(propertyFilter !== null || activeFilter !== null) && (
+          <button
+            type="button"
+            onClick={clearAllFilters}
+            className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border border-red-300 dark:border-red-600 rounded-lg transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            <i className="fas fa-times-circle mr-2"></i>
+            Clear All Filters
+          </button>
+        )}
+      </div>
+
       {/* Tenant Directory - Moved section title directly above table */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
             Tenant Directory
+            {propertyFilter !== null && selectedPropertyName && (
+              <span className="ml-2 text-sm text-blue-600 dark:text-blue-400 font-normal">
+                (Filtered by: {selectedPropertyName})
+              </span>
+            )}
           </h2>
           <div className="flex items-center gap-3">
             {selectedTenants.size > 0 && (
