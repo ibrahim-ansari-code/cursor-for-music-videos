@@ -16,6 +16,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./contexts/AuthProvider";
 import { AuthContext } from "./contexts/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { SubscriptionProvider } from "./contexts/SubscriptionContext";
 
 //Theme
 import { ThemeProvider } from "./contexts/ThemeSwitch";
@@ -185,8 +186,9 @@ function App() {
             // Dark theme will be handled by CSS custom properties in ThemeProvider
           >
             <AuthProvider>
-              <NotificationProvider>
-                <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+              <SubscriptionProvider>
+                <NotificationProvider>
+                  <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
                   <ToastContainer
                     position="top-right"
                     autoClose={5000}
@@ -203,7 +205,8 @@ function App() {
                     <a href="https://policies.google.com/terms" rel="noopener noreferrer" target="_blank"> Terms</a>
                   </div>
                 </div>
-              </NotificationProvider>
+                </NotificationProvider>
+              </SubscriptionProvider>
             </AuthProvider>
           </SkeletonTheme>
         </Router>

@@ -12,7 +12,7 @@ from fastapi import HTTPException, status
 from Backend.api.app import app
 from Backend.models.user import User
 from Backend.models.enums import UserType
-from Backend.api.auth import get_current_user
+from Backend.api.auth import get_current_user, get_current_user_no_subscription_check
 from Backend.database import get_session
 
 # Mark all tests in this module as unit tests
@@ -64,7 +64,7 @@ def test_verify_password_success(mock_verify):
     mock_verify.return_value = True
     
     # Override dependencies
-    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_current_user_no_subscription_check] = lambda: test_user
     app.dependency_overrides[get_session] = lambda: mock_session
     
     request_data = {
@@ -99,7 +99,7 @@ def test_verify_password_incorrect(mock_verify):
     mock_verify.return_value = False
     
     # Override dependencies
-    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_current_user_no_subscription_check] = lambda: test_user
     app.dependency_overrides[get_session] = lambda: mock_session
     
     request_data = {
@@ -145,7 +145,7 @@ def test_verify_password_missing_password():
     mock_session = AsyncMock()
     
     # Override dependencies
-    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_current_user_no_subscription_check] = lambda: test_user
     app.dependency_overrides[get_session] = lambda: mock_session
     
     # Act
@@ -174,7 +174,7 @@ def test_change_password_success(mock_change):
     mock_change.return_value = True
     
     # Override dependencies
-    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_current_user_no_subscription_check] = lambda: test_user
     app.dependency_overrides[get_session] = lambda: mock_session
     
     request_data = {
@@ -216,7 +216,7 @@ def test_change_password_wrong_current(mock_change):
     )
     
     # Override dependencies
-    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_current_user_no_subscription_check] = lambda: test_user
     app.dependency_overrides[get_session] = lambda: mock_session
     
     request_data = {
@@ -244,7 +244,7 @@ def test_change_password_weak_new_password():
     mock_session = AsyncMock()
     
     # Override dependencies
-    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_current_user_no_subscription_check] = lambda: test_user
     app.dependency_overrides[get_session] = lambda: mock_session
     
     request_data = {
@@ -274,7 +274,7 @@ def test_change_password_same_as_current():
     mock_session = AsyncMock()
     
     # Override dependencies
-    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_current_user_no_subscription_check] = lambda: test_user
     app.dependency_overrides[get_session] = lambda: mock_session
     
     request_data = {
@@ -323,7 +323,7 @@ def test_change_password_missing_fields():
     mock_session = AsyncMock()
     
     # Override dependencies
-    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_current_user_no_subscription_check] = lambda: test_user
     app.dependency_overrides[get_session] = lambda: mock_session
     
     # Test missing current_password
@@ -355,7 +355,7 @@ def test_change_password_invalid_format():
     mock_session = AsyncMock()
     
     # Override dependencies
-    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_current_user_no_subscription_check] = lambda: test_user
     app.dependency_overrides[get_session] = lambda: mock_session
     
     client = TestClientWithHost(app)
@@ -400,7 +400,7 @@ def test_change_password_service_error(mock_change):
     )
     
     # Override dependencies
-    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_current_user_no_subscription_check] = lambda: test_user
     app.dependency_overrides[get_session] = lambda: mock_session
     
     request_data = {
@@ -418,4 +418,4 @@ def test_change_password_service_error(mock_change):
     
     # Assert
     assert response.status_code == 500
-    assert "unexpected error" in response.json()["detail"].lower()
+    assert "unexpected error occurred" in response.json()["detail"].lower()

@@ -14,7 +14,7 @@ interface DateRangeParams {
 /**
  * Supported date range identifiers
  */
-type DateRange = 'week' | 'month' | 'quarter' | 'year';
+export type DateRange = 'week' | 'month' | 'quarter' | 'year';
 
 /**
  * Converts a date range string to start_date and end_date parameters.

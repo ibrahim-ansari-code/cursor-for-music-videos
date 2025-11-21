@@ -309,7 +309,7 @@ const LoginForm = () => {
                     id="reset-email"
                     type="email"
                     required
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-brand-teal focus:outline-none focus:ring-1 focus:ring-brand-teal sm:text-sm"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-teal focus:outline-none focus:ring-1 focus:ring-brand-teal sm:text-sm"
                     placeholder="Enter your email"
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}

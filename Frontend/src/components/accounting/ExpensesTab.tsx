@@ -11,7 +11,9 @@ import { useExpenses, useDeleteExpense } from "../../hooks/useAccountingQueries"
 import { importExpensesFromCSV } from "../../utils/api/accounting";
 import useProperties from "../../hooks/useProperties";
 import useDebounce from "../../hooks/useDebounce";
+import { useSubscriptionGuard } from "../../hooks/useSubscriptionGuard";
 import type { Expense, ExpenseQueryParams } from "../../types/accounting";
+import type { DateRange } from "../../utils/dateHelpers";
 
 interface TableColumn {
   key: string;
@@ -62,6 +64,9 @@ interface CSVDataRow {
 }
 
 const ExpensesTab: React.FC = () => {
+  // Subscription guard for premium features
+  const guardAction = useSubscriptionGuard({ featureName: 'creating expenses' });
+
   const { handlePreviewReceipt } = useAccounting();
 
   // Local state for expenses tab
@@ -94,7 +99,7 @@ const ExpensesTab: React.FC = () => {
 
     // Convert date range to actual date params using utility function
     if (expenseFilters.dateRange !== "all") {
-      const dateRangeParams = getDateRangeParams(expenseFilters.dateRange);
+      const dateRangeParams = getDateRangeParams(expenseFilters.dateRange as DateRange);
       Object.assign(params, dateRangeParams);
     }
 
@@ -194,9 +199,9 @@ const ExpensesTab: React.FC = () => {
     }));
   };
 
-  const handleShowModal = () => {
+  const handleShowModal = guardAction(() => {
     setShowNewExpenseModal(true);
-  };
+  });
 
   const handleCSVImportSuccess = () => {
     // Refresh the expenses data after successful import

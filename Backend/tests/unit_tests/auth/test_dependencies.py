@@ -30,13 +30,15 @@ def mock_session():
 
 @pytest.fixture
 def mock_user():
-    """Create a mock user."""
+    """Create a mock user with active subscription for testing."""
     return User(
         id=uuid4(),
         email="test@example.com",
         user_type=UserType.LANDLORD,
         is_active=True,
         is_email_verified=True,
+        subscription_status='active',  # Active subscription for tests
+        subscription_tier='premium',
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC)
     )
@@ -76,7 +78,7 @@ class TestAuthDependencies:
     """Test cases for auth dependencies."""
 
     @patch('Backend.api.auth.dependencies.get_supabase_client')
-    async def test_get_current_user_success(self, mock_get_supabase_client, mock_session, mock_user, valid_token):
+    async def test_get_current_user_success(self, mock_get_supabase_client, mock_session, mock_user, valid_token, mock_request):
         """Test successful retrieval of an existing user."""
         # Arrange
         mock_supabase = MagicMock()
@@ -85,13 +87,13 @@ class TestAuthDependencies:
         mock_supabase.auth.get_user.return_value = mock_user_response
         mock_get_supabase_client.return_value = mock_supabase
 
-        mock_session.get.return_value = mock_user
+        mock_session.get = AsyncMock(return_value=mock_user)
         
         credentials = MagicMock(spec=HTTPAuthorizationCredentials)
         credentials.credentials = valid_token
 
         # Act
-        user = await get_current_user(credentials, mock_session)
+        user = await get_current_user(mock_request, credentials, mock_session)
 
         # Assert
         assert user == mock_user
@@ -100,7 +102,7 @@ class TestAuthDependencies:
 
     @patch('Backend.api.auth.dependencies.get_supabase_client')
     @patch('Backend.api.auth.dependencies.sentry_sdk')
-    async def test_get_current_user_not_synced_from_webhook(self, mock_sentry, mock_get_supabase_client, mock_session, mock_user, valid_token):
+    async def test_get_current_user_not_synced_from_webhook(self, mock_sentry, mock_get_supabase_client, mock_session, mock_user, valid_token, mock_request):
         """Test user not found returns 401 when webhook hasn't synced user yet."""
         # Arrange
         mock_supabase = MagicMock()
@@ -131,7 +133,7 @@ class TestAuthDependencies:
         
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            await get_current_user(credentials, mock_session)
+            await get_current_user(mock_request, credentials, mock_session)
         
         # Verify error details
         assert exc_info.value.status_code == 401
@@ -186,7 +188,7 @@ class TestAuthDependencies:
         assert "Inactive user" in str(exc_info.value.detail)
 
     @patch('Backend.api.auth.dependencies.get_supabase_client')
-    async def test_get_current_user_invalid_token(self, mock_get_supabase_client, mock_session):
+    async def test_get_current_user_invalid_token(self, mock_get_supabase_client, mock_session, mock_request):
         """Test get_current_user with invalid token."""
         # Arrange
         mock_supabase = MagicMock()
@@ -198,13 +200,13 @@ class TestAuthDependencies:
         
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            await get_current_user(credentials, mock_session)
+            await get_current_user(mock_request, credentials, mock_session)
         
         assert exc_info.value.status_code == 500  # It's 500 because we caught a generic Exception
         assert "Authentication service temporarily unavailable. Please try again." in str(exc_info.value.detail)
 
     @patch('Backend.api.auth.dependencies.get_supabase_client')
-    async def test_get_current_user_supabase_error(self, mock_get_supabase_client, mock_session):
+    async def test_get_current_user_supabase_error(self, mock_get_supabase_client, mock_session, mock_request):
         """Test get_current_user with Supabase returning None."""
         # Arrange
         mock_supabase = MagicMock()
@@ -216,12 +218,12 @@ class TestAuthDependencies:
         
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            await get_current_user(credentials, mock_session)
+            await get_current_user(mock_request, credentials, mock_session)
         
         assert exc_info.value.status_code == 401
 
     @patch('Backend.api.auth.dependencies.get_supabase_client')
-    async def test_get_current_user_unexpected_error(self, mock_get_supabase_client, mock_session):
+    async def test_get_current_user_unexpected_error(self, mock_get_supabase_client, mock_session, mock_request):
         """Test get_current_user with unexpected error."""
         # Arrange
         mock_supabase = MagicMock()
@@ -233,7 +235,7 @@ class TestAuthDependencies:
         
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            await get_current_user(credentials, mock_session)
+            await get_current_user(mock_request, credentials, mock_session)
         
         assert exc_info.value.status_code == 500
         assert "Authentication service temporarily unavailable. Please try again." in str(exc_info.value.detail)

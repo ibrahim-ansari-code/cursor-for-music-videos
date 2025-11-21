@@ -66,6 +66,30 @@ const handleResponse = async (response) => {
         handle401Error(response, errorObj);
       }
 
+      // Handle 402 Payment Required (subscription required)
+      if (response.status === 402) {
+        console.warn("Subscription required:", errorData);
+        
+        // Store the error details for the subscription guard to handle
+        const subscriptionError = {
+          code: errorData.code || 'SUBSCRIPTION_REQUIRED',
+          message: errorData.message || 'Active subscription required',
+          subscription_status: errorData.subscription_status,
+          trial_ended: errorData.trial_ended,
+          upgrade_url: errorData.upgrade_url || '/settings?tab=billing'
+        };
+        
+        // Enhance error with subscription details
+        errorObj.subscriptionRequired = true;
+        errorObj.subscriptionError = subscriptionError;
+        
+        // Trigger global subscription modal
+        // Import dynamically to avoid circular deps
+        import('../subscriptionHandler').then(({ subscriptionHandler }) => {
+          subscriptionHandler.showModal();
+        });
+      }
+
       // Throw enhanced error with all details
       let errorMessage = `API error: ${response.status}`;
       if (errorData.detail) {
@@ -200,6 +224,14 @@ export const apiRequest = async (endpoint, options = {}) => {
     ...options, // Spread options first to allow overriding method, body, etc.
     headers: requestHeaders,
   };
+
+  // Cleanup custom options that are not valid for the fetch API
+  // 'cache' in fetch must be a string (RequestCache enum), but we use boolean for our custom logic
+  if (typeof requestOptions.cache === 'boolean') {
+    delete requestOptions.cache;
+  }
+  delete requestOptions.cacheMaxAge;
+  delete requestOptions.recaptchaAction;
 
   // Debug logging for request data
   if (

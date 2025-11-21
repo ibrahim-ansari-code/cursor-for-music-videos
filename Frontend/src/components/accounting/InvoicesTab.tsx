@@ -15,6 +15,7 @@ import { importInvoicesFromCSV } from "../../utils/api/accounting";
 import useProperties from "../../hooks/useProperties";
 import { fetchTenants } from "../../utils/api/tenants";
 import { getTenantDisplayName } from "../../utils/tenantUtils";
+import { useSubscriptionGuard } from "../../hooks/useSubscriptionGuard";
 import type { Invoice, InvoiceQueryParams, InvoicesResponse } from "../../types/accounting";
 
 interface TableColumn {
@@ -82,6 +83,9 @@ interface CSVDataRow {
 }
 
 const InvoicesTab: React.FC = () => {
+  // Subscription guard for premium features
+  const guardAction = useSubscriptionGuard({ featureName: 'creating invoices' });
+
   // Remove unused useAccounting hook
   // const { } = useAccounting();
 
@@ -326,9 +330,9 @@ const InvoicesTab: React.FC = () => {
     }));
   };
 
-  const handleShowModal = () => {
+  const handleShowModal = guardAction(() => {
     setShowNewInvoiceModal(true);
-  };
+  });
 
   const handleCloseModal = () => {
     setShowNewInvoiceModal(false);

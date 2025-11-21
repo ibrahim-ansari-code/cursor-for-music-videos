@@ -5,6 +5,7 @@ import QuickBooksCard from '../components/integrations/QuickBooksCard';
 import PlaceholderCard from '../components/integrations/PlaceholderCard';
 import ConfirmationModal from '../components/integrations/ConfirmationModal';
 import { useQuickBooksIntegration } from '../hooks/useQuickBooksIntegration';
+import { useSubscriptionGuard } from '../hooks/useSubscriptionGuard';
 
 /**
  * Integrations page component - fully optimized TypeScript version
@@ -18,6 +19,9 @@ import { useQuickBooksIntegration } from '../hooks/useQuickBooksIntegration';
  * - QuickBooks functionality temporarily disabled for production key finalization
  */
 const Integrations: React.FC = memo(() => {
+  // Subscription guard for premium features
+  const guardAction = useSubscriptionGuard({ featureName: 'connecting to QuickBooks' });
+
   const {
     status,
     operationState,
@@ -29,6 +33,9 @@ const Integrations: React.FC = memo(() => {
     handleSyncAll,
     isOperationInProgress,
   } = useQuickBooksIntegration();
+
+  // Wrap QuickBooks connect with subscription guard
+  const guardedHandleConnect = guardAction(handleConnect);
 
   // Show loading skeleton only for initial loading operations (connecting/disconnecting)
   // For syncing operations, show the normal page with QuickBooks card in loading state
@@ -101,7 +108,7 @@ const Integrations: React.FC = memo(() => {
             <QuickBooksCard
               status={status}
               operationState={operationState}
-              onConnect={handleConnect}
+              onConnect={guardedHandleConnect}
               onDisconnect={handleDisconnect}
               onSyncAll={handleSyncAll}
               disabled={false} // Production keys approved - integration enabled

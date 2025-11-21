@@ -2,27 +2,33 @@ import React, { useState, useRef } from "react";
 import { Button } from "../ui/SharedModalComponents";
 import { uploadUserAvatar } from "../../utils/api/users";
 import { toast } from "react-toastify";
+import type { User, AvatarUpdateHandler } from "../../types/user";
 
-const ProfileCard = ({ user, onAvatarUpdate }) => {
-  const [avatarPreview, setAvatarPreview] = useState(user?.profile_image_url);
-  const [avatarFile, setAvatarFile] = useState(null);
+interface ProfileCardProps {
+  user: User;
+  onAvatarUpdate?: AvatarUpdateHandler;
+}
+
+const ProfileCard: React.FC<ProfileCardProps> = ({ user, onAvatarUpdate }) => {
+  const [avatarPreview, setAvatarPreview] = useState<string | undefined>(user?.profile_image_url);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isAvatarLoading, setIsAvatarLoading] = useState(false);
   const [avatarLoadError, setAvatarLoadError] = useState(false);
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get initials helper
-  const getInitials = (firstName, lastName) =>
+  const getInitials = (firstName?: string, lastName?: string): string =>
     `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
 
   // Format date helper
-  const formatDate = (dateString) => {
+  const formatDate = (dateString?: string): string => {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   };
 
   // Format phone number for display
-  const formatPhoneDisplay = (phone) => {
+  const formatPhoneDisplay = (phone?: string): string => {
     if (!phone) return '';
     const cleaned = phone.replace(/\D/g, '');
     if (cleaned.length === 10) {
@@ -31,8 +37,8 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
     return phone;
   };
 
-  const handleAvatarChange = (e) => {
-    const files = e.target?.files;
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
     const file = files && files.length > 0 ? files[0] : null;
     setAvatarLoadError(false);
     
@@ -44,7 +50,7 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
       setAvatarFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setAvatarPreview(reader.result);
+        setAvatarPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     } else if (file) {
@@ -62,7 +68,7 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
     formData.append("file", avatarFile);
 
     try {
-      const response = await uploadUserAvatar(user.id, formData);
+      const response = await uploadUserAvatar(user.id, formData) as { profile_image_url: string };
       const newImageUrl = response?.profile_image_url;
       
       if (!newImageUrl) {
@@ -87,7 +93,7 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
         console.error("Error updating context after avatar upload:", contextError);
         toast.warning("Avatar uploaded but may not appear everywhere immediately. Please refresh the page.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error uploading avatar:", error);
       toast.error(`Avatar upload failed: ${error.message || "Server error"}`);
       // Reset to original state on upload failure
@@ -101,8 +107,8 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
   const imageSource = avatarPreview || user?.profile_image_url;
 
   return (
-    <div className="h-full pr-8 lg:border-r lg:border-gray-200 dark:lg:border-gray-700 transition-colors duration-300">
-      <div className="flex flex-col items-center sticky top-6">
+    <div className="h-full lg:pr-8 lg:border-r lg:border-gray-200 dark:lg:border-gray-700 transition-colors duration-300">
+      <div className="flex flex-col items-center lg:sticky lg:top-6">
         {/* Avatar Section */}
         <div className="relative group mb-4">
           {avatarLoadError || !imageSource ? (
@@ -161,7 +167,7 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
           <div className="flex justify-between items-center py-2.5">
             <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">Member Since</span>
             <span className="text-sm font-medium text-gray-900 dark:text-white transition-colors duration-300">
-              {formatDate(user?.created_at)}
+              {formatDate(user?.created_at as string)}
             </span>
           </div>
           
@@ -185,6 +191,7 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
             </span>
           </div>
           
+          {/* @ts-ignore - is_admin might not be on User type but is on database model */}
           {user?.is_admin && (
             <div className="flex justify-between items-center py-2.5">
               <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">Admin</span>
@@ -196,15 +203,15 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
           )}
           
           {/* Contact Info */}
-          {(user?.city || user?.province || user?.phone) && (
+          {((user as User)?.city || (user as User)?.province || user?.phone) && (
             <>
               <div className="border-t border-gray-100 dark:border-gray-700 my-3 transition-colors duration-300"></div>
               
-              {(user?.city || user?.province) && (
+              {((user as User)?.city || (user as User)?.province) && (
                 <div className="flex justify-between items-center py-2.5">
                   <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">Location</span>
                   <span className="text-sm font-medium text-gray-900 dark:text-white text-right transition-colors duration-300">
-                    {[user?.city, user?.province].filter(Boolean).join(', ')}
+                    {[(user as User)?.city, (user as User)?.province].filter(Boolean).join(', ')}
                   </span>
                 </div>
               )}
@@ -226,3 +233,4 @@ const ProfileCard = ({ user, onAvatarUpdate }) => {
 };
 
 export default ProfileCard;
+

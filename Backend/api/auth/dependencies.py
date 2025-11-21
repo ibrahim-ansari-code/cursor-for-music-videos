@@ -28,6 +28,7 @@ from Backend.database import get_session
 from Backend.models.enums import UserType
 from Backend.models.user import User
 from Backend.utils.supabase import get_supabase_client
+from Backend.config import settings
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -241,8 +242,10 @@ def get_token_from_request(
 
 
 async def get_current_user(
+    request: Request,  # Injected by FastAPI automatically
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
+    check_subscription: bool = True  # ENABLED: Blocks write operations, allows read
 ) -> User:
     """
     Retrieves the current authenticated user based on a Supabase JWT token.
@@ -253,15 +256,32 @@ async def get_current_user(
     using a nested transaction. Raises HTTP exceptions for invalid credentials or 
     unexpected errors.
     
+    **Subscription Enforcement:**
+    - GET requests (read operations): FREE - users can browse without subscription
+    - POST/PUT/DELETE/PATCH (write operations): REQUIRES subscription
+    - Admins: ALWAYS bypass subscription checks
+    - Billing routes: Use get_current_user_no_subscription_check
+    
+    **User Experience:**
+    - Users can sign up and explore the app freely
+    - When they try to create/modify data, they get a 402 error
+    - Frontend catches 402 and shows subscription modal
+    - Graceful upgrade flow, no hard blocks on login
+    
     Args:
+        request: The FastAPI request object (auto-injected) for checking HTTP method.
         credentials: The HTTP authorization credentials containing the JWT token.
         session: The database session for user queries.
+        check_subscription: If True (default), requires active subscription for write operations.
     
     Returns:
         The authenticated User instance from the local database.
         
     Raises:
-        HTTPException: For authentication failures or server errors.
+        HTTPException: 
+            - 401: Authentication failures
+            - 402: Subscription required (write operations only)
+            - 500: Server errors
     """
     user_response_from_supabase = None
     try:
@@ -346,6 +366,56 @@ async def get_current_user(
                     "X-Support-Contact": "support@brikli.com"
                 },
             )
+        
+        # ============================================================
+        # SUBSCRIPTION CHECK (enforced platform-wide)
+        # ============================================================
+        if check_subscription:
+            from datetime import datetime, timezone as dt_timezone
+            
+            # Auto-exempt GET requests (read operations) - users can browse without subscription
+            if request and request.method == "GET":
+                logger.debug(f"GET request - bypassing subscription check for user {db_user.email}")
+                return db_user
+            
+            # Admins bypass subscription requirement
+            if not db_user.is_admin:
+                # Check subscription status (denormalized on user for fast access)
+                has_active_subscription = db_user.subscription_status in ['active', 'trialing']
+                
+                # Check trial period as fallback
+                in_trial_period = False
+                if db_user.trial_ends_at:
+                    now = datetime.now(dt_timezone.utc)
+                    trial_end = db_user.trial_ends_at
+                    
+                    # Ensure trial_end is timezone-aware
+                    if trial_end.tzinfo is None:
+                        trial_end = trial_end.replace(tzinfo=dt_timezone.utc)
+                    
+                    if trial_end > now:
+                        in_trial_period = True
+                
+                # Deny access if no active subscription or trial
+                if not has_active_subscription and not in_trial_period:
+                    logger.warning(
+                        f"Subscription required | "
+                        f"user_id={db_user.id} | "
+                        f"email={db_user.email} | "
+                        f"status={db_user.subscription_status} | "
+                        f"trial_ends_at={db_user.trial_ends_at}"
+                    )
+                    
+                    raise HTTPException(
+                        status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                        detail={
+                            "code": "SUBSCRIPTION_REQUIRED",
+                            "message": "Active subscription required to access this resource",
+                            "subscription_status": db_user.subscription_status,
+                            "trial_ended": bool(db_user.trial_ends_at and db_user.trial_ends_at < now),
+                            "upgrade_url": f"{settings.FRONTEND_URL}/settings?tab=billing"
+                        }
+                    )
 
         return db_user
     except HTTPException as http_exc:  # Re-raise HTTPException to preserve status code and details
@@ -604,3 +674,54 @@ async def get_current_user_sse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authentication failed"
         )
+
+
+# ============================================================
+# SUBSCRIPTION-EXEMPT DEPENDENCY
+# ============================================================
+
+async def get_current_user_no_subscription_check(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    session: AsyncSession = Depends(get_session)
+) -> User:
+    """
+    Dependency that authenticates the user WITHOUT checking subscription status.
+    
+    **Use Case:**
+    Only use this for routes where users MUST have access regardless of subscription:
+    - Password management endpoints (/auth/verify-password, /auth/change-password)
+    - Billing endpoints (/billing/checkout-session, /billing/portal-session, /billing/status, /billing/resume)
+    
+    **DO NOT use this for:**
+    - Core platform features (properties, leases, tenants, accounting, etc.)
+    - Any feature that should be subscription-gated
+    
+    Example:
+        ```python
+        @router.post("/billing/checkout-session")
+        async def create_checkout(
+            current_user: User = Depends(get_current_user_no_subscription_check),
+            ...
+        ):
+            # User can access this even without active subscription
+            ...
+        ```
+    
+    Args:
+        request: The FastAPI request object (auto-injected).
+        credentials: The HTTP authorization credentials containing the JWT token.
+        session: The database session for user queries.
+    
+    Returns:
+        The authenticated User instance (subscription not checked).
+        
+    Raises:
+        HTTPException: For authentication failures only.
+    """
+    return await get_current_user(
+        request=request,
+        credentials=credentials,
+        session=session,
+        check_subscription=False
+    )

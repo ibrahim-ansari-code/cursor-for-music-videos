@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from Backend.config import settings
 from Backend.database import get_session
 from Backend.models.user import User
-from .dependencies import get_current_user
+from .dependencies import get_current_user, get_current_user_no_subscription_check
 from .helpers import validate_webhook_secret
 from .webhook_rate_limiter import check_webhook_rate_limit
 from .schemas import (
@@ -286,7 +286,7 @@ async def resend_verification_email(
 @router.post("/verify-password")
 async def verify_password(
     request: PasswordVerificationRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user_no_subscription_check)
 ):
     """
     Verify current password without creating a new session.
@@ -323,7 +323,7 @@ async def verify_password(
 @router.post("/change-password")
 async def change_password(
     request: PasswordChangeRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_no_subscription_check),
     session: AsyncSession = Depends(get_session)
 ):
     """

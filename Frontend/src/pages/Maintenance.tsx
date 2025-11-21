@@ -18,9 +18,13 @@ import {
   useBulkDeleteMaintenanceRequests,
 } from "../hooks/useMaintenanceQueries";
 import useProperties from "../hooks/useProperties";
+import { useSubscriptionGuard } from "../hooks/useSubscriptionGuard";
 import type { MaintenanceRequest } from "../types/tenant";
 
 const Maintenance: React.FC = () => {
+  // Subscription guard for premium features
+  const guardAction = useSubscriptionGuard({ featureName: 'creating maintenance requests' });
+
   // Fetch properties for filter
   const {
     properties,
@@ -308,11 +312,11 @@ const Maintenance: React.FC = () => {
     setCurrentPage((prev) => prev + 1);
   };
 
-  const openModalForNew = () => {
+  const openModalForNew = guardAction(() => {
     setEditingRequest(null);
     setViewingRequest(null);
     setIsModalOpen(true);
-  };
+  });
 
   const closeModal = () => {
     setIsModalOpen(false);

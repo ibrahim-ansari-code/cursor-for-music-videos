@@ -63,6 +63,34 @@ class User(SQLModel, table=True):
     )
     is_email_verified: bool = Field(default=False)
 
+    # Billing fields (denormalized for fast access checks)
+    stripe_customer_id: str | None = Field(
+        default=None,
+        max_length=255,
+        unique=True,
+        description="Stripe Customer ID (cus_xxx) - cached for quick lookups"
+    )
+    subscription_status: str = Field(
+        default="none",
+        max_length=50,
+        description="Cached subscription status: none, active, past_due, canceled, trialing"
+    )
+    subscription_tier: str = Field(
+        default="free",
+        max_length=50,
+        description="User tier (free, premium) - used for feature gating"
+    )
+    current_period_end: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        description="Cached from user_subscriptions - for quick access checks"
+    )
+    trial_ends_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        description="Trial expiration timestamp - users retain access until this date"
+    )
+
     properties: list["Property"] = Relationship(back_populates="owner")
 
     # Define tenant_details relationship directly

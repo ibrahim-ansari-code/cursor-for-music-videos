@@ -4,6 +4,7 @@ import { reportError } from '../../../../utils/error-reporting';
 import { fetchPropertyById } from '../../../../utils/api';
 import { useDeleteProperty } from '../../../../hooks/usePropertiesMutations';
 import { Property } from '../../../../types/property';
+import { useSubscriptionGuard } from '../../../../hooks/useSubscriptionGuard';
 
 // Runtime validation for property data
 const validateProperty = (data: unknown): data is Property => {
@@ -26,6 +27,9 @@ const validateProperty = (data: unknown): data is Property => {
 };
 
 export const usePropertiesActions = () => {
+  // Subscription guard for premium features
+  const guardAction = useSubscriptionGuard({ featureName: 'creating properties' });
+
   // Separate state for create and edit modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -137,10 +141,10 @@ export const usePropertiesActions = () => {
     setPropertyToDelete(null);
   };
 
-  const handleAddProperty = () => {
+  const handleAddProperty = guardAction(() => {
     setCurrentProperty(null);
     setIsCreateModalOpen(true);
-  };
+  });
 
   const handleCloseCreateModal = () => {
     setIsCreateModalOpen(false);

@@ -260,6 +260,8 @@ try:
     from Backend.api.accounting import accounting_api_router
     from Backend.api.agent import router as agent_router
     from Backend.api.auth import router as auth_router
+    from Backend.api.billing.router import router as billing_router
+    from Backend.api.billing.webhooks import router as billing_webhooks_router
     from Backend.api.calendar.router import router as calendar_router
     from Backend.api.dashboard import router as dashboard_router
     from Backend.api.health import router as health_router
@@ -280,6 +282,8 @@ try:
     # Include routers into the central api_main_router
     # Their internal prefixes (e.g., /auth, /properties) will apply
     api_main_router.include_router(auth_router)
+    api_main_router.include_router(billing_router)  # Subscription management
+    api_main_router.include_router(billing_webhooks_router)  # Stripe webhooks
     api_main_router.include_router(properties_router)
     api_main_router.include_router(property_images_router)
     api_main_router.include_router(dashboard_router)

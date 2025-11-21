@@ -19,8 +19,12 @@ export interface User {
   user_type?: UserType;
   created_at?: string;
   updated_at?: string;
-  // Allow for additional dynamic fields
-  [key: string]: unknown;
+  is_email_verified?: boolean;
+  is_active?: boolean;
+  city?: string;
+  province?: string;
+  address?: string;
+  postal_code?: string;
 }
 
 /**

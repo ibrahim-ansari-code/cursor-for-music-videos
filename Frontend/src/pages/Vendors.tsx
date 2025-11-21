@@ -14,8 +14,12 @@ import {
 } from "../hooks/useVendorQueries";
 import VendorTable from "../components/vendors/VendorTable";
 import VendorModal from "../components/vendors/VendorModal";
+import { useSubscriptionGuard } from "../hooks/useSubscriptionGuard";
 
 const Vendors: React.FC = () => {
+  // Subscription guard for premium features
+  const guardAction = useSubscriptionGuard({ featureName: 'creating vendors' });
+
   // Local UI state
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [tradeFilter, setTradeFilter] = useState<string>("");
@@ -194,11 +198,11 @@ const Vendors: React.FC = () => {
     }
   };
 
-  const openModalForNew = () => {
+  const openModalForNew = guardAction(() => {
     setEditingVendor(null);
     setViewingVendor(null);
     setIsModalOpen(true);
-  };
+  });
 
   const closeModal = () => {
     setIsModalOpen(false);

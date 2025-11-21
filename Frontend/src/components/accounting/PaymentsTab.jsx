@@ -9,6 +9,7 @@ import { useAccounting } from "./AccountingContext";
 import { usePayments, useDeletePayment } from "../../hooks/useAccountingQueries";
 import { importPaymentsFromCSV } from "../../utils/api/accounting";
 import { getTenantDisplayName, getTenantInitials } from "../../utils/tenantUtils";
+import { useSubscriptionGuard } from "../../hooks/useSubscriptionGuard";
 
 const paymentTableColumns = [
   { key: "tenant", label: "Tenant", align: "left" },
@@ -23,6 +24,9 @@ const paymentTableColumns = [
 
 
 const PaymentsTab = () => {
+  // Subscription guard for premium features
+  const guardAction = useSubscriptionGuard({ featureName: 'recording payments' });
+
   const { handlePreviewReceipt } = useAccounting();
 
   // Local state for payments tab
@@ -159,9 +163,9 @@ const PaymentsTab = () => {
     }));
   };
 
-  const handleShowModal = () => {
+  const handleShowModal = guardAction(() => {
     setShowNewPaymentModal(true);
-  };
+  });
 
   const handleCloseModal = () => {
     setShowNewPaymentModal(false);

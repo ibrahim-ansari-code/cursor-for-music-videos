@@ -9,6 +9,7 @@ import { PropertyFilter, PropertyFilterSkeleton } from "../components/common/Pro
 import useDebounce from "../hooks/useDebounce";
 import useFilteredTenants from "../hooks/useFilteredTenants";
 import useProperties from "../hooks/useProperties";
+import { useSubscriptionGuard } from "../hooks/useSubscriptionGuard";
 import {
   countActiveLeases,
   getExpiringLeases,
@@ -34,6 +35,9 @@ interface Notification {
 }
 
 const Tenants: React.FC = () => {
+  // Subscription guard for premium features
+  const guardAction = useSubscriptionGuard({ featureName: 'creating tenants' });
+
   // Fetch properties for filter
   const {
     properties,
@@ -301,11 +305,11 @@ const Tenants: React.FC = () => {
     )}&body=${encodeURIComponent(body)}`;
   };
 
-  // Handle adding a tenant
-  const handleAddTenant = () => {
+  // Handle adding a tenant (guarded by subscription check)
+  const handleAddTenant = guardAction(() => {
     setSelectedTenant(null);
     setIsModalOpen(true);
-  };
+  });
 
   // Handle editing a tenant
   const handleEditTenant = (tenant: EnrichedTenant) => {

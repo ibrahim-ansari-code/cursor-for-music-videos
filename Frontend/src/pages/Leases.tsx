@@ -15,6 +15,7 @@ import {
   useBulkDeleteLeases,
 } from "../hooks/useLeasesQueries";
 import { getSecureDocumentUrl } from "../utils/api/leases";
+import { useSubscriptionGuard } from "../hooks/useSubscriptionGuard";
 import type {
   LeaseWithDocuments,
   LeaseDocument,
@@ -25,6 +26,9 @@ import type {
 type ModalType = "create" | "edit" | "status" | "upload" | null;
 
 const LeasesContent: React.FC = () => {
+  // Subscription guard for premium features
+  const guardAction = useSubscriptionGuard({ featureName: 'creating leases' });
+
   // Local UI state
   const [selectedLease, setSelectedLease] = useState<LeaseWithDocuments | null>(
     null
@@ -408,8 +412,8 @@ const LeasesContent: React.FC = () => {
     );
   };
 
-  // Handle new lease button with tracking
-  const handleNewLease = () => {
+  // Handle new lease button with tracking - wrapped with subscription guard
+  const handleNewLease = guardAction(() => {
     Sentry.startSpan(
       {
         op: "ui.click",
@@ -423,7 +427,7 @@ const LeasesContent: React.FC = () => {
         handleShowModal("create");
       }
     );
-  };
+  });
 
   // Handle lease selection
   const handleSelectLease = (leaseId: number, selected: boolean) => {

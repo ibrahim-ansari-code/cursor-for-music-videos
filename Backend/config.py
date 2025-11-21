@@ -118,6 +118,17 @@ class Settings(BaseSettings):
     # This secret is used to secure webhook endpoints. It is required for production.
     SUPABASE_WEBHOOK_SECRET: str = os.getenv("SUPABASE_WEBHOOK_SECRET", "")
     
+    # === Stripe Billing Configuration ===
+    STRIPE_API_KEY: str = os.getenv("STRIPE_API_KEY", "")
+    STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    STRIPE_PRICE_ID_PLATFORM: str = os.getenv("STRIPE_PRICE_ID_PLATFORM", "")
+    STRIPE_BILLING_PORTAL_RETURN_URL: str = os.getenv(
+        "STRIPE_BILLING_PORTAL_RETURN_URL",
+        "https://app.brikli.com/settings?tab=billing"
+    )
+    STRIPE_TRIAL_PERIOD_DAYS: int = int(os.getenv("STRIPE_TRIAL_PERIOD_DAYS", "14"))
+    
     # === SendGrid Email Configuration ===
     SENDGRID_API_KEY: str = os.getenv("SENDGRID_API_KEY", "")
     SENDGRID_FROM_EMAIL: str = os.getenv("SENDGRID_FROM_EMAIL", "noreply@brikli.com")
@@ -221,6 +232,16 @@ class Settings(BaseSettings):
                 "Azure AI Agent is not fully configured. "
                 "AZURE_AGENT_ENDPOINT and AZURE_ASSISTANT_ID must both be set. "
                 "The AI Assistant feature will not work until these are configured.",
+                RuntimeWarning,
+                stacklevel=2
+            )
+        
+        # Validate Stripe Billing configuration
+        if not self.STRIPE_API_KEY or not self.STRIPE_WEBHOOK_SECRET:
+            warnings.warn(
+                "Stripe billing is not fully configured. "
+                "STRIPE_API_KEY and STRIPE_WEBHOOK_SECRET must both be set. "
+                "Subscription and billing features will not work until these are configured.",
                 RuntimeWarning,
                 stacklevel=2
             )
