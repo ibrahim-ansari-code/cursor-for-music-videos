@@ -21,6 +21,17 @@ export const FilterDropdown = React.forwardRef<HTMLDivElement, FilterDropdownPro
 }, ref) => {
   const hasActiveFilters = Object.values(filterOptions).some((val) => val !== null);
 
+  // Status labels mapping for proper display
+  const statusLabels: Record<string, string> = {
+    ACTIVE: 'Active',
+    INACTIVE: 'Inactive',
+    DRAFT: 'Draft',
+    ARCHIVED: 'Archived',
+    RENTED: 'Rented',
+    VACANT: 'Vacant',
+    PARTIALLY_RENTED: 'Partially Rented',
+  };
+
   return (
     <div className="relative" ref={ref}>
       <button
@@ -104,7 +115,7 @@ export const FilterDropdown = React.forwardRef<HTMLDivElement, FilterDropdownPro
                           />
                         </svg>
                       )}
-                      {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}
+                      {statusLabels[status] || status}
                     </button>
                   ))}
                 </div>

@@ -17,9 +17,13 @@ import type { DashboardResponse } from "../utils/api/dashboard";
 
 interface RentData {
   lease_id: number | string;
+  tenant_id?: number | null;
   tenant_name: string;
   remaining_due: number;
+  monthly_rent?: number;
   status: string;
+  due_date?: string | null;
+  days_overdue?: number | null;
 }
 
 interface CustomRange {

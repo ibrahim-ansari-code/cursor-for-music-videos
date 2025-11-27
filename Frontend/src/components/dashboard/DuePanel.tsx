@@ -1,13 +1,24 @@
-import React from "react";
+import React, { useState } from "react";
+import { createPortal } from "react-dom";
+import { toast } from "react-toastify";
+import * as Sentry from "@sentry/react";
 import { formatCurrency, getAvatarColor as utilAvatarColor, getInitials } from "../../utils/formatters";
 import { DuePanelSkeleton } from "../ui/skeletons";
 import type { PaymentDue } from "../../utils/api/dashboard";
+import ReminderConfirmationModal from "../tenants/TenantProfile/ReminderConfirmationModal";
+import { sendTenantReminder, fetchTenant, type TenantReminderRequest } from "../../utils/api/tenants";
+import type { UpcomingEvent } from "../../utils/tenantMetrics";
+import type { EnrichedTenant } from "../../types/tenant";
 
 interface RentData {
   lease_id: number | string;
+  tenant_id?: number | null;
   tenant_name: string;
   remaining_due: number;
+  monthly_rent?: number;
   status: string;
+  due_date?: string | null;
+  days_overdue?: number | null;
 }
 
 interface InvoiceData extends Partial<PaymentDue> {
@@ -51,6 +62,14 @@ const DuePanel: React.FC<DuePanelProps> = ({
   invoicesLoading = false,
   invoicesData = [],
 }) => {
+  // Modal state
+  const [reminderModalOpen, setReminderModalOpen] = useState(false);
+  const [selectedRent, setSelectedRent] = useState<RentData | null>(null);
+  const [sendingReminder, setSendingReminder] = useState(false);
+  const [loadingTenant, setLoadingTenant] = useState(false);
+  const [eventForModal, setEventForModal] = useState<UpcomingEvent | null>(null);
+  const [tenantForModal, setTenantForModal] = useState<EnrichedTenant | null>(null);
+
   // Helper function to get tenant display name
   const getTenantName = (tenant?: InvoiceData['tenant']): string => {
     if (!tenant) return '';
@@ -58,6 +77,171 @@ const DuePanel: React.FC<DuePanelProps> = ({
       return tenant.company_name || '';
     }
     return `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim() || tenant.full_name || '';
+  };
+
+  // Calculate days remaining from due date
+  // Use explicit UTC parsing to avoid timezone-related off-by-one errors
+  const calculateDaysRemaining = (dueDate: string | null | undefined): number | null => {
+    if (!dueDate) return null;
+
+    // Create UTC date for today (midnight UTC)
+    const today = new Date();
+    const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+
+    // Parse date as UTC explicitly (format: 'YYYY-MM-DD')
+    const [year, month, day] = dueDate.split('-').map(Number);
+    const due = new Date(Date.UTC(year, month - 1, day));
+
+    const diffTime = due.getTime() - todayUTC.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  // Helper function to close modal and reset all related state
+  const closeAndResetModal = () => {
+    setReminderModalOpen(false);
+    setSelectedRent(null);
+    setEventForModal(null);
+    setTenantForModal(null);
+  };
+
+  // Handle reminder button click - fetch full tenant details from API
+  const handleReminderClick = async (rent: RentData) => {
+    // Prevent race conditions by checking if already loading
+    if (!rent.tenant_id || loadingTenant || sendingReminder) return;
+
+    setSelectedRent(rent);
+    setLoadingTenant(true);
+    
+    try {
+      // Fetch the full, accurate tenant object from the API
+      const tenant = await Sentry.startSpan(
+        {
+          op: "http.client",
+          name: `GET /api/tenants/${rent.tenant_id}`,
+        },
+        async () => {
+          return await fetchTenant(rent.tenant_id!);
+        }
+      );
+      
+      const daysRemaining = calculateDaysRemaining(rent.due_date);
+      const dueDate = rent.due_date ? new Date(rent.due_date) : new Date();
+      const amount = rent.monthly_rent || rent.remaining_due;
+      
+      // Create UpcomingEvent for the modal
+      const event: UpcomingEvent = {
+        id: `rent-${rent.lease_id}`,
+        type: 'rent',
+        title: 'Rent Due',
+        subtitle: `$${Number(amount).toLocaleString()} • ${daysRemaining !== null ? (daysRemaining < 0 ? `${Math.abs(daysRemaining)}d overdue` : `${daysRemaining}d remaining`) : 'Due'}`,
+        date: dueDate,
+        daysRemaining: daysRemaining ?? 0,
+        amount: amount,
+        urgency: daysRemaining !== null && daysRemaining < 0 ? 'critical' : daysRemaining !== null && daysRemaining <= 7 ? 'high' : 'medium',
+        icon: 'money',
+        color: daysRemaining !== null && daysRemaining < 0 ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400',
+        bgColor: daysRemaining !== null && daysRemaining < 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-blue-100 dark:bg-blue-900/30',
+      };
+      
+      setEventForModal(event);
+      setTenantForModal(tenant);
+      setReminderModalOpen(true);
+    } catch (error: any) {
+      // Report to Sentry with context
+      Sentry.captureException(error, {
+        tags: {
+          component: 'DuePanel',
+          action: 'fetch_tenant',
+        },
+        contexts: {
+          reminder: {
+            tenant_id: rent.tenant_id,
+            lease_id: rent.lease_id,
+          },
+        },
+      });
+      
+      toast.error('Could not load tenant details. Please try again.');
+    } finally {
+      setLoadingTenant(false);
+    }
+  };
+
+  // Handle sending reminder (called from modal)
+  const handleSendReminder = async (customSubject: string | null, customMessage: string | null) => {
+    if (!selectedRent || !selectedRent.tenant_id || !eventForModal) {
+      return;
+    }
+
+    // TypeScript guard: tenant_id is guaranteed to be a number at this point
+    const tenantId = selectedRent.tenant_id;
+    if (typeof tenantId !== 'number') {
+      return;
+    }
+
+    setSendingReminder(true);
+    try {
+      const daysRemaining = calculateDaysRemaining(selectedRent.due_date);
+      const dueDate = selectedRent.due_date ? new Date(selectedRent.due_date) : null;
+      
+      const reminderData: TenantReminderRequest = {
+        event_type: 'rent',
+        event_title: eventForModal.title,
+        event_subtitle: eventForModal.subtitle,
+        event_date: dueDate ? dueDate.toISOString().split('T')[0] : null,
+        event_amount: eventForModal.amount,
+        days_remaining: daysRemaining,
+        custom_subject: customSubject,
+        custom_message: customMessage,
+      };
+
+      // API call with Sentry performance tracing
+      const response = await Sentry.startSpan(
+        {
+          op: "http.client",
+          name: `POST /api/tenants/${tenantId}/send-reminder`,
+        },
+        async () => {
+          return await sendTenantReminder(tenantId, reminderData);
+        }
+      );
+
+      if (response.success) {
+        // Log successful reminder send with business context
+        Sentry.logger.info('Reminder email sent successfully', {
+          tenantId: selectedRent.tenant_id,
+          eventType: eventForModal.type,
+          eventAmount: eventForModal.amount,
+          daysRemaining: daysRemaining,
+          hasCustomMessage: !!customMessage,
+        });
+
+        toast.success(`Reminder email sent successfully`);
+        closeAndResetModal();
+      } else {
+        toast.error('Failed to send reminder email');
+      }
+    } catch (error: any) {
+      // Report to Sentry with context
+      Sentry.captureException(error, {
+        tags: {
+          component: 'DuePanel',
+          action: 'send_reminder',
+        },
+        contexts: {
+          reminder: {
+            tenant_id: selectedRent?.tenant_id,
+            event_type: eventForModal?.type,
+            event_id: eventForModal?.id,
+          },
+        },
+      });
+
+      toast.error(error?.message || 'Failed to send reminder email. Please try again.');
+    } finally {
+      setSendingReminder(false);
+    }
   };
 
   if (isLoading) {
@@ -98,15 +282,20 @@ const DuePanel: React.FC<DuePanelProps> = ({
           <table className="w-full">
             <thead className="sticky top-0 z-10">
               <tr>
-                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700" style={{width: activeTab === 'rent' ? '50%' : '40%'}}>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700" style={{width: '40%'}}>
                   Tenant
                 </th>
-                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700" style={{width: '25%'}}>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700" style={{width: '20%'}}>
                   Amount
                 </th>
-                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700" style={{width: activeTab === 'rent' ? '25%' : '20%'}}>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700" style={{width: '20%'}}>
                   Date
                 </th>
+                {activeTab === 'rent' && (
+                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700" style={{width: '20%'}}>
+                    Action
+                  </th>
+                )}
                 {activeTab === 'invoices' && (
                   <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700" style={{width: '15%'}}>
                     Status
@@ -119,7 +308,7 @@ const DuePanel: React.FC<DuePanelProps> = ({
                 rentLoading ? (
                   <tr>
                     <td
-                      colSpan={3}
+                      colSpan={4}
                       className="px-4 py-4 text-center text-sm text-gray-500 dark:text-gray-400"
                     >
                       <div className="spinner mx-auto mb-2 w-5 h-5" />
@@ -129,7 +318,7 @@ const DuePanel: React.FC<DuePanelProps> = ({
                 ) : rentData?.length > 0 ? (
                   rentData.map((rent) => (
                     <tr key={rent.lease_id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/40">
-                      <td className="px-4 py-3 whitespace-nowrap" style={{width: '50%'}}>
+                      <td className="px-4 py-3 whitespace-nowrap" style={{width: '40%'}}>
                         <div className="flex items-center">
                           <div
                             className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(
@@ -145,21 +334,34 @@ const DuePanel: React.FC<DuePanelProps> = ({
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 text-center" style={{width: '25%'}}>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 text-center" style={{width: '20%'}}>
                         {formatCurrency(rent.remaining_due > 0 ? rent.remaining_due : 0)}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 text-center" style={{width: '25%'}}>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 text-center" style={{width: '20%'}}>
                         {rent.status === "DUE" ? (
                           <span className="text-gray-900 dark:text-gray-100">Today</span>
                         ) : (
                           <span className="text-red-600 dark:text-red-400">Yesterday</span>
                         )}
                       </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-center" style={{width: '20%'}}>
+                        {rent.tenant_id && (
+                          <button
+                            onClick={() => handleReminderClick(rent)}
+                            disabled={loadingTenant || sendingReminder}
+                            className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Send reminder"
+                            aria-label="Send reminder email"
+                          >
+                            {sendingReminder ? 'Sending...' : loadingTenant ? 'Loading...' : 'Remind'}
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={3} className="px-4 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                    <td colSpan={4} className="px-4 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                       No pending payments
                     </td>
                   </tr>
@@ -215,6 +417,19 @@ const DuePanel: React.FC<DuePanelProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Reminder Modal - Reusing existing modal, rendered via portal to avoid container constraints */}
+      {eventForModal && tenantForModal && reminderModalOpen && typeof document !== 'undefined' && createPortal(
+        <ReminderConfirmationModal
+          isOpen={reminderModalOpen}
+          onClose={closeAndResetModal}
+          onConfirm={handleSendReminder}
+          tenant={tenantForModal}
+          event={eventForModal}
+          isLoading={sendingReminder || loadingTenant}
+        />,
+        document.body
+      )}
     </div>
   );
 };
