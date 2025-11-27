@@ -220,3 +220,4 @@ class TestSyncSubscriptionFromStripe:
         
         assert "User not found" in str(exc_info.value)
 
+

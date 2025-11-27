@@ -251,3 +251,4 @@ async def log_billing_audit_background(
     except Exception as e:
         logger.error(f"[BG] Error creating audit log: {e}", exc_info=True)
 
+
