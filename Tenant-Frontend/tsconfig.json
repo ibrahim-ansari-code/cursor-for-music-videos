@@ -1,0 +1,49 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ES2022",
+    "skipLibCheck": true,
+    "allowJs": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Path mapping */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"],
+      "@utils/*": ["src/utils/*"],
+      "@hooks/*": ["src/hooks/*"],
+      "@contexts/*": ["src/contexts/*"],
+      "@types/*": ["src/types/*"],
+      "@pages/*": ["src/pages/*"]
+    }
+  },
+  "include": [
+    "src", 
+    "src/**/*.ts", 
+    "src/**/*.tsx", 
+    "src/**/*.d.ts",
+    "src/**/*.js", 
+    "src/**/*.jsx"
+  ],
+  "exclude": ["node_modules", "dist", "coverage"]
+}
+
