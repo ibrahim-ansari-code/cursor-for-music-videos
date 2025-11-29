@@ -8,6 +8,9 @@ import { getSecureDocumentUrl } from '../../../../utils/api/leases';
 import { updateTenant, sendTenantReminder, TenantReminderRequest } from '../../../../utils/api/tenants';
 import AIAuditTrail from '../AIAuditTrail';
 import ReminderConfirmationModal from '../ReminderConfirmationModal';
+import QuickActions from '../QuickActions';
+import ViewLeaseModal from '../../../leases/modals/ViewLeaseModal';
+import type { Lease } from '../../../../types/lease';
 import {
   calculatePaymentPerformance,
   calculateOpenBalance,
@@ -27,6 +30,8 @@ interface OutletContext {
   closeFilePreviewModal: () => void;
   openPaymentModal: (initialData: any) => void;
   openEmergencyContactModal: (contact?: any) => void;
+  openMaintenanceModal: (initialData?: any) => void;
+  openDocumentUploadModal: () => void;
 }
 
 const OverviewTab: React.FC = () => {
@@ -43,6 +48,9 @@ const OverviewTab: React.FC = () => {
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<UpcomingEvent | null>(null);
 
+  // State for lease details modal (fallback when document preview fails)
+  const [showLeaseModal, setShowLeaseModal] = useState(false);
+
   // Guard: Handle undefined context gracefully (occurs during refetch or initial load)
   if (!context || !context.tenant) {
     return (
@@ -55,7 +63,7 @@ const OverviewTab: React.FC = () => {
     );
   }
 
-  const { tenant, refetch, openFilePreviewModal, openPaymentModal, openEmergencyContactModal } = context;
+  const { tenant, refetch, openFilePreviewModal, openPaymentModal, openEmergencyContactModal, openMaintenanceModal, openDocumentUploadModal } = context;
 
   // Helper function to safely format currency
   const formatCurrency = (value: number | string | undefined | null): string => {
@@ -168,10 +176,16 @@ const OverviewTab: React.FC = () => {
 
   // Handle View Lease button
   const handleViewLease = async () => {
-    const leaseDocument = activeLease?.documents?.[0];
+    if (!activeLease) {
+      toast.error('No active lease found.');
+      return;
+    }
 
-    if (!leaseDocument || !leaseDocument.id || !activeLease?.id) {
-      toast.error('Cannot preview lease: document information is missing.');
+    const leaseDocument = activeLease.documents?.[0];
+
+    // If no document attached, show lease details modal as fallback
+    if (!leaseDocument || !leaseDocument.id) {
+      setShowLeaseModal(true);
       return;
     }
 
@@ -201,23 +215,26 @@ const OverviewTab: React.FC = () => {
       const propertyName = activeLease.property?.name || tenant.property?.name || 'Property';
       const fileName = `Lease: ${tenantName} - ${propertyName}`;
       openFilePreviewModal(secure_url, fileName);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[handleViewLease] Failed to generate secure URL:', error);
 
-      // Better error messages based on error type
-      let errorMessage = 'Unable to preview lease.';
-      
-      if (error?.response?.status === 404 || error?.status === 404) {
-        errorMessage = 'The lease document file no longer exists in storage. It may have been deleted.';
-      } else if (error?.response?.status === 403 || error?.status === 403) {
-        errorMessage = 'You do not have permission to view this document.';
-      } else if (error?.data?.detail) {
-        errorMessage = error.data.detail;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
+      // Show lease details modal as fallback when document preview fails
+      setShowLeaseModal(true);
 
-      toast.error(errorMessage);
+      // Show info toast explaining the fallback
+      toast.info('Document preview unavailable. Showing lease details instead.');
+
+      // Report to Sentry for monitoring
+      Sentry.captureException(error, {
+        tags: {
+          component: 'OverviewTab',
+          action: 'view_lease_document',
+        },
+        contexts: {
+          lease: { id: activeLease.id },
+          document: { id: leaseDocument.id },
+        },
+      });
     }
   };
 
@@ -799,51 +816,12 @@ const OverviewTab: React.FC = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-5 relative opacity-50">
-          {/* Coming Soon Overlay */}
-          <div className="absolute inset-0 bg-gray-900/5 dark:bg-gray-900/20 backdrop-blur-[2px] rounded-lg flex items-center justify-center z-10">
-            <span className="px-4 py-2 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg text-sm font-semibold text-gray-600 dark:text-gray-400 shadow-sm">
-              Coming Soon
-            </span>
-          </div>
-
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h3>
-          <div className="space-y-1">
-            <button className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left w-full">
-              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">New Ticket</span>
-            </button>
-            <button className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left w-full">
-              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Upload Doc</span>
-            </button>
-            <button 
-              onClick={handleRecordPayment}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left w-full"
-            >
-              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Record Payment</span>
-            </button>
-            <button className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left w-full">
-              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Send Message</span>
-            </button>
-            <button className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left w-full">
-              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Invite to Portal</span>
-            </button>
-          </div>
-        </div>
+        <QuickActions
+          tenant={tenant}
+          onNewTicket={(initialData) => openMaintenanceModal(initialData)}
+          onUploadDocument={() => openDocumentUploadModal()}
+          onRecordPayment={handleRecordPayment}
+        />
 
         {/* Compliance */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-5 relative opacity-50">
@@ -931,6 +909,13 @@ const OverviewTab: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* View Lease Modal (fallback when document preview fails) */}
+      <ViewLeaseModal
+        isOpen={showLeaseModal}
+        onClose={() => setShowLeaseModal(false)}
+        lease={activeLease as Lease | null}
+      />
     </div>
   );
 };

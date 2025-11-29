@@ -1,9 +1,15 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { MaintenanceFormData, MaintenanceRequest } from '../../types/tenant';
 
+/** 
+ * Initial data can be a full MaintenanceRequest (for edit mode) 
+ * or partial form data (for create mode with pre-populated fields) 
+ */
+type InitialDataType = MaintenanceRequest | Partial<MaintenanceFormData> | null;
+
 interface UseMaintenanceFormProps {
   mode: 'create' | 'edit' | 'view';
-  initialData?: MaintenanceRequest | null;
+  initialData?: InitialDataType;
   onSuccess?: (data: any) => Promise<void>;
 }
 
@@ -38,22 +44,28 @@ export const useMaintenanceForm = ({
       return;
     }
 
+    // Type guard to check if it's a full MaintenanceRequest (has 'id' field)
+    const isMaintenanceRequest = 'id' in initialData && initialData.id !== undefined;
+    
     // Handle scheduled_date formatting
     const scheduledDate = initialData.scheduled_date
       ? new Date(initialData.scheduled_date).toISOString().split('T')[0]
       : '';
+
+    // Cast to access potential nested objects (only present in MaintenanceRequest)
+    const asRequest = initialData as MaintenanceRequest;
 
     setFormData({
       issue_title: initialData.issue_title || '',
       description: initialData.description || '',
       priority: initialData.priority || 'Medium',
       status: initialData.status || 'Pending',
-      // Support both nested objects (editing) and direct IDs (pre-population)
-      property_id: initialData.property?.id?.toString() || initialData.property_id?.toString() || '',
-      unit_id: initialData.unit?.id?.toString() || initialData.unit_id?.toString() || '',
-      tenant_id: initialData.tenant?.id?.toString() || initialData.tenant_id?.toString() || '',
+      // Support both nested objects (editing MaintenanceRequest) and direct IDs (pre-population)
+      property_id: (isMaintenanceRequest && asRequest.property?.id?.toString()) || initialData.property_id?.toString() || '',
+      unit_id: (isMaintenanceRequest && asRequest.unit?.id?.toString()) || initialData.unit_id?.toString() || '',
+      tenant_id: (isMaintenanceRequest && asRequest.tenant?.id?.toString()) || initialData.tenant_id?.toString() || '',
       assigned_to: initialData.assigned_to || '',
-      vendor_id: initialData.vendor?.id?.toString() || initialData.vendor_id?.toString() || '',
+      vendor_id: (isMaintenanceRequest && asRequest.vendor?.id?.toString()) || initialData.vendor_id?.toString() || '',
       notify_tenant: initialData.notify_tenant || false,
       scheduled_date: scheduledDate,
       estimated_cost: initialData.estimated_cost?.toString() || '',

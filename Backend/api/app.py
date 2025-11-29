@@ -278,6 +278,7 @@ try:
     from Backend.api.maintenance.router import router as maintenance_router
     from Backend.api.quickbooks.router import router as quickbooks_router
     from Backend.api.vendors.router import router as vendors_router
+    from Backend.api.tenant_invitations.router import router as tenant_invitations_router
 
     # Include routers into the central api_main_router
     # Their internal prefixes (e.g., /auth, /properties) will apply
@@ -303,6 +304,7 @@ try:
     api_main_router.include_router(maintenance_router)
     api_main_router.include_router(vendors_router)
     api_main_router.include_router(quickbooks_router, prefix="/quickbooks", tags=["QuickBooks"])
+    api_main_router.include_router(tenant_invitations_router)  # Tenant portal invitations
 
     # Define comprehensive health check endpoints
     @api_main_router.get("/health")

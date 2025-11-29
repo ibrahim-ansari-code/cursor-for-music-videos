@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { EnrichedTenant, TenantStatus, MaintenancePriority, MaintenanceStatus } from '../../../types/tenant';
 import { getInitials } from '../../../utils/tenantUtils';
+import { InvitationResponse, getPortalStatusDisplay } from '../../../types/invitation';
+import { getTenantInvitation } from '../../../utils/api/tenantInvitations';
+import { QUERY_KEYS } from '../../../hooks/queryKeys';
 
 interface TenantProfileHeaderProps {
   tenant: EnrichedTenant;
@@ -22,6 +26,18 @@ const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
   onUploadDocument,
 }) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  // Fetch invitation status for portal indicator
+  const { data: invitation } = useQuery<InvitationResponse | null>({
+    queryKey: [...QUERY_KEYS.tenants.detail(tenant.id), 'invitation'],
+    queryFn: () => getTenantInvitation(tenant.id),
+    enabled: !!tenant.id && !tenant.user_id, // Only fetch if no portal access
+    staleTime: 60 * 1000, // 1 minute
+  });
+
+  // Determine portal status for display
+  const hasPortalAccess = !!tenant.user_id;
+  const portalStatus = getPortalStatusDisplay(hasPortalAccess, invitation ?? null);
 
   const getDisplayName = () => {
     if (tenant.tenant_type === 'Company') {
@@ -70,10 +86,10 @@ const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
     
     // Ensure all IDs are strings (modal expects strings for select inputs)
     const propertyId = activeLease?.property_id || tenant.current_property_id;
-    const unitId = activeLease?.unit_id || tenant.unit?.id;
+    const unitId = activeLease?.unit_id || tenant.assigned_units?.[0]?.id || tenant.unit?.id;
     
     const initialData = {
-      tenant_id: tenant.id,
+      tenant_id: String(tenant.id),
       property_id: propertyId ? String(propertyId) : '',
       unit_id: unitId ? String(unitId) : '',
       priority: MaintenancePriority.MEDIUM,  // Uses enum for type safety
@@ -160,6 +176,21 @@ const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
               <span className={getStatusBadgeClass(tenant.status)}>
                 <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5"></span>
                 {tenant.status}
+              </span>
+              {/* Portal Status Indicator */}
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${portalStatus.bgClass} ${portalStatus.textClass}`}>
+                {portalStatus.status === 'active' && (
+                  <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+                {portalStatus.status === 'invited' && (
+                  <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                )}
+                <span className="opacity-75 mr-1">Portal:</span>
+                {portalStatus.label}
               </span>
             </div>
 
@@ -266,21 +297,21 @@ const TenantProfileHeader: React.FC<TenantProfileHeaderProps> = ({
                 <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 z-20">
                   <button
                     onClick={() => {
-                      onEdit();
+                      onRefresh();
                       setShowMoreMenu(false);
                     }}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 first:rounded-t-lg"
                   >
-                    Edit Tenant
+                    Refresh
                   </button>
                   <button
                     onClick={() => {
-                      onRefresh();
+                      onEdit();
                       setShowMoreMenu(false);
                     }}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
                   >
-                    Refresh
+                    Edit Tenant
                   </button>
                   <button
                     onClick={() => {

@@ -5,8 +5,6 @@ import { TenantTableProps, EnrichedTenant } from "../../types/tenant";
 
 const TenantTable: React.FC<TenantTableProps> = ({
   tenants,
-  onEditTenant,
-  onDeleteTenant,
   onAddTenant,
   isLoading,
   selectedTenants,
@@ -222,12 +220,6 @@ const TenantTable: React.FC<TenantTableProps> = ({
               >
                 Lease & Status
               </th>
-              <th
-                scope="col"
-                className="px-6 py-4 text-center font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
-              >
-                Actions
-              </th>
             </tr>
           </thead>
           <tbody>
@@ -330,28 +322,6 @@ const TenantTable: React.FC<TenantTableProps> = ({
                       >
                         {tenant.status || "Unknown"}
                       </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                    <div className="inline-flex space-x-3">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEditTenant(tenant);
-                        }}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 focus:outline-none transition-colors duration-150"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteTenant(tenant.id);
-                        }}
-                        className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 focus:outline-none transition-colors duration-150"
-                      >
-                        Delete
-                      </button>
                     </div>
                   </td>
                 </tr>

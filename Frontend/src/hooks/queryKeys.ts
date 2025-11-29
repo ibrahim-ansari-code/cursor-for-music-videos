@@ -78,6 +78,13 @@ export const QUERY_KEYS = {
     detail: (tenantId: number, documentId: number) => ["tenantDocuments", "detail", tenantId, documentId] as const,
     taxonomy: () => ["tenantDocuments", "taxonomy"] as const,
   },
+
+  // Tenant Invitations domain
+  tenantInvitations: {
+    all: () => ["tenantInvitations"] as const,
+    list: (params?: QueryParams) => ["tenantInvitations", "list", params] as const,
+    forTenant: (tenantId: number) => ["tenantInvitations", "forTenant", tenantId] as const,
+  },
 } as const;
 
 // Helper functions for query invalidation

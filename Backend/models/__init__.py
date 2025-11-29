@@ -12,6 +12,7 @@ from . import units
 from . import ownership_entity
 from . import tenant
 from . import tenant_documents
+from . import tenant_portal_invitation
 from . import lease
 from . import maintenance
 from . import vendor
@@ -77,6 +78,9 @@ from .notification import Notification, NotificationPreference, NotificationDeli
 # Calendar models
 from .calendar import CustomReminder, CalendarEventType, CalendarEventStatus, CalendarEventPriority
 
+# Tenant Portal models
+from .tenant_portal_invitation import TenantPortalInvitation, InvitationStatus
+
 __all__ = [
     # Accounting models & enums
     "Expense",
@@ -126,5 +130,8 @@ __all__ = [
     "CalendarEventType",
     "CalendarEventStatus",
     "CalendarEventPriority",
+    # Tenant Portal models
+    "TenantPortalInvitation",
+    "InvitationStatus",
 ]
 

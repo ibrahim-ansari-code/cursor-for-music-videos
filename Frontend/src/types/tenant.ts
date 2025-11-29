@@ -345,8 +345,6 @@ export interface TenantResponse extends EnrichedTenant {
 // Component Prop Types
 export interface TenantTableProps {
   tenants: EnrichedTenant[];
-  onEditTenant: (tenant: EnrichedTenant) => void;
-  onDeleteTenant: (tenantId: number) => void;
   onAddTenant: () => void;
   isLoading: boolean;
   selectedTenants: number[];

@@ -58,6 +58,19 @@ class Settings(BaseSettings):
     SECRET_KEY: str = os.getenv("SECRET_KEY", "a_very_secret_key")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+    
+    # === Email Correlation Secret (separate from JWT secret for security isolation) ===
+    # Used only for generating opaque correlation IDs in email metadata
+    # If not set, derives from SECRET_KEY with domain separation
+    @property
+    def EMAIL_CORRELATION_SECRET(self) -> str:
+        """Get email-specific secret for correlation ID generation."""
+        env_secret = os.getenv("EMAIL_CORRELATION_SECRET", "")
+        if env_secret:
+            return env_secret
+        # Derive from SECRET_KEY with domain separation to isolate secrets
+        import hashlib
+        return hashlib.sha256(f"email_correlation:{self.SECRET_KEY}".encode()).hexdigest()
 
     # === File Upload Settings ===
     MAX_FILE_SIZE: int = int(os.getenv("MAX_FILE_SIZE", 10 * 1024 * 1024))  # 10MB default

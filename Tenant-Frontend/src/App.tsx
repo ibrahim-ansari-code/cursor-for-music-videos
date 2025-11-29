@@ -7,6 +7,7 @@ import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import ResetPassword from '@/pages/ResetPassword';
 import Payments from '@/pages/Payments';
+import AcceptInvite from '@/pages/AcceptInvite';
 
 /**
  * App Component
@@ -22,6 +23,7 @@ function App() {
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/accept-invite" element={<AcceptInvite />} />
           
           {/* Protected routes with Layout */}
           <Route path="/" element={

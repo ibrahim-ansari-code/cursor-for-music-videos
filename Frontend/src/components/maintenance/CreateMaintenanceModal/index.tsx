@@ -26,11 +26,21 @@ const STEPS = [
   },
 ];
 
+interface InitialFormData {
+  property_id?: string;
+  unit_id?: string;
+  tenant_id?: string;
+  priority?: string;
+  status?: string;
+}
+
 interface CreateMaintenanceModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: any) => Promise<void>;
   isSubmitting?: boolean;
+  /** Pre-populate form with initial values (for creating from tenant profile, etc.) */
+  initialData?: InitialFormData | null;
 }
 
 /**
@@ -44,6 +54,7 @@ const CreateMaintenanceModal: React.FC<CreateMaintenanceModalProps> = ({
   onClose,
   onSubmit,
   isSubmitting: externalSubmitting,
+  initialData,
 }) => {
   // Step state
   const [currentStep, setCurrentStep] = useState(0);
@@ -66,7 +77,7 @@ const CreateMaintenanceModal: React.FC<CreateMaintenanceModalProps> = ({
     } : undefined
   );
 
-  // Form management hook
+  // Form management hook - use initialData to pre-populate if provided
   const {
     formData,
     errors,
@@ -76,7 +87,13 @@ const CreateMaintenanceModal: React.FC<CreateMaintenanceModalProps> = ({
     validateForm,
   } = useMaintenanceForm({
     mode: 'create',
-    initialData: null,
+    initialData: initialData ? {
+      property_id: initialData.property_id || '',
+      unit_id: initialData.unit_id || '',
+      tenant_id: initialData.tenant_id || '',
+      priority: (initialData.priority as 'Low' | 'Medium' | 'High') || 'Medium',
+      status: (initialData.status as 'Pending' | 'In Progress' | 'Completed' | 'Cancelled') || 'Pending',
+    } : null,
     onSuccess: async (payload) => {
       await onSubmit(payload);
       onClose();
@@ -121,9 +138,12 @@ const CreateMaintenanceModal: React.FC<CreateMaintenanceModalProps> = ({
   }, [isOpen]);
 
   // Load units and tenants when property changes
+  // Use initialData?.property_id as fallback to trigger immediately when modal opens with pre-populated data
+  const effectivePropertyId = formData.property_id || initialData?.property_id;
+  
   useEffect(() => {
     const loadUnitsAndTenants = async () => {
-      if (!formData.property_id) {
+      if (!effectivePropertyId) {
         setUnits([]);
         setTenants([]);
         return;
@@ -133,7 +153,7 @@ const CreateMaintenanceModal: React.FC<CreateMaintenanceModalProps> = ({
       setIsLoadingTenants(true);
 
       try {
-        const propertyIdNum = Number(formData.property_id);
+        const propertyIdNum = Number(effectivePropertyId);
         const [unitData, tenantData] = await Promise.all([
           fetchPropertyUnits(propertyIdNum),
           fetchTenantsByProperty(propertyIdNum),
@@ -151,11 +171,11 @@ const CreateMaintenanceModal: React.FC<CreateMaintenanceModalProps> = ({
       }
     };
 
-    if (isOpen && formData.property_id) {
+    if (isOpen && effectivePropertyId) {
       loadUnitsAndTenants();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, formData.property_id]);
+  }, [isOpen, effectivePropertyId]);
 
   // Handle file selection
   const handleFileChange = (files: File[]) => {

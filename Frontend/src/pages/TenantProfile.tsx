@@ -17,7 +17,9 @@ import EmergencyContactModal from '../components/tenants/modals/EmergencyContact
 import CreateMaintenanceModal from '../components/maintenance/CreateMaintenanceModal/index';
 import EditMaintenanceModal from '../components/maintenance/EditMaintenanceModal';
 import DocumentUploadModal from '../components/tenants/TenantProfile/tabs/DocumentsTab/DocumentUploadModal';
-import { createMaintenanceRequest } from '../utils/api';
+import UpdateTenantModal from '../components/tenants/UpdateTenantModal';
+import DeleteTenantConfirmationModal from '../components/tenants/DeleteTenantConfirmationModal';
+import { createMaintenanceRequest, deleteTenant } from '../utils/api';
 import { updateMaintenanceRequest } from '../utils/api/maintenance';
 import { fetchLease } from '../utils/api/leases';
 import type { Lease } from '../types/lease';
@@ -52,6 +54,12 @@ const TenantProfile: React.FC = () => {
   // Lease modal state (lifted to this level for proper fixed positioning and z-index)
   const [showLeaseModal, setShowLeaseModal] = useState(false);
   const [selectedLease, setSelectedLease] = useState<Lease | null>(null);
+
+  // Edit Tenant modal state
+  const [showEditTenantModal, setShowEditTenantModal] = useState(false);
+
+  // Delete Tenant confirmation modal state
+  const [showDeleteTenantModal, setShowDeleteTenantModal] = useState(false);
 
   // Fetch tenant data with optimized caching strategy
   // - staleTime: 2 minutes (allows tab switching without refetch)
@@ -99,13 +107,34 @@ const TenantProfile: React.FC = () => {
   ];
 
   const handleEdit = () => {
-    // TODO: Implement edit modal
-    console.log('Edit tenant:', tenant);
+    setShowEditTenantModal(true);
+  };
+
+  const handleEditTenantSave = () => {
+    // Refetch tenant data after successful update
+    refetch();
+    toast.success('Tenant updated successfully!');
   };
 
   const handleDelete = () => {
-    // TODO: Implement delete with confirmation
-    console.log('Delete tenant:', tenant);
+    setShowDeleteTenantModal(true);
+  };
+
+  const handleConfirmDeleteTenant = async () => {
+    if (!tenant) return;
+    
+    try {
+      await deleteTenant(tenant.id);
+      toast.success('Tenant deleted successfully!');
+      // Navigate back to tenants list after deletion
+      navigate('/tenants');
+    } catch (error) {
+      console.error('Failed to delete tenant:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete tenant';
+      toast.error(errorMessage);
+      // Re-throw to let the modal handle the error state
+      return Promise.reject(error);
+    }
   };
 
   const handleRefresh = () => {
@@ -373,18 +402,19 @@ const TenantProfile: React.FC = () => {
       )}
 
       {/* Maintenance Request Modal - Rendered at root level for proper fixed positioning and z-index */}
-      {/* Create Modal */}
-      {showMaintenanceModal && !maintenanceModalData && (
+      {/* Create Modal - shown when no existing request id (maintenanceModalData may have initial values for pre-fill) */}
+      {showMaintenanceModal && !maintenanceModalData?.id && (
         <CreateMaintenanceModal
           isOpen={showMaintenanceModal}
           onClose={closeMaintenanceModal}
           onSubmit={handleSubmitMaintenanceRequest}
           isSubmitting={isSubmittingMaintenance}
+          initialData={maintenanceModalData}
         />
       )}
 
-      {/* Edit/View Modal */}
-      {showMaintenanceModal && maintenanceModalData && (
+      {/* Edit/View Modal - shown when editing an existing request (has id) */}
+      {showMaintenanceModal && maintenanceModalData?.id && (
         <EditMaintenanceModal
           isOpen={showMaintenanceModal}
           onClose={closeMaintenanceModal}
@@ -414,6 +444,24 @@ const TenantProfile: React.FC = () => {
         isOpen={showLeaseModal}
         onClose={closeLeaseModal}
         lease={selectedLease}
+      />
+
+      {/* Edit Tenant Modal - Rendered at root level for proper fixed positioning and z-index */}
+      {tenant && (
+        <UpdateTenantModal
+          isOpen={showEditTenantModal}
+          onClose={() => setShowEditTenantModal(false)}
+          tenant={tenant}
+          onSave={handleEditTenantSave}
+        />
+      )}
+
+      {/* Delete Tenant Confirmation Modal - Rendered at root level for proper fixed positioning and z-index */}
+      <DeleteTenantConfirmationModal
+        isOpen={showDeleteTenantModal}
+        onClose={() => setShowDeleteTenantModal(false)}
+        tenant={tenant ?? null}
+        onConfirm={handleConfirmDeleteTenant}
       />
     </div>
   );

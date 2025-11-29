@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from "react";
 import { toast } from "react-toastify";
 import * as Sentry from "@sentry/react";
 import TenantModal from "../components/tenants/TenantModal";
-import UpdateTenantModal from "../components/tenants/UpdateTenantModal";
 import TenantTable from "../components/tenants/TenantTable";
 import { TenantsTableSkeleton } from "../components/ui/skeletons";
 import { PropertyFilter, PropertyFilterSkeleton } from "../components/common/PropertyFilter";
@@ -18,13 +17,11 @@ import {
 } from "../utils/tenantUtils";
 import {
   useTenants,
-  useDeleteTenant,
   useBulkDeleteTenants,
 } from "../hooks/useTenants";
 import { useLeases } from "../hooks/useLeasesQueries";
 import useDashboardData from "../hooks/useDashboardData";
 import { useOutstandingPayments } from "../hooks/useAccountingQueries";
-import { EnrichedTenant } from "../types/tenant";
 import type { FetchTenantsParams } from "../utils/api/tenants";
 
 type ActiveFilter = null | "active_leases" | "expiring" | "overdue";
@@ -52,10 +49,6 @@ const Tenants: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState<boolean>(false);
-  const [selectedTenant, setSelectedTenant] = useState<EnrichedTenant | null>(
-    null
-  );
   const [selectedTenants, setSelectedTenants] = useState<Set<number>>(
     new Set()
   );
@@ -107,7 +100,6 @@ const Tenants: React.FC = () => {
     isLoading: paymentsLoading,
     error: paymentsError,
   } = useOutstandingPayments();
-  const deleteTenantMutation = useDeleteTenant();
   const bulkDeleteMutation = useBulkDeleteTenants();
 
   // Combine tenant and lease data
@@ -307,39 +299,13 @@ const Tenants: React.FC = () => {
 
   // Handle adding a tenant (guarded by subscription check)
   const handleAddTenant = guardAction(() => {
-    setSelectedTenant(null);
     setIsModalOpen(true);
   });
 
-  // Handle editing a tenant
-  const handleEditTenant = (tenant: EnrichedTenant) => {
-    setSelectedTenant(tenant);
-    setIsUpdateModalOpen(true);
-  };
-
-  // Handle tenant save (create/update) - TanStack Query will auto-refresh
+  // Handle tenant save (create) - TanStack Query will auto-refresh
   const handleSaveTenant = async () => {
-    // Close modals
+    // Close modal
     setIsModalOpen(false);
-    setIsUpdateModalOpen(false);
-    setSelectedTenant(null);
-  };
-
-  // Handle tenant deletion
-  const handleDeleteTenant = async (tenantId: number) => {
-    if (window.confirm("Are you sure you want to delete this tenant?")) {
-      try {
-        await deleteTenantMutation.mutateAsync(tenantId);
-        toast.success("Tenant deleted successfully.");
-      } catch (err: any) {
-        const errorMessage =
-          err?.response?.data?.detail ||
-          err?.message ||
-          "Failed to delete tenant. The tenant may have active leases or other associated data.";
-        toast.error(errorMessage);
-        console.error("Failed to delete tenant:", err);
-      }
-    }
   };
 
   // Handle search input
@@ -758,8 +724,6 @@ const Tenants: React.FC = () => {
             selectedTenants={Array.from(selectedTenants)}
             onToggleSelectAll={handleToggleSelectAll}
             onToggleSelect={handleToggleSelect}
-            onEditTenant={handleEditTenant}
-            onDeleteTenant={handleDeleteTenant}
             onAddTenant={handleAddTenant}
             isLoading={false}
           />
@@ -904,14 +868,6 @@ const Tenants: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveTenant}
         source="tenantsPage"
-      />
-
-      {/* Edit Tenant Modal */}
-      <UpdateTenantModal
-        isOpen={isUpdateModalOpen}
-        onClose={() => setIsUpdateModalOpen(false)}
-        tenant={selectedTenant}
-        onSave={handleSaveTenant}
       />
     </div>
   );
