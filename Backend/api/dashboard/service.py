@@ -297,9 +297,15 @@ class DashboardService:
             if not property_ids:
                 return RevenueData(months=[], revenue=[], expenses=[], net_income=[])
 
-            # Determine 12-month window
+            # Determine 12-month window (current month and 11 months prior)
             today = date.today().replace(day=1)
-            start_12 = date(today.year - (1 if today.month <= 12 else 0), (today.month - 11 - 1) % 12 + 1, 1)
+            # Calculate start as 11 months before the current month
+            # December (month=12) is the only month where we stay in the same year
+            if today.month == 12:
+                start_12 = date(today.year, 1, 1)  # January of current year
+            else:
+                # For months 1-11, go back to the previous year
+                start_12 = date(today.year - 1, today.month + 1, 1)
 
             # Payments by month
             pay_q = (

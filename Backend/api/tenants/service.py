@@ -385,15 +385,15 @@ async def enrich_tenants_with_details(
     Transforms a list of Tenant ORM objects into TenantResponse models enriched with related property, unit, and lease details.
 
     PERFORMANCE OPTIMIZED: Uses bulk fetching to avoid N+1 queries.
-    - Fetches all related data in 6 queries total (regardless of tenant count)
-    - Maps results by tenant_id for O(1) lookup
+    - Fetches all related data in 5 bulk queries total (regardless of tenant count)
+    - Maps results by tenant_id for O(1) lookup during processing
 
-    For each tenant, loads:
-    1. Latest assigned property unit and its property information (from current_property_id)
-    2. All leases with their associated property and unit details
-    3. Maintenance requests
-    4. Payments
-    5. Invoices
+    Bulk queries:
+    1. Maintenance requests for all tenants
+    2. Payments for all tenants  
+    3. Invoices for all tenants
+    4. Leases for all tenants (with property/unit/documents eager loaded)
+    5. Units for all tenants (with property eager loaded)
 
     Returns only tenants with valid IDs.
     """
@@ -409,7 +409,7 @@ async def enrich_tenants_with_details(
     tenant_ids = [tenant.id for tenant in tenants]
 
     # ============================================================================
-    # BULK FETCH ALL RELATED DATA (6 queries total, not 3N queries)
+    # BULK FETCH ALL RELATED DATA (5 queries total, not N+1 queries)
     # ============================================================================
 
     # 1. Bulk fetch maintenance requests for all tenants
@@ -467,6 +467,46 @@ async def enrich_tenants_with_details(
     for invoice in all_invoices:
         invoices_map[invoice.tenant_id].append(invoice)
 
+    # 4. Bulk fetch leases for all tenants (FIX: was N+1 query before)
+    lease_query = (
+        select(Lease)
+        .options(
+            selectinload(getattr(Lease, "property")),
+            selectinload(getattr(Lease, "unit")).selectinload(getattr(PropertyUnit, "property")),
+            selectinload(getattr(Lease, "documents"))
+        )
+        .where(col(Lease.tenant_id).in_(tenant_ids))
+        .order_by(col(Lease.tenant_id), col(Lease.start_date).desc())
+    )
+    lease_result = await session.execute(lease_query)
+    all_leases = lease_result.scalars().all()
+
+    # Group leases by tenant_id
+    leases_map = defaultdict(list)
+    for lease in all_leases:
+        leases_map[lease.tenant_id].append(lease)
+
+    # 5. Bulk fetch units for tenants with current_property_id (FIX: was N+1 query before)
+    property_tenant_pairs = [
+        (t.current_property_id, t.id) 
+        for t in tenants 
+        if t.current_property_id is not None
+    ]
+    units_map = {}
+    if property_tenant_pairs:
+        unit_query = (
+            select(PropertyUnit)
+            .options(selectinload(getattr(PropertyUnit, "property")))
+            .where(col(PropertyUnit.tenant_id).in_(tenant_ids))
+        )
+        unit_result = await session.execute(unit_query)
+        all_units = unit_result.scalars().all()
+        
+        # Map units by tenant_id
+        for unit in all_units:
+            if unit.tenant_id:
+                units_map[unit.tenant_id] = unit
+
     # ============================================================================
     # PROCESS EACH TENANT WITH O(1) LOOKUPS (no additional queries)
     # ============================================================================
@@ -483,21 +523,9 @@ async def enrich_tenants_with_details(
         })
         tenant_response = TenantResponse.model_validate(tenant_dict)
         
-        # Load current property/unit assignment
-        if tenant.current_property_id:
-            unit_query = (
-                select(PropertyUnit)
-                .options(selectinload(getattr(PropertyUnit, "property")))
-                .where(
-                    col(PropertyUnit.tenant_id) == tenant.id,
-                    col(PropertyUnit.property_id) == tenant.current_property_id,
-                )
-                .order_by(col(PropertyUnit.id).desc())
-                .limit(1)
-            )
-            unit_result = await session.execute(unit_query)
-            assigned_unit = unit_result.scalar_one_or_none()
-
+        # Load current property/unit assignment from bulk-fetched data (O(1) lookup)
+        if tenant.current_property_id and tenant.id is not None:
+            assigned_unit = units_map.get(tenant.id)
             if assigned_unit and assigned_unit.property:
                 property_info = PropertyResponseSimple.model_validate(
                     assigned_unit.property
@@ -507,19 +535,8 @@ async def enrich_tenants_with_details(
                 tenant_response.unit = unit_info
                 tenant_response.property = property_info
 
-        # Load all leases for this tenant with property/unit/document details
-        lease_query = (
-            select(Lease)
-            .options(
-                selectinload(getattr(Lease, "property")),
-                selectinload(getattr(Lease, "unit")).selectinload(getattr(PropertyUnit, "property")),
-                selectinload(getattr(Lease, "documents"))
-            )
-            .where(col(Lease.tenant_id) == tenant.id)
-            .order_by(col(Lease.start_date).desc())
-        )
-        lease_result = await session.execute(lease_query)
-        leases = lease_result.scalars().all()
+        # Load all leases for this tenant from bulk-fetched data (O(1) lookup)
+        leases = leases_map.get(tenant.id, []) if tenant.id is not None else []
 
         lease_responses = []
         for lease in leases:

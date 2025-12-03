@@ -1,10 +1,88 @@
-import React from "react";
-import UnitStatusBadge from "./UnitStatusBadge";
+import React from 'react';
+import UnitStatusBadge from './UnitStatusBadge';
+import type { UnitTableProps, UnitWithLease } from '../../types/unit';
 
-const UnitTable = ({
+/**
+ * Formats a number as CAD currency
+ */
+const formatCurrency = (amount: number | null | undefined): string => {
+  return new Intl.NumberFormat('en-CA', {
+    style: 'currency',
+    currency: 'CAD',
+  }).format(amount || 0);
+};
+
+/**
+ * Extracts tenant display name from unit
+ * Handles both individual and company tenants
+ */
+const getTenantName = (unit: UnitWithLease): string => {
+  if (!unit || typeof unit !== 'object') return 'Not assigned';
+  const tenant = unit.tenant;
+  if (!tenant || typeof tenant !== 'object') return 'Not assigned';
+
+  // Handle company tenants first (normalize case for comparison)
+  if (
+    tenant.tenant_type?.toUpperCase() === 'COMPANY' &&
+    tenant.company_name
+  ) {
+    return tenant.company_name;
+  }
+
+  // Handle individual tenants
+  const name = [tenant.first_name, tenant.last_name].filter(Boolean).join(' ');
+
+  // Fallback to company name if individual names are not available
+  if (!name && tenant.company_name) {
+    return tenant.company_name;
+  }
+
+  return name || 'Not assigned';
+};
+
+/**
+ * Formats a date string for display
+ */
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-CA', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+/**
+ * Gets the lease end date display text for a unit
+ * Handles loading, no lease, and active lease states
+ */
+const getLeaseEndDate = (unit: UnitWithLease): string => {
+  // If unit has lease info attached, use it
+  if (unit.lease?.end_date) {
+    return formatDate(unit.lease.end_date);
+  }
+  // If unit is rented but lease fetch completed with no result
+  if (unit.is_rented) {
+    // lease === undefined means fetch is still in progress
+    // lease === null means fetch completed but no lease found
+    if (unit.lease === undefined) {
+      return 'Loading...';
+    }
+    return 'No lease';
+  }
+  // Not rented
+  return 'N/A';
+};
+
+/**
+ * UnitTable Component
+ * Displays a table of property units with actions for managing them
+ */
+const UnitTable: React.FC<UnitTableProps> = ({
   units,
-  loading,
-  error,
+  loading = false,
+  error = null,
   onEdit,
   onDelete,
   onAssign,
@@ -13,113 +91,61 @@ const UnitTable = ({
   onUnitSelect,
   onSelectAll,
   showSelection = false,
-  bulkMode = false
+  bulkMode = false,
 }) => {
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount || 0);
-  };
+  // Calculate column count dynamically to avoid hardcoded colspan values
+  // Base columns: Unit Number, Floor, Rent, Tenant, Lease Ends, Status
+  const baseColumnCount = 6;
+  const selectionColumn = showSelection ? 1 : 0;
+  const actionsColumn = bulkMode ? 0 : 1;
+  const totalColumns = baseColumnCount + selectionColumn + actionsColumn;
 
-  const getTenantName = (unit) => {
-    if (!unit || typeof unit !== "object") return "Not assigned";
-    const tenant = unit?.tenant;
-    if (!tenant || typeof tenant !== "object") return "Not assigned";
-
-    // Handle company tenants first
-    if (tenant?.tenant_type === "COMPANY" && tenant?.company_name) {
-      return tenant.company_name;
-    }
-
-    // Handle individual tenants
-    const name = [tenant?.first_name, tenant?.last_name]
-      .filter(Boolean)
-      .join(" ");
-
-    // Fallback to company name if individual names are not available
-    if (!name && tenant?.company_name) {
-      return tenant.company_name;
-    }
-
-    return name || "Not assigned";
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
-  const getLeaseEndDate = (unit) => {
-    // If unit has lease info attached, use it
-    if (unit?.lease?.end_date) {
-      return formatDate(unit.lease.end_date);
-    }
-    // If unit is rented but no lease data yet, show loading or placeholder
-    if (unit.is_rented) {
-      return unit.lease === undefined ? "Loading..." : "No end date";
-    }
-    // Not rented
-    return "N/A";
-  };
-
-  const getLeaseDuration = (unit) => {
-    // Show both start and end dates if available
-    if (unit?.lease?.start_date && unit?.lease?.end_date) {
-      return `${formatDate(unit.lease.start_date)} - ${formatDate(unit.lease.end_date)}`;
-    }
-    return getLeaseEndDate(unit);
-  };
-
-  const isUnitSelected = (unitId) => {
+  const isUnitSelected = (unitId: number): boolean => {
     return selectedUnits.includes(unitId);
   };
 
-  const isAllSelected = () => {
+  const isAllSelected = (): boolean => {
     if (!units || units.length === 0) return false;
     // Only consider vacant units for "select all" state
-    const vacantUnits = units.filter(unit => !unit.is_rented);
-    return vacantUnits.length > 0 && vacantUnits.every(unit => selectedUnits.includes(unit.id));
+    const vacantUnits = units.filter((unit) => !unit.is_rented);
+    return vacantUnits.length > 0 && vacantUnits.every((unit) => selectedUnits.includes(unit.id));
   };
 
-  const isPartiallySelected = () => {
+  const isPartiallySelected = (): boolean => {
     if (!units || units.length === 0) return false;
-    const vacantUnits = units.filter(unit => !unit.is_rented);
-    const selectedVacantUnits = vacantUnits.filter(unit => selectedUnits.includes(unit.id));
+    const vacantUnits = units.filter((unit) => !unit.is_rented);
+    const selectedVacantUnits = vacantUnits.filter((unit) => selectedUnits.includes(unit.id));
     return selectedVacantUnits.length > 0 && selectedVacantUnits.length < vacantUnits.length;
   };
 
-  const handleSelectUnit = (unitId) => {
+  const handleSelectUnit = (unitId: number): void => {
     if (onUnitSelect) {
       onUnitSelect(unitId);
     }
   };
 
-  const handleSelectAll = () => {
+  const handleSelectAll = (): void => {
     if (onSelectAll) {
       onSelectAll();
     }
   };
 
-  if (loading)
+  if (loading) {
     return (
       <div className="p-8 text-center bg-white dark:bg-gray-800">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
         <p className="text-gray-600 dark:text-gray-400">Loading units...</p>
       </div>
     );
+  }
 
-  if (error)
+  if (error) {
     return (
       <div className="p-8 text-center text-red-600 dark:text-red-400 bg-white dark:bg-gray-800">
         Error loading units: {error}
       </div>
     );
+  }
 
   return (
     <div className="overflow-x-auto">
@@ -144,29 +170,43 @@ const UnitTable = ({
                 </div>
               </th>
             )}
-            <th scope="col" className="text-center">Unit Number</th>
-            <th scope="col" className="text-center">Floor</th>
-            <th scope="col" className="text-center">Rent</th>
-            <th scope="col" className="text-center">Tenant</th>
-            <th scope="col" className="text-center">Lease Ends</th>
-            <th scope="col" className="text-center">Status</th>
+            <th scope="col" className="text-center">
+              Unit Number
+            </th>
+            <th scope="col" className="text-center">
+              Floor
+            </th>
+            <th scope="col" className="text-center">
+              Rent
+            </th>
+            <th scope="col" className="text-center">
+              Tenant
+            </th>
+            <th scope="col" className="text-center">
+              Lease Ends
+            </th>
+            <th scope="col" className="text-center">
+              Status
+            </th>
             {!bulkMode && (
-              <th scope="col" className="text-center">Actions</th>
+              <th scope="col" className="text-center">
+                Actions
+              </th>
             )}
           </tr>
         </thead>
         <tbody>
           {units && units.length > 0 ? (
-            units.map((unit, index) => (
+            units.map((unit) => (
               <tr
                 key={unit.id}
                 className={`data-table-row transition-colors ${
                   isUnitSelected(unit.id)
-                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700"
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
                     : unit.is_rented && showSelection
-                    ? "bg-gray-50 dark:bg-gray-700/50 opacity-75"
-                    : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                  }`}
+                      ? 'bg-gray-50 dark:bg-gray-700/50 opacity-75'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                }`}
               >
                 {showSelection && (
                   <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -174,17 +214,23 @@ const UnitTable = ({
                       <input
                         type="checkbox"
                         className={`h-4 w-4 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 transition-colors duration-300 ${
-                          unit.is_rented 
-                            ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-600' 
+                          unit.is_rented
+                            ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-600'
                             : 'text-blue-600 cursor-pointer dark:bg-gray-700'
                         }`}
                         checked={isUnitSelected(unit.id)}
                         disabled={unit.is_rented}
                         onChange={() => !unit.is_rented && handleSelectUnit(unit.id)}
-                        title={unit.is_rented ? "Unit is occupied - cannot assign new tenant" : "Select for bulk assignment"}
+                        title={
+                          unit.is_rented
+                            ? 'Unit is occupied - cannot assign new tenant'
+                            : 'Select for bulk assignment'
+                        }
                       />
                       {unit.is_rented && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 transition-colors duration-300">Occupied</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 transition-colors duration-300">
+                          Occupied
+                        </span>
                       )}
                     </div>
                   </td>
@@ -193,24 +239,19 @@ const UnitTable = ({
                   {unit.name || unit.id}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center transition-colors duration-300">
-                  {unit.floor ?? "N/A"}
+                  {unit.floor ?? 'N/A'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center transition-colors duration-300">
                   {formatCurrency(unit.monthly_rent)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center transition-colors duration-300">
-                  <div className="truncate max-w-xs">
-                    {getTenantName(unit)}
-                  </div>
+                  <div className="truncate max-w-xs">{getTenantName(unit)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center transition-colors duration-300">
                   {getLeaseEndDate(unit)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <UnitStatusBadge
-                    isRented={unit.is_rented}
-                    size="small"
-                  />
+                  <UnitStatusBadge isRented={unit.is_rented} size="small" />
                 </td>
                 {!bulkMode && (
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
@@ -232,13 +273,13 @@ const UnitTable = ({
                         </button>
                       )}
                       <button
-                        onClick={() => onEdit && onEdit(unit.id)}
+                        onClick={() => onEdit?.(unit.id)}
                         className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50 transition-colors duration-300"
                       >
                         Edit
                       </button>
                       <button
-                        onClick={() => onDelete && onDelete(unit.id)}
+                        onClick={() => onDelete?.(unit.id)}
                         className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50 transition-colors duration-300"
                       >
                         Delete
@@ -251,10 +292,7 @@ const UnitTable = ({
           ) : (
             <tr>
               <td
-                colSpan={(() => {
-                  let cols = 6; // Base columns: Unit Number, Floor, Rent, Tenant, Lease Ends, Status
-                  return cols;
-                })()}
+                colSpan={totalColumns}
                 className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300"
               >
                 No units found for this property.

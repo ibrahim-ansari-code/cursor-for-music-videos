@@ -25,6 +25,7 @@ import RescheduleMaintenanceModal from '../components/calendar/RescheduleMainten
 import ConfirmCompleteMaintenanceModal from '../components/calendar/ConfirmCompleteMaintenanceModal';
 import ConfirmCompleteReminderModal from '../components/calendar/ConfirmCompleteReminderModal';
 import ConfirmDeleteReminderModal from '../components/calendar/ConfirmDeleteReminderModal';
+import { EventPreviewPopover } from '../components/calendar/EventPreviewPopover';
 import { CalendarEvent, updateCustomReminder, deleteCustomReminder } from '../utils/api/calendar';
 import { fetchInvoice } from '../utils/api/accounting';
 import { fetchLease } from '../utils/api/leases';
@@ -103,6 +104,10 @@ const CalendarPage: React.FC = () => {
   const [confirmDeleteReminderModalOpen, setConfirmDeleteReminderModalOpen] = useState(false);
   const [deletingReminder, setDeletingReminder] = useState<DeletingReminderState | null>(null);
   const [isDeletingReminder, setIsDeletingReminder] = useState(false);
+  
+  // Event preview popover state
+  const [previewEvent, setPreviewEvent] = useState<CalendarEvent | null>(null);
+  const [previewPosition, setPreviewPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Transform calendar events to react-big-calendar format
   const calendarEvents = useMemo(() => {
@@ -325,21 +330,18 @@ const CalendarPage: React.FC = () => {
     // For now, keep existing date range
   };
 
-  const handleEventClick = async (calendarEvent: any) => {
+  const handleEventClick = (calendarEvent: any, e: React.SyntheticEvent) => {
     const event = calendarEvent.resource as CalendarEvent;
+    const mouseEvent = e.nativeEvent as MouseEvent;
     
-    // Only handle invoice events
-    if (event.source_type === 'invoice') {
-      try {
-        const invoiceId = parseInt(event.source_id);
-        const invoice = await fetchInvoice(invoiceId);
-        setSelectedInvoice(invoice);
-        setViewInvoiceModalOpen(true);
-      } catch (error: any) {
-        console.error('Failed to load invoice:', error);
-        toast.error('Failed to load invoice details');
-      }
-    }
+    // Show preview popover at click position
+    setPreviewEvent(event);
+    setPreviewPosition({ x: mouseEvent.clientX, y: mouseEvent.clientY });
+  };
+  
+  const closePreviewPopover = () => {
+    setPreviewEvent(null);
+    setPreviewPosition(null);
   };
 
   if (error) {
@@ -704,6 +706,14 @@ const CalendarPage: React.FC = () => {
         reminderTitle={deletingReminder?.title || ''}
         reminderDate={deletingReminder?.reminderDate}
         isSubmitting={isDeletingReminder}
+      />
+
+      {/* Event Preview Popover */}
+      <EventPreviewPopover
+        event={previewEvent}
+        anchorPosition={previewPosition}
+        onClose={closePreviewPopover}
+        onQuickAction={handleQuickAction}
       />
     </div>
   );

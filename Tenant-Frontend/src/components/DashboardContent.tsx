@@ -172,7 +172,7 @@ const DashboardContent: React.FC = React.memo(() => {
           className="relative group bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all text-left"
         >
           <div className="flex items-center">
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <FaCreditCard className="text-2xl text-brand-teal" />
             </div>
             <div className="ml-4">
@@ -188,7 +188,7 @@ const DashboardContent: React.FC = React.memo(() => {
           className="relative group bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all text-left"
         >
           <div className="flex items-center">
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <FaWrench className="text-2xl text-brand-teal" />
             </div>
             <div className="ml-4">
@@ -204,7 +204,7 @@ const DashboardContent: React.FC = React.memo(() => {
           className="relative group bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all text-left"
         >
           <div className="flex items-center">
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <FaFileSignature className="text-2xl text-brand-teal" />
             </div>
             <div className="ml-4">

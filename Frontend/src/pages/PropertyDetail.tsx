@@ -1,84 +1,166 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import * as Sentry from '@sentry/react';
 import {
   fetchPropertyById,
   createUnit,
   updateUnit,
   deleteUnit,
   fetchUnitLease,
-} from "../utils/api";
-import StatCard from "../components/StatCard"; // Import StatCard
-import UnitTable from "../components/units/UnitTable"; // Import UnitTable
-import NewUnitModal from "../components/units/NewUnitModal"; // Import NewUnitModal
-import EditUnitModal from "../components/units/EditUnitModal"; // Import EditUnitModal
-import PropertyDetailSkeleton from "../components/ui/skeletons/PropertyDetailSkeleton";
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import AssignTenantModal from "../components/units/AssignTenantModal"; // Import AssignTenantModal
-import BulkAssignTenantModal from "../components/units/BulkAssignTenantModal";
-import CSVUploadModal from "../components/units/CSVUploadModal";
+} from '../utils/api';
+import StatCard from '../components/StatCard';
+import UnitTable from '../components/units/UnitTable';
+import NewUnitModal from '../components/units/NewUnitModal';
+import EditUnitModal from '../components/units/EditUnitModal';
+import PropertyDetailSkeleton from '../components/ui/skeletons/PropertyDetailSkeleton';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import AssignTenantModal from '../components/units/AssignTenantModal';
+import BulkAssignTenantModal from '../components/units/BulkAssignTenantModal';
+import CSVUploadModal from '../components/units/CSVUploadModal';
+import type { PropertyWithUnits, UnitWithLease, PropertyStats, Unit } from '../types/unit';
+import type { Lease } from '../types/lease';
+
+/**
+ * Raw unit data from API before lease enrichment
+ */
+interface RawUnit extends Unit {
+  tenant?: {
+    first_name?: string;
+    last_name?: string;
+    tenant_type?: string;
+    company_name?: string;
+  } | null;
+}
+
+/**
+ * Raw property data from API before processing
+ */
+interface RawPropertyResponse {
+  id: number;
+  name: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  postal_code?: string;
+  property_type?: string;
+  year_built?: number;
+  description?: string;
+  status?: string;
+  user_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  units?: RawUnit[];
+  stats?: PropertyStats | null;
+}
 
 // Icons for StatCards
-const UnitIcon = () => <i className="fas fa-door-closed text-blue-600"></i>;
-const VacantIcon = () => <i className="fas fa-door-open text-yellow-600"></i>;
-const RevenueIcon = () => <i className="fas fa-dollar-sign text-green-600"></i>;
+const UnitIcon: React.FC = () => <i className="fas fa-door-closed text-blue-600"></i>;
+const VacantIcon: React.FC = () => <i className="fas fa-door-open text-yellow-600"></i>;
+const RevenueIcon: React.FC = () => <i className="fas fa-dollar-sign text-green-600"></i>;
 
-const PropertyDetail = () => {
-  const { id } = useParams();
+/**
+ * Unit data structure for edit modal compatibility
+ */
+interface EditableUnit {
+  id: string;
+  name: string;
+  floor?: number;
+  description?: string;
+  size?: number;
+  monthly_rent?: number;
+  is_rented?: boolean;
+  bedrooms?: number;
+  bathrooms?: number;
+  unit_type_details?: Record<string, unknown>;
+  tenant?: {
+    first_name: string;
+    last_name: string;
+  };
+}
+
+/**
+ * PropertyDetail Page Component
+ * Displays detailed information about a property including units, stats, and management actions
+ */
+const PropertyDetail: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [property, setProperty] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [property, setProperty] = useState<PropertyWithUnits | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Create unit modal states
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Edit unit modal states
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [unitToEdit, setUnitToEdit] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [unitToEdit, setUnitToEdit] = useState<EditableUnit | null>(null);
 
   // Assign tenant modal states
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [currentUnit, setCurrentUnit] = useState(null);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState<boolean>(false);
+  const [currentUnit, setCurrentUnit] = useState<UnitWithLease | null>(null);
 
   // Bulk operations state
-  const [bulkMode, setBulkMode] = useState(false);
-  const [selectedUnits, setSelectedUnits] = useState([]);
-  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
-  const [showCSVUploadModal, setShowCSVUploadModal] = useState(false);
+  const [bulkMode, setBulkMode] = useState<boolean>(false);
+  const [selectedUnits, setSelectedUnits] = useState<number[]>([]);
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState<boolean>(false);
+  const [showCSVUploadModal, setShowCSVUploadModal] = useState<boolean>(false);
 
   const loadProperty = useCallback(async () => {
+    if (!id) return;
+
     try {
       setLoading(true);
       setError(null);
       console.log(`Fetching property details for ID: ${id}`);
-      const data = await fetchPropertyById(id);
-      console.log("Property data received:", data);
+      const data = (await fetchPropertyById(id)) as RawPropertyResponse;
+      console.log('Property data received:', data);
 
       // Fetch lease data for rented units
+      let processedUnits: UnitWithLease[] | undefined;
       if (data.units && data.units.length > 0) {
-        const unitsWithLeases = await Promise.all(
-          data.units.map(async (unit) => {
+        processedUnits = await Promise.all(
+          data.units.map(async (unit: RawUnit): Promise<UnitWithLease> => {
             if (unit.is_rented) {
               try {
                 const lease = await fetchUnitLease(unit.id);
-                return { ...unit, lease };
+                return { ...unit, lease } as UnitWithLease;
               } catch (leaseError) {
-                console.error(`Error fetching lease for unit ${unit.id}:`, leaseError);
-                return unit; // Return unit without lease data if fetch fails
+                // Log to Sentry for monitoring - this shouldn't happen in normal operation
+                Sentry.captureException(leaseError, {
+                  tags: {
+                    component: 'PropertyDetail',
+                    action: 'fetch_unit_lease',
+                    unitId: String(unit.id),
+                  },
+                  contexts: {
+                    business: {
+                      feature: 'property_management',
+                      operation: 'lease_enrichment',
+                    },
+                  },
+                });
+                // Set lease to null to indicate fetch completed but no lease found
+                // This prevents the UI from showing "Loading..." indefinitely
+                return { ...unit, lease: null } as UnitWithLease;
               }
             }
-            return unit;
+            return { ...unit, lease: null } as UnitWithLease;
           })
         );
-        data.units = unitsWithLeases;
       }
 
-      setProperty(data);
+      const propertyWithUnits: PropertyWithUnits = {
+        ...data,
+        units: processedUnits,
+      };
+
+      setProperty(propertyWithUnits);
     } catch (err) {
-      console.error("Error fetching property details:", err);
-      setError(err.message || "Failed to load property details.");
+      console.error('Error fetching property details:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load property details.');
     } finally {
       setLoading(false);
     }
@@ -88,34 +170,54 @@ const PropertyDetail = () => {
     loadProperty();
   }, [id, loadProperty]);
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount || 0);
+  const formatCurrency = (amount: number | string | null | undefined): string => {
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: 'CAD',
+    }).format(Number(amount) || 0);
   };
 
   // Function to handle unit editing
-  const handleEditUnit = (unitId) => {
+  const handleEditUnit = (unitId: number): void => {
     if (!property || !property.units) return;
 
     // Find the unit in the property data
-    const unit = property.units.find((unit) => unit.id === unitId);
+    const unit = property.units.find((u) => u.id === unitId);
     if (!unit) {
       console.error(`Unit with ID ${unitId} not found`);
       return;
     }
 
+    // Convert to EditableUnit format for the modal
+    const editableUnit: EditableUnit = {
+      id: String(unit.id),
+      name: unit.name,
+      floor: unit.floor ?? undefined,
+      description: unit.description ?? undefined,
+      size: unit.size ?? undefined,
+      monthly_rent: unit.monthly_rent ?? undefined,
+      is_rented: unit.is_rented,
+      bedrooms: unit.bedrooms ?? undefined,
+      bathrooms: unit.bathrooms ?? undefined,
+      unit_type_details: unit.unit_type_details,
+      tenant: unit.tenant
+        ? {
+            first_name: unit.tenant.first_name || '',
+            last_name: unit.tenant.last_name || '',
+          }
+        : undefined,
+    };
+
     // Set up the edit modal
-    setUnitToEdit(unit);
+    setUnitToEdit(editableUnit);
     setIsEditModalOpen(true);
   };
 
   // Function to handle unit deletion with optimistic updates
-  const handleDeleteUnit = async (unitId) => {
+  const handleDeleteUnit = async (unitId: number): Promise<void> => {
     if (
       !window.confirm(
-        "Are you sure you want to delete this unit? This action cannot be undone."
+        'Are you sure you want to delete this unit? This action cannot be undone.'
       )
     ) {
       return;
@@ -123,78 +225,100 @@ const PropertyDetail = () => {
 
     // Store original property state for rollback
     const originalProperty = property;
-    const unitToDelete = property.units.find(u => u.id === unitId);
+    const unitToDelete = property?.units?.find((u) => u.id === unitId);
 
     try {
       setIsSubmitting(true);
       console.log(`Deleting unit with ID: ${unitId}`);
 
       // Optimistically remove the unit from local state
-      setProperty(prev => ({
-        ...prev,
-        units: prev.units.filter(unit => unit.id !== unitId),
-        stats: prev.stats && unitToDelete ? {
-          ...prev.stats,
-          total_units: prev.stats.total_units - 1,
-          vacant_units: unitToDelete.is_rented
-            ? prev.stats.vacant_units
-            : prev.stats.vacant_units - 1,
-          occupied_units: unitToDelete.is_rented
-            ? prev.stats.occupied_units - 1
-            : prev.stats.occupied_units,
-          monthly_revenue: unitToDelete.is_rented && unitToDelete.monthly_rent
-            ? (parseFloat(prev.stats.monthly_revenue) - parseFloat(unitToDelete.monthly_rent)).toFixed(2)
-            : prev.stats.monthly_revenue
-        } : null
-      }));
+      setProperty((prev) => {
+        if (!prev) return prev;
+        const newStats: PropertyStats | null =
+          prev.stats && unitToDelete
+            ? {
+                ...prev.stats,
+                total_units: prev.stats.total_units - 1,
+                vacant_units: unitToDelete.is_rented
+                  ? prev.stats.vacant_units
+                  : prev.stats.vacant_units - 1,
+                occupied_units: unitToDelete.is_rented
+                  ? prev.stats.occupied_units - 1
+                  : prev.stats.occupied_units,
+                monthly_revenue:
+                  unitToDelete.is_rented && unitToDelete.monthly_rent
+                    ? (
+                        parseFloat(String(prev.stats.monthly_revenue)) -
+                        parseFloat(String(unitToDelete.monthly_rent))
+                      ).toFixed(2)
+                    : prev.stats.monthly_revenue,
+              }
+            : null;
+
+        return {
+          ...prev,
+          units: prev.units?.filter((unit) => unit.id !== unitId),
+          stats: newStats,
+        };
+      });
 
       // Call API to delete the unit
       await deleteUnit(unitId);
 
       // Show success notification
-      toast.success("Unit deleted successfully");
+      toast.success('Unit deleted successfully');
 
       // Refresh property data in the background for consistency
       loadProperty();
-    } catch (error) {
-      console.error("Error deleting unit:", error);
+    } catch (err) {
+      console.error('Error deleting unit:', err);
 
       // Rollback to original state on error
       setProperty(originalProperty);
 
-      toast.error(error.message || "Failed to delete unit");
+      toast.error(err instanceof Error ? err.message : 'Failed to delete unit');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleAddNewUnit = () => {
+  const handleAddNewUnit = (): void => {
     // Open create modal
     setIsCreateModalOpen(true);
   };
 
   // Function to handle unit creation with optimistic updates
-  const handleCreateUnit = async (propertyId, unitData) => {
+  const handleCreateUnit = async (
+    propertyId: string,
+    unitData: unknown
+  ): Promise<unknown> => {
     try {
       setIsSubmitting(true);
-      console.log("Creating new unit with data:", unitData);
+      console.log('Creating new unit with data:', unitData);
 
       // Call API to create the unit
-      const result = await createUnit(propertyId, unitData);
+      const result = await createUnit(Number(propertyId), unitData as object);
 
       // Optimistically add the new unit to the property
-      setProperty(prev => ({
-        ...prev,
-        units: [...(prev.units || []), result],
-        stats: prev.stats ? {
-          ...prev.stats,
-          total_units: prev.stats.total_units + 1,
-          vacant_units: prev.stats.vacant_units + 1 // New units are always vacant
-        } : null
-      }));
+      setProperty((prev) => {
+        if (!prev) return prev;
+        const newStats: PropertyStats | null = prev.stats
+          ? {
+              ...prev.stats,
+              total_units: prev.stats.total_units + 1,
+              vacant_units: prev.stats.vacant_units + 1, // New units are always vacant
+            }
+          : null;
+
+        return {
+          ...prev,
+          units: [...(prev.units || []), result as UnitWithLease],
+          stats: newStats,
+        };
+      });
 
       // Show success notification
-      toast.success("Unit created successfully");
+      toast.success('Unit created successfully');
 
       // Close modal
       setIsCreateModalOpen(false);
@@ -203,55 +327,67 @@ const PropertyDetail = () => {
       loadProperty();
 
       return result;
-    } catch (error) {
-      console.error("Error creating unit:", error);
+    } catch (err) {
+      console.error('Error creating unit:', err);
 
       // Display a more user-friendly error
-      const errorMessage = error.message || "Failed to create unit";
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create unit';
       toast.error(errorMessage);
 
       // Re-throw so the modal can handle display of the error
-      throw error;
+      throw err;
     } finally {
       setIsSubmitting(false);
     }
   };
 
   // Function to handle unit update with optimistic updates
-  const handleUpdateUnit = async (unitId, unitData) => {
+  const handleUpdateUnit = async (unitId: string, unitData: unknown): Promise<unknown> => {
     // Store original property state for rollback
     const originalProperty = property;
-    const originalUnit = property.units.find(u => u.id === unitId);
+    const numericUnitId = parseInt(unitId, 10);
+    const originalUnit = property?.units?.find((u) => u.id === numericUnitId);
 
     try {
       setIsSubmitting(true);
       console.log(`Updating unit ${unitId} with data:`, unitData);
 
+      const typedUnitData = unitData as Record<string, unknown>;
+
       // Optimistically update the unit in local state and recalculate stats
-      setProperty(prev => {
-        const updatedUnits = prev.units.map(unit =>
-          unit.id === unitId
-            ? { ...unit, ...unitData, lease: unit.lease } // Preserve lease data
+      setProperty((prev) => {
+        if (!prev) return prev;
+
+        const updatedUnits = prev.units?.map((unit) =>
+          unit.id === numericUnitId
+            ? ({ ...unit, ...typedUnitData, lease: unit.lease } as UnitWithLease)
             : unit
         );
 
         // Recalculate monthly revenue if rent changed for rented units
         let newStats = prev.stats;
-        if (prev.stats && originalUnit && 'monthly_rent' in unitData && originalUnit.is_rented) {
-          const oldRent = parseFloat(originalUnit.monthly_rent || 0);
-          const newRent = parseFloat(unitData.monthly_rent || 0);
+        if (
+          prev.stats &&
+          originalUnit &&
+          'monthly_rent' in typedUnitData &&
+          originalUnit.is_rented
+        ) {
+          const oldRent = parseFloat(String(originalUnit.monthly_rent || 0));
+          const newRent = parseFloat(String(typedUnitData.monthly_rent || 0));
           const rentDifference = newRent - oldRent;
 
           newStats = {
             ...prev.stats,
-            monthly_revenue: (parseFloat(prev.stats.monthly_revenue) + rentDifference).toFixed(2)
+            monthly_revenue: (
+              parseFloat(String(prev.stats.monthly_revenue)) + rentDifference
+            ).toFixed(2),
           };
         }
 
         return {
           ...prev,
           units: updatedUnits,
-          stats: newStats
+          stats: newStats,
         };
       });
 
@@ -260,108 +396,103 @@ const PropertyDetail = () => {
       setUnitToEdit(null);
 
       // Call API to update the unit
-      const result = await updateUnit(unitId, unitData);
+      const result = await updateUnit(numericUnitId, unitData as object);
 
       // Show success notification
-      toast.success("Unit updated successfully");
+      toast.success('Unit updated successfully');
 
       // Refresh property data in the background for consistency
       loadProperty();
 
       return result;
-    } catch (error) {
-      console.error("Error updating unit:", error);
+    } catch (err) {
+      console.error('Error updating unit:', err);
 
       // Rollback to original state on error
       setProperty(originalProperty);
 
       // Display a more user-friendly error
-      const errorMessage = error.message || "Failed to update unit";
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update unit';
       toast.error(errorMessage);
 
       // Re-throw so the modal can handle display of the error
-      throw error;
+      throw err;
     } finally {
       setIsSubmitting(false);
     }
   };
 
   // Function to handle assign tenant action
-  const handleAssignTenant = (unit) => {
+  const handleAssignTenant = (unit: UnitWithLease): void => {
     setCurrentUnit(unit);
     setIsAssignModalOpen(true);
   };
 
   // Function to handle view lease action
-  const handleViewLease = (unitId) => {
+  const handleViewLease = (unitId: number): void => {
     // Navigate to the leases page with the unit filter
     navigate(`/leases?unit=${unitId}`);
   };
 
   // Function to refresh data after tenant assignment
-  const handleTenantAssigned = async (createdLease) => {
-    console.log(
-      "[PropertyDetail] handleTenantAssigned called with lease:",
-      createdLease
-    );
+  const handleTenantAssigned = async (createdLease: Lease): Promise<void> => {
+    console.log('[PropertyDetail] handleTenantAssigned called with lease:', createdLease);
 
     // Show success notification immediately
-    toast.success("Lease created and tenant assigned successfully");
+    toast.success('Lease created and tenant assigned successfully');
 
     // Refresh property data from server to ensure consistency
     await loadProperty();
   };
 
   // Close the assign tenant modal
-  const handleCloseAssignModal = () => {
+  const handleCloseAssignModal = (): void => {
     setIsAssignModalOpen(false);
     setCurrentUnit(null);
   };
 
   // Close the create modal
-  const handleCloseCreateModal = () => {
+  const handleCloseCreateModal = (): void => {
     setIsCreateModalOpen(false);
   };
 
   // Close the edit modal
-  const handleCloseEditModal = () => {
+  const handleCloseEditModal = (): void => {
     setIsEditModalOpen(false);
     setUnitToEdit(null);
   };
 
-  const handleToggleBulkMode = () => {
+  const handleToggleBulkMode = (): void => {
     setBulkMode(!bulkMode);
     setSelectedUnits([]);
   };
 
-  const handleUnitSelect = (unitId) => {
+  const handleUnitSelect = (unitId: number): void => {
     // Find the unit to check if it's occupied
-    const unit = property?.units?.find(u => u.id === unitId);
-    
+    const unit = property?.units?.find((u) => u.id === unitId);
+
     // Prevent selection of occupied units
     if (unit?.is_rented) {
-      toast.warning("Cannot select occupied units for bulk assignment");
+      toast.warning('Cannot select occupied units for bulk assignment');
       return;
     }
 
-    setSelectedUnits(prev => {
+    setSelectedUnits((prev) => {
       if (prev.includes(unitId)) {
-        return prev.filter(id => id !== unitId);
+        return prev.filter((id) => id !== unitId);
       } else {
         return [...prev, unitId];
       }
     });
   };
 
-  const handleSelectAll = () => {
+  const handleSelectAll = (): void => {
     if (!property?.units) return;
 
     // Only select vacant units for bulk assignment
-    const vacantUnitIds = property.units
-      .filter(unit => !unit.is_rented)
-      .map(unit => unit.id);
-    
-    const allVacantSelected = vacantUnitIds.every(id => selectedUnits.includes(id));
+    const vacantUnitIds = property.units.filter((unit) => !unit.is_rented).map((unit) => unit.id);
+
+    const allVacantSelected = vacantUnitIds.every((id) => selectedUnits.includes(id));
 
     if (allVacantSelected) {
       setSelectedUnits([]); // Deselect all
@@ -370,46 +501,45 @@ const PropertyDetail = () => {
     }
   };
 
-  const handleBulkAssign = () => {
+  const handleBulkAssign = (): void => {
     if (selectedUnits.length === 0) {
-      toast.warning("Please select units to assign tenants to");
+      toast.warning('Please select units to assign tenants to');
       return;
     }
     setShowBulkAssignModal(true);
   };
 
-  const handleCSVUpload = () => {
+  const handleCSVUpload = (): void => {
     setShowCSVUploadModal(true);
   };
 
-  const handleCSVUploadSuccess = (response) => {
+  const handleCSVUploadSuccess = (): void => {
     // Refresh property data to reflect new assignments
     loadProperty();
     setSelectedUnits([]);
   };
 
-  const handleBulkAssignSuccess = (response) => {
+  const handleBulkAssignSuccess = (): void => {
     // Refresh property data to reflect new assignments
     loadProperty();
     setSelectedUnits([]);
     setShowBulkAssignModal(false);
   };
 
-  const handleClearSelection = () => {
+  const handleClearSelection = (): void => {
     setSelectedUnits([]);
   };
 
-  const getSelectedUnitsCount = () => selectedUnits.length;
-  const getVacantSelectedUnits = () => {
-    if (!property?.units) return [];
-    return property.units.filter(unit =>
-      selectedUnits.includes(unit.id) && !unit.is_rented
-    );
+  const getSelectedUnitsCount = (): number => selectedUnits.length;
+
+  const getVacantSelectedUnits = (): UnitWithLease[] => {
+    if (!property?.units) return [] as UnitWithLease[];
+    return property.units.filter((unit) => selectedUnits.includes(unit.id) && !unit.is_rented);
   };
 
-  const getSelectedUnitObjects = () => {
-    if (!property?.units) return [];
-    return property.units.filter(unit => selectedUnits.includes(unit.id));
+  const getSelectedUnitObjects = (): UnitWithLease[] => {
+    if (!property?.units) return [] as UnitWithLease[];
+    return property.units.filter((unit) => selectedUnits.includes(unit.id));
   };
 
   if (loading) return <PropertyDetailSkeleton />;
@@ -433,7 +563,9 @@ const PropertyDetail = () => {
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm leading-5 text-red-700 dark:text-red-300 transition-colors duration-300">{error}</p>
+              <p className="text-sm leading-5 text-red-700 dark:text-red-300 transition-colors duration-300">
+                {error}
+              </p>
             </div>
           </div>
         </div>
@@ -447,7 +579,9 @@ const PropertyDetail = () => {
     );
 
   if (!property)
-    return <div className="p-6 text-center dark:text-gray-100">Property not found.</div>;
+    return (
+      <div className="p-6 text-center dark:text-gray-100">Property not found.</div>
+    );
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
@@ -456,7 +590,10 @@ const PropertyDetail = () => {
         <nav className="text-sm" aria-label="Breadcrumb">
           <ol className="list-none p-0 inline-flex space-x-2">
             <li className="flex items-center">
-              <Link to="/" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-300">
+              <Link
+                to="/"
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-300"
+              >
                 <i className="fas fa-home"></i>
               </Link>
             </li>
@@ -474,7 +611,10 @@ const PropertyDetail = () => {
             <li>
               <span className="text-gray-400 dark:text-gray-500">/</span>
             </li>
-            <li className="text-gray-700 dark:text-gray-200 font-medium transition-colors duration-300" aria-current="page">
+            <li
+              className="text-gray-700 dark:text-gray-200 font-medium transition-colors duration-300"
+              aria-current="page"
+            >
               {property.name}
             </li>
           </ol>
@@ -489,6 +629,7 @@ const PropertyDetail = () => {
           icon={<UnitIcon />}
           bgColor="bg-blue-50 dark:bg-blue-900/20"
           textColor="text-blue-600 dark:text-blue-400"
+          onClick={undefined}
         />
         <StatCard
           title="Vacant units"
@@ -496,6 +637,7 @@ const PropertyDetail = () => {
           icon={<VacantIcon />}
           bgColor="bg-yellow-50 dark:bg-yellow-900/20"
           textColor="text-yellow-600 dark:text-yellow-400"
+          onClick={undefined}
         />
         <StatCard
           title="Monthly Revenue"
@@ -503,6 +645,7 @@ const PropertyDetail = () => {
           icon={<RevenueIcon />}
           bgColor="bg-green-50 dark:bg-green-900/20"
           textColor="text-green-600 dark:text-green-400"
+          onClick={undefined}
         />
       </div>
 
@@ -526,13 +669,16 @@ const PropertyDetail = () => {
               )}
               <button
                 onClick={handleToggleBulkMode}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${bulkMode
-                  ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  bulkMode
+                    ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
               >
-                <i className={`fas ${bulkMode ? "fa-times" : "fa-check-square"} text-xs mr-2`}></i>
-                {bulkMode ? "Exit Bulk" : "Bulk Select"}
+                <i
+                  className={`fas ${bulkMode ? 'fa-times' : 'fa-check-square'} text-xs mr-2`}
+                ></i>
+                {bulkMode ? 'Exit Bulk' : 'Bulk Select'}
               </button>
               {!bulkMode && (
                 <button
@@ -551,7 +697,8 @@ const PropertyDetail = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <span className="text-sm font-medium text-blue-900 dark:text-blue-100 transition-colors duration-300">
-                    {getSelectedUnitsCount()} unit{getSelectedUnitsCount() !== 1 ? 's' : ''} selected
+                    {getSelectedUnitsCount()} unit{getSelectedUnitsCount() !== 1 ? 's' : ''}{' '}
+                    selected
                   </span>
                   {getSelectedUnitsCount() > 0 && (
                     <span className="text-sm text-blue-700 dark:text-blue-300 transition-colors duration-300">
@@ -587,13 +734,12 @@ const PropertyDetail = () => {
         {/* Unit Table */}
         <UnitTable
           units={property.units || []}
-          loading={false} // We're already handling main page loading state
+          loading={false}
           error={null}
           onEdit={handleEditUnit}
           onDelete={handleDeleteUnit}
           onAssign={handleAssignTenant}
           onViewLease={handleViewLease}
-          // Bulk selection props
           selectedUnits={selectedUnits}
           onUnitSelect={handleUnitSelect}
           onSelectAll={handleSelectAll}
@@ -607,7 +753,7 @@ const PropertyDetail = () => {
         isOpen={isCreateModalOpen}
         onClose={handleCloseCreateModal}
         onSubmit={handleCreateUnit}
-        propertyId={id}
+        propertyId={id || ''}
         propertyType={property?.property_type}
         isLoading={isSubmitting}
       />
@@ -637,6 +783,8 @@ const PropertyDetail = () => {
       <BulkAssignTenantModal
         isOpen={showBulkAssignModal}
         onClose={() => setShowBulkAssignModal(false)}
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore - BulkAssignTenantModal is JSX without type definitions
         selectedUnits={getSelectedUnitObjects()}
         propertyId={id}
         onSuccess={handleBulkAssignSuccess}
