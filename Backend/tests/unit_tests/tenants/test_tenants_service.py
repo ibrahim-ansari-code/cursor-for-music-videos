@@ -685,16 +685,18 @@ async def test_enrich_tenants_with_details_no_active_lease_fallback(mock_session
 
 @pytest.mark.asyncio
 async def test_enrich_tenants_with_details_logging_warning_for_no_active_lease(mock_session, mock_tenant):
-    """Test logging warning when tenant has no active lease - covers service.py lines 460-463."""
+    """Test logging warning when tenant has no active lease - covers service.py lines 605-608."""
     # Setup tenant with no current property but with inactive leases
     mock_tenant.current_property_id = None
+    mock_tenant.id = 1
     
-    # Setup lease query with only inactive lease
+    # Setup lease with EXPIRED status (not ACTIVE)
     mock_inactive_lease = MagicMock(spec=Lease)
     mock_inactive_lease.id = 1
+    mock_inactive_lease.tenant_id = 1  # Must match mock_tenant.id for bulk fetch grouping
     mock_inactive_lease.start_date = datetime.now(timezone.utc).date()
     mock_inactive_lease.end_date = datetime.now(timezone.utc).date()
-    mock_inactive_lease.status = "EXPIRED"
+    mock_inactive_lease.status = LeaseStatus.EXPIRED  # Use enum, not string
     mock_inactive_lease.property_id = 1
     mock_inactive_lease.unit_id = 1
     mock_inactive_property = MagicMock()
@@ -706,10 +708,35 @@ async def test_enrich_tenants_with_details_logging_warning_for_no_active_lease(m
     mock_inactive_unit.property = mock_inactive_property
     mock_inactive_lease.property = mock_inactive_property
     mock_inactive_lease.unit = mock_inactive_unit
+    mock_inactive_lease.documents = []
     
+    # Create mock results for all bulk queries (order: maintenance, payments, invoices, leases)
+    # Note: Units query is skipped when tenant has no current_property_id
+    
+    # Query 1: Maintenance bulk fetch (empty)
+    maintenance_result = MagicMock()
+    maintenance_result.scalars.return_value.all.return_value = []
+    
+    # Query 2: Payments bulk fetch (empty)
+    payments_result = MagicMock()
+    payments_result.scalars.return_value.all.return_value = []
+    
+    # Query 3: Invoices bulk fetch (empty)
+    invoices_result = MagicMock()
+    invoices_result.scalars.return_value.all.return_value = []
+    
+    # Query 4: Leases bulk fetch
     lease_result = MagicMock()
     lease_result.scalars.return_value.all.return_value = [mock_inactive_lease]
-    mock_session.execute.return_value = lease_result
+    
+    # Use side_effect to return different results for each execute call
+    mock_session.execute.side_effect = [
+        maintenance_result,  # 1st call: maintenance bulk fetch
+        payments_result,     # 2nd call: payments bulk fetch
+        invoices_result,     # 3rd call: invoices bulk fetch
+        lease_result,        # 4th call: leases bulk fetch
+        # No 5th call - units query skipped when current_property_id is None
+    ]
     
     # Mock model_dump for tenant
     mock_tenant.model_dump.return_value = {
@@ -731,8 +758,17 @@ async def test_enrich_tenants_with_details_logging_warning_for_no_active_lease(m
          patch('Backend.api.tenants.service.PropertyResponseSimple.model_validate') as mock_prop_validate, \
          patch('Backend.api.tenants.service.UnitResponseSimple.model_validate') as mock_unit_validate:
         
-        # Mock validation returns
-        mock_lease_validate.return_value = MagicMock(id=1, start_date=datetime.now().date(), end_date=datetime.now().date(), status="EXPIRED")
+        # Mock validation returns - status must NOT be LeaseStatus.ACTIVE to trigger warning
+        mock_lease_response = MagicMock()
+        mock_lease_response.id = 1
+        mock_lease_response.start_date = datetime.now().date()
+        mock_lease_response.end_date = datetime.now().date()
+        mock_lease_response.status = LeaseStatus.EXPIRED  # Not ACTIVE - triggers warning
+        mock_lease_response.property = None
+        mock_lease_response.unit = None
+        mock_lease_response.documents = []
+        mock_lease_validate.return_value = mock_lease_response
+        
         mock_prop_validate.return_value = MagicMock(id=1, name="Test Property")
         mock_unit_validate.return_value = MagicMock(id=1, name="Unit A", property=MagicMock(id=1, name="Test Property"))
         
@@ -741,10 +777,10 @@ async def test_enrich_tenants_with_details_logging_warning_for_no_active_lease(m
         
         # Assert
         assert len(result) == 1
-        # Should have logged warning about no active lease (line 460-463)
+        # Should have logged warning about no active lease (lines 605-608)
         mock_logger.assert_called_once()
         args, kwargs = mock_logger.call_args
-        assert "no active lease" in args[0]
+        assert "no active lease" in args[0].lower()
         assert mock_tenant.id in args
 
 
@@ -753,13 +789,15 @@ async def test_enrich_tenants_with_details_active_lease_found_no_warning(mock_se
     """Test no warning logged when active lease is found - covers active lease branch."""
     # Setup tenant with no current property but with active lease
     mock_tenant.current_property_id = None
+    mock_tenant.id = 1
     
     # Setup lease query with active lease
     mock_active_lease = MagicMock(spec=Lease)
     mock_active_lease.id = 1
+    mock_active_lease.tenant_id = 1  # Must match mock_tenant.id for bulk fetch grouping
     mock_active_lease.start_date = datetime.now(timezone.utc).date()
     mock_active_lease.end_date = datetime.now(timezone.utc).date()
-    mock_active_lease.status = "ACTIVE"
+    mock_active_lease.status = LeaseStatus.ACTIVE  # Use enum, not string
     mock_active_lease.property_id = 1
     mock_active_lease.unit_id = 1
     mock_active_property = MagicMock()
@@ -771,10 +809,34 @@ async def test_enrich_tenants_with_details_active_lease_found_no_warning(mock_se
     mock_active_unit.property = mock_active_property
     mock_active_lease.property = mock_active_property
     mock_active_lease.unit = mock_active_unit
+    mock_active_lease.documents = []
     
+    # Create mock results for all bulk queries (order: maintenance, payments, invoices, leases)
+    # Note: Units query is skipped when tenant has no current_property_id
+    
+    # Query 1: Maintenance bulk fetch (empty)
+    maintenance_result = MagicMock()
+    maintenance_result.scalars.return_value.all.return_value = []
+    
+    # Query 2: Payments bulk fetch (empty)
+    payments_result = MagicMock()
+    payments_result.scalars.return_value.all.return_value = []
+    
+    # Query 3: Invoices bulk fetch (empty)
+    invoices_result = MagicMock()
+    invoices_result.scalars.return_value.all.return_value = []
+    
+    # Query 4: Leases bulk fetch
     lease_result = MagicMock()
     lease_result.scalars.return_value.all.return_value = [mock_active_lease]
-    mock_session.execute.return_value = lease_result
+    
+    mock_session.execute.side_effect = [
+        maintenance_result,  # 1st call: maintenance bulk fetch
+        payments_result,     # 2nd call: payments bulk fetch
+        invoices_result,     # 3rd call: invoices bulk fetch
+        lease_result,        # 4th call: leases bulk fetch
+        # No 5th call - units query skipped when current_property_id is None
+    ]
     
     # Mock model_dump for tenant
     mock_tenant.model_dump.return_value = {
@@ -796,8 +858,17 @@ async def test_enrich_tenants_with_details_active_lease_found_no_warning(mock_se
          patch('Backend.api.tenants.service.PropertyResponseSimple.model_validate') as mock_prop_validate, \
          patch('Backend.api.tenants.service.UnitResponseSimple.model_validate') as mock_unit_validate:
         
-        # Mock validation returns
-        mock_lease_validate.return_value = MagicMock(id=1, start_date=datetime.now().date(), end_date=datetime.now().date(), status="ACTIVE")
+        # Mock validation returns - status IS LeaseStatus.ACTIVE so no warning
+        mock_lease_response = MagicMock()
+        mock_lease_response.id = 1
+        mock_lease_response.start_date = datetime.now().date()
+        mock_lease_response.end_date = datetime.now().date()
+        mock_lease_response.status = LeaseStatus.ACTIVE  # ACTIVE - no warning
+        mock_lease_response.property = None
+        mock_lease_response.unit = None
+        mock_lease_response.documents = []
+        mock_lease_validate.return_value = mock_lease_response
+        
         mock_prop_validate.return_value = MagicMock(id=1, name="Test Property")
         mock_unit_validate.return_value = MagicMock(id=1, name="Unit A", property=MagicMock(id=1, name="Test Property"))
         
