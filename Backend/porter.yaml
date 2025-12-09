@@ -11,7 +11,7 @@ services:
     terminationGracePeriodSeconds: 30
     port: 8000
     domains:
-      - name: api.brikli.com
+      - name: backend.brikli.com
     sleep: false
     serviceMeshEnabled: false
 
