@@ -7,11 +7,13 @@ build:
   method: docker
   context: ./Frontend
   dockerfile: ./Frontend/Dockerfile
+  buildpacks: []
 
   # This is the critical part: It passes variables from your Porter
   # Environment Group into the Docker build process. Vite needs these
   # to bake them into the final static files.
   args:
+    BUILDKIT_INLINE_CACHE: "0"
     VITE_API_URL: ${VITE_API_URL}
     VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
     VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
