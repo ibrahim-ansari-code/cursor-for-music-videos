@@ -206,6 +206,7 @@ if not settings.TESTING:
             "app.brikli.com",
             "brikli.com",
             "api.brikli.com",
+            "backend.brikli.com",  # New backend domain
             "brikli.azurewebsites.net",
             "localhost",
             "127.0.0.1",
