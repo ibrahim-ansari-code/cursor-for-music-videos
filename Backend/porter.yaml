@@ -1,0 +1,31 @@
+version: v2
+name: brikli-backend-prod
+
+services:
+  - name: brikli-api
+    run: gunicorn -w 2 -k uvicorn.workers.UvicornWorker Backend.api.app:app --timeout 300
+    type: web
+    instances: 1
+    cpuCores: 0.5
+    ramMegabytes: 1750
+    terminationGracePeriodSeconds: 30
+    port: 8000
+    domains:
+      - name: api.brikli.com
+    sleep: false
+    serviceMeshEnabled: false
+
+build:
+  context: ./Backend
+  method: docker
+  dockerfile: ./Backend/Dockerfile
+
+env:
+  - key: PYTHONPATH
+    value: .
+
+envGroups:
+  - brikli-prod-supabase
+
+deploymentStrategy: {}
+
