@@ -10,11 +10,13 @@ from Backend.llm.brikli_agent.tools.manager import ToolManager
 
 
 @pytest.fixture
-def mock_agents_client():
-    """Create mock Azure AI agents client"""
+def mock_client():
+    """Create mock OpenAI client"""
     client = Mock()
-    client.update_agent = Mock()
-    client.runs = Mock()
+    client.beta = Mock()
+    client.beta.assistants = Mock()
+    client.beta.threads = Mock()
+    client.beta.threads.runs = Mock()
     return client
 
 
@@ -27,15 +29,15 @@ def mock_thread_manager():
 
 
 @pytest.fixture
-def tool_manager(mock_agents_client, mock_thread_manager):
+def tool_manager(mock_client, mock_thread_manager):
     """Create ToolManager instance with mocks"""
-    return ToolManager(mock_agents_client, "assistant_123", mock_thread_manager)
+    return ToolManager(mock_client, "asst_123", mock_thread_manager)
 
 
 class TestToolManager:
     """Test cases for ToolManager class"""
 
-    def test_register_tools_with_assistant_success(self, tool_manager, mock_agents_client):
+    def test_register_tools_with_assistant_success(self, tool_manager, mock_client):
         """Test successful tool registration"""
         # Arrange
         mock_tools = [
@@ -44,7 +46,7 @@ class TestToolManager:
         ]
 
         mock_updated_agent = Mock(id="assistant_123")
-        mock_agents_client.update_agent.return_value = mock_updated_agent
+        mock_client.beta.assistants.update.return_value = mock_updated_agent
 
         with patch('Backend.llm.brikli_agent.tools.definitions.get_tool_definitions') as mock_get_tools:
             mock_get_tools.return_value = mock_tools
@@ -54,16 +56,16 @@ class TestToolManager:
 
             # Assert
             assert result == mock_updated_agent
-            mock_agents_client.update_agent.assert_called_once_with(
-                agent_id="assistant_123",
+            mock_client.beta.assistants.update.assert_called_once_with(
+                assistant_id="asst_123",
                 tools=mock_tools
             )
 
-    def test_register_tools_with_assistant_failure(self, tool_manager, mock_agents_client):
+    def test_register_tools_with_assistant_failure(self, tool_manager, mock_client):
         """Test tool registration failure"""
         # Arrange
         mock_tools = [{"function": {"name": "search_properties"}}]
-        mock_agents_client.update_agent.side_effect = Exception("Update failed")
+        mock_client.beta.assistants.update.side_effect = Exception("Update failed")
 
         with patch('Backend.llm.brikli_agent.tools.definitions.get_tool_definitions') as mock_get_tools:
             mock_get_tools.return_value = mock_tools
@@ -200,7 +202,7 @@ class TestToolManager:
             assert "error" in result
             assert "Error executing search_properties: Database error" in result["error"]
 
-    async def test_handle_tool_calls_streaming_success(self, tool_manager, mock_agents_client, mock_thread_manager):
+    async def test_handle_tool_calls_streaming_success(self, tool_manager, mock_client, mock_thread_manager):
         """Test successful streaming tool calls handling"""
         # Arrange
         thread_id = "thread_123"
@@ -237,7 +239,7 @@ class TestToolManager:
                     session=mock_session
                 )
 
-                mock_agents_client.runs.submit_tool_outputs.assert_called_once()
+                mock_client.beta.threads.runs.submit_tool_outputs.assert_called_once()
 
     async def test_handle_tool_calls_streaming_no_tool_calls(self, tool_manager):
         """Test streaming tool calls handling with no tool calls"""
@@ -255,7 +257,7 @@ class TestToolManager:
 
         # Assert - should return early without error
 
-    async def test_handle_tool_calls_streaming_alternative_structure(self, tool_manager, mock_agents_client, mock_thread_manager):
+    async def test_handle_tool_calls_streaming_alternative_structure(self, tool_manager, mock_client, mock_thread_manager):
         """Test streaming tool calls with alternative required_action structure"""
         # Arrange
         thread_id = "thread_123"
@@ -313,13 +315,13 @@ class TestToolManager:
             with pytest.raises(Exception, match="Database connection failed"):
                 await tool_manager.handle_tool_calls_streaming(thread_id, run_id, mock_required_action)
 
-    async def test_tool_manager_initialization(self, mock_agents_client, mock_thread_manager):
+    async def test_tool_manager_initialization(self, mock_client, mock_thread_manager):
         """Test ToolManager initialization"""
         # Act
-        tool_manager = ToolManager(mock_agents_client, "test-assistant", mock_thread_manager)
+        tool_manager = ToolManager(mock_client, "test-assistant", mock_thread_manager)
 
         # Assert
-        assert tool_manager.agents_client == mock_agents_client
+        assert tool_manager.client == mock_client
         assert tool_manager.assistant_id == "test-assistant"
         assert tool_manager.thread_manager == mock_thread_manager
 

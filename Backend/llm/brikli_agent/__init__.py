@@ -30,28 +30,26 @@ class BrikliAgentService:
     """
 
     def __init__(self) -> None:
-        """Initialize the agent service with Azure credentials and components"""
-        # Initialize Azure AI client
+        """Initialize the agent service with Azure OpenAI client and components"""
+        # Initialize Azure OpenAI client
         self.azure_client = AzureAIClient()
-        self.agents_client = self.azure_client.agents_client
+        # Use the full OpenAI client for threads/messages/runs
+        self.client = self.azure_client.client
 
         # Set assistant_id early for component initialization
         self.assistant_id = self.azure_client.assistant_id
 
-        # Initialize component managers
-        self.thread_manager = ThreadManager(self.agents_client)
-        self.message_handler = MessageHandler(self.agents_client, self.thread_manager)
-        self.tool_manager = ToolManager(self.agents_client, self.assistant_id, self.thread_manager)
-        self.run_manager = RunManager(self.agents_client, self.assistant_id, self.tool_manager)
+        # Initialize component managers with the full client
+        self.thread_manager = ThreadManager(self.client)
+        self.message_handler = MessageHandler(self.client, self.thread_manager)
+        self.tool_manager = ToolManager(self.client, self.assistant_id, self.thread_manager)
+        self.run_manager = RunManager(self.client, self.assistant_id, self.tool_manager)
         self.streaming_manager = StreamingManager(
-            self.agents_client,
+            self.client,
             self.assistant_id,
             self.message_handler,
             self.tool_manager
         )
-
-        # Expose properties for backward compatibility with tests
-        self.endpoint = self.azure_client.endpoint
 
         logger.info("BrikliAgentService initialized successfully")
 

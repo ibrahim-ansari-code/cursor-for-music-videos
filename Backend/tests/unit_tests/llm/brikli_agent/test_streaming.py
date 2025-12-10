@@ -11,9 +11,13 @@ from Backend.llm.brikli_agent.constants import StreamEventTypes
 
 
 @pytest.fixture
-def mock_agents_client():
-    """Create mock Azure AI agents client"""
+def mock_client():
+    """Create mock OpenAI client"""
     client = Mock()
+    client.beta = Mock()
+    client.beta.threads = Mock()
+    client.beta.threads.runs = Mock()
+    client.beta.threads.messages = Mock()
 
     # Mock streaming context manager
     mock_stream = Mock()
@@ -22,18 +26,19 @@ def mock_agents_client():
 
     # Mock stream events iterator
     def mock_stream_events():
-        yield (StreamEventTypes.RUN_CREATED, Mock(id='run_123'), None)
-        yield (StreamEventTypes.MESSAGE_DELTA, Mock(delta=Mock(content=[Mock(text=Mock(value='Hello'))])), None)
-        yield (StreamEventTypes.RUN_COMPLETED, Mock(), None)
-        yield ("done", None, None)
+        # Return event objects with .event and .data attributes
+        yield Mock(event=StreamEventTypes.RUN_CREATED, data=Mock(id='run_123'))
+        yield Mock(event=StreamEventTypes.MESSAGE_DELTA, data=Mock(delta=Mock(content=[Mock(text=Mock(value='Hello'))])))
+        yield Mock(event=StreamEventTypes.RUN_COMPLETED, data=Mock())
+        yield Mock(event="done", data=None)
 
     mock_stream.__iter__ = lambda self: mock_stream_events()
 
-    client.runs.stream = Mock(return_value=mock_stream)
-    client.runs.get = Mock(return_value=Mock(status="completed"))
-    client.messages.list = Mock(return_value=[
+    client.beta.threads.runs.stream = Mock(return_value=mock_stream)
+    client.beta.threads.runs.retrieve = Mock(return_value=Mock(status="completed"))
+    client.beta.threads.messages.list = Mock(return_value=[
         Mock(
-            role=Mock(value="assistant"),
+            role="assistant",
             content=[Mock(type="text", text=Mock(value="Complete response"))]
         )
     ])
@@ -58,11 +63,11 @@ def mock_tool_manager():
 
 
 @pytest.fixture
-def streaming_manager(mock_agents_client, mock_message_handler, mock_tool_manager):
+def streaming_manager(mock_client, mock_message_handler, mock_tool_manager):
     """Create StreamingManager instance with mocks"""
     return StreamingManager(
-        agents_client=mock_agents_client,
-        assistant_id="assistant_123",
+        client=mock_client,
+        assistant_id="asst_123",
         message_handler=mock_message_handler,
         tool_manager=mock_tool_manager
     )
@@ -125,7 +130,7 @@ class TestStreamingManager:
         done_chunks = [chunk for chunk in chunks if '"type": "done"' in chunk]
         assert len(done_chunks) == 1
 
-    async def test_stream_from_azure_with_tool_execution(self, streaming_manager, mock_agents_client, mock_tool_manager):
+    async def test_stream_from_azure_with_tool_execution(self, streaming_manager, mock_client, mock_tool_manager):
         """Test streaming with tool execution"""
         # Arrange - Mock stream with tool execution
         mock_stream = Mock()
@@ -133,15 +138,15 @@ class TestStreamingManager:
         mock_stream.__exit__ = Mock(return_value=None)
 
         def mock_stream_with_tools():
-            yield (StreamEventTypes.RUN_CREATED, Mock(id='run_123'), None)
-            yield (StreamEventTypes.RUN_REQUIRES_ACTION, Mock(id='run_123', required_action=Mock()), None)
+            yield Mock(event=StreamEventTypes.RUN_CREATED, data=Mock(id='run_123'))
+            yield Mock(event=StreamEventTypes.RUN_REQUIRES_ACTION, data=Mock(id='run_123', required_action=Mock()))
 
         mock_stream.__iter__ = lambda self: mock_stream_with_tools()
-        mock_agents_client.runs.stream.return_value = mock_stream
+        mock_client.beta.threads.runs.stream.return_value = mock_stream
 
         # Mock run polling after tool execution
         mock_completed_run = Mock(status="completed")
-        mock_agents_client.runs.get.return_value = mock_completed_run
+        mock_client.beta.threads.runs.retrieve.return_value = mock_completed_run
 
         # Act
         chunks = []
@@ -155,7 +160,7 @@ class TestStreamingManager:
         status_chunks = [chunk for chunk in chunks if '"status"' in chunk]
         assert any("Executing tools" in chunk for chunk in status_chunks)
 
-    async def test_stream_from_azure_run_failure(self, streaming_manager, mock_agents_client):
+    async def test_stream_from_azure_run_failure(self, streaming_manager, mock_client):
         """Test streaming with run failure"""
         # Arrange - Mock stream with failure
         mock_stream = Mock()
@@ -163,11 +168,11 @@ class TestStreamingManager:
         mock_stream.__exit__ = Mock(return_value=None)
 
         def mock_stream_with_failure():
-            yield (StreamEventTypes.RUN_CREATED, Mock(id='run_123'), None)
-            yield (StreamEventTypes.RUN_FAILED, Mock(last_error="Processing failed"), None)
+            yield Mock(event=StreamEventTypes.RUN_CREATED, data=Mock(id='run_123'))
+            yield Mock(event=StreamEventTypes.RUN_FAILED, data=Mock(last_error="Processing failed"))
 
         mock_stream.__iter__ = lambda self: mock_stream_with_failure()
-        mock_agents_client.runs.stream.return_value = mock_stream
+        mock_client.beta.threads.runs.stream.return_value = mock_stream
 
         # Act
         chunks = []
@@ -179,7 +184,7 @@ class TestStreamingManager:
         assert len(error_chunks) > 0
         assert any("Run failed" in chunk for chunk in error_chunks)
 
-    async def test_stream_from_azure_cancelled_run(self, streaming_manager, mock_agents_client):
+    async def test_stream_from_azure_cancelled_run(self, streaming_manager, mock_client):
         """Test streaming with cancelled run"""
         # Arrange - Mock stream with cancellation
         mock_stream = Mock()
@@ -187,11 +192,11 @@ class TestStreamingManager:
         mock_stream.__exit__ = Mock(return_value=None)
 
         def mock_stream_with_cancellation():
-            yield (StreamEventTypes.RUN_CREATED, Mock(id='run_123'), None)
-            yield (StreamEventTypes.RUN_CANCELLED, Mock(), None)
+            yield Mock(event=StreamEventTypes.RUN_CREATED, data=Mock(id='run_123'))
+            yield Mock(event=StreamEventTypes.RUN_CANCELLED, data=Mock())
 
         mock_stream.__iter__ = lambda self: mock_stream_with_cancellation()
-        mock_agents_client.runs.stream.return_value = mock_stream
+        mock_client.beta.threads.runs.stream.return_value = mock_stream
 
         # Act
         chunks = []
@@ -203,7 +208,7 @@ class TestStreamingManager:
         assert len(error_chunks) > 0
         assert any("cancelled" in chunk for chunk in error_chunks)
 
-    async def test_stream_from_azure_step_delta(self, streaming_manager, mock_agents_client):
+    async def test_stream_from_azure_step_delta(self, streaming_manager, mock_client):
         """Test streaming with step delta events"""
         # Arrange - Mock stream with step delta
         mock_stream = Mock()
@@ -222,13 +227,13 @@ class TestStreamingManager:
         ]
 
         def mock_stream_with_step():
-            yield (StreamEventTypes.RUN_CREATED, Mock(id='run_123'), None)
-            yield ("thread.run.step.delta", mock_step_delta, None)
-            yield (StreamEventTypes.RUN_COMPLETED, Mock(), None)
-            yield ("done", None, None)
+            yield Mock(event=StreamEventTypes.RUN_CREATED, data=Mock(id='run_123'))
+            yield Mock(event="thread.run.step.delta", data=mock_step_delta)
+            yield Mock(event=StreamEventTypes.RUN_COMPLETED, data=Mock())
+            yield Mock(event="done", data=None)
 
         mock_stream.__iter__ = lambda self: mock_stream_with_step()
-        mock_agents_client.runs.stream.return_value = mock_stream
+        mock_client.beta.threads.runs.stream.return_value = mock_stream
 
         # Act
         chunks = []
@@ -239,7 +244,7 @@ class TestStreamingManager:
         content_chunks = [chunk for chunk in chunks if '"type": "content"' in chunk]
         assert any("Step content" in chunk for chunk in content_chunks)
 
-    async def test_stream_from_azure_tool_execution_polling(self, streaming_manager, mock_agents_client, mock_tool_manager):
+    async def test_stream_from_azure_tool_execution_polling(self, streaming_manager, mock_client, mock_tool_manager):
         """Test polling after tool execution completion"""
         # Arrange - Mock stream with tool execution
         mock_stream = Mock()
@@ -247,24 +252,24 @@ class TestStreamingManager:
         mock_stream.__exit__ = Mock(return_value=None)
 
         def mock_stream_with_tools():
-            yield (StreamEventTypes.RUN_CREATED, Mock(id='run_123'), None)
-            yield (StreamEventTypes.RUN_REQUIRES_ACTION, Mock(id='run_123', required_action=Mock()), None)
+            yield Mock(event=StreamEventTypes.RUN_CREATED, data=Mock(id='run_123'))
+            yield Mock(event=StreamEventTypes.RUN_REQUIRES_ACTION, data=Mock(id='run_123', required_action=Mock()))
 
         mock_stream.__iter__ = lambda self: mock_stream_with_tools()
-        mock_agents_client.runs.stream.return_value = mock_stream
+        mock_client.beta.threads.runs.stream.return_value = mock_stream
 
         # Mock run polling progression
         polling_responses = [
             Mock(status="in_progress"),
             Mock(status="completed")
         ]
-        mock_agents_client.runs.get.side_effect = polling_responses
+        mock_client.beta.threads.runs.retrieve.side_effect = polling_responses
 
         # Mock message retrieval
         mock_message = Mock()
         mock_message.role = Mock(value="assistant")
         mock_message.content = [Mock(type="text", text=Mock(value="Tool response"))]
-        mock_agents_client.messages.list.return_value = [mock_message]
+        mock_client.beta.threads.messages.list.return_value = [mock_message]
 
         # Act
         chunks = []
@@ -273,13 +278,13 @@ class TestStreamingManager:
 
         # Assert
         # Should poll twice (in_progress, then completed)
-        assert mock_agents_client.runs.get.call_count == 2
+        assert mock_client.beta.threads.runs.retrieve.call_count == 2
 
         # Should get the assistant response
         content_chunks = [chunk for chunk in chunks if '"type": "content"' in chunk]
         assert any("Tool response" in chunk for chunk in content_chunks)
 
-    async def test_stream_from_azure_tool_polling_timeout(self, streaming_manager, mock_agents_client, mock_tool_manager):
+    async def test_stream_from_azure_tool_polling_timeout(self, streaming_manager, mock_client, mock_tool_manager):
         """Test tool execution polling timeout"""
         # Arrange - Mock stream with tool execution
         mock_stream = Mock()
@@ -287,14 +292,14 @@ class TestStreamingManager:
         mock_stream.__exit__ = Mock(return_value=None)
 
         def mock_stream_with_tools():
-            yield (StreamEventTypes.RUN_CREATED, Mock(id='run_123'), None)
-            yield (StreamEventTypes.RUN_REQUIRES_ACTION, Mock(id='run_123', required_action=Mock()), None)
+            yield Mock(event=StreamEventTypes.RUN_CREATED, data=Mock(id='run_123'))
+            yield Mock(event=StreamEventTypes.RUN_REQUIRES_ACTION, data=Mock(id='run_123', required_action=Mock()))
 
         mock_stream.__iter__ = lambda self: mock_stream_with_tools()
-        mock_agents_client.runs.stream.return_value = mock_stream
+        mock_client.beta.threads.runs.stream.return_value = mock_stream
 
         # Mock run that never completes (always in_progress)
-        mock_agents_client.runs.get.return_value = Mock(status="in_progress")
+        mock_client.beta.threads.runs.retrieve.return_value = Mock(status="in_progress")
 
         # Act with proper timeout mechanism
         chunks = []
@@ -312,7 +317,7 @@ class TestStreamingManager:
 
         # Assert
         # Should have made multiple polling attempts before timeout
-        assert mock_agents_client.runs.get.call_count >= 3
+        assert mock_client.beta.threads.runs.retrieve.call_count >= 3
 
     async def test_add_message_and_stream_convenience_method(self, streaming_manager):
         """Test the convenience method that combines message and streaming"""
@@ -342,7 +347,7 @@ class TestStreamingManager:
         assert '"type": "error"' in chunks[0]
         assert "Streaming failed" in chunks[0]
 
-    async def test_stream_from_azure_event_processing_error(self, streaming_manager, mock_agents_client):
+    async def test_stream_from_azure_event_processing_error(self, streaming_manager, mock_client):
         """Test error handling during event processing"""
         # Arrange - Mock stream that raises exception during event processing
         mock_stream = Mock()
@@ -350,13 +355,13 @@ class TestStreamingManager:
         mock_stream.__exit__ = Mock(return_value=None)
 
         def mock_stream_with_error():
-            yield (StreamEventTypes.RUN_CREATED, Mock(id='run_123'), None)
+            yield Mock(event=StreamEventTypes.RUN_CREATED, data=Mock(id='run_123'))
             # This will cause an error in event processing
-            yield ("invalid_event_type", "invalid_data", None)
-            yield (StreamEventTypes.RUN_COMPLETED, Mock(), None)
+            yield Mock(event="invalid_event_type", data="invalid_data")
+            yield Mock(event=StreamEventTypes.RUN_COMPLETED, data=Mock())
 
         mock_stream.__iter__ = lambda self: mock_stream_with_error()
-        mock_agents_client.runs.stream.return_value = mock_stream
+        mock_client.beta.threads.runs.stream.return_value = mock_stream
 
         # Act
         chunks = []
@@ -368,7 +373,7 @@ class TestStreamingManager:
         # (error is caught and logged, but streaming continues)
         assert len(chunks) > 0
 
-    async def test_stream_from_azure_no_content_accumulated(self, streaming_manager, mock_agents_client):
+    async def test_stream_from_azure_no_content_accumulated(self, streaming_manager, mock_client):
         """Test streaming when no content is accumulated"""
         # Arrange - Mock stream with no content
         mock_stream = Mock()
@@ -376,12 +381,12 @@ class TestStreamingManager:
         mock_stream.__exit__ = Mock(return_value=None)
 
         def mock_stream_no_content():
-            yield (StreamEventTypes.RUN_CREATED, Mock(id='run_123'), None)
-            yield (StreamEventTypes.RUN_COMPLETED, Mock(), None)
-            yield ("done", None, None)
+            yield Mock(event=StreamEventTypes.RUN_CREATED, data=Mock(id='run_123'))
+            yield Mock(event=StreamEventTypes.RUN_COMPLETED, data=Mock())
+            yield Mock(event="done", data=None)
 
         mock_stream.__iter__ = lambda self: mock_stream_no_content()
-        mock_agents_client.runs.stream.return_value = mock_stream
+        mock_client.beta.threads.runs.stream.return_value = mock_stream
 
         # Act
         chunks = []

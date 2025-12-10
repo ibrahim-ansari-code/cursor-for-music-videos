@@ -22,13 +22,13 @@ class StreamingManager:
 
     def __init__(
         self,
-        agents_client: Any,
+        client: Any,
         assistant_id: str,
         message_handler: Any,
         tool_manager: Any
     ) -> None:
         """Initialize with required components"""
-        self.agents_client = agents_client
+        self.client = client
         self.assistant_id = assistant_id
         self.message_handler = message_handler
         self.tool_manager = tool_manager
@@ -82,14 +82,16 @@ class StreamingManager:
             # Create and start the run with streaming
             logger.info(f"Starting streaming run for thread {thread_id}")
 
-            # Use the correct Azure AI Projects streaming pattern (synchronous)
-            with self.agents_client.runs.stream(
+            # Use OpenAI Assistants API streaming pattern
+            with self.client.beta.threads.runs.stream(
                 thread_id=thread_id,
-                agent_id=self.assistant_id,
+                assistant_id=self.assistant_id,
             ) as stream:
 
                 # Process stream events until done or tool execution
-                for event_type, event_data, _ in stream:
+                for event in stream:
+                    event_type = event.event
+                    event_data = event.data
                     try:
                         # Capture run ID for later use
                         if event_type == StreamEventTypes.RUN_CREATED:
@@ -166,7 +168,7 @@ class StreamingManager:
                     await asyncio.sleep(1.0)
 
                     try:
-                        run = self.agents_client.runs.get(
+                        run = self.client.beta.threads.runs.retrieve(
                             thread_id=thread_id,
                             run_id=current_run_id
                         )
@@ -175,7 +177,7 @@ class StreamingManager:
 
                         if run.status == "completed":
                             # Get the assistant's response message
-                            messages = list(self.agents_client.messages.list(
+                            messages = list(self.client.beta.threads.messages.list(
                                 thread_id=thread_id,
                                 order="desc",
                                 limit=5

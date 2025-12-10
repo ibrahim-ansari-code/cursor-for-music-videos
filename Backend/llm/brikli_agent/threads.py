@@ -22,9 +22,9 @@ class ThreadManager:
     deletion, readiness checks, and user-thread associations.
     """
 
-    def __init__(self, agents_client: Any) -> None:
-        """Initialize with Azure AI agents client"""
-        self.agents_client = agents_client
+    def __init__(self, client: Any) -> None:
+        """Initialize with Azure OpenAI client"""
+        self.client = client
 
     async def create_thread(self) -> str:
         """
@@ -35,8 +35,8 @@ class ThreadManager:
         """
         try:
             logger.info("Creating new thread")
-            # Use the correct API: client.agents.threads.create()
-            thread = self.agents_client.threads.create()
+            # Use OpenAI Assistants API: client.beta.threads.create()
+            thread = self.client.beta.threads.create()
             logger.info(f"Created thread with ID: {thread.id}")
             return thread.id
         except Exception as e:
@@ -45,7 +45,7 @@ class ThreadManager:
 
     async def delete_thread(self, thread_id: str) -> bool:
         """
-        Delete a thread from Azure AI
+        Delete a thread from Azure OpenAI
 
         Args:
             thread_id: The thread ID to delete
@@ -55,8 +55,8 @@ class ThreadManager:
         """
         try:
             logger.info(f"Deleting thread {thread_id}")
-            # Delete the thread using Azure AI API
-            self.agents_client.threads.delete(thread_id)
+            # Delete the thread using OpenAI API
+            self.client.beta.threads.delete(thread_id)
             logger.info(f"Successfully deleted thread {thread_id}")
             return True
         except Exception as e:
@@ -76,7 +76,7 @@ class ThreadManager:
         """
         try:
             # List active runs for this thread
-            runs = self.agents_client.runs.list(
+            runs = self.client.beta.threads.runs.list(
                 thread_id=thread_id,
                 limit=10,  # Check more runs
                 order="desc"
@@ -88,7 +88,7 @@ class ThreadManager:
                 if run.status not in ["completed", "failed", "cancelled", "expired"]:
                     logger.warning(f"Found non-completed run {run.id} with status {run.status}, canceling...")
                     try:
-                        self.agents_client.runs.cancel(
+                        self.client.beta.threads.runs.cancel(
                             thread_id=thread_id,
                             run_id=run.id
                         )

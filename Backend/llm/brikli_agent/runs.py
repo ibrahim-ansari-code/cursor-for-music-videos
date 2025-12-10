@@ -17,9 +17,9 @@ class RunManager:
     coordination for Azure AI conversation threads.
     """
 
-    def __init__(self, agents_client: Any, assistant_id: str, tool_manager: Any) -> None:
-        """Initialize with Azure AI agents client and assistant ID"""
-        self.agents_client = agents_client
+    def __init__(self, client: Any, assistant_id: str, tool_manager: Any) -> None:
+        """Initialize with Azure OpenAI client and assistant ID"""
+        self.client = client
         self.assistant_id = assistant_id
         self.tool_manager = tool_manager
 
@@ -42,16 +42,16 @@ class RunManager:
             logger.info(f"Adding message to thread {thread_id} and creating run")
 
             # Add user message to thread using correct API
-            self.agents_client.messages.create(
+            self.client.beta.threads.messages.create(
                 thread_id=thread_id,
                 role="user",
                 content=message_content
             )
 
             # Create and return run using correct API
-            run = self.agents_client.runs.create(
+            run = self.client.beta.threads.runs.create(
                 thread_id=thread_id,
-                agent_id=self.assistant_id
+                assistant_id=self.assistant_id
             )
 
             logger.info(f"Created run {run.id} for thread {thread_id}")
@@ -86,7 +86,7 @@ class RunManager:
             logger.info(f"Getting status for run {run_id} in thread {thread_id}")
 
             # Get run status using correct API
-            run = self.agents_client.runs.get(
+            run = self.client.beta.threads.runs.retrieve(
                 thread_id=thread_id,
                 run_id=run_id
             )

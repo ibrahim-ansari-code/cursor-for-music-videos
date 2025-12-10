@@ -10,18 +10,19 @@ from Backend.llm.brikli_agent.threads import ThreadManager
 
 
 @pytest.fixture
-def mock_agents_client():
-    """Create mock Azure AI agents client"""
+def mock_client():
+    """Create mock OpenAI client"""
     client = Mock()
-    client.threads = Mock()
-    client.runs = Mock()
+    client.beta = Mock()
+    client.beta.threads = Mock()
+    client.beta.threads.runs = Mock()
     return client
 
 
 @pytest.fixture
-def thread_manager(mock_agents_client):
+def thread_manager(mock_client):
     """Create ThreadManager instance with mock client"""
-    return ThreadManager(mock_agents_client)
+    return ThreadManager(mock_client)
 
 
 @pytest.fixture
@@ -33,29 +34,29 @@ def sample_user_id():
 class TestThreadManager:
     """Test cases for ThreadManager class"""
 
-    async def test_create_thread_success(self, thread_manager, mock_agents_client):
+    async def test_create_thread_success(self, thread_manager, mock_client):
         """Test successful thread creation"""
         # Arrange
         mock_thread = Mock(id="thread_123")
-        mock_agents_client.threads.create.return_value = mock_thread
+        mock_client.beta.threads.create.return_value = mock_thread
 
         # Act
         thread_id = await thread_manager.create_thread()
 
         # Assert
         assert thread_id == "thread_123"
-        mock_agents_client.threads.create.assert_called_once()
+        mock_client.beta.threads.create.assert_called_once()
 
-    async def test_create_thread_failure(self, thread_manager, mock_agents_client):
+    async def test_create_thread_failure(self, thread_manager, mock_client):
         """Test thread creation failure"""
         # Arrange
-        mock_agents_client.threads.create.side_effect = Exception("API error")
+        mock_client.beta.threads.create.side_effect = Exception("API error")
 
         # Act & Assert
         with pytest.raises(Exception, match="API error"):
             await thread_manager.create_thread()
 
-    async def test_delete_thread_success(self, thread_manager, mock_agents_client):
+    async def test_delete_thread_success(self, thread_manager, mock_client):
         """Test successful thread deletion"""
         # Arrange
         thread_id = "thread_123"
@@ -65,39 +66,39 @@ class TestThreadManager:
 
         # Assert
         assert result is True
-        mock_agents_client.threads.delete.assert_called_once_with(thread_id)
+        mock_client.beta.threads.delete.assert_called_once_with(thread_id)
 
-    async def test_delete_thread_failure_returns_false(self, thread_manager, mock_agents_client):
+    async def test_delete_thread_failure_returns_false(self, thread_manager, mock_client):
         """Test thread deletion failure returns False instead of raising"""
         # Arrange
         thread_id = "thread_123"
-        mock_agents_client.threads.delete.side_effect = Exception("Delete failed")
+        mock_client.beta.threads.delete.side_effect = Exception("Delete failed")
 
         # Act
         result = await thread_manager.delete_thread(thread_id)
 
         # Assert
         assert result is False
-        mock_agents_client.threads.delete.assert_called_once_with(thread_id)
+        mock_client.beta.threads.delete.assert_called_once_with(thread_id)
 
-    async def test_ensure_thread_ready_no_active_runs(self, thread_manager, mock_agents_client):
+    async def test_ensure_thread_ready_no_active_runs(self, thread_manager, mock_client):
         """Test ensuring thread readiness when no active runs exist"""
         # Arrange
         thread_id = "thread_123"
-        mock_agents_client.runs.list.return_value = []
+        mock_client.beta.threads.runs.list.return_value = []
 
         # Act
         result = await thread_manager.ensure_thread_ready(thread_id)
 
         # Assert
         assert result is True
-        mock_agents_client.runs.list.assert_called_once_with(
+        mock_client.beta.threads.runs.list.assert_called_once_with(
             thread_id=thread_id,
             limit=10,
             order="desc"
         )
 
-    async def test_ensure_thread_ready_with_completed_runs(self, thread_manager, mock_agents_client):
+    async def test_ensure_thread_ready_with_completed_runs(self, thread_manager, mock_client):
         """Test ensuring thread readiness with only completed runs"""
         # Arrange
         thread_id = "thread_123"
@@ -106,7 +107,7 @@ class TestThreadManager:
         cancelled_run = Mock(id="run_3", status="cancelled")
         expired_run = Mock(id="run_4", status="expired")
 
-        mock_agents_client.runs.list.return_value = [
+        mock_client.beta.threads.runs.list.return_value = [
             completed_run, failed_run, cancelled_run, expired_run
         ]
 
@@ -116,9 +117,9 @@ class TestThreadManager:
         # Assert
         assert result is True
         # Should not cancel any runs since they're already in terminal states
-        mock_agents_client.runs.cancel.assert_not_called()
+        mock_client.beta.threads.runs.cancel.assert_not_called()
 
-    async def test_ensure_thread_ready_cancels_active_runs(self, thread_manager, mock_agents_client):
+    async def test_ensure_thread_ready_cancels_active_runs(self, thread_manager, mock_client):
         """Test ensuring thread readiness cancels active runs"""
         # Arrange
         thread_id = "thread_123"
@@ -126,7 +127,7 @@ class TestThreadManager:
         queued_run = Mock(id="run_queued", status="queued")
         completed_run = Mock(id="run_completed", status="completed")
 
-        mock_agents_client.runs.list.return_value = [
+        mock_client.beta.threads.runs.list.return_value = [
             active_run, queued_run, completed_run
         ]
 
@@ -144,33 +145,33 @@ class TestThreadManager:
 
         actual_cancel_calls = [
             (call.kwargs['thread_id'], call.kwargs['run_id'])
-            for call in mock_agents_client.runs.cancel.call_args_list
+            for call in mock_client.beta.threads.runs.cancel.call_args_list
         ]
 
         assert len(actual_cancel_calls) == 2
         assert all(call in expected_cancel_calls for call in actual_cancel_calls)
 
-    async def test_ensure_thread_ready_cancel_failure_continues(self, thread_manager, mock_agents_client):
+    async def test_ensure_thread_ready_cancel_failure_continues(self, thread_manager, mock_client):
         """Test that cancellation failures don't stop the process"""
         # Arrange
         thread_id = "thread_123"
         active_run = Mock(id="run_active", status="in_progress")
 
-        mock_agents_client.runs.list.return_value = [active_run]
-        mock_agents_client.runs.cancel.side_effect = Exception("Cancel failed")
+        mock_client.beta.threads.runs.list.return_value = [active_run]
+        mock_client.beta.threads.runs.cancel.side_effect = Exception("Cancel failed")
 
         # Act
         result = await thread_manager.ensure_thread_ready(thread_id)
 
         # Assert
         assert result is True  # Should still return True despite cancellation failure
-        mock_agents_client.runs.cancel.assert_called_once()
+        mock_client.beta.threads.runs.cancel.assert_called_once()
 
-    async def test_ensure_thread_ready_list_failure(self, thread_manager, mock_agents_client):
+    async def test_ensure_thread_ready_list_failure(self, thread_manager, mock_client):
         """Test ensure thread readiness when listing runs fails"""
         # Arrange
         thread_id = "thread_123"
-        mock_agents_client.runs.list.side_effect = Exception("List failed")
+        mock_client.beta.threads.runs.list.side_effect = Exception("List failed")
 
         # Act
         result = await thread_manager.ensure_thread_ready(thread_id)
@@ -178,12 +179,12 @@ class TestThreadManager:
         # Assert
         assert result is False
 
-    async def test_ensure_thread_ready_waits_after_cancellation(self, thread_manager, mock_agents_client):
+    async def test_ensure_thread_ready_waits_after_cancellation(self, thread_manager, mock_client):
         """Test that ensure_thread_ready waits after cancelling runs"""
         # Arrange
         thread_id = "thread_123"
         active_run = Mock(id="run_active", status="in_progress")
-        mock_agents_client.runs.list.return_value = [active_run]
+        mock_client.beta.threads.runs.list.return_value = [active_run]
 
         # Track if sleep was called
         sleep_called = False
@@ -202,7 +203,7 @@ class TestThreadManager:
         # Assert
         assert result is True
         assert sleep_called
-        mock_agents_client.runs.cancel.assert_called_once()
+        mock_client.beta.threads.runs.cancel.assert_called_once()
 
     async def test_get_user_id_from_thread_success(self, thread_manager, sample_user_id):
         """Test successful user ID retrieval from thread mapping"""
@@ -244,7 +245,7 @@ class TestThreadManager:
         with pytest.raises(ValueError, match="No user found for thread thread_123"):
             await thread_manager.get_user_id_from_thread(thread_id, mock_session)
 
-    async def test_ensure_thread_ready_mixed_run_statuses(self, thread_manager, mock_agents_client):
+    async def test_ensure_thread_ready_mixed_run_statuses(self, thread_manager, mock_client):
         """Test ensuring thread readiness with mixed run statuses"""
         # Arrange
         thread_id = "thread_123"
@@ -258,7 +259,7 @@ class TestThreadManager:
             Mock(id="run_7", status="expired"),          # Should NOT be cancelled
         ]
 
-        mock_agents_client.runs.list.return_value = runs
+        mock_client.beta.threads.runs.list.return_value = runs
 
         # Act
         result = await thread_manager.ensure_thread_ready(thread_id)
@@ -267,18 +268,18 @@ class TestThreadManager:
         assert result is True
 
         # Should cancel exactly 3 runs (in_progress, queued, requires_action)
-        assert mock_agents_client.runs.cancel.call_count == 3
+        assert mock_client.beta.threads.runs.cancel.call_count == 3
 
         # Check which runs were cancelled
         cancelled_run_ids = [
             call.kwargs['run_id']
-            for call in mock_agents_client.runs.cancel.call_args_list
+            for call in mock_client.beta.threads.runs.cancel.call_args_list
         ]
 
         expected_cancelled = ["run_1", "run_2", "run_3"]
         assert sorted(cancelled_run_ids) == sorted(expected_cancelled)
 
-    async def test_ensure_thread_ready_concurrent_cancellation(self, thread_manager, mock_agents_client):
+    async def test_ensure_thread_ready_concurrent_cancellation(self, thread_manager, mock_client):
         """Test that multiple runs are cancelled concurrently"""
         # Arrange
         thread_id = "thread_123"
@@ -287,7 +288,7 @@ class TestThreadManager:
             for i in range(5)
         ]
 
-        mock_agents_client.runs.list.return_value = active_runs
+        mock_client.beta.threads.runs.list.return_value = active_runs
 
         # Track cancellation calls
         cancel_calls = []
@@ -295,7 +296,7 @@ class TestThreadManager:
         def mock_cancel(thread_id, run_id):
             cancel_calls.append((thread_id, run_id))
 
-        mock_agents_client.runs.cancel.side_effect = mock_cancel
+        mock_client.beta.threads.runs.cancel.side_effect = mock_cancel
 
         # Act
         result = await thread_manager.ensure_thread_ready(thread_id)

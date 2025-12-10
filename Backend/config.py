@@ -53,6 +53,13 @@ class Settings(BaseSettings):
 
     # === OpenAI API ===
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    
+    # === Azure OpenAI Configuration ===
+    AZURE_OPENAI_API_KEY: str = os.getenv("AZURE_OPENAI_API_KEY", "")
+    AZURE_OPENAI_ENDPOINT: str = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+    AZURE_OPENAI_DEPLOYMENT: str = os.getenv("AZURE_OPENAI_DEPLOYMENT", "")
+    AZURE_OPENAI_API_VERSION: str = os.getenv("AZURE_OPENAI_API_VERSION", "2025-01-01-preview")
+    AZURE_ASSISTANT_ID: str = os.getenv("AZURE_ASSISTANT_ID", "")
 
     # === JWT Settings ===
     SECRET_KEY: str = os.getenv("SECRET_KEY", "a_very_secret_key")
@@ -156,23 +163,6 @@ class Settings(BaseSettings):
     # === Internal API Key for Scheduled Jobs ===
     # Used by pg_cron to authenticate scheduled notification jobs
     INTERNAL_CRON_API_KEY: str = os.getenv("INTERNAL_CRON_API_KEY", "")
-    
-    # === Azure AI Agent Configuration ===
-    # Azure AI Foundry project endpoint for the Brikli Agent
-    AZURE_AGENT_ENDPOINT: str = os.getenv("AZURE_AGENT_ENDPOINT", "")
-    # Assistant ID from Azure AI Studio
-    AZURE_ASSISTANT_ID: str = os.getenv("AZURE_ASSISTANT_ID", "")
-    
-    # === Azure Authentication Options ===
-    # Option 1: Service Principal (Recommended for production)
-    AZURE_CLIENT_ID: str = os.getenv("AZURE_CLIENT_ID", "")
-    AZURE_CLIENT_SECRET: str = os.getenv("AZURE_CLIENT_SECRET", "")
-    AZURE_TENANT_ID: str = os.getenv("AZURE_TENANT_ID", "")
-    
-    # Option 2: API Key (Simple fallback if Service Principal/Managed Identity not available)
-    # DEPRECATED: API Key authentication is no longer supported for Azure AI Agents
-    # Please use Service Principal, Managed Identity, or Azure CLI authentication instead
-    AZURE_AGENT_API_KEY: str = os.getenv("AZURE_AGENT_API_KEY", "")
 
     # === reCAPTCHA (Google) ===
     # Secret key from Google reCAPTCHA admin (v3 recommended)
@@ -239,12 +229,12 @@ class Settings(BaseSettings):
                 stacklevel=2,
             )
         
-        # Validate Azure AI Agent configuration (warning - optional until fully implemented)
-        if not self.AZURE_AGENT_ENDPOINT or not self.AZURE_ASSISTANT_ID:
+        # Validate Azure AI Assistant configuration (warning - optional until fully implemented)
+        if not self.AZURE_ASSISTANT_ID:
             warnings.warn(
-                "Azure AI Agent is not fully configured. "
-                "AZURE_AGENT_ENDPOINT and AZURE_ASSISTANT_ID must both be set. "
-                "The AI Assistant feature will not work until these are configured.",
+                "Azure AI Assistant is not configured. "
+                "AZURE_ASSISTANT_ID must be set. "
+                "The AI Assistant feature will not work until this is configured.",
                 RuntimeWarning,
                 stacklevel=2
             )
@@ -260,8 +250,6 @@ class Settings(BaseSettings):
             )
 
     # === Additional Settings ===
-    AZURE_OPENAI_ENDPOINT: str = os.getenv("AZURE_OPENAI_ENDPOINT", "")
-
     DEBUG: bool = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
 
     model_config = SettingsConfigDict(env_file=env_path, extra="allow")

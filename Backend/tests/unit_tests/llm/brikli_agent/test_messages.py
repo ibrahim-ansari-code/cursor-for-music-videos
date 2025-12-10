@@ -9,10 +9,12 @@ from Backend.llm.brikli_agent.messages import MessageHandler
 
 
 @pytest.fixture
-def mock_agents_client():
-    """Create mock Azure AI agents client"""
+def mock_client():
+    """Create mock OpenAI client"""
     client = Mock()
-    client.messages = Mock()
+    client.beta = Mock()
+    client.beta.threads = Mock()
+    client.beta.threads.messages = Mock()
     return client
 
 
@@ -24,15 +26,15 @@ def mock_thread_manager():
 
 
 @pytest.fixture
-def message_handler(mock_agents_client, mock_thread_manager):
+def message_handler(mock_client, mock_thread_manager):
     """Create MessageHandler instance with mocks"""
-    return MessageHandler(mock_agents_client, mock_thread_manager)
+    return MessageHandler(mock_client, mock_thread_manager)
 
 
 class TestMessageHandler:
     """Test cases for MessageHandler class"""
 
-    async def test_get_messages_success(self, message_handler, mock_agents_client):
+    async def test_get_messages_success(self, message_handler, mock_client):
         """Test successful message retrieval"""
         # Arrange
         thread_id = "thread_123"
@@ -43,7 +45,10 @@ class TestMessageHandler:
         mock_message.content = [Mock(type="text", text=Mock(value="Hello!"))]
         mock_message.created_at = datetime.now()
 
-        mock_agents_client.messages.list.return_value = [mock_message]
+        # OpenAI returns a paginated response that's iterable
+        mock_paged_response = Mock()
+        mock_paged_response.__iter__ = Mock(return_value=iter([mock_message]))
+        mock_client.beta.threads.messages.list.return_value = mock_paged_response
 
         # Act
         messages = await message_handler.get_messages(thread_id, limit=10)
@@ -54,13 +59,13 @@ class TestMessageHandler:
         assert messages[0]["content"] == "Hello!"
         assert messages[0]["id"] == "msg_123"
 
-        mock_agents_client.messages.list.assert_called_once_with(
+        mock_client.beta.threads.messages.list.assert_called_once_with(
             thread_id=thread_id,
             order="asc",
             limit=10
         )
 
-    async def test_get_messages_filters_duplicates(self, message_handler, mock_agents_client):
+    async def test_get_messages_filters_duplicates(self, message_handler, mock_client):
         """Test that duplicate messages are filtered out"""
         # Arrange
         thread_id = "thread_123"
@@ -78,7 +83,7 @@ class TestMessageHandler:
         mock_message2.content = [Mock(type="text", text=Mock(value="Duplicate"))]
         mock_message2.created_at = datetime.now()
 
-        mock_agents_client.messages.list.return_value = [mock_message1, mock_message2]
+        mock_client.beta.threads.messages.list.return_value = [mock_message1, mock_message2]
 
         # Act
         messages = await message_handler.get_messages(thread_id)
@@ -87,7 +92,7 @@ class TestMessageHandler:
         assert len(messages) == 1  # Duplicate should be filtered
         assert messages[0]["content"] == "First"
 
-    async def test_get_messages_handles_different_content_types(self, message_handler, mock_agents_client):
+    async def test_get_messages_handles_different_content_types(self, message_handler, mock_client):
         """Test handling different message content types"""
         # Arrange
         thread_id = "thread_123"
@@ -113,7 +118,7 @@ class TestMessageHandler:
         other_message.content = [Mock(type="image")]
         other_message.created_at = datetime.now()
 
-        mock_agents_client.messages.list.return_value = [text_message, string_message, other_message]
+        mock_client.beta.threads.messages.list.return_value = [text_message, string_message, other_message]
 
         # Act
         messages = await message_handler.get_messages(thread_id)
@@ -124,7 +129,7 @@ class TestMessageHandler:
         assert messages[0]["content"] == "Text message"
         assert messages[1]["content"] == "Direct string"
 
-    async def test_get_messages_skips_empty_content(self, message_handler, mock_agents_client):
+    async def test_get_messages_skips_empty_content(self, message_handler, mock_client):
         """Test that messages with empty content are skipped"""
         # Arrange
         thread_id = "thread_123"
@@ -143,7 +148,7 @@ class TestMessageHandler:
         empty_message.content = [Mock(type="text", text=Mock(value=""))]
         empty_message.created_at = datetime.now()
 
-        mock_agents_client.messages.list.return_value = [valid_message, empty_message]
+        mock_client.beta.threads.messages.list.return_value = [valid_message, empty_message]
 
         # Act
         messages = await message_handler.get_messages(thread_id)
@@ -152,17 +157,17 @@ class TestMessageHandler:
         assert len(messages) == 1
         assert messages[0]["content"] == "Valid content"
 
-    async def test_get_messages_failure(self, message_handler, mock_agents_client):
+    async def test_get_messages_failure(self, message_handler, mock_client):
         """Test message retrieval failure handling"""
         # Arrange
         thread_id = "thread_123"
-        mock_agents_client.messages.list.side_effect = Exception("API error")
+        mock_client.beta.threads.messages.list.side_effect = Exception("API error")
 
         # Act & Assert
         with pytest.raises(Exception, match="API error"):
             await message_handler.get_messages(thread_id)
 
-    async def test_add_user_message_to_thread_success(self, message_handler, mock_agents_client, mock_thread_manager):
+    async def test_add_user_message_to_thread_success(self, message_handler, mock_client, mock_thread_manager):
         """Test successful user message addition"""
         # Arrange
         thread_id = "thread_123"
@@ -175,7 +180,7 @@ class TestMessageHandler:
         # Assert
         assert result is True
         mock_thread_manager.ensure_thread_ready.assert_called_once_with(thread_id)
-        mock_agents_client.messages.create.assert_called_once_with(
+        mock_client.beta.threads.messages.create.assert_called_once_with(
             thread_id=thread_id,
             role="user",
             content=message_content
@@ -194,13 +199,13 @@ class TestMessageHandler:
         # Assert
         assert result is False
 
-    async def test_add_user_message_creation_failure(self, message_handler, mock_agents_client, mock_thread_manager):
+    async def test_add_user_message_creation_failure(self, message_handler, mock_client, mock_thread_manager):
         """Test message addition when creation fails"""
         # Arrange
         thread_id = "thread_123"
         message_content = "Hello!"
         mock_thread_manager.ensure_thread_ready.return_value = True
-        mock_agents_client.messages.create.side_effect = Exception("Creation failed")
+        mock_client.beta.threads.messages.create.side_effect = Exception("Creation failed")
 
         # Act
         result = await message_handler.add_user_message_to_thread(thread_id, message_content)
@@ -208,7 +213,7 @@ class TestMessageHandler:
         # Assert
         assert result is False
 
-    async def test_get_messages_handles_missing_attributes(self, message_handler, mock_agents_client):
+    async def test_get_messages_handles_missing_attributes(self, message_handler, mock_client):
         """Test handling messages with missing attributes"""
         # Arrange
         thread_id = "thread_123"
@@ -227,7 +232,7 @@ class TestMessageHandler:
         valid_message.content = [Mock(type="text", text=Mock(value="Valid"))]
         valid_message.created_at = datetime.now()
 
-        mock_agents_client.messages.list.return_value = [message_no_id, valid_message]
+        mock_client.beta.threads.messages.list.return_value = [message_no_id, valid_message]
 
         # Act
         messages = await message_handler.get_messages(thread_id)
@@ -237,7 +242,7 @@ class TestMessageHandler:
         assert len(messages) == 1
         assert messages[0]["content"] == "Valid"
 
-    async def test_get_messages_with_complex_content_structure(self, message_handler, mock_agents_client):
+    async def test_get_messages_with_complex_content_structure(self, message_handler, mock_client):
         """Test handling complex content structures"""
         # Arrange
         thread_id = "thread_123"
@@ -256,7 +261,7 @@ class TestMessageHandler:
         complex_message.content = [content_part]
         complex_message.created_at = datetime.now()
 
-        mock_agents_client.messages.list.return_value = [complex_message]
+        mock_client.beta.threads.messages.list.return_value = [complex_message]
 
         # Act
         messages = await message_handler.get_messages(thread_id)
@@ -265,11 +270,11 @@ class TestMessageHandler:
         assert len(messages) == 1
         assert messages[0]["content"] == "Nested content"
 
-    async def test_get_messages_empty_response(self, message_handler, mock_agents_client):
+    async def test_get_messages_empty_response(self, message_handler, mock_client):
         """Test handling empty message list response"""
         # Arrange
         thread_id = "thread_123"
-        mock_agents_client.messages.list.return_value = []
+        mock_client.beta.threads.messages.list.return_value = []
 
         # Act
         messages = await message_handler.get_messages(thread_id)

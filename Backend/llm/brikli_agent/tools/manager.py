@@ -20,9 +20,9 @@ class ToolManager:
     and coordinates tool execution during conversations.
     """
 
-    def __init__(self, agents_client: Any, assistant_id: str, thread_manager: Any) -> None:
-        """Initialize with Azure AI agents client and assistant ID"""
-        self.agents_client = agents_client
+    def __init__(self, client: Any, assistant_id: str, thread_manager: Any) -> None:
+        """Initialize with Azure OpenAI client and assistant ID"""
+        self.client = client
         self.assistant_id = assistant_id
         self.thread_manager = thread_manager
 
@@ -41,8 +41,8 @@ class ToolManager:
 
             # Update the existing assistant with tools using Azure AI Agents SDK
             # The update_agent method is used to update the assistant
-            updated_agent = self.agents_client.update_agent(
-                agent_id=self.assistant_id,
+            updated_agent = self.client.beta.assistants.update(
+                assistant_id=self.assistant_id,
                 tools=tools
             )
 
@@ -186,7 +186,7 @@ class ToolManager:
                     )
 
                 # Submit tool outputs back to Azure AI
-                self.agents_client.runs.submit_tool_outputs(
+                self.client.beta.threads.runs.submit_tool_outputs(
                     thread_id=thread_id,
                     run_id=run_id,
                     tool_outputs=tool_outputs

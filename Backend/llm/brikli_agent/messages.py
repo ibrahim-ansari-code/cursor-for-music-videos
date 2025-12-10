@@ -15,9 +15,9 @@ class MessageHandler:
     addition to conversation threads.
     """
 
-    def __init__(self, agents_client: Any, thread_manager: Any) -> None:
-        """Initialize with Azure AI agents client and thread manager"""
-        self.agents_client = agents_client
+    def __init__(self, client: Any, thread_manager: Any) -> None:
+        """Initialize with Azure OpenAI client and thread manager"""
+        self.client = client
         self.thread_manager = thread_manager
 
     async def get_messages(
@@ -39,7 +39,7 @@ class MessageHandler:
             logger.info(f"Getting messages from thread {thread_id}")
 
             # Get messages from thread using correct API
-            messages_paged = self.agents_client.messages.list(
+            messages_paged = self.client.beta.threads.messages.list(
                 thread_id=thread_id,
                 order="asc",
                 limit=limit
@@ -120,7 +120,7 @@ class MessageHandler:
                 return False
 
             # Add the message
-            self.agents_client.messages.create(
+            self.client.beta.threads.messages.create(
                 thread_id=thread_id,
                 role="user",
                 content=message_content
