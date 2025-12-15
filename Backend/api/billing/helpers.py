@@ -103,6 +103,10 @@ async def get_user_subscription(
     """
     Get user's active subscription.
     
+    Prioritizes active/trialing subscriptions over canceled ones.
+    Returns the most recent active subscription, or if none exist,
+    the most recent subscription record.
+    
     Args:
         user_id: User ID
         session: Database session
@@ -110,13 +114,29 @@ async def get_user_subscription(
     Returns:
         UserSubscription or None if no subscription
     """
+    # First, try to get an active or trialing subscription
     result = await session.execute(
         select(UserSubscription)
-        .where(col(UserSubscription.user_id) == user_id)
+        .where(
+            col(UserSubscription.user_id) == user_id,
+            col(UserSubscription.status).in_(['active', 'trialing'])
+        )
         .order_by(col(UserSubscription.created_at).desc())
         .limit(1)
     )
-    return result.scalar_one_or_none()
+    subscription = result.scalar_one_or_none()
+    
+    # If no active subscription, fall back to most recent (for historical data)
+    if not subscription:
+        result = await session.execute(
+            select(UserSubscription)
+            .where(col(UserSubscription.user_id) == user_id)
+            .order_by(col(UserSubscription.created_at).desc())
+            .limit(1)
+        )
+        subscription = result.scalar_one_or_none()
+    
+    return subscription
 
 
 def calculate_days_left_in_trial(trial_end: Optional[datetime]) -> Optional[int]:
