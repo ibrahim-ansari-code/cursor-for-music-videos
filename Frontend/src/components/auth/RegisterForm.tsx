@@ -529,7 +529,7 @@ const RegisterForm: React.FC = () => {
                   touched.firstName && fieldErrors.firstName
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                     : "border-gray-300 focus:border-brand-teal focus:ring-brand-teal"
-                } px-3 py-2 shadow-sm focus:outline-none sm:text-sm`}
+                } px-3 py-2 shadow-sm focus:outline-none sm:text-sm bg-white text-gray-900`}
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 onBlur={() => handleBlur('firstName')}
@@ -554,7 +554,7 @@ const RegisterForm: React.FC = () => {
                   touched.lastName && fieldErrors.lastName
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                     : "border-gray-300 focus:border-brand-teal focus:ring-brand-teal"
-                } px-3 py-2 shadow-sm focus:outline-none sm:text-sm`}
+                } px-3 py-2 shadow-sm focus:outline-none sm:text-sm bg-white text-gray-900`}
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 onBlur={() => handleBlur('lastName')}
@@ -580,7 +580,7 @@ const RegisterForm: React.FC = () => {
                 touched.phone && fieldErrors.phone
                   ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                   : "border-gray-300 focus:border-brand-teal focus:ring-brand-teal"
-              } px-3 py-2 shadow-sm focus:outline-none sm:text-sm`}
+              } px-3 py-2 shadow-sm focus:outline-none sm:text-sm bg-white text-gray-900`}
               placeholder="(555) 123-4567"
               value={phone}
               onChange={handlePhoneChange}
@@ -607,7 +607,7 @@ const RegisterForm: React.FC = () => {
                 touched.email && fieldErrors.email
                   ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                   : "border-gray-300 focus:border-brand-teal focus:ring-brand-teal"
-              } px-3 py-2 shadow-sm focus:outline-none sm:text-sm`}
+              } px-3 py-2 shadow-sm focus:outline-none sm:text-sm bg-white text-gray-900`}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onBlur={() => handleBlur('email')}
@@ -634,7 +634,7 @@ const RegisterForm: React.FC = () => {
                   touched.password && fieldErrors.password
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                     : "border-gray-300 focus:border-brand-teal focus:ring-brand-teal"
-                } px-3 py-2 pr-10 shadow-sm focus:outline-none sm:text-sm`}
+                } px-3 py-2 pr-10 shadow-sm focus:outline-none sm:text-sm bg-white text-gray-900`}
                 value={password}
                 onChange={handlePasswordChange}
                 onFocus={() => setIsPasswordFocused(true)}
@@ -708,7 +708,7 @@ const RegisterForm: React.FC = () => {
                   touched.confirmPassword && fieldErrors.confirmPassword
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                     : "border-gray-300 focus:border-brand-teal focus:ring-brand-teal"
-                } px-3 py-2 pr-10 shadow-sm focus:outline-none sm:text-sm`}
+                } px-3 py-2 pr-10 shadow-sm focus:outline-none sm:text-sm bg-white text-gray-900`}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 onBlur={() => handleBlur('confirmPassword')}

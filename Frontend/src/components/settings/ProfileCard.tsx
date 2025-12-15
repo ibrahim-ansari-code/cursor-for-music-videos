@@ -20,11 +20,11 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, onAvatarUpdate }) => {
   const getInitials = (firstName?: string, lastName?: string): string =>
     `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
 
-  // Format date helper
+  // Format date helper - shows first 3 letters of month
   const formatDate = (dateString?: string): string => {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
   };
 
   // Format phone number for display

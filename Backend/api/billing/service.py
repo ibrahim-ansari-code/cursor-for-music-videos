@@ -116,10 +116,11 @@ class BillingService:
         Create Stripe Checkout Session for subscription.
         
         Flow:
-        1. Get/create Stripe customer for user
-        2. Get platform price
-        3. Create Checkout Session with 14-day trial
-        4. Return checkout URL
+        1. Check for existing active subscriptions (prevent duplicates)
+        2. Get/create Stripe customer for user
+        3. Get platform price
+        4. Create Checkout Session with 14-day trial
+        5. Return checkout URL
         
         Args:
             user: Current user
@@ -131,10 +132,22 @@ class BillingService:
             CheckoutSessionResponse with checkout URL
             
         Raises:
-            ValueError: If price not configured
+            ValueError: If price not configured or user already has active subscription
             StripeError: If Stripe API fails
         """
         try:
+            # DUPLICATE PREVENTION: Check if user already has an active subscription
+            existing_sub = await get_user_subscription(user.id, session)
+            if existing_sub and is_subscription_active(existing_sub):
+                logger.warning(
+                    f"User {user.id} attempted to create duplicate subscription | "
+                    f"existing_sub={existing_sub.id} | status={existing_sub.status}"
+                )
+                raise ValueError(
+                    "You already have an active subscription. "
+                    "Please manage your existing subscription in the billing portal."
+                )
+            
             # Get or create Stripe customer
             customer_id = await get_or_create_stripe_customer(user, session)
             

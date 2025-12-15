@@ -186,15 +186,17 @@ class TestGetSubscriptionStatus:
 class TestCreateCheckoutSession:
     """Tests for create_checkout_session."""
     
+    @patch('Backend.api.billing.service.get_user_subscription')
     @patch('Backend.api.billing.service.get_platform_price')
     @patch('Backend.api.billing.service.get_or_create_stripe_customer')
     @patch('Backend.api.billing.service.get_stripe_client')
     async def test_creates_checkout_session(
-        self, mock_get_stripe_client, mock_get_customer, mock_get_price,
+        self, mock_get_stripe_client, mock_get_customer, mock_get_price, mock_get_user_sub,
         mock_user, mock_session, mock_subscription_plan
     ):
         """Test creates Stripe checkout session."""
         # Arrange
+        mock_get_user_sub.return_value = None  # No existing subscription
         mock_get_price.return_value = mock_subscription_plan
         mock_get_customer.return_value = "cus_test123"
         
@@ -220,6 +222,24 @@ class TestCreateCheckoutSession:
         # Assert
         assert result.checkout_url == "https://checkout.stripe.com/test"
         assert result.session_id == "cs_test123"
+    
+    @patch('Backend.api.billing.service.get_user_subscription')
+    async def test_prevents_duplicate_subscription(
+        self, mock_get_user_sub,
+        mock_user, mock_session, mock_active_subscription
+    ):
+        """Test prevents creating checkout session when user has active subscription."""
+        # Arrange
+        mock_get_user_sub.return_value = mock_active_subscription  # User has active subscription
+        
+        # Act & Assert
+        with pytest.raises(ValueError, match="already have an active subscription"):
+            await BillingService.create_checkout_session(
+                mock_user,
+                success_url="https://app.brikli.com/success",
+                cancel_url="https://app.brikli.com/cancel",
+                session=mock_session
+            )
 
 
 class TestCreateCustomerPortalSession:

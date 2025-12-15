@@ -1,10 +1,46 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Label, Input, Button } from "../ui/SharedModalComponents";
+import { Label, Input, Button} from "../ui/SharedModalComponents";
 import { updateUserProfile } from "../../utils/api/users";
 import { toast } from "react-toastify";
 
+// Types
+interface User {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  postal_code?: string;
+}
+
+interface FormData {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  province: string;
+  postal_code: string;
+}
+
+interface FormErrors {
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  form?: string;
+}
+
+interface ProfileFormProps {
+  user: User;
+  onProfileUpdate?: (data: Partial<User>) => void;
+}
+
 // Format phone number as (XXX) XXX-XXXX
-const formatPhoneNumber = (value) => {
+const formatPhoneNumber = (value: string): string => {
   // Remove all non-digit characters
   let phoneNumber = value.replace(/\D/g, '');
   
@@ -28,8 +64,8 @@ const formatPhoneNumber = (value) => {
   }
 };
 
-// Initial state constant to avoid duplication
-const INITIAL_FORM_STATE = {
+// Initial state constant
+const INITIAL_FORM_STATE: FormData = {
   first_name: "",
   last_name: "",
   email: "",
@@ -40,15 +76,15 @@ const INITIAL_FORM_STATE = {
   postal_code: "",
 };
 
-const ProfileForm = ({ user, onProfileUpdate }) => {
-  const [formData, setFormData] = useState(INITIAL_FORM_STATE);
-  const [initialData, setInitialData] = useState(INITIAL_FORM_STATE);
+const ProfileForm: React.FC<ProfileFormProps> = ({ user, onProfileUpdate }) => {
+  const [formData, setFormData] = useState<FormData>(INITIAL_FORM_STATE);
+  const [initialData, setInitialData] = useState<FormData>(INITIAL_FORM_STATE);
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<FormErrors>({});
 
   useEffect(() => {
     if (user) {
-      const userData = {
+      const userData: FormData = {
         first_name: (user.first_name || "").trim(),
         last_name: (user.last_name || "").trim(),
         email: user.email || "",
@@ -63,7 +99,7 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
     }
   }, [user]);
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     
     // Special handling for phone number
@@ -75,17 +111,18 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
     }
     
     // Clear error for this field
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }));
+    if (errors[name as keyof FormErrors]) {
+      setErrors(prev => ({ ...prev, [name]: undefined }));
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (!(formData.first_name || '').trim()) {
+  const validateForm = (): FormErrors => {
+    const newErrors: FormErrors = {};
+    
+    if (!formData.first_name.trim()) {
       newErrors.first_name = "First name is required";
     }
-    if (!(formData.last_name || '').trim()) {
+    if (!formData.last_name.trim()) {
       newErrors.last_name = "Last name is required";
     }
     if (formData.phone) {
@@ -112,7 +149,7 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
     return newErrors;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     const validationErrors = validateForm();
@@ -125,14 +162,12 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
     setErrors({});
 
     // Remove formatting from phone number before sending to backend
-    const phoneDigits = (formData.phone || '').replace(/\D/g, '');
+    const phoneDigits = formData.phone.replace(/\D/g, '');
     
     // Build data object, only including non-empty values for optional fields
-    // This ensures the backend stores NULL instead of empty strings in the database,
-    // and properly utilizes the exclude_unset=True behavior in the API endpoint
-    const dataToUpdate = {
-      first_name: (formData.first_name || '').trim(),
-      last_name: (formData.last_name || '').trim(),
+    const dataToUpdate: Partial<User> = {
+      first_name: formData.first_name.trim(),
+      last_name: formData.last_name.trim(),
     };
 
     // Only add optional fields if they have actual content
@@ -140,22 +175,22 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
       dataToUpdate.phone = phoneDigits;
     }
     
-    const trimmedAddress = (formData.address || '').trim();
+    const trimmedAddress = formData.address.trim();
     if (trimmedAddress) {
       dataToUpdate.address = trimmedAddress;
     }
     
-    const trimmedCity = (formData.city || '').trim();
+    const trimmedCity = formData.city.trim();
     if (trimmedCity) {
       dataToUpdate.city = trimmedCity;
     }
     
-    const trimmedProvince = (formData.province || '').trim();
+    const trimmedProvince = formData.province.trim();
     if (trimmedProvince) {
       dataToUpdate.province = trimmedProvince;
     }
     
-    const trimmedPostalCode = (formData.postal_code || '').trim();
+    const trimmedPostalCode = formData.postal_code.trim();
     if (trimmedPostalCode) {
       dataToUpdate.postal_code = trimmedPostalCode;
     }
@@ -165,10 +200,10 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
       toast.success("Profile updated successfully!");
       
       // Update form state with trimmed values
-      const updatedFormData = {
+      const updatedFormData: FormData = {
         ...formData,
-        first_name: dataToUpdate.first_name,
-        last_name: dataToUpdate.last_name,
+        first_name: dataToUpdate.first_name!,
+        last_name: dataToUpdate.last_name!,
         phone: formData.phone, // Keep the formatted phone number in the form
         address: trimmedAddress || "",
         city: trimmedCity || "",
@@ -182,7 +217,7 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
       if (onProfileUpdate) {
         onProfileUpdate(dataToUpdate);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating profile:", error);
       toast.error(`Failed to update profile: ${error.message || "Server error"}`);
       setErrors({ form: "Failed to update profile. Please try again." });
@@ -192,19 +227,21 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
   };
 
   const hasChanges = useMemo(() => {
-    // Compare each field directly without creating intermediate objects
-    return (formData.first_name || '').trim() !== (initialData.first_name || '').trim() ||
-           (formData.last_name || '').trim() !== (initialData.last_name || '').trim() ||
-           (formData.phone || '').replace(/\D/g, '') !== (initialData.phone || '').replace(/\D/g, '') ||
-           (formData.address || '').trim() !== (initialData.address || '').trim() ||
-           (formData.city || '').trim() !== (initialData.city || '').trim() ||
-           (formData.province || '').trim() !== (initialData.province || '').trim() ||
-           (formData.postal_code || '').trim() !== (initialData.postal_code || '').trim();
+    // Compare each field directly
+    return formData.first_name.trim() !== initialData.first_name.trim() ||
+           formData.last_name.trim() !== initialData.last_name.trim() ||
+           formData.phone.replace(/\D/g, '') !== initialData.phone.replace(/\D/g, '') ||
+           formData.address.trim() !== initialData.address.trim() ||
+           formData.city.trim() !== initialData.city.trim() ||
+           formData.province.trim() !== initialData.province.trim() ||
+           formData.postal_code.trim() !== initialData.postal_code.trim();
   }, [formData, initialData]);
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 transition-colors duration-300">Personal Information</h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 transition-colors duration-300">
+        Personal Information
+      </h2>
       
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Name Fields */}
@@ -217,7 +254,7 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
               value={formData.first_name}
               onChange={handleChange}
               placeholder="Enter your first name"
-              className="bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
+              className="bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
             />
             {errors.first_name && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.first_name}</p>
@@ -232,7 +269,7 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
               value={formData.last_name}
               onChange={handleChange}
               placeholder="Enter your last name"
-              className="bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
+              className="bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
             />
             {errors.last_name && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.last_name}</p>
@@ -277,7 +314,9 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
 
         {/* Address Section */}
         <div className="pt-6 border-t border-gray-200 dark:border-gray-700 transition-colors duration-300">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 transition-colors duration-300">Address Information</h3>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 transition-colors duration-300">
+            Address Information
+          </h3>
 
           <div className="space-y-5">
             <div>
@@ -288,7 +327,7 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
                 value={formData.address}
                 onChange={handleChange}
                 placeholder="123 Main Street"
-                className="bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
+                className="bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
               />
             </div>
 
@@ -301,7 +340,7 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
                   value={formData.city}
                   onChange={handleChange}
                   placeholder="Toronto"
-                  className="bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
+                  className="bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
                 />
               </div>
 
@@ -313,7 +352,7 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
                   value={formData.province}
                   onChange={handleChange}
                   placeholder="Ontario"
-                  className="bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
+                  className="bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
                 />
               </div>
 
@@ -325,7 +364,7 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
                   value={formData.postal_code}
                   onChange={handleChange}
                   placeholder="M5H 2N2"
-                  className="bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100 transition-colors duration-300"
+                  className="bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors duration-300"
                 />
               </div>
             </div>
@@ -355,3 +394,4 @@ const ProfileForm = ({ user, onProfileUpdate }) => {
 };
 
 export default ProfileForm;
+

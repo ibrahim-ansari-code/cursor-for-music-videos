@@ -82,15 +82,24 @@ const BillingSettings: React.FC = () => {
 
       // Redirect to Stripe Checkout
       window.location.href = checkout_url;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create checkout session:', err);
-      setError('Failed to start checkout. Please try again.');
+      
+      // Handle duplicate subscription error
+      const errorMessage = err?.message || 'Failed to start checkout. Please try again.';
+      if (errorMessage.includes('already have an active subscription')) {
+        setError('You already have an active subscription. Refresh the page to see your current plan.');
+      } else {
+        setError(errorMessage);
+      }
+      
       setActionLoading(false);
       
       Sentry.captureException(err, {
         tags: {
           component: 'BillingSettings',
           action: 'create_checkout_session',
+          duplicate_subscription: errorMessage.includes('already have an active subscription'),
         },
       });
     }
