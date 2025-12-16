@@ -2,7 +2,7 @@
 Service layer for rent tracker business logic.
 """
 import logging
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional, List
 
@@ -384,9 +384,9 @@ class RentTrackerService:
         lease_id: int,
         month_start: date,
         month_end: date
-    ) -> Optional[date]:
+    ) -> Optional[datetime]:
         """
-        Get the date of the most recent payment for a lease.
+        Get the datetime of the most recent payment for a lease.
         
         Args:
             session: Database session
@@ -395,7 +395,7 @@ class RentTrackerService:
             month_end: End of the period
             
         Returns:
-            Date of last payment or None
+            Datetime of last payment or None
         """
         query = select(func.max(Payment.payment_date)).where(
             and_(
@@ -407,7 +407,10 @@ class RentTrackerService:
         )
         
         result = await session.execute(query)
-        return result.scalar()
+        last_payment_datetime = result.scalar()
+        
+        # Return datetime as-is (consistent with codebase datetime usage)
+        return last_payment_datetime
     
     @staticmethod
     async def _get_summary_aggregation(

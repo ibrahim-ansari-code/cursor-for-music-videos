@@ -1,7 +1,7 @@
 """
 Pydantic schemas for rent tracker functionality.
 """
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Optional
@@ -34,7 +34,7 @@ class RentTrackingEntry(BaseModel):
     remaining_due: Decimal = Field(..., description="Remaining amount due for the period")
     status: RentStatus = Field(..., description="Current payment status")
     due_date: Optional[date] = Field(None, description="Rent due date for the period")
-    last_payment_date: Optional[date] = Field(None, description="Date of the most recent payment")
+    last_payment_date: Optional[datetime] = Field(None, description="Date and time of the most recent payment")
     days_overdue: Optional[int] = Field(None, description="Number of days overdue if applicable")
 
     model_config = ConfigDict(from_attributes=True)
