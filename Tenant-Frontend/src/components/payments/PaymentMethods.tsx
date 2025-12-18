@@ -33,9 +33,9 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
   );
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-900">Payment Methods</h2>
+        <h2 className="text-lg font-semibold text-gray-800">Payment Methods</h2>
       </div>
       
       {paymentMethods.length === 0 && <EmptyMethodsState />}
@@ -54,9 +54,9 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
 
       <button
         onClick={onAddPaymentMethod}
-        className="w-full border-2 border-dashed border-gray-300 text-gray-600 hover:border-brand-teal hover:text-brand-teal hover:bg-brand-teal hover:bg-opacity-5 transition-all duration-200 rounded-lg p-4 flex items-center justify-center space-x-2 group shadow-sm hover:shadow-md"
+        className="w-full border-2 border-dashed border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 rounded-md p-4 flex items-center justify-center space-x-2 cursor-pointer"
       >
-        <FaPlus className="text-sm group-hover:text-brand-teal transition-colors" />
+        <FaPlus className="text-sm" />
         <span className="font-medium">Add Payment Method</span>
       </button>
     </div>

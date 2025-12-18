@@ -21,6 +21,15 @@ from . import agent
 from . import notification
 from . import calendar
 
+# Rent payment models (Stripe Connect)
+from . import stripe_connected_account
+from . import tenant_payment_method
+from . import rent_payment_transaction
+from . import rent_autopay_enrollment
+from . import rent_payment_refund
+from . import rent_payment_dispute
+from . import rent_payment_webhook_log
+
 # Industry standard: Initialize models to resolve circular dependencies
 def initialize_models():
     """
@@ -81,6 +90,15 @@ from .calendar import CustomReminder, CalendarEventType, CalendarEventStatus, Ca
 # Tenant Portal models
 from .tenant_portal_invitation import TenantPortalInvitation, InvitationStatus
 
+# Rent Payment models (Stripe Connect)
+from .stripe_connected_account import StripeConnectedAccount
+from .tenant_payment_method import TenantPaymentMethod
+from .rent_payment_transaction import RentPaymentTransaction, RentPaymentTransactionStatus
+from .rent_autopay_enrollment import RentAutopayEnrollment
+from .rent_payment_refund import RentPaymentRefund, RefundStatus, RefundReason
+from .rent_payment_dispute import RentPaymentDispute, DisputeStatus, DisputeReason
+from .rent_payment_webhook_log import RentPaymentWebhookLog
+
 __all__ = [
     # Accounting models & enums
     "Expense",
@@ -133,5 +151,18 @@ __all__ = [
     # Tenant Portal models
     "TenantPortalInvitation",
     "InvitationStatus",
+    # Rent Payment models (Stripe Connect)
+    "StripeConnectedAccount",
+    "TenantPaymentMethod",
+    "RentPaymentTransaction",
+    "RentPaymentTransactionStatus",
+    "RentAutopayEnrollment",
+    "RentPaymentRefund",
+    "RefundStatus",
+    "RefundReason",
+    "RentPaymentDispute",
+    "DisputeStatus",
+    "DisputeReason",
+    "RentPaymentWebhookLog",
 ]
 

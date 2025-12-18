@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthProvider';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Layout from '@/components/Layout';
@@ -9,6 +10,18 @@ import ResetPassword from '@/pages/ResetPassword';
 import Payments from '@/pages/Payments';
 import AcceptInvite from '@/pages/AcceptInvite';
 
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 30, // 30 minutes (formerly cacheTime)
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 /**
  * App Component
  * Main application entry point with routing configuration
@@ -16,6 +29,7 @@ import AcceptInvite from '@/pages/AcceptInvite';
  */
 function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <Router>
       <AuthProvider>
         <ErrorBoundary>
@@ -74,6 +88,7 @@ function App() {
         </ErrorBoundary>
       </AuthProvider>
     </Router>
+    </QueryClientProvider>
   );
 }
 

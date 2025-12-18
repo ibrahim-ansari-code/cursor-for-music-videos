@@ -378,8 +378,9 @@ async def get_current_user(
                 logger.debug(f"GET request - bypassing subscription check for user {db_user.email}")
                 return db_user
             
-            # Admins bypass subscription requirement
-            if not db_user.is_admin:
+            # Admins and tenants bypass subscription requirement
+            # Only landlords need active subscriptions
+            if not db_user.is_admin and db_user.user_type != "TENANT":
                 # Check subscription status (denormalized on user for fast access)
                 has_active_subscription = db_user.subscription_status in ['active', 'trialing']
                 

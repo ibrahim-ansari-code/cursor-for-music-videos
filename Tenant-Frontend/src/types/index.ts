@@ -1,5 +1,8 @@
 import type { ReactNode, SyntheticEvent } from 'react';
 
+// Export payment types
+export * from './payments';
+
 // User and Auth Types
 export interface User {
   id: string;
@@ -30,7 +33,10 @@ export interface PaymentMethod {
   brand?: string;
   bankName?: string;
   expiryDate?: string;
-  ownerName?: string;
+  expMonth?: number;
+  expYear?: number;
+  isDefault?: boolean;
+  isVerified?: boolean;
 }
 
 export interface PaymentHistoryItem {
@@ -39,14 +45,8 @@ export interface PaymentHistoryItem {
   description: string;
   paymentMethod: string;
   amount: number;
-  status: 'Paid' | 'Pending' | 'Failed';
+  status: 'Paid' | 'Pending' | 'Failed' | 'Refunded';
   receiptUrl?: string;
-}
-
-export interface CurrentBalance {
-  amount: number;
-  dueDate?: string;
-  status?: string;
 }
 
 // Component Props Types

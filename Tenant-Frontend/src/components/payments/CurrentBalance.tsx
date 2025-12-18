@@ -1,90 +1,159 @@
 import React from 'react';
-import { FaDollarSign, FaCalendarAlt } from 'react-icons/fa';
-import type { CurrentBalance as CurrentBalanceType } from '@/types';
+import { FaDollarSign, FaExclamationTriangle, FaHome, FaCheckCircle } from 'react-icons/fa';
+import type { TenantBalance, AutopayStatus } from '@/types/payments';
 
 interface CurrentBalanceProps {
-  currentBalance: CurrentBalanceType | null;
+  balanceData: TenantBalance | null;
+  autopayStatus: AutopayStatus | null;
   onMakePayment: () => void;
   onSetupAutopay: () => void;
-  formatCurrency: (amount: number) => string;
 }
 
 /**
  * CurrentBalance Component
- * Displays current balance with action buttons or helpful empty state
+ * Displays current balance with property context and action buttons
  */
 const CurrentBalance: React.FC<CurrentBalanceProps> = ({ 
-  currentBalance, 
+  balanceData,
+  autopayStatus,
   onMakePayment, 
   onSetupAutopay,
-  formatCurrency 
 }) => {
+  const formatCurrency = (amountCents: number): string => {
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: 'CAD',
+    }).format(amountCents / 100);
+  };
+
+  const isOverdue = (): boolean => {
+    // Only show overdue if BOTH conditions are true:
+    // 1. Past the due date
+    // 2. Balance is greater than $0
+    if (!balanceData?.due_date) return false;
+    const hasPastDue = new Date(balanceData.due_date) < new Date();
+    const hasBalance = balanceData.current_balance_cents > 0;
+    return hasPastDue && hasBalance;
+  };
+
+  const getStatusBadge = () => {
+    if (!balanceData) return null;
+    
+    // Show "Paid" badge if balance is $0
+    if (balanceData.current_balance_cents === 0) {
+      return (
+        <div className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm font-medium">
+          ✓ Paid
+        </div>
+      );
+    }
+    
+    // Show "Overdue" badge if past due date with outstanding balance
+    const overdue = isOverdue();
+    if (overdue) {
+      return (
+        <div className="inline-flex items-center px-3 py-1 rounded-full bg-red-100 text-red-800 text-sm font-medium">
+          <FaExclamationTriangle className="mr-1.5 text-xs" />
+          Overdue
+        </div>
+      );
+    }
+    
+    return null;
+  };
   const EmptyBalanceState: React.FC = () => (
-    <div className="text-center py-4">
-      <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gray-100 mb-6">
-        <FaDollarSign className="h-8 w-8 text-gray-400" />
+    <div className="text-center py-8">
+      <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-gray-100 mb-4">
+        <FaDollarSign className="h-7 w-7 text-gray-400" />
       </div>
-      <h3 className="text-lg font-medium text-gray-900 mb-4">
+      <h3 className="text-lg font-medium text-gray-900 mb-2">
         No Balance Information
       </h3>
-      <p className="text-gray-500 mb-10 max-w-sm mx-auto">
-        Your rent balance will appear here once it's been calculated.
+      <p className="text-sm text-gray-500 max-w-sm mx-auto">
+        Your rent balance will appear here once your lease is active and rent is calculated.
       </p>
-      <div className="flex flex-col sm:flex-row gap-3 justify-center mt-2">
-        <button
-          onClick={onMakePayment}
-          className="bg-brand-teal text-white px-6 py-3 rounded-lg hover:bg-brand-green transition-all duration-200 font-medium shadow-sm hover:shadow-md"
-        >
-          Make a Payment
-        </button>
-        <button
-          onClick={onSetupAutopay}
-          className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
-        >
-          Set Up Autopay
-        </button>
-      </div>
     </div>
   );
 
-  const BalanceContent: React.FC = () => (
-    <div className="text-center">
-      {/* Hero Balance Amount */}
-      <div className="mb-12">
-        <div className="text-4xl font-bold text-gray-900 mb-4">
-          {formatCurrency(currentBalance!.amount)}
-        </div>
-        {currentBalance!.dueDate && (
-          <div className="flex items-center justify-center space-x-2 text-gray-600 mt-3">
-            <FaCalendarAlt className="text-sm" />
-            <span className="text-base font-medium">Due on {currentBalance!.dueDate}</span>
+  const BalanceContent: React.FC = () => {
+    const formatDate = (dateString: string) => {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-CA', { 
+        month: 'long', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+    };
+
+    return (
+      <div>
+        {/* Property Context */}
+        <div className="bg-gray-50 rounded-lg p-3 mb-6 flex items-start">
+          <FaHome className="text-gray-400 mt-0.5 mr-2.5 shrink-0" />
+          <div className="text-left">
+            <p className="text-sm font-medium text-gray-900">{balanceData!.property_name}</p>
+            <p className="text-xs text-gray-600 mt-0.5">Landlord: {balanceData!.landlord_name}</p>
           </div>
-        )}
+        </div>
+
+        {/* Balance Amount and Due Date */}
+        <div className="mb-6">
+          <div className="flex items-baseline justify-between mb-3">
+            <div className="flex items-baseline">
+              <span className="text-3xl font-bold text-gray-900">
+                {formatCurrency(balanceData!.current_balance_cents)}
+              </span>
+              {balanceData!.due_date && (
+                <span className="ml-2 text-sm text-gray-500">
+                  due on {formatDate(balanceData!.due_date)}
+                </span>
+              )}
+            </div>
+            {/* Status Badge (Overdue/Paid) on the right */}
+            {getStatusBadge()}
+          </div>
+          
+          {/* Autopay Badge (if active) */}
+          {autopayStatus?.is_enrolled && autopayStatus?.is_active && (
+            <div className="flex items-center">
+              <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
+                <FaCheckCircle className="mr-1.5 text-xs" />
+                Autopay Active
+              </div>
+            </div>
+          )}
       </div>
 
       {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-3 justify-center mt-2">
+        <div className="flex items-center space-x-3">
         <button
           onClick={onMakePayment}
-          className="bg-brand-teal text-white px-6 py-3 rounded-lg hover:bg-brand-green transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+          disabled={balanceData!.current_balance_cents === 0}
+          className={`px-4 py-2 rounded-md font-medium transition-all duration-200 ${
+            balanceData!.current_balance_cents === 0
+              ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              : 'bg-gray-900 text-white hover:bg-gray-800 cursor-pointer'
+          }`}
+          title={balanceData!.current_balance_cents === 0 ? 'No payment due' : 'Make a payment'}
         >
-          Make a Payment
+          {balanceData!.current_balance_cents === 0 ? 'No Payment Due' : 'Make a Payment'}
         </button>
         <button
           onClick={onSetupAutopay}
-          className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+          className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium cursor-pointer"
         >
-          Set Up Autopay
+          {autopayStatus?.is_enrolled && autopayStatus?.is_active ? 'Manage Autopay' : 'Set Up Autopay'}
         </button>
       </div>
     </div>
   );
+  };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-      <h2 className="text-xl font-semibold text-gray-900 mb-8">Current Balance</h2>
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <h2 className="text-lg font-semibold text-gray-800 mb-4">Current Balance</h2>
       
-      {currentBalance ? <BalanceContent /> : <EmptyBalanceState />}
+      {balanceData ? <BalanceContent /> : <EmptyBalanceState />}
     </div>
   );
 };

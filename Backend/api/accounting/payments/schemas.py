@@ -129,6 +129,9 @@ class PaymentResponse(BaseModel):
     updated_at: datetime | None = None
     tenant_name: str | None = None
     property_name: str | None = None
+    # Integration metadata
+    quickbooks_id: str | None = None
+    stripe_payment_intent_id: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

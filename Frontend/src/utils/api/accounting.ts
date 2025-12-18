@@ -409,3 +409,129 @@ export const getSecurePaymentReceiptUrl = async (receiptUrl: string): Promise<{
     method: "POST",
   });
 };
+
+// ===== REFUND & DISPUTE FUNCTIONS =====
+
+export const createRefund = async (refundData: {
+  transaction_id: string;
+  amount_cents: number;
+  reason: string;
+  notes?: string;
+  refund_application_fee: boolean;
+}): Promise<{
+  id: string;
+  transaction_id: string;
+  stripe_refund_id: string;
+  amount_cents: number;
+  amount: number;
+  status: string;
+  reason: string;
+  created_at: string;
+}> => {
+  return apiRequest(`/rent-payments/transactions/${refundData.transaction_id}/refund`, {
+    method: 'POST',
+    body: JSON.stringify({
+      amount_cents: refundData.amount_cents,
+      reason: refundData.reason,
+      notes: refundData.notes,
+      refund_application_fee: refundData.refund_application_fee,
+    }),
+  });
+};
+
+export const fetchRefunds = async (params: {
+  transaction_id?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
+} = {}): Promise<{
+  items: Array<{
+    id: string;
+    transaction_id: string;
+    stripe_refund_id: string;
+    amount_cents: number;
+    amount: number;
+    status: string;
+    reason: string;
+    notes: string | null;
+    failure_reason: string | null;
+    created_at: string;
+    succeeded_at: string | null;
+  }>;
+  total: number;
+  has_more: boolean;
+}> => {
+  const queryParams = new URLSearchParams();
+  if (params.transaction_id) queryParams.append('transaction_id', params.transaction_id);
+  if (params.status) queryParams.append('status', params.status);
+  if (params.limit) queryParams.append('limit', params.limit.toString());
+  if (params.offset) queryParams.append('offset', params.offset.toString());
+
+  return apiRequest(`/rent-payments/refunds?${queryParams.toString()}`);
+};
+
+export const fetchRefund = async (refundId: string): Promise<{
+  id: string;
+  transaction_id: string;
+  stripe_refund_id: string;
+  amount_cents: number;
+  amount: number;
+  status: string;
+  reason: string;
+  notes: string | null;
+  failure_reason: string | null;
+  created_at: string;
+  succeeded_at: string | null;
+}> => {
+  return apiRequest(`/rent-payments/refunds/${refundId}`);
+};
+
+export const fetchDisputes = async (params: {
+  transaction_id?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
+} = {}): Promise<{
+  items: Array<{
+    id: string;
+    transaction_id: string;
+    stripe_dispute_id: string;
+    amount_cents: number;
+    amount: number;
+    status: string;
+    reason: string;
+    evidence_due_by: string | null;
+    evidence_submitted: boolean;
+    needs_attention: boolean;
+    days_until_due: number | null;
+    created_at: string;
+  }>;
+  total: number;
+  has_more: boolean;
+  active_disputes: number;
+}> => {
+  const queryParams = new URLSearchParams();
+  if (params.transaction_id) queryParams.append('transaction_id', params.transaction_id);
+  if (params.status) queryParams.append('status', params.status);
+  if (params.limit) queryParams.append('limit', params.limit.toString());
+  if (params.offset) queryParams.append('offset', params.offset.toString());
+
+  return apiRequest(`/rent-payments/disputes?${queryParams.toString()}`);
+};
+
+export const fetchDispute = async (disputeId: string): Promise<{
+  id: string;
+  transaction_id: string;
+  stripe_dispute_id: string;
+  amount_cents: number;
+  amount: number;
+  status: string;
+  reason: string;
+  evidence_due_by: string | null;
+  evidence_submitted: boolean;
+  needs_attention: boolean;
+  days_until_due: number | null;
+  created_at: string;
+}> => {
+  return apiRequest(`/rent-payments/disputes/${disputeId}`);
+};

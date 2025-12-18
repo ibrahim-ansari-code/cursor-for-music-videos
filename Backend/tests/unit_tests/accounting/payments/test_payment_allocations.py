@@ -306,6 +306,8 @@ def test_build_payment_response_with_lease_and_tenant():
     payment.receipt_url = None
     payment.reduction_amount = None
     payment.reduction_reason = None
+    payment.quickbooks_id = None
+    payment.stripe_payment_intent_id = None
     payment.created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
     payment.updated_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
     payment.lease = lease
@@ -347,6 +349,8 @@ def test_build_payment_response_with_tenant_no_lease():
     payment.receipt_url = None
     payment.reduction_amount = None
     payment.reduction_reason = None
+    payment.quickbooks_id = None
+    payment.stripe_payment_intent_id = None
     payment.created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
     payment.updated_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
     payment.lease = None
@@ -378,6 +382,8 @@ def test_build_payment_response_no_tenant():
     payment.receipt_url = None
     payment.reduction_amount = None
     payment.reduction_reason = None
+    payment.quickbooks_id = None
+    payment.stripe_payment_intent_id = None
     payment.created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
     payment.updated_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
     payment.lease = None
@@ -418,6 +424,8 @@ def test_build_payment_response_lease_without_property():
     payment.receipt_url = None
     payment.reduction_amount = None
     payment.reduction_reason = None
+    payment.quickbooks_id = None
+    payment.stripe_payment_intent_id = None
     payment.created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
     payment.updated_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
     payment.lease = lease

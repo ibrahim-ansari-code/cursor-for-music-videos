@@ -181,6 +181,40 @@ class AsyncStripeClient:
         """Async Stripe PaymentIntent resource"""
         return self._wrap_resource(stripe.PaymentIntent)
     
+    # ========================================================================
+    # Stripe Connect Resources (for rent payments)
+    # ========================================================================
+    
+    @property
+    def accounts(self):
+        """Async Stripe Account resource (Connect)"""
+        return self._wrap_resource(stripe.Account)
+    
+    @property
+    def account_links(self):
+        """Async Stripe AccountLink resource (Connect onboarding)"""
+        return self._wrap_resource(stripe.AccountLink)
+    
+    @property
+    def setup_intents(self):
+        """Async Stripe SetupIntent resource (save payment methods)"""
+        return self._wrap_resource(stripe.SetupIntent)
+    
+    @property
+    def payment_methods(self):
+        """Async Stripe PaymentMethod resource"""
+        return self._wrap_resource(stripe.PaymentMethod)
+    
+    @property
+    def transfers(self):
+        """Async Stripe Transfer resource (Connect)"""
+        return self._wrap_resource(stripe.Transfer)
+    
+    @property
+    def refunds(self):
+        """Async Stripe Refund resource"""
+        return self._wrap_resource(stripe.Refund)
+    
     @property
     def webhook(self):
         """

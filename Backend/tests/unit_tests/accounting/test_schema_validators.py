@@ -133,6 +133,8 @@ def test_payment_response_convert_nested_individual_tenant():
     mock_payment.receipt_url = None
     mock_payment.reduction_amount = None
     mock_payment.reduction_reason = None
+    mock_payment.quickbooks_id = None
+    mock_payment.stripe_payment_intent_id = None
     mock_payment.created_at = datetime(2024, 1, 15)
     mock_payment.updated_at = datetime(2024, 1, 15)
     mock_payment.tenant = mock_tenant
@@ -177,6 +179,8 @@ def test_payment_response_convert_nested_company_tenant():
     mock_payment.receipt_url = None
     mock_payment.reduction_amount = None
     mock_payment.reduction_reason = None
+    mock_payment.quickbooks_id = None
+    mock_payment.stripe_payment_intent_id = None
     mock_payment.created_at = datetime(2024, 1, 20)
     mock_payment.updated_at = datetime(2024, 1, 20)
     mock_payment.tenant = mock_tenant

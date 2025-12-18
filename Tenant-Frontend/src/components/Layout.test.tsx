@@ -141,7 +141,9 @@ describe('Layout', () => {
   it('displays correct page title for payments route', () => {
     renderWithProviders(<Layout />, { initialRoute: '/payments' });
     
-    expect(screen.getByRole('heading', { name: 'Rent & Payments' })).toBeInTheDocument();
+    // Payments page intentionally has no header title (empty string)
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading).toHaveTextContent('');
   });
 
   it('displays correct page title for documents route', () => {

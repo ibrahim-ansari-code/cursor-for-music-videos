@@ -115,3 +115,23 @@ def validate_date_range(start_date: date | None, end_date: date | None) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Start date cannot be after end date."
         )
+
+
+def months_between(start_date: date, end_date: date) -> int:
+    """
+    Calculate the number of complete months between two dates.
+    
+    Args:
+        start_date: The start date
+        end_date: The end date
+    
+    Returns:
+        Number of complete months between the dates
+        
+    Example:
+        Jan 1, 2024 to Jan 31, 2024 = 0 months (same month)
+        Jan 1, 2024 to Feb 1, 2024 = 1 month
+        Jan 1, 2024 to Mar 15, 2024 = 2 months
+    """
+    months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+    return max(0, months)

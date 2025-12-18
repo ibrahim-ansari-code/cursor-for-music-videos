@@ -113,15 +113,23 @@ class Payment(SQLModel, table=True):
         foreign_key="users.id"
     )
 
-    # QuickBooks specific fields
+    # Integration-specific fields
+    
+    # QuickBooks sync
     quickbooks_id: str | None = Field(
         default=None,
         sa_column=Column(String(length=64), nullable=True, unique=True),
     )
-
     last_synced_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    
+    # Stripe Connect online payments
+    stripe_payment_intent_id: str | None = Field(
+        default=None,
+        sa_column=Column(String(255), nullable=True, unique=True, index=True),
+        description="Stripe PaymentIntent ID for online rent payments (pi_xxx)",
     )
 
     created_at: datetime = Field(

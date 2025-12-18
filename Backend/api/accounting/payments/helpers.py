@@ -136,5 +136,7 @@ def build_payment_response_from_orm(payment_orm: Payment) -> PaymentResponse | N
         created_at=payment_orm.created_at,
         updated_at=payment_orm.updated_at,
         tenant_name=tenant_name,
-        property_name=property_name
+        property_name=property_name,
+        quickbooks_id=payment_orm.quickbooks_id,
+        stripe_payment_intent_id=payment_orm.stripe_payment_intent_id,
     )

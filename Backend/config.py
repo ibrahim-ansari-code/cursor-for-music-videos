@@ -149,6 +149,12 @@ class Settings(BaseSettings):
     )
     STRIPE_TRIAL_PERIOD_DAYS: int = int(os.getenv("STRIPE_TRIAL_PERIOD_DAYS", "14"))
     
+    # === Stripe Connect (Rent Payments) ===
+    # Separate webhook secret for Connect events (account.updated)
+    STRIPE_CONNECT_WEBHOOK_SECRET: str = os.getenv("STRIPE_CONNECT_WEBHOOK_SECRET", "")
+    # Webhook secret for rent payment events (payment_intent.*, charge.*)
+    STRIPE_RENT_PAYMENT_WEBHOOK_SECRET: str = os.getenv("STRIPE_RENT_PAYMENT_WEBHOOK_SECRET", "")
+    
     # === SendGrid Email Configuration ===
     SENDGRID_API_KEY: str = os.getenv("SENDGRID_API_KEY", "")
     SENDGRID_FROM_EMAIL: str = os.getenv("SENDGRID_FROM_EMAIL", "noreply@brikli.com")

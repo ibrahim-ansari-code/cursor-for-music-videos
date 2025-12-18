@@ -72,7 +72,7 @@ const Layout: React.FC = React.memo(() => {
   const getPageTitle = (pathname: string): string => {
     const routes: Record<string, string> = {
       "/dashboard": "Dashboard",
-      "/payments": "Rent & Payments", 
+      "/payments": "", 
       "/documents": "Lease Documents",
       "/maintenance": "Maintenance",
       "/notifications": "Notifications",
@@ -81,7 +81,7 @@ const Layout: React.FC = React.memo(() => {
 
     // Handle nested routes (e.g., /payments/:id)
     const basePath = "/" + pathname.split("/")[1];
-    return routes[basePath] || "Dashboard";
+    return basePath in routes ? routes[basePath] : "Dashboard";
   };
 
   const getInitials = (firstName: string | null | undefined, lastName: string | null | undefined): string => {

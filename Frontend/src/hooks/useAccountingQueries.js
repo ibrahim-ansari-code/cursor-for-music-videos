@@ -21,6 +21,11 @@ import {
   getOccupancyRates,
   getRevenueTrends,
   getAccountingOverview,
+  createRefund,
+  fetchRefunds,
+  fetchRefund,
+  fetchDisputes,
+  fetchDispute,
 } from "../utils/api/accounting";
 import { fetchReportSummary } from "../utils/api/reports";
 import { fetchRentTracker } from "../utils/api/rentTracker";
@@ -259,5 +264,73 @@ export const useRentTracker = (params = {}) => {
     queryKey: QUERY_KEYS.accounting.rentTracker(params),
     queryFn: () => fetchRentTracker(params),
     staleTime: 2 * 60 * 1000, // 2 minutes for rent tracker
+  });
+};
+
+// ===== REFUND & DISPUTE QUERIES =====
+
+/**
+ * Fetch refunds for a specific transaction or all refunds
+ */
+export const useRefunds = (params = {}) => {
+  return useQuery({
+    queryKey: ['refunds', params],
+    queryFn: () => fetchRefunds(params),
+    staleTime: 1 * 60 * 1000, // 1 minute
+    enabled: !!params.transaction_id || params.enabled !== false,
+  });
+};
+
+/**
+ * Fetch a single refund by ID
+ */
+export const useRefund = (refundId) => {
+  return useQuery({
+    queryKey: ['refunds', refundId],
+    queryFn: () => fetchRefund(refundId),
+    enabled: !!refundId,
+    staleTime: 1 * 60 * 1000,
+  });
+};
+
+/**
+ * Create a refund for a rent payment transaction
+ */
+export const useCreateRefund = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: createRefund,
+    onSuccess: (data) => {
+      // Invalidate refunds list
+      queryClient.invalidateQueries({ queryKey: ['refunds'] });
+      // Invalidate payments to show updated status
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.accounting.payments() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.accounting.overview() });
+    },
+  });
+};
+
+/**
+ * Fetch disputes for a specific transaction or all disputes
+ */
+export const useDisputes = (params = {}) => {
+  return useQuery({
+    queryKey: ['disputes', params],
+    queryFn: () => fetchDisputes(params),
+    staleTime: 1 * 60 * 1000, // 1 minute
+    enabled: !!params.transaction_id || params.enabled !== false,
+  });
+};
+
+/**
+ * Fetch a single dispute by ID
+ */
+export const useDispute = (disputeId) => {
+  return useQuery({
+    queryKey: ['disputes', disputeId],
+    queryFn: () => fetchDispute(disputeId),
+    enabled: !!disputeId,
+    staleTime: 1 * 60 * 1000,
   });
 };
