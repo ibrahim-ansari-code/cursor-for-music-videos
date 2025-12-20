@@ -5,6 +5,7 @@ Core business logic for tenant rent payments via Stripe Connect Direct Charges.
 """
 
 import logging
+from calendar import monthrange
 from datetime import datetime, date
 from decimal import Decimal
 from datetime import datetime, timezone
@@ -111,9 +112,17 @@ async def get_tenant_balance(
         )
     
     # Calculate due date for this month
+
     today = date.today()
     due_day = lease.rent_due_day or 1
-    due_date = datetime(today.year, today.month, min(due_day, 28), tzinfo=utc_now().tzinfo)
+
+    # Get actual number of days in this month
+    days_in_month = monthrange(today.year, today.month)[1]
+
+    # Use the lease's due_day, capped to days in this month
+    actual_due_day = min(due_day, days_in_month)
+
+    due_date = datetime(today.year, today.month, actual_due_day, tzinfo=utc_now().tzinfo)
     
     # Calculate total rent due and total paid over the lease lifetime
     from Backend.utils.datetime_utils import months_between
@@ -456,9 +465,10 @@ async def delete_payment_method(
     # Check if used by active autopay
     autopay = await session.scalar(
         select(RentAutopayEnrollment).where(
-        col(RentAutopayEnrollment.payment_method_id) == payment_method_id,
+            col(RentAutopayEnrollment.payment_method_id) == payment_method_id,
+            col(RentAutopayEnrollment.tenant_id) == tenant.id,
             col(RentAutopayEnrollment.is_active) == True,  # noqa: E712
-    )
+        )
     )
     
     if autopay:

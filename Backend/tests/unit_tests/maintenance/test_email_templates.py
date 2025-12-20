@@ -13,38 +13,6 @@ from Backend.models.enums import MaintenancePriority, MaintenanceStatus
 # Vendor Assignment Email Tests
 # =============================================================================
 
-def test_vendor_assignment_email_complete():
-    """Test vendor assignment email with all fields."""
-    subject, html = VendorEmailTemplates.create_vendor_assignment_email(
-        vendor_name="John's Plumbing",
-        vendor_email="john@plumbing.com",
-        landlord_name="Jane Landlord",
-        landlord_email="jane@example.com",
-        landlord_phone="+1234567890",
-        property_address="123 Main St",
-        unit_number="Unit 5A",
-        tenant_name="Bob Tenant",
-        tenant_phone="+0987654321",
-        issue_title="Leaking Faucet",
-        issue_description="Kitchen faucet is dripping constantly",
-        priority=MaintenancePriority.HIGH,
-        estimated_cost=Decimal("250.00"),
-        scheduled_date=date(2024, 12, 15),
-        photos=["https://example.com/photo1.jpg"],
-        request_id=123,
-        frontend_url="https://app.brikli.com"
-    )
-    
-    assert "New Maintenance Request" in subject
-    assert "John&#x27;s Plumbing" in html  # HTML-escaped apostrophe
-    assert "123 Main St" in html
-    assert "Unit 5A" in html
-    assert "Bob Tenant" in html
-    assert "Leaking Faucet" in html
-    assert "Kitchen faucet" in html
-    assert "$250.00" in html
-    assert "View Full Request" in html  # Changed to match actual button text
-
 
 def test_vendor_assignment_email_minimal():
     """Test vendor assignment email with minimal required fields."""

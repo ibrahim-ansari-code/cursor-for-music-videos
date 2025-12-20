@@ -437,14 +437,15 @@ async def create_refund(
         
         transaction = await session.scalar(
             select(RentPaymentTransaction).where(
-                col(RentPaymentTransaction.stripe_payment_intent_id) == transaction_id_or_pi
+                col(RentPaymentTransaction.stripe_payment_intent_id) == transaction_id_or_pi,
+                col(RentPaymentTransaction.landlord_user_id) == user.id,
             )
         )
-        
+
         if not transaction:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Transaction not found for PaymentIntent: {transaction_id_or_pi}"
+                detail="Transaction not found or you don't have access to it"
             )
         
         data.transaction_id = transaction.id

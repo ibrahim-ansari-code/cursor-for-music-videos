@@ -308,8 +308,8 @@ class AutopayService:
             Optional[stripe.PaymentIntent]: PaymentIntent if successful, None if failed
         """
         try:
-            # Convert monthly_rent from Decimal to cents
-            amount_cents = int(lease.monthly_rent * 100)
+            # Use the amount from the enrollment, which could be custom
+            amount_cents = enrollment.amount_cents
 
             # Calculate flat platform fee based on payment method
             from Backend.api.rent_payments.constants import calculate_application_fee_cents

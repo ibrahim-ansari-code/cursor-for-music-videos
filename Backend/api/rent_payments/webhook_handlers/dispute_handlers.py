@@ -202,8 +202,7 @@ async def handle_dispute_closed(
     )
     
     # Send notification to landlord about outcome
-    if dispute_record.transaction:
-        await _send_dispute_outcome_notification(dispute_record, session)
+    await _send_dispute_outcome_notification(dispute_record, session)
 
 
 async def handle_dispute_funds_withdrawn(

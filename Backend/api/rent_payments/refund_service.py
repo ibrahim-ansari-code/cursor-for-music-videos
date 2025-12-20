@@ -131,15 +131,30 @@ async def create_refund(
             detail="Landlord's Stripe account not found - cannot process refund"
         )
     
+    # Create local refund record first to generate a stable idempotency key
+    refund = RentPaymentRefund(
+        transaction_id=transaction.id,
+        stripe_refund_id=None,  # Will be set after Stripe call
+        stripe_charge_id=transaction.stripe_charge_id,
+        amount_cents=data.amount_cents,
+        currency=transaction.currency,
+        reason=data.reason,
+        notes=data.notes,
+        status=RefundStatus.PENDING,
+        application_fee_refunded_cents=None,  # Platform fee is non-refundable
+        initiated_by_user_id=user.id,
+    )
+
+    session.add(refund)
+    await session.flush()  # Assigns UUID without committing
+
     # Create refund via Stripe (on the connected account)
     try:
         stripe_client = get_stripe_client()
-        
-        # Generate idempotency key to prevent duplicate refunds on retry
-        # Stable within 5-minute window for same transaction + amount
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
-        idempotency_key = f"refund-{transaction.id}-{data.amount_cents}-{timestamp}"
-        
+
+        # Use refund UUID as idempotency key - stable across all retries
+        idempotency_key = str(refund.id)
+
         refund_params = {
             "charge": transaction.stripe_charge_id,
             "amount": data.amount_cents,
@@ -149,24 +164,35 @@ async def create_refund(
                 "tenant_id": str(transaction.tenant_id),
                 "lease_id": str(transaction.lease_id),
                 "initiated_by": str(user.id),
+                "refund_id": str(refund.id),
                 "platform": "brikli",
             },
         }
-        
+
         # Platform fee is non-refundable (covers payment processing costs)
         # The refund_application_fee parameter is kept for API compatibility but always ignored
         # Brikli's flat fee ($3-$8) is not refunded as it covers services already rendered
-        
+
         # CRITICAL: Pass stripe_account as a separate parameter (not in params dict)
         stripe_refund = await stripe_client.refunds.create(
             **refund_params,
             stripe_account=connected_account.stripe_account_id,
             idempotency_key=idempotency_key,
         )
-        
+
+        # Update refund record with Stripe details
+        refund.stripe_refund_id = stripe_refund.id
+        await session.commit()
+
     except stripe.InvalidRequestError as e:
         logger.error(f"Stripe refund failed | error={e}")
-        
+
+        # Mark refund as failed in database
+        refund.status = RefundStatus.FAILED
+        refund.failure_reason = str(e)
+        refund.failed_at = utc_now()
+        await session.commit()
+
         # Track in Sentry for monitoring
         sentry_sdk.capture_exception(
             e,
@@ -175,24 +201,32 @@ async def create_refund(
                 "failure_type": "invalid_request",
                 "transaction_id": str(transaction.id),
                 "landlord_id": str(user.id),
+                "refund_id": str(refund.id),
             },
             contexts={
                 "refund": {
                     "transaction_id": str(transaction.id),
+                    "refund_id": str(refund.id),
                     "refund_amount": data.amount_cents / 100,
                     "original_amount": transaction.amount_dollars,
                     "reason": data.reason,
                 }
             },
         )
-        
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Refund failed: {str(e)}"
         )
     except stripe.StripeError as e:
         logger.error(f"Stripe error during refund | error={e}")
-        
+
+        # Mark refund as failed in database
+        refund.status = RefundStatus.FAILED
+        refund.failure_reason = str(e)
+        refund.failed_at = utc_now()
+        await session.commit()
+
         # Track in Sentry
         sentry_sdk.capture_exception(
             e,
@@ -201,38 +235,24 @@ async def create_refund(
                 "failure_type": "stripe_error",
                 "transaction_id": str(transaction.id),
                 "landlord_id": str(user.id),
+                "refund_id": str(refund.id),
             },
             contexts={
                 "refund": {
                     "transaction_id": str(transaction.id),
+                    "refund_id": str(refund.id),
                     "refund_amount": data.amount_cents / 100,
                     "original_amount": transaction.amount_dollars,
                     "reason": data.reason,
                 }
             },
         )
-        
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to process refund. Please try again."
         )
-    
-    # Create refund record
-    refund = RentPaymentRefund(
-        transaction_id=transaction.id,
-        stripe_refund_id=stripe_refund.id,
-        stripe_charge_id=transaction.stripe_charge_id,
-        amount_cents=data.amount_cents,
-        currency=transaction.currency,
-        reason=data.reason,
-        notes=data.notes,
-        status=RefundStatus.PENDING,  # Will be updated by webhook
-        application_fee_refunded_cents=None,  # Platform fee is non-refundable
-        initiated_by_user_id=user.id,
-    )
-    
-    session.add(refund)
-    await session.commit()
+
     await session.refresh(refund)
     
     logger.info(

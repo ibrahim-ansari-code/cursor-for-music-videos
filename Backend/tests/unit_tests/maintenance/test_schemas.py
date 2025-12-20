@@ -176,8 +176,8 @@ def test_maintenance_request_response_from_dict():
         "property": {"id": 1, "name": "Test Property"},
         "unit": {"id": 101, "name": "Unit 101"},
         "tenant": {
-            "id": 1, 
-            "first_name": "John", 
+            "id": 1,
+            "first_name": "John",
             "last_name": "Doe",
             "company_name": None,
             "tenant_type": "Individual"
@@ -193,6 +193,7 @@ def test_maintenance_request_response_from_dict():
         "created_at": datetime(2024, 3, 15, 10, 0),
         "updated_at": datetime(2024, 3, 15, 10, 0),
         "assigned_to": "Jane Maintenance",
+        "preferred_time": None,
         "vendor_id": None,
         "vendor": None,
         "notify_tenant": False
@@ -250,10 +251,11 @@ def test_maintenance_request_response_convert_nested_objects():
     mock_request.created_at = datetime(2024, 3, 15, 10, 0)
     mock_request.updated_at = datetime(2024, 3, 15, 10, 0)
     mock_request.assigned_to = "Jane Maintenance"
+    mock_request.preferred_time = "Morning"
     mock_request.vendor_id = None
     mock_request.vendor = None
     mock_request.notify_tenant = False
-    
+
     response = MaintenanceRequestResponse.model_validate(mock_request)
     
     assert response.id == 1
@@ -288,10 +290,11 @@ def test_maintenance_request_response_none_relationships():
     mock_request.created_at = datetime(2024, 3, 15, 10, 0)
     mock_request.updated_at = datetime(2024, 3, 15, 10, 0)
     mock_request.assigned_to = None
+    mock_request.preferred_time = None
     mock_request.vendor_id = None
     mock_request.vendor = None
     mock_request.notify_tenant = False
-    
+
     response = MaintenanceRequestResponse.model_validate(mock_request)
     
     assert response.property is None
@@ -308,14 +311,16 @@ def test_maintenance_summary_response():
     """Test MaintenanceSummaryResponse creation."""
     summary = MaintenanceSummaryResponse(
         total_requests=25,
+        new=0,
         pending=5,
         in_progress=8,
         completed=10,
         scheduled=2,
         cancelled=0
     )
-    
+
     assert summary.total_requests == 25
+    assert summary.new == 0
     assert summary.pending == 5
     assert summary.in_progress == 8
     assert summary.completed == 10
@@ -327,16 +332,17 @@ def test_maintenance_summary_response_zero_values():
     """Test MaintenanceSummaryResponse with zero values."""
     summary = MaintenanceSummaryResponse(
         total_requests=0,
+        new=0,
         pending=0,
         in_progress=0,
         completed=0,
         scheduled=0,
         cancelled=0
     )
-    
+
     assert summary.total_requests == 0
-    assert all(getattr(summary, field) == 0 for field in 
-               ['pending', 'in_progress', 'completed', 'scheduled', 'cancelled'])
+    assert all(getattr(summary, field) == 0 for field in
+               ['new', 'pending', 'in_progress', 'completed', 'scheduled', 'cancelled'])
 
 
 # =============================================================================

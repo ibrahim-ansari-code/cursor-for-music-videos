@@ -111,6 +111,7 @@ def mock_enrollment(mock_lease):
     enrollment.tenant_id = mock_lease.tenant_id
     enrollment.payment_method_id = uuid4()
     enrollment.is_active = True
+    enrollment.amount_cents = 120000  # $1200.00 in cents
     enrollment.next_scheduled_at = date.today()
     enrollment.current_retry_count = 0
     enrollment.last_failure_reason = None
@@ -357,7 +358,6 @@ async def test_create_autopay_payment_success(
     )
     
     # Assert
-    assert result is not None
     assert result.id == "pi_test123"
     mock_stripe.payment_intents.create.assert_called_once()
     # Should create transaction record

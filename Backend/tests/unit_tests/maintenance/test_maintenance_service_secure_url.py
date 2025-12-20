@@ -56,12 +56,15 @@ async def test_generate_photo_secure_url_success(mocker):
 @pytest.mark.asyncio
 async def test_generate_photo_secure_url_unauthorized():
     """Test photo secure URL generation with unauthorized user."""
-    user = create_test_user(user_type=UserType.TENANT)
+    # Use a user type that's NOT authorized (only LANDLORD, ADMIN, TENANT are authorized)
+    # Create a user with a different user type by directly setting it
+    user = create_test_user()
+    user.user_type = "VENDOR"  # Not an authorized type
     photo_url = "https://briklicorestorage.blob.core.windows.net/maintenance-photos/photo.jpg"
-    
+
     with pytest.raises(HTTPException) as exc_info:
         await MaintenanceService.generate_photo_secure_url(photo_url, user)
-    
+
     assert exc_info.value.status_code == 403
 
 
