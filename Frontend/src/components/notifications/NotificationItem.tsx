@@ -43,6 +43,8 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
         return 'fa-calendar-times text-orange-500';
       case 'maintenance_update':
         return 'fa-wrench text-blue-500';
+      case 'maintenance_request_new':
+        return 'fa-tools text-red-500';
       case 'new_application':
         return 'fa-file-alt text-purple-500';
       case 'system_update':

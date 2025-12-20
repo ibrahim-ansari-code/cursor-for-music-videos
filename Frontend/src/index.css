@@ -322,6 +322,15 @@ body {
   @apply bg-gray-500 dark:bg-gray-400;
 }
 
+/* NEW status badge - clean and modern */
+.badge-new {
+  @apply bg-blue-500 dark:bg-blue-600 text-white border-blue-600 dark:border-blue-500 font-bold;
+}
+
+.badge-new::before {
+  @apply bg-blue-400 dark:bg-blue-300;
+}
+
 /* Enhanced status pills with status dots and improved styling */
 .status-pill {
   @apply inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-full shadow-sm border transition-all duration-200;

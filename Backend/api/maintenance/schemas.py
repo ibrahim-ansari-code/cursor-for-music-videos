@@ -10,15 +10,16 @@ from Backend.models.enums import MaintenancePriority, MaintenanceStatus
 class MaintenanceRequestCreate(BaseModel):
     issue_title: str
     description: str | None = None
-    property_id: int
+    property_id: int | None = None  # Optional - auto-inferred for tenants
     unit_id: int | None = None
-    tenant_id: int | None = None
+    tenant_id: int | None = None  # Optional - auto-inferred for tenants
     priority: MaintenancePriority
     scheduled_date: date | None = None
     estimated_cost: Decimal | None = None
     actual_cost: Decimal | None = None
     photos: list[str] | None = None
     assigned_to: str | None = None
+    preferred_time: str | None = None
     vendor_id: int | None = None
     notify_tenant: bool = False
 
@@ -37,6 +38,7 @@ class MaintenanceRequestUpdate(BaseModel):
     actual_cost: Decimal | None = None
     photos: list[str] | None = None
     assigned_to: str | None = None
+    preferred_time: str | None = None
     vendor_id: int | None = None
     notify_tenant: bool | None = None
 
@@ -87,6 +89,7 @@ class MaintenanceRequestResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     assigned_to: str | None
+    preferred_time: str | None
     vendor_id: int | None
     vendor: VendorContactInfo | None
     notify_tenant: bool
@@ -122,6 +125,7 @@ class MaintenanceRequestResponse(BaseModel):
             'created_at': data.created_at,
             'updated_at': data.updated_at,
             'assigned_to': getattr(data, 'assigned_to', None),
+            'preferred_time': getattr(data, 'preferred_time', None),
             'vendor_id': getattr(data, 'vendor_id', None),
             'notify_tenant': getattr(data, 'notify_tenant', False),
         }
@@ -197,6 +201,7 @@ class MaintenanceRequestResponse(BaseModel):
 
 class MaintenanceSummaryResponse(BaseModel):
     total_requests: int
+    new: int
     pending: int
     in_progress: int
     completed: int

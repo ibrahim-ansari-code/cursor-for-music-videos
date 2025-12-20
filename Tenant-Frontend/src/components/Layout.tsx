@@ -3,7 +3,8 @@ import { Outlet, useLocation, Link } from 'react-router-dom';
 import Sidebar from '@/components/Sidebar';
 import { useAuth } from '@/hooks/useAuth';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
-import { FaBell, FaSignOutAlt } from 'react-icons/fa';
+import { FaSignOutAlt } from 'react-icons/fa';
+import NotificationBell from '@/components/notifications/NotificationBell';
 
 const Layout: React.FC = React.memo(() => {
   const { user, signOut, loading } = useAuth();
@@ -74,7 +75,7 @@ const Layout: React.FC = React.memo(() => {
       "/dashboard": "Dashboard",
       "/payments": "", 
       "/documents": "Lease Documents",
-      "/maintenance": "Maintenance",
+      "/maintenance": "",
       "/notifications": "Notifications",
       "/settings": "Settings",
     };
@@ -114,14 +115,8 @@ const Layout: React.FC = React.memo(() => {
 
             {/* User dropdown area */}
             <div className="flex items-center space-x-3">
-              {/* Notifications bell - links to notifications page */}
-              <Link 
-                to="/notifications" 
-                className="relative p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
-                aria-label="View notifications"
-              >
-                <FaBell className="text-lg" aria-hidden="true" />
-              </Link>
+              {/* Notifications bell with real-time updates */}
+              <NotificationBell />
 
               {/* Link the avatar and name to settings */}
               <Link

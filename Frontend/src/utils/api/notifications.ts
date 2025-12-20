@@ -85,6 +85,8 @@ export type NotificationType =
   | 'payment_received'
   | 'lease_expiring'
   | 'maintenance_update'
+
+  | 'maintenance_request_new'
   | 'new_application'
   | 'system_update';
 

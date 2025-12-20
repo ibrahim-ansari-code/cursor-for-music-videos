@@ -524,7 +524,8 @@ class ToolHandlers:
                 "completed_date": req.completed_date.isoformat() if req.completed_date else None,
                 "estimated_cost": float(req.estimated_cost) if req.estimated_cost else None,
                 "actual_cost": float(req.actual_cost) if req.actual_cost else None,
-                "days_open": (datetime.now(UTC) - req.created_at).days if req.status.upper() != "COMPLETED" else None
+                "days_open": (datetime.now(UTC) - req.created_at).days if req.status.upper() != "COMPLETED" else None,
+                # "preferred_time": req.preferred_time.isoformat() if req.preferred_time else None
             })
 
         # Calculate summary statistics

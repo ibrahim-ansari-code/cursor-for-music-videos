@@ -10,6 +10,7 @@ from uuid import UUID as PythonUUID
 import fitz
 from fastapi import File, Form, HTTPException, UploadFile, status
 from sqlalchemy import and_, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -22,7 +23,7 @@ from Backend.models.enums import UserType
 from Backend.models.lease import Lease, LeaseDocument, LeaseStatus
 from Backend.models.property import Property
 from Backend.models.units import PropertyUnit
-from Backend.models.tenant import Tenant
+from Backend.models.tenant import Tenant, TenantUnitLink
 from Backend.models.user import User
 from Backend.utils.azure_blob import upload_lease_to_blob
 from Backend.utils.datetime_utils import create_audit_datetime
@@ -62,6 +63,25 @@ async def _apply_active_lease_side_effects(lease: Lease, session: AsyncSession) 
                     unit_to_update.is_rented,
                     unit_to_update.monthly_rent,
                 )
+                
+                # Create TenantUnitLink entry for many-to-many relationship tracking
+            
+                # Use INSERT ... ON CONFLICT DO NOTHING to avoid duplicates
+                tenant_unit_link_stmt = insert(TenantUnitLink).values(
+                    tenant_id=lease.tenant_id,
+                    unit_id=lease.unit_id,
+                    start_date=lease.start_date,
+                    end_date=None  # Active assignment has no end date
+                ).on_conflict_do_nothing(
+                    index_elements=['tenant_id', 'unit_id']
+                )
+                await session.execute(tenant_unit_link_stmt)
+                logger.info(
+                    "TenantUnitLink created/updated for tenant %s and unit %s (lease %s)",
+                    lease.tenant_id,
+                    lease.unit_id,
+                    lease.id
+                )
             else:
                 logger.error(
                     "PropertyUnit with ID %s not found for lease %s during side effect application. Rolling back.",
@@ -92,6 +112,34 @@ async def _revoke_active_lease_side_effects(lease: Lease, session: AsyncSession)
                 unit_to_update.tenant_id = None
                 unit_to_update.updated_at = create_audit_datetime()
                 logger.info("PropertyUnit %s marked as vacant for lease %s", unit_to_update.id, lease.id)
+                
+                # Close TenantUnitLink entry by setting end_date
+                
+                tenant_unit_link_stmt = (
+                    update(TenantUnitLink)
+                    .where(
+                        and_(
+                            col(TenantUnitLink.tenant_id) == lease.tenant_id,
+                            col(TenantUnitLink.unit_id) == lease.unit_id,
+                            col(TenantUnitLink.end_date).is_(None)  # Only close active links
+                        )
+                    )
+                    .values(end_date=lease.end_date or create_audit_datetime())
+                )
+                result = await session.execute(tenant_unit_link_stmt)
+                if result.rowcount > 0:
+                    logger.info(
+                        "TenantUnitLink closed for tenant %s and unit %s (lease %s)",
+                        lease.tenant_id,
+                        lease.unit_id,
+                        lease.id
+                    )
+                else:
+                    logger.warning(
+                        "No active TenantUnitLink found to close for tenant %s and unit %s",
+                        lease.tenant_id,
+                        lease.unit_id
+                    )
             elif unit_to_update:
                 logger.warning(
                     "PropertyUnit %s tenant_id %s does not match lease tenant_id %s. Skipping unit update.",

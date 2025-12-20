@@ -38,7 +38,7 @@ export function useVendors(params?: {
     queryKey: vendorKeys.list(params),
     queryFn: () => vendorApi.listVendors(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: params !== undefined, // Only fetch when params are provided
+    // Always enabled - params are optional filters
   });
 }
 

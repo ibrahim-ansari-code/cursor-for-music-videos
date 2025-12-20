@@ -110,7 +110,7 @@ class NotificationCreateRequest(BaseModel):
     def validate_type(cls, v: str) -> str:
         valid_types = [
             'rent_reminder', 'payment_received', 'lease_expiring',
-            'maintenance_update', 'new_application', 'system_update'
+            'maintenance_update', 'maintenance_request_new', 'new_application', 'system_update'
         ]
         if v not in valid_types:
             raise ValueError(f"Invalid notification type. Must be one of: {', '.join(valid_types)}")
@@ -239,7 +239,7 @@ class TestNotificationRequest(BaseModel):
     def validate_type(cls, v: str) -> str:
         valid_types = [
             'rent_reminder', 'payment_received', 'lease_expiring',
-            'maintenance_update', 'new_application', 'system_update'
+            'maintenance_update', 'maintenance_request_new', 'new_application', 'system_update'
         ]
         if v not in valid_types:
             raise ValueError(f"Invalid notification type. Must be one of: {', '.join(valid_types)}")
@@ -262,7 +262,7 @@ class TestEmailRequest(BaseModel):
     def validate_type(cls, v: str) -> str:
         valid_types = [
             'rent_reminder', 'payment_received', 'lease_expiring',
-            'maintenance_update', 'new_application', 'system_update'
+            'maintenance_update', 'maintenance_request_new', 'new_application', 'system_update'
         ]
         if v not in valid_types:
             raise ValueError(f"Invalid notification type. Must be one of: {', '.join(valid_types)}")

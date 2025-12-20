@@ -142,8 +142,10 @@ export enum MaintenancePriority {
 }
 
 export enum MaintenanceStatus {
+  NEW = 'New',
   PENDING = 'Pending',
   IN_PROGRESS = 'In Progress',
+  SCHEDULED = 'Scheduled',
   COMPLETED = 'Completed',
   CANCELLED = 'Cancelled'
 }
@@ -287,6 +289,7 @@ export interface MaintenanceRequest {
   property?: Property;
   unit?: PropertyUnit;
   tenant?: Tenant;  // Populated by backend when loading maintenance requests
+  preferred_time?: string;
 }
 
 // Payment Interface
@@ -369,6 +372,7 @@ export interface MaintenanceFormData {
   start_date?: string;
   end_date?: string;
   photos?: string[];
+  preferred_time?: string;
 }
 
 // Photo Upload Types
@@ -396,6 +400,7 @@ export interface MaintenancePhotoState {
 // Maintenance Summary Type
 export interface MaintenanceSummary {
   total_requests: number;
+  new: number;
   pending: number;
   in_progress: number;
   completed: number;

@@ -118,7 +118,16 @@ class MaintenancePriority(str, Enum):
 class MaintenanceStatus(str, Enum):
     """
     Defines status states for maintenance requests throughout their lifecycle.
+    
+    Status Flow:
+    - NEW: Tenant submitted, landlord hasn't reviewed yet
+    - PENDING: Landlord reviewed, work not started
+    - IN_PROGRESS: Work actively being done
+    - SCHEDULED: Work scheduled for future date
+    - COMPLETED: Work finished
+    - CANCELLED: Request cancelled
     """
+    NEW = "New"
     PENDING = "Pending"
     IN_PROGRESS = "In Progress"
     SCHEDULED = "Scheduled"

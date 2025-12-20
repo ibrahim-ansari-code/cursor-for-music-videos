@@ -155,7 +155,9 @@ describe('Layout', () => {
   it('displays correct page title for maintenance route', () => {
     renderWithProviders(<Layout />, { initialRoute: '/maintenance' });
     
-    expect(screen.getByRole('heading', { name: 'Maintenance' })).toBeInTheDocument();
+    // Maintenance page intentionally has no header title (empty string)
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading).toHaveTextContent('');
   });
 
   it('renders child route content via Outlet', () => {

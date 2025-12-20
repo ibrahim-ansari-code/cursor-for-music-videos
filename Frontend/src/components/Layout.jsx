@@ -50,7 +50,7 @@ const Layout = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="dark-panel dark-divider border-b z-10 h-12 transition-colors duration-300 dark-shadow">
+        <header className="dark-panel dark-divider border-b z-10 h-16 transition-colors duration-300 dark-shadow">
           <div className="px-6 h-full flex justify-between items-center">
             {/* Page Title or Breadcrumb */}
             {isTenantProfile ? (

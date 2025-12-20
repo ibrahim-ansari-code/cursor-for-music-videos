@@ -8,6 +8,7 @@ from sqlmodel import col
 from Backend.models.maintenance import MaintenanceRequest
 from Backend.models.property import Property
 from Backend.models.user import User
+from Backend.models.enums import UserType
 
 logger = logging.getLogger(__name__)
 
@@ -81,12 +82,15 @@ async def check_permission(request: MaintenanceRequest, user: User, session: Asy
     Raises an HTTP 403 error if the user is not an admin and does not own the property associated with the request.
     Raises HTTP 404 if the property is not found, or HTTP 500 if the property relationship cannot be loaded.
     """
+    logger.info(f"Checking permissions for user {user.id} on request {request.id}")
     if user.is_admin:
+        logger.info(f"User {user.id} is an admin, permission granted.")
         return
 
     prop = getattr(request, "property", None)
 
     if prop is None:
+        logger.info(f"Property not loaded for request {request.id}, fetching from database.")
         try:
             result = await session.execute(
                 select(Property)
@@ -95,23 +99,32 @@ async def check_permission(request: MaintenanceRequest, user: User, session: Asy
             prop = result.scalar_one_or_none()
 
             if prop is None:
+                logger.error(f"Property not found for maintenance request {request.id}")
                 raise HTTPException(
                     status_code=404,
                     detail="Property not found for this maintenance request."
                 )
 
             setattr(request, "property", prop)
+            logger.info(f"Property {prop.id} loaded for request {request.id}")
         except HTTPException:
             raise
         except Exception as e:
+            logger.error(f"Failed to load property relationship for request {request.id}: {e}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to load property relationship: {str(e)}"
             )
 
     if hasattr(prop, "user_id") and prop.user_id == user.id:
+        logger.info(f"User {user.id} owns property {prop.id}, permission granted.")
+        return
+
+    if user.user_type == UserType.TENANT and request.user_id == user.id:
+        logger.info(f"User {user.id} is a tenant and created the request, permission granted.")
         return
     
+    logger.warning(f"User {user.id} does not have permission to access request {request.id}")
     raise HTTPException(
         status_code=403,
         detail="You do not have permission to access this maintenance request."

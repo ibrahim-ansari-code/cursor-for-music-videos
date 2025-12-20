@@ -39,6 +39,7 @@ class EmailMetadataRow:
     label: str
     value: str
     emoji: Optional[str] = None
+    is_html: bool = False  # If True, value contains safe HTML that should not be escaped
 
 
 class BrikliEmailTemplate:
@@ -298,7 +299,8 @@ class BrikliEmailTemplate:
             escaped_emoji = html.escape(row.emoji) if row.emoji else ""
             emoji_prefix = f"{escaped_emoji} " if escaped_emoji else ""
             escaped_label = html.escape(row.label)
-            escaped_value = html.escape(row.value)
+            # Only escape value if it's not marked as safe HTML
+            escaped_value = row.value if row.is_html else html.escape(row.value)
             rows_html += f"""        <div class="metadata-row">
           <div class="metadata-label">{emoji_prefix}{escaped_label}:</div>
           <div class="metadata-value">{escaped_value}</div>

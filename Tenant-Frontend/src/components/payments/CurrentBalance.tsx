@@ -98,7 +98,7 @@ const CurrentBalance: React.FC<CurrentBalanceProps> = ({
 
         {/* Balance Amount and Due Date */}
         <div className="mb-6">
-          <div className="flex items-baseline justify-between mb-3">
+          <div className="flex items-start justify-between">
             <div className="flex items-baseline">
               <span className="text-3xl font-bold text-gray-900">
                 {formatCurrency(balanceData!.current_balance_cents)}
@@ -109,19 +109,20 @@ const CurrentBalance: React.FC<CurrentBalanceProps> = ({
                 </span>
               )}
             </div>
-            {/* Status Badge (Overdue/Paid) on the right */}
-            {getStatusBadge()}
-          </div>
-          
-          {/* Autopay Badge (if active) */}
-          {autopayStatus?.is_enrolled && autopayStatus?.is_active && (
-            <div className="flex items-center">
-              <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
-                <FaCheckCircle className="mr-1.5 text-xs" />
-                Autopay Active
-              </div>
+            {/* Badges on the right side */}
+            <div className="flex items-center gap-2">
+              {/* Autopay Badge (if active) */}
+              {autopayStatus?.is_enrolled && autopayStatus?.is_active && (
+                <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
+                  <FaCheckCircle className="mr-1.5 text-xs" />
+                  Autopay Active
+                </div>
+              )}
+              
+              {/* Status Badge (Overdue/Paid) */}
+              {getStatusBadge()}
             </div>
-          )}
+          </div>
       </div>
 
       {/* Action Buttons */}

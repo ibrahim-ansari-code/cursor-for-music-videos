@@ -58,6 +58,9 @@ class MaintenanceRequest(SQLModel, table=True):
     photos: list[str] | None = Field(
         default=None, sa_column=Column(JSON, nullable=True))
 
+    preferred_time: str | None = Field(
+        default=None, sa_column=Column(String(255), nullable=True))
+
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(
          TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(

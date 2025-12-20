@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import delete, func
+from sqlalchemy import delete, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -15,7 +15,7 @@ from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant
 from Backend.models.user import User
 from Backend.utils.azure_blob import upload_maintenance_photo_to_blob, generate_secure_document_url
-from Backend.api.maintenance.vendor_notification_service import VendorNotificationService
+from Backend.api.maintenance.notifications import send_maintenance_notifications
 
 from .helpers import check_permission, validate_file_content, validate_file_size
 from .schemas import (
@@ -48,9 +48,16 @@ class MaintenanceService:
         # Build optimized query to load all entities at once
         property_query = select(Property).where(col(Property.id) == property_id)
         
-        # For non-admin users, add ownership check
+        # For non-admin users, add permission check based on user type
         if not current_user.is_admin:
-            property_query = property_query.where(col(Property.user_id) == current_user.id)
+            if current_user.user_type == UserType.LANDLORD:
+                # Landlord must own the property
+                property_query = property_query.where(col(Property.user_id) == current_user.id)
+            elif current_user.user_type == UserType.TENANT:
+                # Tenant must be associated with the property via a unit
+                property_query = property_query.join(PropertyUnit).join(Tenant).where(
+                        (col(Property.id) == property_id) & (col(Tenant.user_id) == current_user.id)
+                    )
         
         result = await session.execute(property_query)
         property_entity = result.scalar_one_or_none()
@@ -145,11 +152,25 @@ class MaintenanceService:
             selectinload(getattr(MaintenanceRequest, "unit")),
             selectinload(getattr(MaintenanceRequest, "tenant")),
             selectinload(getattr(MaintenanceRequest, "vendor"))
-        ).order_by(col(MaintenanceRequest.created_at).desc())  # Add ordering for better UX
+        ).order_by(
+            # NEW status requests appear first (0 = NEW, 1 = all others)
+            case(
+                (col(MaintenanceRequest.status) == MaintenanceStatus.NEW, 0),
+                else_=1
+            ),
+            # Then sort by created_at descending within each group
+            col(MaintenanceRequest.created_at).desc()
+        )
 
+        # For non-admin users, filter requests based on their role.
         if not current_user.is_admin:
-            query = query.join(Property, col(MaintenanceRequest.property_id) == col(Property.id))
-            query = query.where(col(Property.user_id) == current_user.id)
+            if current_user.user_type == UserType.LANDLORD:
+                # Landlords can see all requests for their properties.
+                query = query.join(Property, col(MaintenanceRequest.property_id) == col(Property.id))
+                query = query.where(col(Property.user_id) == current_user.id)
+            elif current_user.user_type == UserType.TENANT:
+                # Tenants can only see maintenance requests they have created.
+                query = query.where(col(MaintenanceRequest.user_id) == current_user.id)
 
         if req_status is not None:
             query = query.where(col(MaintenanceRequest.status) == req_status)
@@ -178,18 +199,87 @@ class MaintenanceService:
     ) -> MaintenanceRequestResponse:
         """
         Creates a new maintenance request for a property.
+        
+        For tenant users, automatically infers property_id and tenant_id from their profile.
+        For landlords/admins, requires explicit property_id.
         """
-        logger.info(
-            "User %s creating maintenance request for property %s",
-            current_user.id, data.property_id
-        )
+        # Auto-infer context for tenant users (industry standard pattern)
+        if current_user.user_type == UserType.TENANT:
+            # Eagerly load both assigned_units and units (link table) to get the tenant's unit
+            tenant_query = select(Tenant).options(
+                selectinload(getattr(Tenant, "assigned_units")),
+                selectinload(getattr(Tenant, "units"))
+            ).where(col(Tenant.user_id) == current_user.id)
+            user_tenant = await session.scalar(tenant_query)
+            
+            if not user_tenant:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="No tenant profile found for your account. Please contact your landlord."
+                )
+            
+            # Infer property_id, tenant_id, and unit_id from tenant profile
+            actual_tenant_id = user_tenant.id
+            actual_property_id = user_tenant.current_property_id
+            
+            if not actual_property_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="No property assigned to your account. Please contact your landlord."
+                )
+            
+            # Auto-infer unit_id from assigned_units (property_units.tenant_id) OR units (link table)
+            actual_unit_id = data.unit_id  # Use explicit if provided
+            if not actual_unit_id:
+                # Try assigned_units first (direct tenant_id relationship)
+                if user_tenant.assigned_units:
+                    for unit in user_tenant.assigned_units:
+                        if unit.property_id == actual_property_id:
+                            actual_unit_id = unit.id
+                            logger.info(
+                                "Auto-inferred unit_id %s from assigned_units for tenant %s",
+                                actual_unit_id, actual_tenant_id
+                            )
+                            break
+                
+                # Fall back to units (many-to-many link table)
+                if not actual_unit_id and user_tenant.units:
+                    for unit in user_tenant.units:
+                        if unit.property_id == actual_property_id:
+                            actual_unit_id = unit.id
+                            logger.info(
+                                "Auto-inferred unit_id %s from units link table for tenant %s",
+                                actual_unit_id, actual_tenant_id
+                            )
+                            break
+            
+            logger.info(
+                "Tenant user %s creating maintenance request for property %s, unit %s (auto-inferred)",
+                current_user.id, actual_property_id, actual_unit_id or "common area"
+            )
+        else:
+            # Landlords/admins must provide explicit property_id
+            actual_property_id = data.property_id
+            actual_tenant_id = data.tenant_id
+            actual_unit_id = data.unit_id  # Landlords provide explicit unit_id
+            
+            if not actual_property_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="property_id is required for landlord/admin users"
+                )
+            
+            logger.info(
+                "User %s creating maintenance request for property %s, unit %s",
+                current_user.id, actual_property_id, actual_unit_id or "common area"
+            )
 
         try:
-            # Use the new consolidated validation method
+            # Use the new consolidated validation method with inferred/explicit IDs
             property_entity, unit_entity, tenant_entity = await MaintenanceService._validate_and_load_entities(
-                property_id=data.property_id,
-                unit_id=data.unit_id,
-                tenant_id=data.tenant_id,
+                property_id=actual_property_id,
+                unit_id=actual_unit_id,  # Use inferred unit_id for tenants
+                tenant_id=actual_tenant_id,
                 current_user=current_user,
                 session=session
             )
@@ -197,17 +287,18 @@ class MaintenanceService:
             db_request = MaintenanceRequest(
                 issue_title=data.issue_title,
                 description=data.description,
-                property_id=data.property_id,
-                unit_id=data.unit_id,
-                tenant_id=data.tenant_id,
+                property_id=actual_property_id,  # Use inferred/explicit ID
+                unit_id=actual_unit_id,  # Use inferred/explicit unit ID
+                tenant_id=actual_tenant_id,  # Use inferred/explicit ID
                 user_id=current_user.id,
                 priority=data.priority,
-                status=MaintenanceStatus.PENDING,
+                status=MaintenanceStatus.NEW,  # NEW status for tenant-submitted requests
                 scheduled_date=data.scheduled_date,
                 estimated_cost=data.estimated_cost,
                 actual_cost=data.actual_cost,
                 photos=data.photos,
                 assigned_to=data.assigned_to,
+                preferred_time=data.preferred_time,
                 vendor_id=data.vendor_id,
                 notify_tenant=data.notify_tenant
             )
@@ -237,30 +328,60 @@ class MaintenanceService:
                     detail="Created maintenance request not found after commit"
                 )
             
-            # Send vendor notification if vendor assigned
+            # Send notifications via orchestrator (vendor assignment, status changes, etc.)
             # Session is still valid and can be used for additional queries
-            if created_request.vendor_id:
+            await send_maintenance_notifications(
+                request=created_request,
+                changes={
+                    'vendor_id': (None, created_request.vendor_id),
+                    'status': (None, created_request.status)
+                },
+                session=session
+            )
+            
+            # Send in-app notification to landlord for NEW maintenance requests
+            if current_user.user_type == UserType.TENANT:
                 try:
-                    # Send email to vendor
-                    await VendorNotificationService.notify_vendor_of_assignment(
-                        created_request,
-                        session
-                    )
+                    from Backend.api.notifications.service import NotificationService
                     
-                    # Send confirmation to landlord
-                    await VendorNotificationService.notify_landlord_of_assignment(
-                        created_request,
-                        session
+                    # Get landlord user_id from property
+                    landlord_user_id = property_entity.user_id
+                    
+                    # Get tenant name for actor
+                    tenant_name = None
+                    if tenant_entity:
+                        tenant_name = f"{tenant_entity.first_name or ''} {tenant_entity.last_name or ''}".strip()
+                    
+                    # Create notification for landlord
+                    await NotificationService.create_notification(
+                        user_id=landlord_user_id,
+                        type="maintenance_request_new",
+                        title=f"New Maintenance Request: {data.issue_title}",
+                        message=f"{tenant_name or 'A tenant'} submitted a {data.priority.value.lower()} priority maintenance request.",
+                        link=f"/maintenance?request_id={created_request.id}",
+                        actor_id=current_user.id,
+                        actor_name=tenant_name,
+                        metadata={
+                            "maintenance_id": created_request.id,
+                            "property_id": actual_property_id,
+                            "tenant_id": actual_tenant_id,
+                            "priority": data.priority.value,
+                            "issue_title": data.issue_title
+                        },
+                        priority="high" if data.priority == MaintenancePriority.HIGH else "normal",
+                        group_key=f"maintenance_property_{actual_property_id}",
+                        session=session
                     )
                     
                     logger.info(
-                        f"Vendor notifications sent for maintenance request {created_request.id}"
+                        f"Landlord notification sent for new maintenance request {created_request.id}"
                     )
                 except Exception as e:
                     # Log error but don't fail the request creation
                     logger.exception(
-                        f"Failed to send vendor notifications for request {created_request.id}: {str(e)}"
+                        f"Failed to send landlord notification for request {created_request.id}: {str(e)}"
                     )
+                    # Continue without raising - notification failures shouldn't block maintenance requests
             
             return MaintenanceRequestResponse.model_validate(created_request)
 
@@ -353,33 +474,27 @@ class MaintenanceService:
                 session=session
             )
 
-        # Capture old status for tenant notification
-        old_status = req.status
+        # Capture old values BEFORE applying updates for notification tracking
+        changes: dict = {}
+        if 'status' in update_data:
+            changes['status'] = (req.status, update_data['status'])
+        if 'vendor_id' in update_data:
+            changes['vendor_id'] = (req.vendor_id, update_data['vendor_id'])
         
+        # Apply updates
         for key, value in update_data.items():
             setattr(req, key, value)
 
         session.add(req)
         await session.commit()
         
-        # Send tenant notification if status changed and notifications enabled
-        if 'status' in update_data and old_status != req.status:
-            try:
-                await VendorNotificationService.notify_tenant_of_status_change(
-                    req,
-                    old_status,
-                    req.status,
-                    session
-                )
-                
-                logger.info(
-                    f"Status change notification sent for maintenance request {req.id}: {old_status} → {req.status}"
-                )
-            except Exception as e:
-                # Log error but don't fail the update
-                logger.exception(
-                    f"Failed to send status change notification for request {req.id}: {str(e)}"
-                )
+        # Send notifications via orchestrator (vendor assignment, status changes, etc.)
+        if changes:
+            await send_maintenance_notifications(
+                request=req,
+                changes=changes,
+                session=session
+            )
         
         # After commit, all attributes are expired. Re-query with fresh session to get updated data
         # This is the industry-standard pattern (Stripe, Airbnb, etc.)
@@ -547,7 +662,7 @@ class MaintenanceService:
         """
         Uploads a maintenance photo to Azure Blob Storage and returns its public URL.
         """
-        authorized_roles = {UserType.LANDLORD, UserType.ADMIN}
+        authorized_roles = {UserType.LANDLORD, UserType.ADMIN, UserType.TENANT}
         if current_user.user_type not in authorized_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -590,8 +705,8 @@ class MaintenanceService:
         Returns:
             Dict with secure_url, expires_at, expires_in_seconds
         """
-        # Authorization check
-        authorized_roles = {UserType.LANDLORD, UserType.ADMIN}
+        # Authorization check - allow landlords, admins, and tenants
+        authorized_roles = {UserType.LANDLORD, UserType.ADMIN, UserType.TENANT}
         if current_user.user_type not in authorized_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

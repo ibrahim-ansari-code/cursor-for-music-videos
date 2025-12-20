@@ -54,7 +54,10 @@ class VendorEmailTemplates:
         # Build content sections
         sections = [
             EmailSection(
-                text=f"You've been assigned a new maintenance request by {landlord_name}."
+                text=f"{landlord_name} is requesting your services for a maintenance issue at one of their properties."
+            ),
+            EmailSection(
+                text=f"Please contact {landlord_name} at {landlord_email}" + (f" or {landlord_phone}" if landlord_phone else "") + " to discuss the work, pricing, and scheduling."
             ),
         ]
         
@@ -77,7 +80,8 @@ class VendorEmailTemplates:
         metadata.append(
             EmailMetadataRow(
                 label="Priority", 
-                value=BrikliEmailTemplate.get_priority_badge_html(priority.value)
+                value=BrikliEmailTemplate.get_priority_badge_html(priority.value),
+                is_html=True  # Mark as HTML to prevent escaping
             )
         )
         
@@ -111,34 +115,38 @@ class VendorEmailTemplates:
         landlord_contact += f" | {landlord_email}"
         metadata.append(EmailMetadataRow(label="Landlord", value=landlord_contact, emoji="📞"))
         
-        # Photos notice
-        notice = None
+        # Next steps notice
+        notice = EmailNotice(
+            emoji="📞",
+            title="How to Proceed",
+            message=f"Contact {landlord_name} directly to discuss this opportunity. They can provide additional details, photos, and coordinate scheduling with the tenant.",
+            color="#10b981",  # green
+            bg_color="#ecfdf5"
+        )
+        
+        # Photos notice (if any)
         if photos and len(photos) > 0:
             notice = EmailNotice(
                 emoji="📷",
                 title="Photos Available",
-                message=f"{len(photos)} photo(s) attached to this request. View them in the full request details.",
-                color="#3b82f6",  # blue
-                bg_color="#eff6ff"
+                message=f"This request includes {len(photos)} photo(s). Contact {landlord_name} to view them and discuss the scope of work.",
+                color="#10b981",  # green
+                bg_color="#ecfdf5"
             )
         
-        # CTA
-        view_request_url = f"{frontend_url}/maintenance/{request_id}"
-        cta = EmailCTA(
-            text="View Full Request",
-            url=view_request_url
-        )
+        # No CTA button - vendor portal doesn't exist yet, email is self-contained
+        cta = None
         
         # Generate email
-        subject = f"New Maintenance Request - {property_address}"
+        subject = f"Service Request from {landlord_name} - {property_address}"
         html_body = BrikliEmailTemplate.create_email(
-            title="New Maintenance Assignment",
+            title="Maintenance Service Request",
             greeting=greeting,
             sections=sections,
             metadata=metadata,
             cta=cta,
             notice=notice,
-            footer_note="You're receiving this email because you've been assigned to a maintenance request."
+            footer_note=f"You're receiving this email because {landlord_name} would like to engage your services. This message was sent via Brikli, their property management platform."
         )
         
         return subject, html_body

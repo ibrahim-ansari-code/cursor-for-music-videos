@@ -51,16 +51,15 @@ class VendorNotificationService:
         """
         try:
             # Validate required fields
-            if not maintenance_request.vendor_id or not maintenance_request.user_id:
+            if not maintenance_request.vendor_id:
                 logger.warning(
-                    f"Cannot send vendor notification: missing vendor_id or user_id"
+                    f"Cannot send vendor notification: missing vendor_id"
                 )
                 return False
             
             # Load all required relationships
             vendor = await VendorNotificationService._load_vendor(
                 maintenance_request.vendor_id,
-                maintenance_request.user_id,
                 session
             )
             
@@ -74,6 +73,10 @@ class VendorNotificationService:
                 maintenance_request.property_id,
                 session
             )
+            
+            if not property_obj:
+                logger.warning(f"Cannot send vendor notification: property not found")
+                return False
             
             unit = None
             if maintenance_request.unit_id:
@@ -89,8 +92,10 @@ class VendorNotificationService:
                     session
                 )
             
+            # Load landlord from property owner, not maintenance_request.user_id
+            # (maintenance_request.user_id might be the tenant who created the request)
             landlord = await VendorNotificationService._load_user(
-                maintenance_request.user_id,
+                property_obj.user_id,
                 session
             )
             
@@ -169,13 +174,12 @@ class VendorNotificationService:
         """
         try:
             # Validate required fields
-            if not maintenance_request.vendor_id or not maintenance_request.user_id:
-                logger.warning(f"Cannot send landlord confirmation: missing vendor_id or user_id")
+            if not maintenance_request.vendor_id:
+                logger.warning(f"Cannot send landlord confirmation: missing vendor_id")
                 return False
             
             vendor = await VendorNotificationService._load_vendor(
                 maintenance_request.vendor_id,
-                maintenance_request.user_id,
                 session
             )
             
@@ -183,19 +187,25 @@ class VendorNotificationService:
                 logger.warning(f"Cannot send landlord confirmation: vendor not found")
                 return False
             
+            property_obj = await VendorNotificationService._load_property(
+                maintenance_request.property_id,
+                session
+            )
+            
+            if not property_obj:
+                logger.warning(f"Cannot send landlord confirmation: property not found")
+                return False
+            
+            # Load landlord from property owner, not maintenance_request.user_id
+            # (maintenance_request.user_id might be the tenant who created the request)
             landlord = await VendorNotificationService._load_user(
-                maintenance_request.user_id,
+                property_obj.user_id,
                 session
             )
             
             if not landlord or not landlord.email:
                 logger.warning(f"Cannot send landlord confirmation: no email")
                 return False
-            
-            property_obj = await VendorNotificationService._load_property(
-                maintenance_request.property_id,
-                session
-            )
             
             unit = None
             if maintenance_request.unit_id:
@@ -305,10 +315,9 @@ class VendorNotificationService:
             vendor_company = None
             vendor_phone = None
             vendor_email = None
-            if maintenance_request.vendor_id and maintenance_request.user_id:
+            if maintenance_request.vendor_id:
                 vendor = await VendorNotificationService._load_vendor(
                     maintenance_request.vendor_id,
-                    maintenance_request.user_id,
                     session
                 )
                 if vendor:
@@ -363,8 +372,8 @@ class VendorNotificationService:
     # Helper methods to load relationships
     
     @staticmethod
-    async def _load_vendor(vendor_id: int, user_id: UUID, session: AsyncSession) -> Optional[Vendor]:
-        """Load vendor with user_vendor relationship"""
+    async def _load_vendor(vendor_id: int, session: AsyncSession) -> Optional[Vendor]:
+        """Load vendor by ID"""
         result = await session.execute(
             select(Vendor).where(col(Vendor.id) == vendor_id)
         )

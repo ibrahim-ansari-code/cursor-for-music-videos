@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/react";
 import MaintenanceTable from "../components/maintenance/MaintenanceTable";
 import CreateMaintenanceModal from "../components/maintenance/CreateMaintenanceModal/index";
 import EditMaintenanceModal from "../components/maintenance/EditMaintenanceModal";
+import MaintenanceTriageModal from "../components/maintenance/MaintenanceTriageModal";
 import StatusCard from "../components/maintenance/StatusCard";
 import MaintenanceSkeleton, {
   MaintenanceTableSkeleton,
@@ -71,6 +72,7 @@ const Maintenance: React.FC = () => {
     // Add status filter if not "All Requests"
     if (statusFilter !== "All Requests") {
       const statusMap: Record<string, string> = {
+        New: "new",
         Pending: "pending",
         "In Progress": "in_progress",
         Completed: "completed",
@@ -118,11 +120,24 @@ const Maintenance: React.FC = () => {
   const deleteRequestMutation = useDeleteMaintenanceRequest();
   const bulkDeleteRequestMutation = useBulkDeleteMaintenanceRequests();
 
-  // Extract data from query response
-  const requests = useMemo(
-    () => requestsData?.results || requestsData || [],
-    [requestsData]
-  );
+  // Extract data from query response with smart sorting
+  // NEW requests appear first, then everything else by date
+  const requests = useMemo(() => {
+    // Ensure we always get an array
+    const rawRequests = requestsData?.results || (Array.isArray(requestsData) ? requestsData : []);
+    
+    // Sort with NEW status first, then by created_at descending
+    return [...rawRequests].sort((a, b) => {
+      // NEW requests always come first
+      if (a.status === 'New' && b.status !== 'New') return -1;
+      if (a.status !== 'New' && b.status === 'New') return 1;
+      
+      // Within same status group, sort by created_at descending (newest first)
+      const dateA = new Date(a.request_date || a.created_at || 0).getTime();
+      const dateB = new Date(b.request_date || b.created_at || 0).getTime();
+      return dateB - dateA;
+    });
+  }, [requestsData]);
   const hasMore = useMemo(() => {
     if (typeof requestsData?.total === "number") {
       return currentPage * pageSize < requestsData.total;
@@ -324,7 +339,7 @@ const Maintenance: React.FC = () => {
     setViewingRequest(null);
   };
 
-  const TABS = ["All Requests", "Pending", "In Progress", "Completed"];
+  const TABS = ["All Requests", "New", "Pending", "In Progress", "Completed"];
 
   if (loading && !summary) return <MaintenanceSkeleton />;
   if (error && !summary)
@@ -343,7 +358,7 @@ const Maintenance: React.FC = () => {
       )}
 
       {/* Status Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <StatusCard
           title="Total Requests"
           count={summary?.total_requests ?? (loading ? "..." : 0)}
@@ -355,6 +370,14 @@ const Maintenance: React.FC = () => {
             setCurrentPage(1);
           }}
           active={statusFilter === "All Requests"}
+        />
+        <StatusCard
+          title="New"
+          count={summary?.new ?? (loading ? "..." : 0)}
+          icon="fa-bell"
+          color="blue"
+          onClick={() => handleStatusFilterChange("New")}
+          active={statusFilter === "New"}
         />
         <StatusCard
           title="Pending"
@@ -435,6 +458,8 @@ const Maintenance: React.FC = () => {
                 {tab} (
                 {tab === "All Requests"
                   ? summary?.total_requests ?? 0
+                  : tab === "New"
+                  ? summary?.new ?? 0
                   : tab === "Pending"
                   ? summary?.pending ?? 0
                   : tab === "In Progress"
@@ -567,16 +592,28 @@ const Maintenance: React.FC = () => {
         />
       )}
 
-      {/* Edit/View Modal */}
+      {/* Edit/View Modal or Triage Modal */}
       {isModalOpen && (editingRequest || viewingRequest) && (
-        <EditMaintenanceModal
-          isOpen={isModalOpen}
-          onClose={closeModal}
-          onSubmit={handleModalSubmit}
-          request={editingRequest || viewingRequest!}
-          isViewing={!!viewingRequest}
-          isSubmitting={updateRequestMutation.isPending}
-        />
+        <>
+          {(editingRequest?.status === "New" || viewingRequest?.status === "New") && !viewingRequest ? (
+            <MaintenanceTriageModal
+              isOpen={isModalOpen}
+              onClose={closeModal}
+              onSubmit={handleModalSubmit}
+              request={editingRequest || viewingRequest!}
+              isSubmitting={updateRequestMutation.isPending}
+            />
+          ) : (
+            <EditMaintenanceModal
+              isOpen={isModalOpen}
+              onClose={closeModal}
+              onSubmit={handleModalSubmit}
+              request={editingRequest || viewingRequest!}
+              isViewing={!!viewingRequest}
+              isSubmitting={updateRequestMutation.isPending}
+            />
+          )}
+        </>
       )}
     </div>
   );
