@@ -4,10 +4,9 @@ import { AuthContext } from "../../contexts/AuthContext";
 import GoogleSignInButton from "./GoogleSignInButton";
 import MicrosoftSignInButton from "./MicrosoftSignInButton";
 import { supabase } from "../../supabaseClient";
+import { MAINTENANCE_MODE, MAINTENANCE_MESSAGE } from "../../config/maintenanceMode.ts";
 
 const LoginForm = () => {
-  // MAINTENANCE MODE - Set to false to re-enable login
-  const MAINTENANCE_MODE = true;
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -169,22 +168,22 @@ const LoginForm = () => {
                 </svg>
               </div>
               <h2 className="text-2xl font-bold text-yellow-800 dark:text-yellow-300 mb-4">
-                Scheduled Maintenance
+                {MAINTENANCE_MESSAGE.title}
               </h2>
               <div className="text-sm text-yellow-700 dark:text-yellow-400 space-y-3">
                 <p className="font-medium">
-                  We're currently performing maintenance to prepare for our Tenant Portal Launch. During this time, the Landlord Portal will be unavailable.
+                  {MAINTENANCE_MESSAGE.message}
                 </p>
                 <div className="bg-yellow-100 dark:bg-yellow-900/40 rounded-md p-4 mt-4">
                   <p className="font-semibold text-yellow-900 dark:text-yellow-200">
                     Expected to resume:
                   </p>
                   <p className="text-lg font-bold text-yellow-800 dark:text-yellow-300 mt-1">
-                    Monday, December 23, 2025
+                    {MAINTENANCE_MESSAGE.expectedResume}
                   </p>
                 </div>
                 <p className="text-xs mt-4">
-                  We apologize for any inconvenience. Please check back on Monday.
+                  {MAINTENANCE_MESSAGE.apology}
                 </p>
               </div>
             </div>

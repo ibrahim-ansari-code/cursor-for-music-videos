@@ -6,6 +6,7 @@ import MicrosoftSignInButton from "./MicrosoftSignInButton";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Sentry from "@sentry/react";
 import { Eye, EyeOff } from "lucide-react";
+import { MAINTENANCE_MODE, MAINTENANCE_MESSAGE } from "../../config/maintenanceMode";
 
 interface PasswordRequirements {
   length: boolean;
@@ -39,9 +40,6 @@ interface TouchedFields {
 }
 
 const RegisterForm: React.FC = () => {
-  // MAINTENANCE MODE - Set to false to re-enable registration
-  const MAINTENANCE_MODE = true;
-  
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
@@ -506,22 +504,22 @@ const RegisterForm: React.FC = () => {
                 </svg>
               </div>
               <h2 className="text-2xl font-bold text-yellow-800 mb-4">
-                Scheduled Maintenance
+                {MAINTENANCE_MESSAGE.title}
               </h2>
               <div className="text-sm text-yellow-700 space-y-3">
                 <p className="font-medium">
-                  We're currently performing maintenance to prepare for our Tenant Portal Launch.
+                  {MAINTENANCE_MESSAGE.message}
                 </p>
                 <div className="bg-yellow-100 rounded-md p-4 mt-4">
                   <p className="font-semibold text-yellow-900">
                     Expected to resume:
                   </p>
                   <p className="text-lg font-bold text-yellow-800 mt-1">
-                    Monday, December 23, 2025
+                    {MAINTENANCE_MESSAGE.expectedResume}
                   </p>
                 </div>
                 <p className="text-xs mt-4">
-                  We apologize for any inconvenience. Please check back on Monday.
+                  {MAINTENANCE_MESSAGE.apology}
                 </p>
               </div>
             </div>
