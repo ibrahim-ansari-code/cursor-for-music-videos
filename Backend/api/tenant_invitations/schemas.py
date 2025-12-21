@@ -3,10 +3,11 @@ Tenant Invitations API Schemas
 
 Request and response schemas for tenant portal invitations.
 """
+import re
 from datetime import datetime
 from uuid import UUID as PythonUUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from Backend.models.tenant_portal_invitation import InvitationStatus
 
@@ -88,6 +89,77 @@ class InvitationAcceptResponse(BaseModel):
     success: bool
     message: str
     tenant_id: int | None = None
+
+
+# === Register and Accept Schemas (Streamlined Flow) ===
+
+class RegisterAndAcceptRequest(BaseModel):
+    """
+    Request to register a new user and accept invitation in one step.
+
+    This streamlined flow skips email verification because clicking
+    the invitation link already proves email ownership (industry standard
+    pattern used by Slack, Notion, Discourse, etc.).
+    """
+    token: str = Field(
+        ...,
+        min_length=40,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9_-]+$",
+        description="Invitation token from the email link"
+    )
+    password: str = Field(
+        ...,
+        min_length=8,
+        max_length=128,
+        description="User's chosen password (min 8 characters, must include uppercase, lowercase, number, and special character)"
+    )
+    first_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="User's first name"
+    )
+    last_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="User's last name"
+    )
+
+    @field_validator('password')
+    @classmethod
+    def validate_password_complexity(cls, v: str) -> str:
+        """
+        Validate password meets security requirements.
+
+        Requirements (matching frontend validation):
+        - At least 8 characters (enforced by min_length)
+        - At least one lowercase letter
+        - At least one uppercase letter
+        - At least one digit
+        - At least one special character
+        """
+        if not re.search(r'[a-z]', v):
+            raise ValueError('Password must contain at least one lowercase letter')
+        if not re.search(r'[A-Z]', v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not re.search(r'[0-9]', v):
+            raise ValueError('Password must contain at least one number')
+        if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>/?~`]', v):
+            raise ValueError('Password must contain at least one special character (!@#$%^&*()_+-=[]{};\':"|,.<>/?~`)')
+        return v
+
+
+class RegisterAndAcceptResponse(BaseModel):
+    """Response after successful registration and invitation acceptance."""
+    success: bool
+    message: str
+    tenant_id: int | None = None
+    user_id: str | None = None
+    # Supabase session for auto-sign-in
+    access_token: str | None = None
+    refresh_token: str | None = None
 
 
 # === Tenant Info Schema (for public endpoint) ===

@@ -934,7 +934,7 @@ async def bulk_delete_tenants(
         return
 
     # CASCADE constraints will automatically delete associated records:
-    # - TenantUnitLink records (CASCADE on tenant_id FK)
+    # - PropertyUnit.tenant_id set to NULL (CASCADE on tenant_id FK)
     # - Other related records with CASCADE constraints
     # Use bulk delete to avoid N+1 queries
     from sqlalchemy import delete as sql_delete

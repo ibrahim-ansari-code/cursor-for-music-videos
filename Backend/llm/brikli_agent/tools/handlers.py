@@ -16,7 +16,7 @@ from sqlmodel import col
 
 from Backend.models.property import Property
 from Backend.models.units import PropertyUnit
-from Backend.models.tenant import Tenant, TenantUnitLink
+from Backend.models.tenant import Tenant
 from Backend.models.lease import Lease
 from Backend.models.accounting.payment import Payment
 from Backend.models.accounting.invoice import Invoice
@@ -194,9 +194,9 @@ class ToolHandlers:
         if args.get("unit_id"):
             try:
                 unit_id = int(args["unit_id"])
-                # Join through the TenantUnitLink table
-                query = query.join(TenantUnitLink, col(Tenant.id) == col(TenantUnitLink.tenant_id)).where(
-                    col(TenantUnitLink.unit_id) == unit_id
+                # Use direct FK relationship through PropertyUnit.tenant_id
+                query = query.join(PropertyUnit, col(PropertyUnit.tenant_id) == col(Tenant.id)).where(
+                    col(PropertyUnit.id) == unit_id
                 )
             except (ValueError, TypeError) as e:
                 logger.warning(f"Invalid unit_id format: {args['unit_id']}")

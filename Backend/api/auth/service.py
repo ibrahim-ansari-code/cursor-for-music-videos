@@ -98,13 +98,20 @@ class AuthService:
                 user_to_return = existing_user
             else:
                 # Create new user data within the locked transaction
+                # Use user_type from metadata if provided, otherwise default to LANDLORD
+                user_type_str = metadata.get("user_type", "LANDLORD")
+                if isinstance(user_type_str, str):
+                    user_type = UserType(user_type_str)
+                else:
+                    user_type = user_type_str if isinstance(user_type_str, UserType) else UserType.LANDLORD
+
                 new_user_data = {
                     "id": uuid_obj,
                     "email": email,
                     "first_name": metadata.get("first_name"),
                     "last_name": metadata.get("last_name"),
                     "phone": metadata.get("phone"),
-                    "user_type": UserType.LANDLORD,  # Default for this portal
+                    "user_type": user_type,
                     "is_active": True,
                     "is_admin": False,
                     "is_email_verified": metadata.get("is_email_verified", False),

@@ -37,29 +37,6 @@ class TenantStatus(str, Enum):
 from Backend.models.enums import TenantType
 
 
-# Link table for tenant-unit many-to-many relationship
-
-
-class TenantUnitLink(SQLModel, table=True):
-    __tablename__ = "tenant_unit_link"  # type: ignore
-    __table_args__ = (Index("ix_tenant_unit_link_unit_id", "unit_id"),)
-
-    tenant_id: int | None = Field(
-        default=None, sa_column=Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True)
-    )
-    unit_id: int | None = Field(
-        default=None, foreign_key="property_units.id", primary_key=True
-    )
-    start_date: datetime | None = Field(
-        default=None,
-        sa_column=Column(DateTime(timezone=True), nullable=True)
-    )
-    end_date: datetime | None = Field(
-        default=None,
-        sa_column=Column(DateTime(timezone=True), nullable=True)
-    )
-
-
 class Tenant(SQLModel, table=True):
     __tablename__ = "tenants"  # type: ignore
 
@@ -132,11 +109,6 @@ class Tenant(SQLModel, table=True):
             "foreign_keys": "[PropertyUnit.tenant_id]",
             "lazy": "selectin"
         }
-    )
-    units: list["PropertyUnit"] = Relationship(
-        back_populates="tenants",
-        link_model=TenantUnitLink,
-        sa_relationship_kwargs={"lazy": "selectin"}
     )
     maintenance_requests: list["MaintenanceRequest"] = Relationship(
         back_populates="tenant",

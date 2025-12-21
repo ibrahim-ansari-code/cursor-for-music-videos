@@ -5,12 +5,16 @@
 
 import React, { useState, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
+import { useQuery } from '@tanstack/react-query';
+import { Users, TrendingUp, CreditCard } from 'lucide-react';
 import {
   getSubscriptionStatus,
   getSubscriptionPlans,
   createCheckoutSession,
   createCustomerPortalSession,
 } from '../../utils/api/billing';
+import * as tenantPortalSeatsAPI from '../../utils/api/tenantPortalSeats';
+import SeatSubscriptionModal from '../tenants/SeatSubscriptionModal';
 import type {
   SubscriptionStatus,
   SubscriptionPlan,
@@ -22,6 +26,18 @@ const BillingSettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [seatModalOpen, setSeatModalOpen] = useState(false);
+
+  // Fetch seat availability
+  const {
+    data: seatAvailability,
+    isLoading: seatsLoading,
+    error: seatsError,
+  } = useQuery({
+    queryKey: ['tenantPortalSeats', 'availability'],
+    queryFn: tenantPortalSeatsAPI.getSeatAvailability,
+    refetchOnWindowFocus: false,
+  });
 
   // Fetch subscription status and available plans
   useEffect(() => {
@@ -372,6 +388,122 @@ const BillingSettings: React.FC = () => {
         </div>
       )}
 
+      {/* Tenant Portal Seats Section */}
+      {subscriptionStatus?.has_active_subscription && (
+        <div className="dark-panel dark-shadow rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Tenant Portal Seats
+              </h3>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                Manage your tenant portal seat capacity
+              </p>
+            </div>
+          </div>
+
+          {seatsLoading ? (
+            <div className="animate-pulse space-y-3">
+              <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+            </div>
+          ) : seatsError ? (
+            <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
+              <p className="text-sm text-red-800 dark:text-red-300">
+                Failed to load seat information. Please try again later.
+              </p>
+            </div>
+          ) : seatAvailability ? (
+            <>
+              {/* Seat Usage Overview */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4 mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Current Usage
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {seatAvailability.limit}
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-1 font-medium">
+                      Total Seats
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-700 dark:text-gray-300">
+                      {seatAvailability.used}
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-1 font-medium">
+                      In Use
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      {seatAvailability.available}
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-1 font-medium">
+                      Available
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 text-center">
+                    Includes{' '}
+                    <span className="font-semibold text-blue-600 dark:text-blue-400">
+                      {seatAvailability.free_seats} free seats
+                    </span>{' '}
+                    with your Brikli Premium subscription
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => setSeatModalOpen(true)}
+                  className="px-6 py-2.5 bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-full font-medium transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  Add More Seats
+                </button>
+
+                {seatAvailability.purchased_seats > 0 && (
+                  <button
+                    onClick={handleManageSubscription}
+                    disabled={actionLoading}
+                    className="px-6 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-full font-medium transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <i className="fas fa-cog"></i>
+                    Manage Seat Subscription
+                  </button>
+                )}
+              </div>
+
+              {/* Info Box */}
+              <div className="mt-4 rounded-md bg-blue-50 dark:bg-blue-900/20 p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <i className="fas fa-info-circle text-blue-400"></i>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-blue-800 dark:text-blue-300">
+                      <strong>How seats work:</strong> Each tenant portal seat allows one tenant to access their portal.
+                      Additional seats cost $3/month each and can be canceled anytime.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : null}
+        </div>
+      )}
+
       {/* Billing Information Footer */}
       <div className="dark-panel dark-shadow rounded-lg p-6">
         <div className="flex items-start">
@@ -383,12 +515,19 @@ const BillingSettings: React.FC = () => {
               Billing Information
             </h4>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              All payments are processed securely through Stripe. Your subscription will automatically renew unless canceled. 
+              All payments are processed securely through Stripe. Your subscription will automatically renew unless canceled.
               You can cancel anytime and retain access until the end of your billing period.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Seat Subscription Modal */}
+      <SeatSubscriptionModal
+        isOpen={seatModalOpen}
+        onClose={() => setSeatModalOpen(false)}
+        requiredSeats={1}
+      />
     </div>
   );
 };

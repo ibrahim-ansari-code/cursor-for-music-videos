@@ -10,7 +10,6 @@ from sqlalchemy import DateTime, Numeric, Index, Integer, JSON
 from sqlalchemy import ForeignKey
 from sqlmodel import Column, Field, Relationship, SQLModel
 
-from Backend.models.tenant import TenantUnitLink
 from Backend.utils.datetime_utils import create_audit_datetime
 
 if TYPE_CHECKING:
@@ -79,13 +78,6 @@ class PropertyUnit(SQLModel, table=True):
             # Explicitly define foreign keys using string
             "foreign_keys": "[PropertyUnit.tenant_id]",
         }
-    )
-
-    # Relationship to Tenants via link table (Many-to-many)
-    tenants: list["Tenant"] = Relationship(
-        back_populates="units",
-        link_model=TenantUnitLink,
-        sa_relationship_kwargs={"lazy": "selectin"}
     )
 
     # Relationship to maintenance requests (One-to-many)

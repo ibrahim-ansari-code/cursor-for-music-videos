@@ -24,6 +24,15 @@ export interface InvitationAcceptResponse {
   tenant_id: number | null;
 }
 
+export interface RegisterAndAcceptResponse {
+  success: boolean;
+  message: string;
+  tenant_id: number | null;
+  user_id: string | null;
+  access_token: string | null;
+  refresh_token: string | null;
+}
+
 // Sanitize the base URL
 const API_BASE_URL = (
   import.meta.env.VITE_API_URL || 
@@ -63,7 +72,7 @@ export const validateInvitationToken = async (
  * Accepts an invitation and links the tenant record to the current user.
  * Requires authentication - user must be logged in.
  * Uses Supabase session management for secure token handling.
- * 
+ *
  * @param token - The invitation token
  * @returns Accept response with success status
  */
@@ -72,7 +81,7 @@ export const acceptInvitation = async (
 ): Promise<InvitationAcceptResponse> => {
   // Get session from Supabase - more secure than reading localStorage directly
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  
+
   if (sessionError || !session) {
     throw new Error('Authentication required. Please log in first.');
   }
@@ -97,3 +106,51 @@ export const acceptInvitation = async (
   return response.json();
 };
 
+/**
+ * Registers a new user and accepts the invitation in one step.
+ * This is a PUBLIC endpoint - no authentication required.
+ *
+ * This streamlined flow skips email verification because clicking
+ * the invitation link already proves email ownership (industry standard
+ * pattern used by Slack, Notion, Discourse, etc.).
+ *
+ * @param token - The invitation token from the email link
+ * @param password - User's chosen password
+ * @param firstName - User's first name
+ * @param lastName - User's last name
+ * @returns Response with session tokens for auto-sign-in
+ */
+export const registerAndAcceptInvitation = async (
+  token: string,
+  password: string,
+  firstName: string,
+  lastName: string
+): Promise<RegisterAndAcceptResponse> => {
+  const response = await fetch(
+    `${API_BASE_URL}/api/tenant-invitations/register-and-accept`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, password, first_name: firstName, last_name: lastName }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to create account');
+  }
+
+  return response.json();
+};
+
+// =============================================================================
+// DEPRECATED: The following functions are no longer used in the streamlined flow.
+// Email verification is skipped because clicking the invitation link proves ownership.
+// Kept for reference in case needed for edge cases or future features.
+// =============================================================================
+
+// export const sendTenantVerificationEmail = async (token: string, email: string) => { ... }
+// export const verifyMagicLink = async (magicToken: string) => { ... }
+// export const verifyTenantEmail = async (token: string, email: string) => { ... }

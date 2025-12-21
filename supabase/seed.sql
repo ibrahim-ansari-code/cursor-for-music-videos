@@ -357,7 +357,6 @@ TRUNCATE TABLE
   invoices,
   maintenance_requests,
   leases,
-  tenant_unit_link,
   property_units,
   tenants,
   properties,
@@ -561,22 +560,6 @@ INSERT INTO integrations (id, user_id, integration_type, status, connected_at, l
 (1, '1894ba74-571a-4270-9072-9bea9486e0b1', 'QUICKBOOKS', 'Connected', now() - interval '1 month', now(), '{"company_name": "Test Property Management", "company_id": "QB-123456", "realm_id": "1234567890"}', now(), now());
 
 
-
--- ===================================================================
--- TENANT UNIT LINKS (Historical occupancy tracking)
--- ===================================================================
-INSERT INTO tenant_unit_link (tenant_id, unit_id, start_date, end_date) VALUES
--- Current assignments
-(1, 3, '2024-01-01', NULL),  -- Alice in Unit 201
-(2, 6, '2024-03-01', NULL),  -- David in Penthouse A
-(3, 8, '2024-09-01', NULL),  -- Emma in Room A1
-(4, 11, '2024-02-01', NULL), -- Robert in Townhome 1
-(6, 15, '2024-06-01', NULL), -- James in Apt 1A
-(8, 17, '2024-04-01', NULL), -- Kevin in Unit A
-
--- Historical assignments
-(1, 2, '2023-01-01', '2023-12-31'), -- Alice's previous lease in Unit 102
-(7, 15, '2023-06-01', '2024-03-15'); -- Maria's terminated lease
 
 -- ===================================================================
 -- RESET SEQUENCES

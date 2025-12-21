@@ -282,6 +282,7 @@ try:
     from Backend.api.tenant_invitations.router import router as tenant_invitations_router
     from Backend.api.rent_payments.router import router as rent_payments_router
     from Backend.api.rent_payments.webhooks import router as rent_payments_webhooks_router
+    from Backend.api.tenant_portal_seats.router import router as tenant_portal_seats_router
 
     # Include routers into the central api_main_router
     # Their internal prefixes (e.g., /auth, /properties) will apply
@@ -308,6 +309,7 @@ try:
     api_main_router.include_router(vendors_router)
     api_main_router.include_router(quickbooks_router, prefix="/quickbooks", tags=["QuickBooks"])
     api_main_router.include_router(tenant_invitations_router)  # Tenant portal invitations
+    api_main_router.include_router(tenant_portal_seats_router)  # Tenant portal seat management
     api_main_router.include_router(rent_payments_router)  # Rent payments via Stripe Connect
     api_main_router.include_router(rent_payments_webhooks_router, prefix="/rent-payments")  # Stripe Connect webhooks
 

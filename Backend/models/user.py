@@ -91,6 +91,12 @@ class User(SQLModel, table=True):
         description="Trial expiration timestamp - users retain access until this date"
     )
 
+    # Tenant Portal seat management (GitHub-style: single limit field, real-time counting)
+    tenant_portal_seat_limit: int = Field(
+        default=2,
+        description="Maximum tenant portal seats (2 free + any purchased subscriptions)"
+    )
+
     properties: list["Property"] = Relationship(back_populates="owner")
 
     # Define tenant_details relationship directly

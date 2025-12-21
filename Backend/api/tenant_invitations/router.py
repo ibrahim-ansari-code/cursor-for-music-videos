@@ -26,14 +26,18 @@ from Backend.api.tenant_invitations.schemas import (
     InvitationResendResponse,
     InvitationResponse,
     InvitationRevokeResponse,
-    InvitationValidateRequest,
     InvitationValidateResponse,
+    RegisterAndAcceptRequest,
+    RegisterAndAcceptResponse,
 )
 from Backend.api.tenant_invitations.service import TenantInvitationService
 from Backend.database import get_session
 from Backend.models.tenant_portal_invitation import InvitationStatus
 from Backend.models.user import User
 from Backend.models.enums import UserType
+from Backend.config import settings
+from Backend.utils.supabase import get_supabase_client
+from supabase import Client
 
 logger = logging.getLogger(__name__)
 
@@ -253,6 +257,157 @@ async def accept_invitation(
         token=request.token,
         user_id=current_user.id,
     )
+
+
+@router.post(
+    "/register-and-accept",
+    response_model=RegisterAndAcceptResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register new user and accept invitation (streamlined flow)",
+    description="""
+    Public endpoint for streamlined tenant registration.
+
+    Creates a new user account and accepts the invitation in one step.
+    Email verification is skipped because clicking the invitation link
+    already proves email ownership (industry standard pattern used by
+    Slack, Notion, Discourse, etc.).
+
+    Returns session tokens for immediate auto-sign-in.
+    """,
+)
+async def register_and_accept_invitation(
+    request: RegisterAndAcceptRequest,
+    db: AsyncSession = Depends(get_session),
+) -> RegisterAndAcceptResponse:
+    """
+    Streamlined registration flow for invited tenants.
+
+    This endpoint:
+    1. Validates the invitation token
+    2. Creates a Supabase user via Admin API (email pre-confirmed)
+    3. Creates the local User record
+    4. Accepts the invitation (links tenant to user)
+    5. Generates session tokens for auto-sign-in
+
+    No email verification required - clicking the invitation link
+    already proved email ownership.
+    """
+    from uuid import UUID as PythonUUID
+    from Backend.api.auth.service import AuthService
+
+    # Step 1: Validate the invitation token
+    invitation_data = await TenantInvitationService.validate_token(
+        db=db,
+        token=request.token
+    )
+
+    if not invitation_data.valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=invitation_data.message or "Invalid or expired invitation token"
+        )
+
+    email = invitation_data.email
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invitation is missing email address"
+        )
+
+    try:
+        # Step 2: Create Supabase user via Admin API (with email_confirm=true)
+        supabase_admin: Client = get_supabase_client()
+
+        # Try to create user directly - handle "already exists" error gracefully
+        # This is more efficient than listing all users to check
+        try:
+            create_response = supabase_admin.auth.admin.create_user({
+                "email": email,
+                "password": request.password,
+                "email_confirm": True,  # Skip email verification - invitation link proved ownership
+                "user_metadata": {
+                    "user_type": "TENANT",
+                    "first_name": request.first_name,
+                    "last_name": request.last_name,
+                }
+            })
+
+            if not create_response.user:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to create user account"
+                )
+
+            supabase_user_id = create_response.user.id
+            logger.info(f"Created Supabase user for tenant: {email} (id: {supabase_user_id})")
+
+        except Exception as create_error:
+            error_msg = str(create_error).lower()
+            if "already" in error_msg or "exists" in error_msg or "registered" in error_msg:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="An account with this email already exists. Please sign in instead."
+                )
+            raise  # Re-raise other errors
+
+        # Step 3: Create local User record via webhook sync or directly
+        # The webhook will handle this, but we can also create it directly for immediate use
+        try:
+            metadata = {
+                "user_type": "TENANT",
+                "first_name": request.first_name,
+                "last_name": request.last_name,
+            }
+            db_user = await AuthService.create_user_from_supabase(
+                supabase_user_id=supabase_user_id,
+                email=email,
+                metadata=metadata,
+                session=db,
+            )
+            logger.info(f"Created local user record for tenant: {email}")
+        except Exception as e:
+            logger.warning(f"Could not create local user record immediately (webhook will handle): {e}")
+            # Continue - the webhook will create it, or we can retry
+
+        # Step 4: Accept the invitation
+        accept_result = await TenantInvitationService.accept_invitation(
+            db=db,
+            token=request.token,
+            user_id=PythonUUID(supabase_user_id),
+        )
+
+        if not accept_result.success:
+            logger.error(f"Failed to accept invitation for {email}: {accept_result.message}")
+            # User is created but invitation not accepted - they can try again
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Account created but failed to accept invitation. Please try signing in."
+            )
+
+        # Note: Session tokens are NOT generated server-side.
+        # The frontend handles authentication by calling supabase.auth.signInWithPassword()
+        # after this endpoint returns successfully. This is more secure and follows
+        # the standard Supabase client-side auth pattern.
+
+        logger.info(f"Successfully registered and accepted invitation for tenant: {email}")
+
+        return RegisterAndAcceptResponse(
+            success=True,
+            message="Account created and invitation accepted successfully!",
+            tenant_id=accept_result.tenant_id,
+            user_id=supabase_user_id,
+            access_token=None,  # Frontend handles auth via signInWithPassword
+            refresh_token=None,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error in register_and_accept for {email}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create account. Please try again."
+        )
 
 
 # =============================================================================

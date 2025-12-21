@@ -16,19 +16,32 @@ from Backend.api.billing.webhook_tasks import (
     log_billing_audit_background
 )
 
+# Import tenant portal seat subscription handlers
+from Backend.api.tenant_portal_seats.webhook_handlers import (
+    handle_seat_subscription_created,
+    handle_seat_subscription_updated,
+    handle_seat_subscription_deleted
+)
+
 logger = logging.getLogger(__name__)
 
 
 async def handle_subscription_created(event: stripe.Event, session: AsyncSession, background_tasks: BackgroundTasks):
     """Handle customer.subscription.created event"""
     subscription_obj = event.data.object
-    
+
     logger.info(f"Processing subscription.created | sub_id={subscription_obj['id']}")
-    
+
+    # Check if this is a tenant portal seat subscription (not platform subscription)
+    if subscription_obj.get('metadata', {}).get('product_type') == 'tenant_portal_seat_subscription':
+        logger.info(f"Routing to seat subscription handler | sub_id={subscription_obj['id']}")
+        await handle_seat_subscription_created(subscription_obj, session)
+        return
+
     # SYNCHRONOUS: Critical subscription sync (must complete before responding to Stripe)
     subscription = await sync_subscription_from_stripe(
-        subscription_obj['id'], 
-        session, 
+        subscription_obj['id'],
+        session,
         stripe_sub_data=dict(subscription_obj)
     )
     
@@ -78,13 +91,19 @@ async def handle_subscription_created(event: stripe.Event, session: AsyncSession
 async def handle_subscription_updated(event: stripe.Event, session: AsyncSession, background_tasks: BackgroundTasks):
     """Handle customer.subscription.updated event"""
     subscription_obj = event.data.object
-    
+
     logger.info(f"Processing subscription.updated | sub_id={subscription_obj['id']}")
-    
+
+    # Check if this is a tenant portal seat subscription (not platform subscription)
+    if subscription_obj.get('metadata', {}).get('product_type') == 'tenant_portal_seat_subscription':
+        logger.info(f"Routing to seat subscription handler | sub_id={subscription_obj['id']}")
+        await handle_seat_subscription_updated(subscription_obj, session)
+        return
+
     # SYNCHRONOUS: Critical subscription sync
     subscription = await sync_subscription_from_stripe(
-        subscription_obj['id'], 
-        session, 
+        subscription_obj['id'],
+        session,
         stripe_sub_data=dict(subscription_obj)
     )
     
@@ -109,13 +128,19 @@ async def handle_subscription_updated(event: stripe.Event, session: AsyncSession
 async def handle_subscription_deleted(event: stripe.Event, session: AsyncSession, background_tasks: BackgroundTasks):
     """Handle customer.subscription.deleted event"""
     subscription_obj = event.data.object
-    
+
     logger.info(f"Processing subscription.deleted | sub_id={subscription_obj['id']}")
-    
+
+    # Check if this is a tenant portal seat subscription (not platform subscription)
+    if subscription_obj.get('metadata', {}).get('product_type') == 'tenant_portal_seat_subscription':
+        logger.info(f"Routing to seat subscription handler | sub_id={subscription_obj['id']}")
+        await handle_seat_subscription_deleted(subscription_obj, session)
+        return
+
     # SYNCHRONOUS: Critical subscription sync (mark as canceled/ended)
     subscription = await sync_subscription_from_stripe(
-        subscription_obj['id'], 
-        session, 
+        subscription_obj['id'],
+        session,
         stripe_sub_data=dict(subscription_obj)
     )
     

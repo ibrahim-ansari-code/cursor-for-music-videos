@@ -1056,7 +1056,7 @@ async def test_bulk_delete_tenants_success_landlord(mock_session, mock_user):
     mock_active_lease_result.all.return_value = []  # No active leases (rows would have .tenant_id attribute)
 
     # Configure session execute to return different results for different queries
-    # Order: tenants query, active leases query (row-based), bulk delete tenants (CASCADE handles TenantUnitLink)
+    # Order: tenants query, active leases query (row-based), bulk delete tenants (CASCADE handles related records)
     mock_session.execute.side_effect = [mock_result, mock_active_lease_result, MagicMock()]
 
     # Act
@@ -1184,7 +1184,7 @@ async def test_bulk_delete_tenants_integrity_error(mock_session, mock_user, mock
     mock_active_lease_result.all.return_value = []
 
     # Configure session execute to return different results for different queries
-    # Order: tenants query, active leases query (row-based), bulk delete tenants (CASCADE handles TenantUnitLink)
+    # Order: tenants query, active leases query (row-based), bulk delete tenants (CASCADE handles related records)
     mock_session.execute.side_effect = [mock_result, mock_active_lease_result, MagicMock()]
 
     # Mock commit to raise IntegrityError
@@ -1222,7 +1222,7 @@ async def test_bulk_delete_tenants_general_exception(mock_session, mock_user, mo
     mock_active_lease_result.all.return_value = []
 
     # Configure session execute to return different results for different queries
-    # Order: tenants query, active leases query (row-based), bulk delete tenants (CASCADE handles TenantUnitLink)
+    # Order: tenants query, active leases query (row-based), bulk delete tenants (CASCADE handles related records)
     mock_session.execute.side_effect = [mock_result, mock_active_lease_result, MagicMock()]
 
     # Mock commit to raise general exception
@@ -1255,7 +1255,7 @@ async def test_bulk_delete_tenants_single_tenant(mock_session, mock_user, mock_t
     mock_active_lease_result.all.return_value = []
 
     # Configure session execute to return different results for different queries
-    # Order: tenants query, active leases query (row-based), bulk delete tenants (CASCADE handles TenantUnitLink)
+    # Order: tenants query, active leases query (row-based), bulk delete tenants (CASCADE handles related records)
     mock_session.execute.side_effect = [mock_result, mock_active_lease_result, MagicMock()]
 
     # Act

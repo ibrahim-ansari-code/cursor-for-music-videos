@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useQueryClient } from "@tanstack/react-query";
 import * as Sentry from "@sentry/react";
 import TenantModal from "../components/tenants/TenantModal";
 import TenantTable from "../components/tenants/TenantTable";
@@ -32,6 +34,10 @@ interface Notification {
 }
 
 const Tenants: React.FC = () => {
+  // URL search params for handling Stripe checkout callbacks
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+
   // Subscription guard for premium features
   const guardAction = useSubscriptionGuard({ featureName: 'creating tenants' });
 
@@ -165,6 +171,36 @@ const Tenants: React.FC = () => {
   const isLoading =
     tenantsLoading || leasesLoading || dashLoading || paymentsLoading;
   const error = tenantsError || leasesError || dashError || paymentsError;
+
+  // Handle Stripe checkout success/cancel callbacks
+  useEffect(() => {
+    const subscriptionStatus = searchParams.get('seat_subscription');
+
+    if (subscriptionStatus === 'success') {
+      Sentry.logger.info('Seat subscription completed successfully');
+
+      // Invalidate seat availability to refetch updated limits
+      queryClient.invalidateQueries({ queryKey: ['tenantPortalSeats', 'availability'] });
+
+      // Show success notification
+      toast.success('Seat subscription successful! You can now invite more tenants to the portal.');
+
+      // Clean up URL - this prevents the effect from running again
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('seat_subscription');
+      setSearchParams(newParams, { replace: true });
+    } else if (subscriptionStatus === 'cancelled') {
+      Sentry.logger.warn('Seat subscription cancelled by user');
+
+      // Show cancellation message
+      toast.info('Seat subscription was cancelled.');
+
+      // Clean up URL - this prevents the effect from running again
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('seat_subscription');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams, queryClient]);
 
   // Clear selection when filtered tenants change (e.g., after filter changes or deletion)
   useEffect(() => {

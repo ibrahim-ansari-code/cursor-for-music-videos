@@ -138,7 +138,7 @@ def test_bulk_delete_success():
 
     # Mock session
     mock_session = AsyncMock()
-    # Execute calls: 1) fetch tenants, 2) check active leases, 3) bulk delete tenants (CASCADE handles TenantUnitLink)
+    # Execute calls: 1) fetch tenants, 2) check active leases, 3) bulk delete tenants (CASCADE handles related records)
     mock_session.execute = AsyncMock(side_effect=[
         MockScalarResult([t1, t2]),  # Query: Fetch tenants
         MockRowResult([]),  # Query: Check active leases (returns rows with id, tenant_id)
@@ -253,7 +253,7 @@ def test_bulk_delete_integrity_error_returns_400():
     t2 = _tenant(8, landlord_id)
 
     mock_session = AsyncMock()
-    # Execute calls: 1) fetch tenants, 2) check active leases, 3) bulk delete tenants (CASCADE handles TenantUnitLink)
+    # Execute calls: 1) fetch tenants, 2) check active leases, 3) bulk delete tenants (CASCADE handles related records)
     mock_session.execute = AsyncMock(side_effect=[
         MockScalarResult([t1, t2]),  # Query: Fetch tenants
         MockRowResult([]),  # Query: Check active leases (no active leases)
@@ -283,7 +283,7 @@ def test_bulk_delete_unexpected_error_returns_500():
     t2 = _tenant(80, landlord_id)
 
     mock_session = AsyncMock()
-    # Execute calls: 1) fetch tenants, 2) check active leases, 3) bulk delete tenants (CASCADE handles TenantUnitLink)
+    # Execute calls: 1) fetch tenants, 2) check active leases, 3) bulk delete tenants (CASCADE handles related records)
     mock_session.execute = AsyncMock(side_effect=[
         MockScalarResult([t1, t2]),  # Query: Fetch tenants
         MockRowResult([]),  # Query: Check active leases (no active leases)

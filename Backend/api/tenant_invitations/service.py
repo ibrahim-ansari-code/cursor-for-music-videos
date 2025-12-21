@@ -10,6 +10,7 @@ import secrets
 import unicodedata
 from datetime import datetime, timedelta, timezone
 from uuid import UUID as PythonUUID
+from Backend.api.tenant_portal_seats.service import SeatManagementService
 
 
 def normalize_email(email: str) -> str:
@@ -36,7 +37,7 @@ def normalize_email(email: str) -> str:
     return normalized
 
 import sentry_sdk
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlmodel import col
@@ -127,20 +128,48 @@ class TenantInvitationService:
                 )
                 return None
             
-            # Check for existing pending invitation
+            # First, expire any pending invitations that have passed their expiry date
+            now = datetime.now(timezone.utc)
+            await db.execute(
+                update(TenantPortalInvitation)
+                .where(col(TenantPortalInvitation.tenant_id) == request.tenant_id)
+                .where(col(TenantPortalInvitation.status) == InvitationStatus.PENDING)
+                .where(col(TenantPortalInvitation.expires_at) <= now)
+                .values(status=InvitationStatus.EXPIRED, updated_at=now)
+            )
+            
+            # Check for existing valid pending invitation
             existing_result = await db.execute(
                 select(TenantPortalInvitation)
                 .where(col(TenantPortalInvitation.tenant_id) == request.tenant_id)
                 .where(col(TenantPortalInvitation.status) == InvitationStatus.PENDING)
-                .where(col(TenantPortalInvitation.expires_at) > datetime.now(timezone.utc))
+                .where(col(TenantPortalInvitation.expires_at) > now)
             )
             existing = existing_result.scalar_one_or_none()
             
             if existing:
-                # Return existing invitation instead of creating new one
+                # Return existing invitation - but resend email since user is clicking "Invite"
                 logger.info(
-                    f"Returning existing invitation for tenant {request.tenant_id}"
+                    f"Found existing invitation for tenant {request.tenant_id}, resending email"
                 )
+                # Generate new token for security (old token may be compromised)
+                plaintext_token = secrets.token_urlsafe(TOKEN_LENGTH)
+                existing.invitation_token = hash_token(plaintext_token)
+                existing.updated_at = datetime.now(timezone.utc)
+                # Extend expiry when resending (new token = fresh 7-day window)
+                existing.expires_at = datetime.now(timezone.utc) + timedelta(days=INVITATION_EXPIRY_DAYS)
+                await db.commit()
+                await db.refresh(existing)
+
+                # Send email with new token
+                await TenantInvitationService._send_invitation_email(
+                    invitation=existing,
+                    tenant=tenant,
+                    landlord_id=landlord_id,
+                    db=db,
+                    plaintext_token=plaintext_token,
+                )
+
                 return await TenantInvitationService._build_invitation_response(existing, tenant)
             
             # Generate secure token - store hash, send plaintext to user
@@ -154,7 +183,7 @@ class TenantInvitationService:
                 invitation_token=token_hash_value,  # Store only the hash
                 email=tenant.email,
                 status=InvitationStatus.PENDING,
-                expires_at=datetime.now(timezone.utc) + timedelta(days=INVITATION_EXPIRY_DAYS),
+                expires_at=now + timedelta(days=INVITATION_EXPIRY_DAYS),
             )
             
             db.add(invitation)
@@ -352,7 +381,12 @@ class TenantInvitationService:
                 select(TenantPortalInvitation)
                 .where(col(TenantPortalInvitation.id) == invitation_id)
                 .where(col(TenantPortalInvitation.invited_by) == landlord_id)
-                .options(selectinload(getattr(TenantPortalInvitation, "tenant")))
+                .options(
+                    selectinload(getattr(TenantPortalInvitation, "tenant"))
+                    .selectinload(getattr(Tenant, "current_property")),
+                    selectinload(getattr(TenantPortalInvitation, "tenant"))
+                    .selectinload(getattr(Tenant, "assigned_units")),
+                )
             )
             invitation = result.scalar_one_or_none()
             
@@ -489,11 +523,19 @@ class TenantInvitationService:
                 else "Your Landlord"
             )
             
-            # Get property/unit info
-            property_name = tenant.current_property.name if tenant.current_property else None
+            # Get property/unit info from direct assignments
+            property_name = None
             unit_name = None
-            if tenant.assigned_units:
-                unit_name = tenant.assigned_units[0].name
+            
+            try:
+                if tenant.current_property:
+                    property_name = tenant.current_property.name
+                
+                if tenant.assigned_units and len(tenant.assigned_units) > 0:
+                    unit_name = tenant.assigned_units[0].name
+            except Exception as e:
+                logger.error(f"Error loading property/unit for tenant {tenant.id}: {e}")
+                sentry_sdk.capture_exception(e)
             
             return InvitationValidateResponse(
                 valid=True,
@@ -603,8 +645,30 @@ class TenantInvitationService:
                     success=False,
                     message="This tenant record is already linked to an account",
                 )
-            
-            # Link tenant to user
+
+            # ✅ CRITICAL: Check seat availability BEFORE linking tenant to user account
+            # This is the enforcement point - seats are consumed when tenant.user_id is set
+
+            availability = await SeatManagementService.get_seat_availability(
+                landlord_user_id=invitation.invited_by,
+                session=db
+            )
+
+            if availability["available"] <= 0:
+                logger.warning(
+                    f"Seat limit reached for landlord {invitation.invited_by} | "
+                    f"Used: {availability['used']}, Limit: {availability['limit']}"
+                )
+                return InvitationAcceptResponse(
+                    success=False,
+                    message=(
+                        f"Your landlord has reached their tenant portal seat limit "
+                        f"({availability['limit']} seats). Please contact your landlord "
+                        f"to purchase additional seats before accepting this invitation."
+                    ),
+                )
+
+            # Link tenant to user (consumes seat automatically via real-time counting)
             tenant.user_id = user_id
             tenant.updated_at = datetime.now(timezone.utc)
             
@@ -702,22 +766,45 @@ class TenantInvitationService:
             else:
                 tenant_name = tenant.first_name or "Tenant"
             
-            # Get property info
-            property_name = tenant.current_property.name if tenant.current_property else None
+            # Get property/unit info - fetch separately to avoid lazy loading issues
+            property_name = None
             unit_name = None
-            if tenant.assigned_units:
-                unit_name = tenant.assigned_units[0].name
+            
+            if tenant.current_property_id:
+                try:
+                    from Backend.models.property import Property
+                    from Backend.models.units import PropertyUnit
+                    
+                    property_result = await db.execute(
+                        select(Property).where(col(Property.id) == tenant.current_property_id)
+                    )
+                    property_obj = property_result.scalar_one_or_none()
+                    if property_obj:
+                        property_name = property_obj.name
+                        
+                        # Get unit if tenant has one assigned
+                        unit_result = await db.execute(
+                            select(PropertyUnit)
+                            .where(col(PropertyUnit.tenant_id) == tenant.id)
+                            .limit(1)
+                        )
+                        unit_obj = unit_result.scalar_one_or_none()
+                        if unit_obj:
+                            unit_name = unit_obj.name
+                except Exception as e:
+                    logger.warning(f"Error loading property/unit for email: {e}")
             
             # Build invitation URL for Tenant Portal with plaintext token
             # Use URL fragment (#token=) instead of query param (?token=) to prevent:
             # - Token leakage via browser history, referrer headers, and server logs
             # - The fragment is only accessible via JavaScript, never sent to server in URL
-            invitation_url = f"{settings.TENANT_PORTAL_URL}/accept-invite#token={plaintext_token}"
+            base_url = "http://localhost:5174" if settings.ENVIRONMENT == "development" else settings.TENANT_PORTAL_URL
+            invitation_url = f"{base_url}/accept-invite#token={plaintext_token}"
             
             # Build email content
             sections = [
                 EmailSection(
-                    text=f"{landlord_name} has invited you to join the Brikli Tenant Portal."
+                    text=f"Your landlord, {landlord_name}, has invited you to join the Brikli Tenant Portal."
                 ),
                 EmailSection(
                     text="The Tenant Portal gives you easy access to:"
@@ -781,7 +868,7 @@ class TenantInvitationService:
             success = await SendGridService.send_raw_email(
                 to_email=invitation.email,
                 to_name=tenant_name,
-                subject=f"{landlord_name} has invited you to the Brikli Tenant Portal",
+                subject=f"Your landlord, {landlord_name}, has invited you to the Brikli Tenant Portal",
                 html_content=html_body,
                 metadata={
                     "correlation_id": correlation_id,

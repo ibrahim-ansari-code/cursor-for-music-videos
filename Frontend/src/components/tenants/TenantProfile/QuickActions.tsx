@@ -25,10 +25,12 @@ import {
   isInvitationValid,
   getInvitationExpiryText,
 } from '../../../utils/api/tenantInvitations';
+import { getSeatAvailability } from '../../../utils/api/tenantPortalSeats';
 import { QUERY_KEYS } from '../../../hooks/queryKeys';
+import SeatSubscriptionModal from '../SeatSubscriptionModal';
 
 // Feature flag - set to true when ready to enable portal invitations
-const PORTAL_INVITATIONS_ENABLED = false;
+const PORTAL_INVITATIONS_ENABLED = true;
 
 interface QuickActionsProps {
   tenant: EnrichedTenant;
@@ -48,6 +50,8 @@ const QuickActions: React.FC<QuickActionsProps> = ({
   const queryClient = useQueryClient();
   const [isInviting, setIsInviting] = useState(false);
   const [showInviteDropdown, setShowInviteDropdown] = useState(false);
+  const [showSeatModal, setShowSeatModal] = useState(false);
+  const [showInviteConfirm, setShowInviteConfirm] = useState(false);
 
   // Fetch invitation status for this tenant
   const {
@@ -59,6 +63,17 @@ const QuickActions: React.FC<QuickActionsProps> = ({
     queryFn: () => getTenantInvitation(tenant.id),
     enabled: PORTAL_INVITATIONS_ENABLED && !!tenant.id && !tenant.user_id,
     staleTime: 60 * 1000, // 1 minute
+  });
+
+  // Fetch seat availability for the landlord
+  const {
+    data: seatAvailability,
+  } = useQuery({
+    queryKey: ['tenantPortalSeats', 'availability'],
+    queryFn: getSeatAvailability,
+    enabled: PORTAL_INVITATIONS_ENABLED && !tenant.user_id,
+    staleTime: 30 * 1000, // 30 seconds
+    refetchOnWindowFocus: false,
   });
 
   // Determine portal status
@@ -104,13 +119,38 @@ const QuickActions: React.FC<QuickActionsProps> = ({
     };
   }, [showInviteDropdown]);
 
-  // Handle sending invitation
-  const handleInvite = async () => {
+  // Show confirmation before sending invitation
+  const handleInviteClick = () => {
     if (!tenant.email) {
       toast.error('Cannot invite tenant: No email address on file');
       return;
     }
 
+    // Check seat availability before showing confirmation
+    if (seatAvailability && seatAvailability.available <= 0) {
+      Sentry.captureMessage('Seat limit reached, showing subscription modal', {
+        level: 'warning',
+        tags: {
+          component: 'QuickActions',
+          action: 'invite_tenant',
+        },
+        extra: {
+          landlord_seats_used: seatAvailability.used,
+          landlord_seats_limit: seatAvailability.limit,
+          tenant_id: tenant.id,
+        },
+      });
+      setShowSeatModal(true);
+      return;
+    }
+
+    // Show confirmation dialog
+    setShowInviteConfirm(true);
+  };
+
+  // Handle sending invitation after confirmation
+  const handleInviteConfirm = async () => {
+    setShowInviteConfirm(false);
     setIsInviting(true);
     setShowInviteDropdown(false);
 
@@ -122,7 +162,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({
         },
         async () => {
           const result = await createTenantInvitation(tenant.id);
-          
+
           if (result) {
             toast.success(`Invitation sent to ${tenant.email}`);
             await refetchInvitation();
@@ -134,7 +174,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({
       );
     } catch (error: unknown) {
       console.error('Failed to send invitation:', error);
-      
+
       Sentry.captureException(error, {
         tags: {
           component: 'QuickActions',
@@ -341,7 +381,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({
     // Expired or revoked invitation, or no invitation
     return (
       <button
-        onClick={handleInvite}
+        onClick={handleInviteClick}
         disabled={isInviting}
         className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left w-full disabled:opacity-50"
       >
@@ -421,6 +461,75 @@ const QuickActions: React.FC<QuickActionsProps> = ({
         {/* Invite to Portal - Dynamic based on status */}
         {renderPortalButton()}
       </div>
+
+      {/* Seat Subscription Modal */}
+      <SeatSubscriptionModal
+        isOpen={showSeatModal}
+        onClose={() => setShowSeatModal(false)}
+        requiredSeats={1}
+      />
+
+      {/* Invite Confirmation Dialog */}
+      {showInviteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={() => setShowInviteConfirm(false)}
+          />
+
+          {/* Dialog */}
+          <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-sm w-full p-5 animate-in fade-in zoom-in-95 duration-200">
+            {/* Icon */}
+            <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-brand-teal/10 rounded-full">
+              <svg className="w-6 h-6 text-brand-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+
+            {/* Content */}
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 text-center mb-2">
+              Send Portal Invitation
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-4">
+              An email invitation will be sent to <span className="font-medium text-gray-900 dark:text-gray-200">{tenant.email}</span> to join the Tenant Portal.
+            </p>
+
+            {/* Seat Info */}
+            {seatAvailability && (
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 mb-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Portal seats available</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                    {seatAvailability.available} of {seatAvailability.limit}
+                  </span>
+                </div>
+                {seatAvailability.available <= 3 && seatAvailability.available > 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                    Running low on seats
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowInviteConfirm(false)}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleInviteConfirm}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-brand-teal hover:bg-brand-teal/90 rounded-lg transition-colors"
+              >
+                Send Invitation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

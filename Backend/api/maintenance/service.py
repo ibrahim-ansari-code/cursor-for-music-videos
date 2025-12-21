@@ -205,10 +205,9 @@ class MaintenanceService:
         """
         # Auto-infer context for tenant users (industry standard pattern)
         if current_user.user_type == UserType.TENANT:
-            # Eagerly load both assigned_units and units (link table) to get the tenant's unit
+            # Eagerly load assigned_units to get the tenant's unit
             tenant_query = select(Tenant).options(
-                selectinload(getattr(Tenant, "assigned_units")),
-                selectinload(getattr(Tenant, "units"))
+                selectinload(getattr(Tenant, "assigned_units"))
             ).where(col(Tenant.user_id) == current_user.id)
             user_tenant = await session.scalar(tenant_query)
             
@@ -228,30 +227,17 @@ class MaintenanceService:
                     detail="No property assigned to your account. Please contact your landlord."
                 )
             
-            # Auto-infer unit_id from assigned_units (property_units.tenant_id) OR units (link table)
+            # Auto-infer unit_id from assigned_units (property_units.tenant_id)
             actual_unit_id = data.unit_id  # Use explicit if provided
-            if not actual_unit_id:
-                # Try assigned_units first (direct tenant_id relationship)
-                if user_tenant.assigned_units:
-                    for unit in user_tenant.assigned_units:
-                        if unit.property_id == actual_property_id:
-                            actual_unit_id = unit.id
-                            logger.info(
-                                "Auto-inferred unit_id %s from assigned_units for tenant %s",
-                                actual_unit_id, actual_tenant_id
-                            )
-                            break
-                
-                # Fall back to units (many-to-many link table)
-                if not actual_unit_id and user_tenant.units:
-                    for unit in user_tenant.units:
-                        if unit.property_id == actual_property_id:
-                            actual_unit_id = unit.id
-                            logger.info(
-                                "Auto-inferred unit_id %s from units link table for tenant %s",
-                                actual_unit_id, actual_tenant_id
-                            )
-                            break
+            if not actual_unit_id and user_tenant.assigned_units:
+                for unit in user_tenant.assigned_units:
+                    if unit.property_id == actual_property_id:
+                        actual_unit_id = unit.id
+                        logger.info(
+                            "Auto-inferred unit_id %s from assigned_units for tenant %s",
+                            actual_unit_id, actual_tenant_id
+                        )
+                        break
             
             logger.info(
                 "Tenant user %s creating maintenance request for property %s, unit %s (auto-inferred)",

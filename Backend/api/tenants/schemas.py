@@ -430,6 +430,7 @@ class TenantResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     current_property_id: int | None = None
+    user_id: PythonUUID | None = None  # Tenant portal user account linkage
     emergency_contacts: list[dict[str, Any]] = []
     # Add fields for unit and property
     unit: UnitResponseSimple | None = None

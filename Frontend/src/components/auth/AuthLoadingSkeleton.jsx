@@ -3,8 +3,8 @@ import React from "react";
 const AuthLoadingSkeleton = () => {
   return (
     <div className="min-h-screen flex bg-gray-50">
-      {/* Left Column - Branding Panel Skeleton */}
-      <div className="hidden md:block md:w-3/5 bg-brand-green relative overflow-hidden"
+      {/* Left Column - Branding Panel Skeleton (Fixed) */}
+      <div className="hidden md:block md:w-3/5 sticky top-0 h-screen bg-brand-green relative overflow-hidden"
            style={{ padding: 'calc(32px + 1.5625vw)' }}>
         
         {/* Background effects to match BrandingPanel */}
@@ -69,9 +69,9 @@ const AuthLoadingSkeleton = () => {
         </div>
       </div>
 
-      {/* Right Column - Form Skeleton */}
-      <div className="w-full md:w-2/5 bg-white flex items-center justify-center p-8 md:p-12">
-        <div className="w-full max-w-sm animate-pulse">
+      {/* Right Column - Form Skeleton (Scrollable) */}
+      <div className="w-full md:w-2/5 bg-white flex items-center justify-center p-8 md:p-12 overflow-y-auto">
+        <div className="w-full max-w-sm my-8 animate-pulse">
           <div className="space-y-6">
             <div className="space-y-2">
               <div className="h-8 w-32 bg-gray-200 rounded"></div>

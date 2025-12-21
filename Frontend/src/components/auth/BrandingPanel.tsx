@@ -1,7 +1,7 @@
-import React from "react";
+import React, { type ReactNode } from "react";
 
 // Icon components for better maintainability
-const ComputerIcon = () => (
+const ComputerIcon: React.FC = () => (
   <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="AI automation icon">
     <path 
       strokeLinecap="round" 
@@ -12,7 +12,7 @@ const ComputerIcon = () => (
   </svg>
 );
 
-const CalculatorIcon = () => (
+const CalculatorIcon: React.FC = () => (
   <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Automated accounting icon">
     <path 
       strokeLinecap="round" 
@@ -23,7 +23,7 @@ const CalculatorIcon = () => (
   </svg>
 );
 
-const LightningIcon = () => (
+const LightningIcon: React.FC = () => (
   <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Time-saving efficiency icon">
     <path 
       strokeLinecap="round" 
@@ -34,8 +34,20 @@ const LightningIcon = () => (
   </svg>
 );
 
-const BrandingPanel = () => {
-  const features = [
+interface Feature {
+  icon: ReactNode;
+  title: string;
+  description: string;
+}
+
+interface FeatureItemProps {
+  icon: ReactNode;
+  title: string;
+  description: string;
+}
+
+const BrandingPanel: React.FC = () => {
+  const features: Feature[] = [
     {
       icon: <ComputerIcon />,
       title: "Let AI handle your paperwork",
@@ -108,7 +120,7 @@ const BrandingPanel = () => {
   );
 };
 
-const BackgroundEffects = () => (
+const BackgroundEffects: React.FC = () => (
   <>
     {/* Gradient orbs */}
     <div className="absolute inset-0">
@@ -131,7 +143,7 @@ const BackgroundEffects = () => (
   </>
 );
 
-const FeatureItem = ({ icon, title, description }) => (
+const FeatureItem: React.FC<FeatureItemProps> = ({ icon, title, description }) => (
   <div className="flex group cursor-default items-start"
        style={{ gap: 'calc(24px + 0.78125vw)' }}>
     <div className="flex-shrink-0 mt-3.5">
@@ -151,3 +163,4 @@ const FeatureItem = ({ icon, title, description }) => (
 );
 
 export default BrandingPanel;
+

@@ -671,7 +671,7 @@ class UnitService:
         # First verify the unit exists and user has permission
         unit = await UnitService.get_unit_or_404(unit_id, session, current_user)
 
-        # Query for active lease
+        # Query for active lease(s) - handle potential double-booking
         result = await session.execute(
             select(Lease)
             .options(
@@ -684,14 +684,25 @@ class UnitService:
                     col(Lease.status) == LeaseStatus.ACTIVE
                 )
             )
+            .order_by(col(Lease.created_at).desc())  # Most recent first
         )
-        lease = result.unique().scalar_one_or_none()
-
-        if not lease:
+        leases = result.unique().scalars().all()
+        
+        if not leases:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No active lease found for this unit"
             )
+        
+        # Handle data integrity issue: multiple active leases for same unit
+        if len(leases) > 1:
+            logger.warning(
+                f"Unit {unit_id} has {len(leases)} active leases (data integrity issue). "
+                f"Returning most recent lease {leases[0].id}. "
+                f"Other lease IDs: {[l.id for l in leases[1:]]}"
+            )
+        
+        lease = leases[0]  # Return most recent lease
 
         return LeaseResponse.model_validate(lease)
 

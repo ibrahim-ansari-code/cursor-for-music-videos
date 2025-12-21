@@ -8,28 +8,36 @@ from supabase import Client, create_client
 logger = logging.getLogger(__name__)
 
 
-@lru_cache(maxsize=1)
 def _get_supabase_config() -> Tuple[str, str]:
     """
-    Cache and validate Supabase configuration.
-    
-    This function is cached to avoid repeated environment variable lookups
-    and validation, improving performance while following best practices.
-    
+    Get and validate Supabase configuration.
+
     Returns:
         Tuple[str, str]: A tuple of (url, key) for Supabase configuration
-        
+
     Raises:
         ValueError: If required environment variables are not set
     """
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_SERVICE_KEY")
-    
+    # For admin operations, we need the direct Supabase URL (*.supabase.co),
+    # not a custom domain like api.brikli.com which doesn't support admin APIs.
+    # SUPABASE_DIRECT_URL takes precedence for admin operations.
+    url = os.getenv("SUPABASE_DIRECT_URL") or os.getenv("SUPABASE_URL")
+    # Try both possible env var names for service role key
+    key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
     if not url or not key:
+        missing = []
+        if not url:
+            missing.append("SUPABASE_URL or SUPABASE_DIRECT_URL")
+        if not key:
+            missing.append("SUPABASE_SERVICE_KEY or SUPABASE_SERVICE_ROLE_KEY")
         raise ValueError(
-            "SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set"
+            f"Missing required environment variables: {', '.join(missing)}"
         )
-    
+
+    # Log which URL we're using
+    logger.debug(f"Using Supabase URL: {url}")
+
     return url, key
 
 
