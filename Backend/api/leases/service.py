@@ -167,8 +167,10 @@ async def check_lease_permission(
         tenant_query = select(Tenant).where(col(Tenant.user_id) == current_user.id)
         tenant_result = await session.execute(tenant_query)
         tenant = tenant_result.scalar_one_or_none()
-        
-        if tenant and lease.tenant_id == tenant.id and action == "view":
+
+        # Tenants can view their own lease and its documents (read-only actions)
+        tenant_allowed_actions = ["view", "view documents for"]
+        if tenant and lease.tenant_id == tenant.id and action in tenant_allowed_actions:
             return lease
         else:
             logger.warning(f"Tenant {current_user.id} permission denied for {action} lease {lease_id}")

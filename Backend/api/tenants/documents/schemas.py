@@ -28,18 +28,24 @@ from Backend.models.enums import DocumentCategory, DocumentStatus
 class DocumentUploadRequest(BaseModel):
     """
     Request schema for uploading a new tenant document.
-    
+
     Note: This is used with multipart/form-data uploads where the file
     is separate from these metadata fields.
-    
+
     Fields:
+    - document_name: Optional, user-friendly name (defaults to file name)
     - document_category: Required, strongly typed enum
     - document_type: Required, specific type within category
     - tags: Optional, max 10 tags
     - notes: Optional, max 280 characters
     - expiry_date: Optional, for compliance tracking
     """
-    
+
+    document_name: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="User-friendly document name (defaults to file name if not provided)"
+    )
     document_category: DocumentCategory = Field(
         ...,
         description="Category from 14 predefined types (strongly typed enum)"
@@ -115,6 +121,7 @@ class DocumentUploadRequest(BaseModel):
     class Config:
         json_schema_extra: dict = {
             "example": {
+                "document_name": "2025 Liability Insurance Certificate",
                 "document_category": "insurance_risk",
                 "document_type": "tenant_insurance_certificate",
                 "tags": ["liability", "annual"],
@@ -127,17 +134,23 @@ class DocumentUploadRequest(BaseModel):
 class DocumentUpdateRequest(BaseModel):
     """
     Request schema for updating document metadata.
-    
+
     All fields are optional - only provided fields will be updated.
     File itself cannot be changed (upload new document instead).
-    
+
     Fields:
+    - document_name: Update user-friendly name
     - tags: Update tags list
     - notes: Update notes
     - status: Change workflow status
     - expiry_date: Update or remove expiry date
     """
-    
+
+    document_name: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="Updated user-friendly document name"
+    )
     tags: Optional[List[str]] = Field(
         default=None,
         max_length=10,
@@ -210,38 +223,42 @@ class DocumentUpdateRequest(BaseModel):
 class DocumentResponse(BaseModel):
     """
     Response schema for tenant document details.
-    
+
     Includes all database fields plus computed fields:
     - is_expired: Whether document has passed expiry date
     - days_until_expiry: Days remaining until expiry (or None)
     """
-    
+
     # Core fields
     id: UUID
     tenant_id: int  # INTEGER foreign key to tenants.id
+    document_name: Optional[str] = Field(
+        default=None,
+        description="User-friendly document name"
+    )
     file_name: str
     file_path: str
     file_size: int
     file_type: str
-    
+
     # Classification (strongly typed)
     document_category: DocumentCategory
     document_type: str
-    
+
     # Organization
     tags: List[str] = Field(default_factory=list)
     notes: Optional[str] = None
-    
+
     # Compliance
     expiry_date: Optional[date] = None
     status: DocumentStatus
-    
+
     # Audit trail
     uploaded_by: UUID  # UUID foreign key to users.id
     uploaded_at: datetime
     created_at: datetime
     updated_at: datetime
-    
+
     # Computed fields (calculated at runtime)
     is_expired: bool = Field(
         default=False,
@@ -251,13 +268,14 @@ class DocumentResponse(BaseModel):
         default=None,
         description="Days remaining until expiry (negative if expired)"
     )
-    
+
     class Config:
         from_attributes = True  # For SQLModel compatibility
         json_schema_extra = {
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "tenant_id": "123e4567-e89b-12d3-a456-426614174000",
+                "document_name": "2025 Liability Insurance Certificate",
                 "file_name": "Insurance_Certificate_2025.pdf",
                 "file_path": "https://storage.blob.core.windows.net/tenant-documents/user_789.../insurance.pdf",
                 "file_size": 245680,

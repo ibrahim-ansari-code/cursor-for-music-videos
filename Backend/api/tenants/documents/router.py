@@ -104,6 +104,7 @@ async def list_tenant_documents(
 async def upload_tenant_document(
     tenant_id: int,
     file: UploadFile = File(..., description="Document file to upload"),
+    document_name: Optional[str] = Form(None, description="User-friendly document name"),
     document_category: DocumentCategory = Form(..., description="Document category"),
     document_type: str = Form(..., description="Specific document type"),
     tags: Optional[str] = Form(None, description="Comma-separated tags"),
@@ -114,28 +115,29 @@ async def upload_tenant_document(
 ):
     """
     Upload a new document for a tenant.
-    
+
     **Access Control**: User must own the tenant.
-    
+
     **Form Data**:
     - `file`: File to upload (PDF, DOCX, images up to 25MB)
+    - `document_name`: User-friendly name for the document (optional, defaults to file name)
     - `document_category`: Category enum value (required)
     - `document_type`: Specific type within category (required)
     - `tags`: Comma-separated tags (optional, max 10)
     - `notes`: Additional notes (optional, max 280 chars)
     - `expiry_date`: Expiration date in YYYY-MM-DD format (optional)
-    
+
     **Process**:
     1. Validates document type exists in category
     2. Uploads file to Azure Blob Storage
     3. Creates database record
     4. Returns document details with secure URL
-    
+
     **Returns**: Document details including computed expiry info.
     """
     # Parse tags from comma-separated string
     tags_list = [tag.strip() for tag in tags.split(",")] if tags else None
-    
+
     # Parse expiry_date from string
     expiry_date_parsed = None
     if expiry_date:
@@ -148,7 +150,7 @@ async def upload_tenant_document(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid expiry_date format. Use YYYY-MM-DD."
             )
-    
+
     return await service.create_document(
         session=session,
         tenant_id=tenant_id,
@@ -156,6 +158,7 @@ async def upload_tenant_document(
         file=file,
         document_category=document_category,
         document_type=document_type,
+        document_name=document_name,
         tags=tags_list,
         notes=notes,
         expiry_date=expiry_date_parsed,
@@ -247,18 +250,19 @@ async def update_tenant_document(
     session: AsyncSession = Depends(get_session),
 ):
     """
-    Update document metadata (tags, notes, status, expiry_date).
-    
+    Update document metadata (document_name, tags, notes, status, expiry_date).
+
     **Access Control**: User must own the tenant.
-    
+
     **Note**: File itself cannot be updated. Upload a new document instead.
-    
+
     **Request Body**: All fields optional (only provided fields updated):
+    - `document_name`: Updated user-friendly name
     - `tags`: Updated tags list (replaces existing)
     - `notes`: Updated notes (replaces existing, max 280 chars)
     - `status`: Updated workflow status (pending/verified/rejected/expired)
     - `expiry_date`: Updated expiry date (or null to remove)
-    
+
     **Returns**: Updated document details.
     """
     return await service.update_document(

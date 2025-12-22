@@ -8,7 +8,7 @@ from Backend.database import get_session
 from Backend.models.enums import UserType
 from Backend.models.user import User
 
-from .schemas import DashboardResponse, TenantDashboardResponse
+from .schemas import DashboardResponse, TenantDashboardResponse, TenantLeaseInfoResponse
 from .service import DashboardService
 
 
@@ -76,4 +76,27 @@ async def get_tenant_dashboard(
         monthly_rent=monthly_rent_section,
         next_payment=next_payment_section,
         maintenance=maintenance_section,
+    )
+
+
+@router.get("/tenant/lease-info", response_model=TenantLeaseInfoResponse)
+async def get_tenant_lease_info(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> TenantLeaseInfoResponse:
+    """
+    Get detailed lease information for the current tenant.
+
+    Returns lease details including IDs needed for document access,
+    property/landlord info, and security deposit status.
+    """
+    if current_user.user_type != UserType.TENANT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access tenant lease info",
+        )
+
+    return await DashboardService.get_tenant_lease_info(
+        session=session,
+        current_user=current_user,
     )

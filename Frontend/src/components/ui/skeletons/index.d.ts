@@ -44,6 +44,7 @@ export const StatusCardSkeleton: FC<SkeletonProps>;
 export const ChartSkeleton: FC<SkeletonProps>;
 export const MaintenanceSkeleton: FC<SkeletonProps>;
 export const PropertyDetailSkeleton: FC<SkeletonProps>;
+export const TenantProfileSkeleton: FC<SkeletonProps>;
 export const IntegrationsSkeleton: FC<SkeletonProps>;
 export const SettingsSkeleton: FC<SkeletonProps>;
 

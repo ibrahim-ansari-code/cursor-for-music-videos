@@ -94,3 +94,34 @@ class TenantDashboardResponse(BaseModel):
     next_payment: TenantNextPaymentSection
     maintenance: TenantMaintenanceSection
 
+
+# Tenant Lease Info Schema (for Lease Documents page)
+class TenantLeaseInfoResponse(BaseModel):
+    """Detailed lease information for tenant document access."""
+    # IDs needed for document API calls
+    lease_id: int
+    tenant_id: int
+    unit_id: int
+    property_id: int
+
+    # Lease details
+    lease_start: date
+    lease_end: date
+    monthly_rent: str
+    rent_due_day: int
+    security_deposit: str
+    security_deposit_paid_date: str | None = None
+
+    # Property info
+    property_name: str
+    property_address: str
+    unit_name: str
+
+    # Landlord info
+    landlord_name: str
+    landlord_email: str | None = None
+
+    # Tenant info
+    tenant_name: str
+    tenant_email: str
+

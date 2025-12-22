@@ -301,7 +301,7 @@ const ActiveBanner: React.FC = () => {
   const handleOpenDashboard = useCallback(async () => {
     try {
       const result = await dashboardLink.mutateAsync();
-      window.open(result.dashboard_url, '_blank');
+      window.open(result.dashboard_url, '_blank', 'noopener,noreferrer');
     } catch (error) {
       toast.error('Failed to open dashboard. Please try again.');
       console.error('Dashboard link error:', error);

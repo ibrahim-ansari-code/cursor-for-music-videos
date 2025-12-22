@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { EnrichedTenant } from '../../../../../types/tenant';
-import { DocumentFilters as DocumentFiltersType } from '../../../../../types/tenantDocument';
+import { DocumentFilters as DocumentFiltersType, TenantDocument } from '../../../../../types/tenantDocument';
 import { useTenantDocuments } from '../../../../../hooks/useTenantDocuments';
 import DocumentFilters from './DocumentFilters';
 import DocumentsTable from './DocumentsTable';
@@ -18,6 +18,7 @@ interface OutletContext {
   refetch: () => void;
   openFilePreviewModal: (url: string, name: string) => void;
   openDocumentUploadModal: () => void;
+  openDocumentEditModal: (document: TenantDocument) => void;
 }
 
 const DocumentsTab: React.FC = () => {
@@ -27,18 +28,12 @@ const DocumentsTab: React.FC = () => {
   const [filters, setFilters] = useState<DocumentFiltersType>({});
 
   // Guard: Handle undefined context gracefully (occurs during refetch or initial load)
+  // Parent TenantProfile handles the loading spinner, so we just return null briefly
   if (!context || !context.tenant) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin" />
-          <p className="text-sm text-gray-500 dark:text-gray-400">Loading documents...</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
-  const { tenant, openFilePreviewModal, openDocumentUploadModal } = context;
+  const { tenant, openFilePreviewModal, openDocumentUploadModal, openDocumentEditModal } = context;
 
   // Fetch documents with filters
   const { data: documentsResponse, isLoading, error, refetch } = useTenantDocuments(
@@ -91,6 +86,7 @@ const DocumentsTab: React.FC = () => {
             documents={documents}
             tenantId={tenant.id?.toString() || ''}
             onPreview={openFilePreviewModal}
+            onEdit={openDocumentEditModal}
             isLoading={isLoading}
           />
         </div>

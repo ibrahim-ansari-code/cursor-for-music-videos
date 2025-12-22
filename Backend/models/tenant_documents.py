@@ -13,7 +13,7 @@ Key Features:
 - Integrates with Azure Blob Storage for file storage
 """
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from typing import Optional, List
 from uuid import UUID, uuid4
 
@@ -51,7 +51,12 @@ class TenantDocument(SQLModel, table=True):
     uploaded_by: UUID = Field(foreign_key="users.id")
     
     # ===== FILE METADATA =====
-    file_name: str = Field(max_length=255)
+    document_name: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="User-friendly document name (defaults to file_name if not provided)"
+    )
+    file_name: str = Field(max_length=255, description="Original uploaded file name")
     file_path: str = Field(description="Azure Blob Storage URL")
     file_size: int = Field(gt=0, description="File size in bytes")
     file_type: str = Field(max_length=100, description="MIME type (e.g., application/pdf)")
@@ -93,17 +98,18 @@ class TenantDocument(SQLModel, table=True):
     )
     
     # ===== TIMESTAMPS =====
+    # Note: Using naive UTC datetimes (utcnow) because database columns are TIMESTAMP WITHOUT TIME ZONE
     uploaded_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        description="When document was uploaded"
+        default_factory=datetime.utcnow,
+        description="When document was uploaded (UTC)"
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        description="Record creation timestamp"
+        default_factory=datetime.utcnow,
+        description="Record creation timestamp (UTC)"
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        description="Record last update timestamp (auto-updated by trigger)"
+        default_factory=datetime.utcnow,
+        description="Record last update timestamp (UTC, auto-updated by trigger)"
     )
     
     class Config:

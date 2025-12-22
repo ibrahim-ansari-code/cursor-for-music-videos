@@ -21,6 +21,7 @@ import AcceptInvite from "@/pages/AcceptInvite";
 import Maintenance from "./pages/Maintenance";
 import Settings from "./pages/Settings";
 import NotificationsContent from "./components/notifications/NotificationsContent";
+import LeaseDocuments from "./pages/LeaseDocuments";
 
 // Configure React Query client with caching and retry settings
 const queryClient = new QueryClient({
@@ -73,16 +74,7 @@ function App() {
                 >
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="payments" element={<Payments />} />
-                  <Route
-                    path="documents"
-                    element={
-                      <div className="flex items-center justify-center h-64">
-                        <h1 className="text-2xl font-bold text-gray-900">
-                          Documents - Coming Soon
-                        </h1>
-                      </div>
-                    }
-                  />
+                  <Route path="documents" element={<LeaseDocuments />} />
                   <Route path="maintenance" element={<Maintenance />} />
                   <Route path="notifications" element={<NotificationsContent />} />
                   <Route path="settings" element={<Settings />} />

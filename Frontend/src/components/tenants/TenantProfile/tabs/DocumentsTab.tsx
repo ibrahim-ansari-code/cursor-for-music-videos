@@ -79,7 +79,7 @@ const DocumentsTab: React.FC = () => {
   };
 
   const handleDownload = (document: LeaseDocument) => {
-    window.open(document.file_path, '_blank');
+    window.open(document.file_path, '_blank', 'noopener,noreferrer');
   };
 
   return (

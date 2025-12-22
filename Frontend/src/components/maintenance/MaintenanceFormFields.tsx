@@ -237,7 +237,7 @@ const MaintenanceViewMode: React.FC<{
                         src={displayUrl}
                         alt={`Photo ${index + 1}`}
                         className="w-full h-full object-cover cursor-pointer"
-                        onClick={() => window.open(displayUrl, "_blank")}
+                        onClick={() => window.open(displayUrl, "_blank", "noopener,noreferrer")}
                         onError={(e) => {
                           // Handle broken images
                           const target = e.target as HTMLImageElement;

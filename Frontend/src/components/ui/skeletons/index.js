@@ -18,6 +18,7 @@ export { default as CardSkeleton, FinancialCardSkeleton, PortfolioCardSkeleton, 
 // Page skeletons
 export { default as MaintenanceSkeleton } from './MaintenanceSkeleton';
 export { default as PropertyDetailSkeleton } from './PropertyDetailSkeleton';
+export { default as TenantProfileSkeleton } from './TenantProfileSkeleton';
 export { default as IntegrationsSkeleton } from './IntegrationsSkeleton';
 export { default as SettingsSkeleton } from './SettingsSkeleton';
 

@@ -38,6 +38,7 @@ const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
 }) => {
   // Form state
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [documentName, setDocumentName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<DocumentCategory | ''>('');
   const [selectedType, setSelectedType] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -54,6 +55,7 @@ const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
   useEffect(() => {
     if (!isOpen) {
       setUploadFile(null);
+      setDocumentName('');
       setSelectedCategory('');
       setSelectedType('');
       setTags([]);
@@ -184,6 +186,7 @@ const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
       await uploadMutation.mutateAsync({
         tenantId,
         file: uploadFile,
+        document_name: documentName.trim() || undefined,
         document_category: selectedCategory as DocumentCategory,
         document_type: selectedType,
         tags,
@@ -338,6 +341,24 @@ const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Document Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Document Name <span className="text-xs text-gray-400">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={documentName}
+              onChange={(e) => setDocumentName(e.target.value)}
+              placeholder={uploadFile?.name || "Enter a friendly name for this document..."}
+              maxLength={255}
+              className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Leave blank to use the file name
+            </p>
           </div>
 
           {/* Document Category */}

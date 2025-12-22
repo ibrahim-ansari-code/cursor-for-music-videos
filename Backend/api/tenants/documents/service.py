@@ -46,50 +46,48 @@ logger = logging.getLogger(__name__)
 async def check_user_access_to_tenant(
     session: AsyncSession,
     user_id: UUID,
-    tenant_id: int
+    tenant_id: int,
+    read_only: bool = False
 ) -> Tenant:
     """
     Verify user has access to a tenant.
-    
+
     Args:
         session: Database session
         user_id: Current user's UUID
         tenant_id: Tenant ID to check
-        
+        read_only: If True, allows tenant users to view their own documents
+
     Returns:
         Tenant object if access granted
-        
+
     Raises:
         HTTPException 404: Tenant not found
         HTTPException 403: User doesn't have access to tenant
     """
-    statement = select(Tenant).where(
-        and_(
-            Tenant.id == tenant_id,
-            Tenant.landlord_id == user_id
-        )
-    )
+    # Single query to fetch tenant - access check done in Python
+    statement = select(Tenant).where(Tenant.id == tenant_id)
     result = await session.execute(statement)
     tenant = result.scalar_one_or_none()
-    
+
     if not tenant:
-        # Check if tenant exists at all
-        exists_statement = select(Tenant).where(Tenant.id == tenant_id)
-        exists_result = await session.execute(exists_statement)
-        tenant_exists = exists_result.scalar_one_or_none()
-        
-        if tenant_exists:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You don't have access to this tenant's documents"
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tenant with ID {tenant_id} not found"
-            )
-    
-    return tenant
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tenant with ID {tenant_id} not found"
+        )
+
+    # Check access: landlord has full access
+    if tenant.landlord_id == user_id:
+        return tenant
+
+    # If read_only, tenant user can access their own documents
+    if read_only and tenant.user_id == user_id:
+        return tenant
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You don't have access to this tenant's documents"
+    )
 
 
 async def check_document_belongs_to_tenant(
@@ -158,18 +156,19 @@ def calculate_expiry_info(expiry_date: Optional[date]) -> Tuple[bool, Optional[i
 def enrich_document_response(document: TenantDocument) -> DocumentResponse:
     """
     Convert TenantDocument to DocumentResponse with computed fields.
-    
+
     Args:
         document: TenantDocument SQLModel instance
-        
+
     Returns:
         DocumentResponse with all fields including computed ones
     """
     is_expired, days_until = calculate_expiry_info(document.expiry_date)
-    
+
     return DocumentResponse(
         id=document.id,
         tenant_id=document.tenant_id,
+        document_name=document.document_name,
         file_name=document.file_name,
         file_path=document.file_path,
         file_size=document.file_size,
@@ -200,13 +199,14 @@ async def create_document(
     file: UploadFile,
     document_category: DocumentCategory,
     document_type: str,
+    document_name: Optional[str] = None,
     tags: Optional[List[str]] = None,
     notes: Optional[str] = None,
     expiry_date: Optional[date] = None,
 ) -> DocumentResponse:
     """
     Create a new tenant document with file upload.
-    
+
     Args:
         session: Database session
         tenant_id: Tenant UUID
@@ -214,13 +214,14 @@ async def create_document(
         file: Uploaded file
         document_category: Document category enum
         document_type: Specific document type
+        document_name: Optional user-friendly document name
         tags: Optional list of tags
         notes: Optional notes
         expiry_date: Optional expiry date
-        
+
     Returns:
         DocumentResponse with created document details
-        
+
     Raises:
         HTTPException 400: Invalid document type for category
         HTTPException 403: User doesn't have access to tenant
@@ -228,7 +229,7 @@ async def create_document(
     """
     # Check user has access to tenant
     await check_user_access_to_tenant(session, user_id, tenant_id)
-    
+
     # Validate document type exists in category
     if not validate_document_type(document_category, document_type):
         raise HTTPException(
@@ -246,6 +247,7 @@ async def create_document(
         document = TenantDocument(
             tenant_id=tenant_id,
             uploaded_by=user_id,
+            document_name=document_name,
             file_name=file.filename or "untitled",
             file_path=file_url,
             file_size=file.size or 0,
@@ -325,13 +327,13 @@ async def list_documents(
         
     Returns:
         DocumentListResponse with paginated results
-        
+
     Raises:
         HTTPException 403: User doesn't have access to tenant
     """
-    # Check user has access to tenant
-    await check_user_access_to_tenant(session, user_id, tenant_id)
-    
+    # Check user has access to tenant (read_only allows tenant self-access)
+    await check_user_access_to_tenant(session, user_id, tenant_id, read_only=True)
+
     # Build base query
     statement = select(TenantDocument).where(TenantDocument.tenant_id == tenant_id)
     
@@ -396,17 +398,17 @@ async def get_document(
         
     Returns:
         DocumentResponse with document details
-        
+
     Raises:
         HTTPException 403: User doesn't have access to tenant
         HTTPException 404: Document not found
     """
-    # Check user has access to tenant
-    await check_user_access_to_tenant(session, user_id, tenant_id)
-    
+    # Check user has access to tenant (read_only allows tenant self-access)
+    await check_user_access_to_tenant(session, user_id, tenant_id, read_only=True)
+
     # Get document and verify it belongs to tenant
     document = await check_document_belongs_to_tenant(session, document_id, tenant_id)
-    
+
     return enrich_document_response(document)
 
 
@@ -559,15 +561,15 @@ async def generate_document_secure_url(
         
     Returns:
         Dict with secure_url, expires_at, expires_in_seconds
-        
+
     Raises:
         HTTPException 403: User doesn't have access to tenant
         HTTPException 404: Document not found
         HTTPException 500: Failed to generate secure URL
     """
-    # Check user has access to tenant
-    await check_user_access_to_tenant(session, user_id, tenant_id)
-    
+    # Check user has access to tenant (read_only allows tenant self-access)
+    await check_user_access_to_tenant(session, user_id, tenant_id, read_only=True)
+
     # Get document and verify it belongs to tenant
     document = await check_document_belongs_to_tenant(session, document_id, tenant_id)
     

@@ -179,9 +179,9 @@ export const fetchDocumentTaxonomy = async (): Promise<DocumentTaxonomy> => {
 
 /**
  * Build FormData for document upload
- * 
+ *
  * Helper function to construct FormData object from upload data.
- * 
+ *
  * @param file - File to upload
  * @param metadata - Document metadata
  * @returns FormData ready for upload
@@ -189,6 +189,7 @@ export const fetchDocumentTaxonomy = async (): Promise<DocumentTaxonomy> => {
 export function buildDocumentFormData(
   file: File,
   metadata: {
+    document_name?: string;
     document_category: DocumentCategory;
     document_type: string;
     tags?: string[];
@@ -197,27 +198,31 @@ export function buildDocumentFormData(
   }
 ): FormData {
   const formData = new FormData();
-  
+
   // Add file
   formData.append('file', file);
-  
+
   // Add metadata fields
   formData.append('document_category', metadata.document_category);
   formData.append('document_type', metadata.document_type);
-  
+
   // Optional fields
+  if (metadata.document_name) {
+    formData.append('document_name', metadata.document_name);
+  }
+
   if (metadata.tags && metadata.tags.length > 0) {
     formData.append('tags', metadata.tags.join(','));
   }
-  
+
   if (metadata.notes) {
     formData.append('notes', metadata.notes);
   }
-  
+
   if (metadata.expiry_date) {
     formData.append('expiry_date', metadata.expiry_date);
   }
-  
+
   return formData;
 }
 

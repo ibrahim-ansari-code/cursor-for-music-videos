@@ -17,12 +17,15 @@ import EmergencyContactModal from '../components/tenants/modals/EmergencyContact
 import CreateMaintenanceModal from '../components/maintenance/CreateMaintenanceModal/index';
 import EditMaintenanceModal from '../components/maintenance/EditMaintenanceModal';
 import DocumentUploadModal from '../components/tenants/TenantProfile/tabs/DocumentsTab/DocumentUploadModal';
+import DocumentEditModal from '../components/tenants/TenantProfile/tabs/DocumentsTab/DocumentEditModal';
+import { TenantDocument } from '../types/tenantDocument';
 import UpdateTenantModal from '../components/tenants/UpdateTenantModal';
 import DeleteTenantConfirmationModal from '../components/tenants/DeleteTenantConfirmationModal';
 import { createMaintenanceRequest, deleteTenant } from '../utils/api';
 import { updateMaintenanceRequest } from '../utils/api/maintenance';
 import { fetchLease } from '../utils/api/leases';
 import type { Lease } from '../types/lease';
+import { TenantProfileSkeleton } from '../components/ui/skeletons';
 
 const TenantProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -50,6 +53,10 @@ const TenantProfile: React.FC = () => {
 
   // Document Upload modal state (lifted to this level for proper fixed positioning and z-index)
   const [showDocumentUploadModal, setShowDocumentUploadModal] = useState(false);
+
+  // Document Edit modal state (lifted to this level for proper fixed positioning and z-index)
+  const [showDocumentEditModal, setShowDocumentEditModal] = useState(false);
+  const [editingDocument, setEditingDocument] = useState<TenantDocument | null>(null);
 
   // Lease modal state (lifted to this level for proper fixed positioning and z-index)
   const [showLeaseModal, setShowLeaseModal] = useState(false);
@@ -252,6 +259,16 @@ const TenantProfile: React.FC = () => {
     setShowDocumentUploadModal(false);
   };
 
+  const openDocumentEditModal = (document: TenantDocument) => {
+    setEditingDocument(document);
+    setShowDocumentEditModal(true);
+  };
+
+  const closeDocumentEditModal = () => {
+    setShowDocumentEditModal(false);
+    setEditingDocument(null);
+  };
+
   const openLeaseModal = async (leaseId: number) => {
     try {
       const lease = await fetchLease(leaseId);
@@ -268,17 +285,9 @@ const TenantProfile: React.FC = () => {
     setSelectedLease(null);
   };
 
+  // Show skeleton while loading - provides seamless transition from Suspense fallback
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
-        <div className="flex items-center justify-center h-96">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-gray-200 dark:border-gray-700 border-t-green-600 dark:border-t-green-400 rounded-full animate-spin" />
-            <p className="text-sm text-gray-500 dark:text-gray-400">Loading tenant profile...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <TenantProfileSkeleton />;
   }
 
   if (error) {
@@ -367,7 +376,7 @@ const TenantProfile: React.FC = () => {
 
       {/* Main Content */}
       <div className="p-6 max-w-[1600px] mx-auto">
-        <Outlet context={{ tenant, refetch, openFilePreviewModal, closeFilePreviewModal, openPaymentModal, openEmergencyContactModal, openMaintenanceModal, openDocumentUploadModal, openLeaseModal }} />
+        <Outlet context={{ tenant, refetch, openFilePreviewModal, closeFilePreviewModal, openPaymentModal, openEmergencyContactModal, openMaintenanceModal, openDocumentUploadModal, openDocumentEditModal, openLeaseModal }} />
       </div>
 
       {/* File Preview Modal - Rendered at root level for proper fixed positioning */}
@@ -436,6 +445,16 @@ const TenantProfile: React.FC = () => {
               ? tenant.company_name || tenant.contact_person || 'Company'
               : `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim() || 'Tenant'
           }
+        />
+      )}
+
+      {/* Document Edit Modal - Rendered at root level for proper fixed positioning and z-index */}
+      {tenant?.id && (
+        <DocumentEditModal
+          isOpen={showDocumentEditModal}
+          onClose={closeDocumentEditModal}
+          document={editingDocument}
+          tenantId={tenant.id.toString()}
         />
       )}
 

@@ -32,6 +32,7 @@ from .schemas import (
     TenantMonthlyRentSection,
     TenantNextPaymentSection,
     TenantMaintenanceSection,
+    TenantLeaseInfoResponse,
 )
 
 
@@ -868,4 +869,78 @@ class DashboardService:
             raise HTTPException(
                 status_code=500,
                 detail="Failed to retrieve tenant dashboard data.",
+            ) from e
+
+    @staticmethod
+    async def get_tenant_lease_info(
+        *,
+        session: AsyncSession,
+        current_user,
+    ) -> TenantLeaseInfoResponse:
+        """
+        Get detailed lease information for the current tenant.
+
+        Used by the Lease Documents page to display lease summary
+        and provide IDs needed for document API calls.
+        """
+        try:
+            # Reuse the existing tenant context helper
+            tenant, unit, prop, lease = await DashboardService._get_tenant_core_context(
+                session=session,
+                current_user=current_user,
+            )
+
+            # Get landlord info from property owner
+            landlord_result = await session.execute(
+                select(Property)
+                .options(joinedload(Property.owner))
+                .where(Property.id == prop.id)
+            )
+            property_with_owner = landlord_result.scalar_one_or_none()
+            owner = property_with_owner.owner if property_with_owner else None
+
+            landlord_name = "Unknown"
+            landlord_email = None
+            if owner:
+                landlord_name = f"{owner.first_name or ''} {owner.last_name or ''}".strip() or owner.email
+                landlord_email = owner.email
+
+            # Format tenant name
+            tenant_name = f"{tenant.first_name or ''} {tenant.last_name or ''}".strip() or tenant.email or "Tenant"
+
+            # Format monetary values
+            monthly_rent = f"${lease.monthly_rent:,.2f}"
+            security_deposit = f"${lease.security_deposit:,.2f}"
+
+            return TenantLeaseInfoResponse(
+                lease_id=lease.id,
+                tenant_id=tenant.id,
+                unit_id=unit.id,
+                property_id=prop.id,
+                lease_start=lease.start_date,
+                lease_end=lease.end_date,
+                monthly_rent=monthly_rent,
+                rent_due_day=lease.rent_due_day,
+                security_deposit=security_deposit,
+                security_deposit_paid_date=None,  # Could be enhanced later
+                property_name=prop.name or "Property",
+                property_address=prop.address or "",
+                unit_name=unit.name or f"Unit {unit.id}",
+                landlord_name=landlord_name,
+                landlord_email=landlord_email,
+                tenant_name=tenant_name,
+                tenant_email=tenant.email or current_user.email,
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                "Error getting tenant lease info for user_id=%s: %s",
+                getattr(current_user, "id", None),
+                e,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to retrieve lease information.",
             ) from e

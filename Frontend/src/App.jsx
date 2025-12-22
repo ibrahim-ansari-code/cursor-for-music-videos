@@ -27,6 +27,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ResetPassword from "./pages/ResetPassword";
 import PageLoader from "./components/ui/PageLoader";
+import { TenantProfileSkeleton } from "./components/ui/skeletons";
 
 // Pages (lazy-loaded for automatic code splitting)
 const Leases = React.lazy(() => import("./pages/Leases"));
@@ -125,16 +126,17 @@ const AppRoutes = () => {
         </Route>
         <Route path="messages" element={<Suspense fallback={<PageLoader />}><Messages /></Suspense>} />
         <Route path="tenants" element={<Suspense fallback={<PageLoader />}><Tenants /></Suspense>} />
-        <Route path="tenants/:id" element={<Suspense fallback={<PageLoader />}><TenantProfile /></Suspense>}>
-          <Route index element={<Suspense fallback={<PageLoader />}><TenantOverviewTab /></Suspense>} />
-          <Route path="leases" element={<Suspense fallback={<PageLoader />}><TenantLeasesTab /></Suspense>} />
-          <Route path="documents" element={<Suspense fallback={<PageLoader />}><TenantDocumentsTab /></Suspense>} />
-          <Route path="maintenance" element={<Suspense fallback={<PageLoader />}><TenantMaintenanceTab /></Suspense>} />
-          <Route path="payments" element={<Suspense fallback={<PageLoader />}><TenantPaymentsTab /></Suspense>} />
-          <Route path="messaging" element={<Suspense fallback={<PageLoader />}><TenantMessagingTab /></Suspense>} />
-          <Route path="background" element={<Suspense fallback={<PageLoader />}><TenantBackgroundTab /></Suspense>} />
-          <Route path="assets" element={<Suspense fallback={<PageLoader />}><TenantAssetsTab /></Suspense>} />
-          <Route path="settings" element={<Suspense fallback={<PageLoader />}><TenantSettingsTab /></Suspense>} />
+        <Route path="tenants/:id" element={<Suspense fallback={<TenantProfileSkeleton />}><TenantProfile /></Suspense>}>
+          {/* Child tab routes use null fallback to avoid double loading state - parent handles skeleton */}
+          <Route index element={<Suspense fallback={null}><TenantOverviewTab /></Suspense>} />
+          <Route path="leases" element={<Suspense fallback={null}><TenantLeasesTab /></Suspense>} />
+          <Route path="documents" element={<Suspense fallback={null}><TenantDocumentsTab /></Suspense>} />
+          <Route path="maintenance" element={<Suspense fallback={null}><TenantMaintenanceTab /></Suspense>} />
+          <Route path="payments" element={<Suspense fallback={null}><TenantPaymentsTab /></Suspense>} />
+          <Route path="messaging" element={<Suspense fallback={null}><TenantMessagingTab /></Suspense>} />
+          <Route path="background" element={<Suspense fallback={null}><TenantBackgroundTab /></Suspense>} />
+          <Route path="assets" element={<Suspense fallback={null}><TenantAssetsTab /></Suspense>} />
+          <Route path="settings" element={<Suspense fallback={null}><TenantSettingsTab /></Suspense>} />
         </Route>
         <Route path="maintenance" element={<Suspense fallback={<PageLoader />}><Maintenance /></Suspense>} />
         <Route path="vendors" element={<Suspense fallback={<PageLoader />}><Vendors /></Suspense>} />

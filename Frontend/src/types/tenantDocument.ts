@@ -86,29 +86,30 @@ export interface TenantDocument {
   // Core fields
   id: string;
   tenant_id: string;
+  document_name: string | null;  // User-friendly name (falls back to file_name)
   file_name: string;
   file_path: string;
   file_size: number;
   file_type: string;
-  
+
   // Classification (strongly typed)
   document_category: DocumentCategory;
   document_type: string;
-  
+
   // Organization
   tags: string[];
   notes: string | null;
-  
+
   // Compliance
   expiry_date: string | null;  // ISO date string (YYYY-MM-DD)
   status: DocumentStatus;
-  
+
   // Audit trail
   uploaded_by: string;
   uploaded_at: string;  // ISO datetime string
   created_at: string;   // ISO datetime string
   updated_at: string;   // ISO datetime string
-  
+
   // Computed fields (from backend)
   is_expired: boolean;
   days_until_expiry: number | null;
@@ -161,11 +162,12 @@ export interface DocumentFilters {
 
 /**
  * Upload form data structure
- * 
+ *
  * Used when creating FormData for document upload.
  */
 export interface DocumentUploadData {
   file: File;
+  document_name?: string;  // Optional user-friendly name
   document_category: DocumentCategory;
   document_type: string;
   tags: string[];
@@ -175,11 +177,12 @@ export interface DocumentUploadData {
 
 /**
  * Update request data structure
- * 
+ *
  * All fields optional - only provided fields will be updated.
  * Used in PATCH /api/tenants/{tenant_id}/documents/{document_id}
  */
 export interface DocumentUpdateData {
+  document_name?: string;
   tags?: string[];
   notes?: string;
   status?: DocumentStatus;
@@ -271,12 +274,12 @@ export function formatFileSize(bytes: number): string {
  */
 export function formatExpiryDisplay(document: TenantDocument): string {
   if (!document.expiry_date) return 'No expiry';
-  
+
   if (document.is_expired) {
     const daysAgo = Math.abs(document.days_until_expiry || 0);
     return `Expired ${daysAgo} day${daysAgo !== 1 ? 's' : ''} ago`;
   }
-  
+
   if (document.days_until_expiry !== null) {
     if (document.days_until_expiry === 0) return 'Expires today';
     if (document.days_until_expiry === 1) return 'Expires tomorrow';
@@ -284,14 +287,22 @@ export function formatExpiryDisplay(document: TenantDocument): string {
       return `Expires in ${document.days_until_expiry} days`;
     }
   }
-  
+
   // Format as readable date
   const expiryDate = new Date(document.expiry_date);
-  return `Expires ${expiryDate.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric', 
-    year: 'numeric' 
+  return `Expires ${expiryDate.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
   })}`;
+}
+
+/**
+ * Get display name for a document
+ * Falls back to file_name if document_name is not set
+ */
+export function getDocumentDisplayName(document: TenantDocument): string {
+  return document.document_name || document.file_name;
 }
 
 

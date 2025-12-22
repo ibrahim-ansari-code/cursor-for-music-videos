@@ -74,7 +74,7 @@ const Layout: React.FC = React.memo(() => {
     const routes: Record<string, string> = {
       "/dashboard": "",
       "/payments": "",
-      "/documents": "Lease Documents",
+      "/documents": "",
       "/maintenance": "",
       "/notifications": "",
       "/settings": "",

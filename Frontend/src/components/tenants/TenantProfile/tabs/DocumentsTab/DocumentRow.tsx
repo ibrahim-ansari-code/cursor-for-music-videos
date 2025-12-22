@@ -1,13 +1,15 @@
 /**
  * Document Row Component
- * 
+ *
  * Renders a single document in the table with metadata and actions.
  * Includes preview, download, edit, and delete functionality.
+ * Uses Radix UI DropdownMenu with Portal for proper overflow handling.
  */
 
 import React, { useState } from 'react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { toast } from 'react-toastify';
-import { TenantDocument, formatFileSize, getCategoryLabel } from '../../../../../types/tenantDocument';
+import { TenantDocument, formatFileSize, getCategoryLabel, getDocumentDisplayName } from '../../../../../types/tenantDocument';
 import StatusBadge from './StatusBadge';
 import ExpiryBadge from './ExpiryBadge';
 import { getSecureTenantDocumentUrl } from '../../../../../utils/api/tenantDocuments';
@@ -21,7 +23,6 @@ interface DocumentRowProps {
 }
 
 const DocumentRow: React.FC<DocumentRowProps> = ({ document, tenantId, onPreview, onEdit }) => {
-  const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
@@ -30,7 +31,7 @@ const DocumentRow: React.FC<DocumentRowProps> = ({ document, tenantId, onPreview
   // Get file type icon
   const getFileIcon = () => {
     const fileType = document.file_type.toLowerCase();
-    
+
     if (fileType.includes('pdf')) {
       return (
         <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -38,7 +39,7 @@ const DocumentRow: React.FC<DocumentRowProps> = ({ document, tenantId, onPreview
         </svg>
       );
     }
-    
+
     if (fileType.includes('word') || fileType.includes('document')) {
       return (
         <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -46,7 +47,7 @@ const DocumentRow: React.FC<DocumentRowProps> = ({ document, tenantId, onPreview
         </svg>
       );
     }
-    
+
     if (fileType.includes('image')) {
       return (
         <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -54,7 +55,7 @@ const DocumentRow: React.FC<DocumentRowProps> = ({ document, tenantId, onPreview
         </svg>
       );
     }
-    
+
     // Default document icon
     return (
       <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -68,8 +69,7 @@ const DocumentRow: React.FC<DocumentRowProps> = ({ document, tenantId, onPreview
     setIsLoadingUrl(true);
     try {
       const { secure_url } = await getSecureTenantDocumentUrl(tenantId, document.id);
-      onPreview(secure_url, document.file_name);
-      setIsActionsOpen(false);
+      onPreview(secure_url, getDocumentDisplayName(document));
     } catch (error: any) {
       console.error('Failed to get secure URL:', error);
       toast.error(error?.message || 'Failed to preview document');
@@ -83,8 +83,8 @@ const DocumentRow: React.FC<DocumentRowProps> = ({ document, tenantId, onPreview
     setIsLoadingUrl(true);
     try {
       const { secure_url } = await getSecureTenantDocumentUrl(tenantId, document.id);
-      window.open(secure_url, '_blank');
-      setIsActionsOpen(false);
+      // Use noopener,noreferrer to prevent reverse tabnabbing attacks
+      window.open(secure_url, '_blank', 'noopener,noreferrer');
       toast.success('Download started');
     } catch (error: any) {
       console.error('Failed to get secure URL:', error);
@@ -98,7 +98,6 @@ const DocumentRow: React.FC<DocumentRowProps> = ({ document, tenantId, onPreview
   const handleEdit = () => {
     if (onEdit) {
       onEdit(document);
-      setIsActionsOpen(false);
     }
   };
 
@@ -117,7 +116,6 @@ const DocumentRow: React.FC<DocumentRowProps> = ({ document, tenantId, onPreview
         documentId: document.id,
       });
       toast.success('Document deleted successfully');
-      setIsActionsOpen(false);
     } catch (error: any) {
       console.error('Failed to delete document:', error);
       toast.error(error?.message || 'Failed to delete document');
@@ -132,7 +130,7 @@ const DocumentRow: React.FC<DocumentRowProps> = ({ document, tenantId, onPreview
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays}d ago`;
@@ -151,10 +149,10 @@ const DocumentRow: React.FC<DocumentRowProps> = ({ document, tenantId, onPreview
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-              {document.file_name}
+              {getDocumentDisplayName(document)}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {formatFileSize(document.file_size)}
+              {document.document_name ? document.file_name + ' · ' : ''}{formatFileSize(document.file_size)}
             </p>
           </div>
         </div>
@@ -211,77 +209,71 @@ const DocumentRow: React.FC<DocumentRowProps> = ({ document, tenantId, onPreview
             )}
           </button>
 
-          {/* More Actions Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setIsActionsOpen(!isActionsOpen)}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              title="More actions"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-              </svg>
-            </button>
+          {/* More Actions Dropdown - Using Radix UI Portal to escape overflow containers */}
+          <DropdownMenu.Root onOpenChange={(open) => !open && setIsConfirmingDelete(false)}>
+            <DropdownMenu.Trigger asChild>
+              <button
+                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="More actions"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                </svg>
+              </button>
+            </DropdownMenu.Trigger>
 
-            {/* Actions Dropdown Menu */}
-            {isActionsOpen && (
-              <>
-                {/* Backdrop to close dropdown */}
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setIsActionsOpen(false)}
-                />
-                
-                {/* Dropdown Menu */}
-                <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-20">
-                  <div className="py-1" role="menu">
-                    <button
-                      onClick={handleDownload}
-                      disabled={isLoadingUrl}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50"
-                      role="menuitem"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                      Download
-                    </button>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                className="min-w-[12rem] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-[9999]"
+                sideOffset={5}
+                align="end"
+                collisionPadding={10}
+              >
+                <DropdownMenu.Item
+                  onSelect={handleDownload}
+                  disabled={isLoadingUrl}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer outline-none disabled:opacity-50"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download
+                </DropdownMenu.Item>
 
-                    {onEdit && (
-                      <button
-                        onClick={handleEdit}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                        role="menuitem"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        Edit Details
-                      </button>
-                    )}
+                {onEdit && (
+                  <DropdownMenu.Item
+                    onSelect={handleEdit}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer outline-none"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Edit Details
+                  </DropdownMenu.Item>
+                )}
 
-                    <div className="border-t border-gray-200 dark:border-gray-700" />
+                <DropdownMenu.Separator className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
 
-                    <button
-                      onClick={handleDelete}
-                      disabled={deleteMutation.isPending}
-                      className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 disabled:opacity-50 ${
-                        isConfirmingDelete
-                          ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 font-semibold'
-                          : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30'
-                      }`}
-                      role="menuitem"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      {deleteMutation.isPending ? 'Deleting...' : isConfirmingDelete ? 'Confirm Delete?' : 'Delete'}
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+                <DropdownMenu.Item
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    handleDelete();
+                  }}
+                  disabled={deleteMutation.isPending}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm cursor-pointer outline-none disabled:opacity-50 ${
+                    isConfirmingDelete
+                      ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 font-semibold'
+                      : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  {deleteMutation.isPending ? 'Deleting...' : isConfirmingDelete ? 'Confirm Delete?' : 'Delete'}
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
         </div>
       </td>
     </tr>
@@ -289,5 +281,3 @@ const DocumentRow: React.FC<DocumentRowProps> = ({ document, tenantId, onPreview
 };
 
 export default DocumentRow;
-
-
