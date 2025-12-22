@@ -14,6 +14,8 @@ export type OnboardingStatus =
   | 'pending_verification' 
   | 'active';
 
+export type PaymentMethodType = 'card' | 'acss_debit';
+
 export interface ConnectStatusResponse {
   is_connected: boolean;
   account_id: string | null;
@@ -29,6 +31,17 @@ export interface ConnectStatusResponse {
   business_type: string | null;
   country: string | null;
   default_currency: string | null;
+  /** Payment methods accepted by landlord: 'card', 'acss_debit' */
+  accepted_payment_methods: PaymentMethodType[];
+}
+
+export interface UpdatePaymentPreferencesRequest {
+  /** Payment methods to accept: 'card' (Credit/Debit - $8 fee), 'acss_debit' (PAD Bank Transfer - $3 fee) */
+  accepted_payment_methods: PaymentMethodType[];
+}
+
+export interface UpdatePaymentPreferencesResponse {
+  accepted_payment_methods: PaymentMethodType[];
 }
 
 export interface ConnectOnboardingResponse {

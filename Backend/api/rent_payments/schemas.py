@@ -64,8 +64,41 @@ class ConnectStatusResponse(BaseModel):
     business_type: str | None = None
     country: str | None = None
     default_currency: str | None = None
-    
+
+    # Payment method preferences
+    accepted_payment_methods: list[str] = Field(
+        default_factory=lambda: ["card", "acss_debit"],
+        description="Payment methods accepted by landlord: 'card', 'acss_debit'"
+    )
+
     model_config = ConfigDict(from_attributes=True)
+
+
+class UpdatePaymentPreferencesRequest(BaseModel):
+    """Request to update landlord's payment method preferences."""
+    accepted_payment_methods: list[str] = Field(
+        ...,
+        min_length=1,
+        description="Payment methods to accept: 'card' (Credit/Debit - $8 fee), 'acss_debit' (PAD Bank Transfer - $3 fee)"
+    )
+
+    @field_validator('accepted_payment_methods')
+    @classmethod
+    def validate_payment_methods(cls, v: list[str]) -> list[str]:
+        """Validate that only allowed payment methods are specified."""
+        allowed = {"card", "acss_debit"}
+        invalid = set(v) - allowed
+        if invalid:
+            raise ValueError(f"Invalid payment methods: {invalid}. Allowed: {allowed}")
+        if not v:
+            raise ValueError("At least one payment method must be enabled")
+        return list(set(v))  # Remove duplicates
+
+
+class UpdatePaymentPreferencesResponse(BaseModel):
+    """Response after updating payment method preferences."""
+    accepted_payment_methods: list[str]
+    message: str = "Payment preferences updated successfully"
 
 
 # =============================================================================

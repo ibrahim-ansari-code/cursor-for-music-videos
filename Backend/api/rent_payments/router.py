@@ -25,6 +25,8 @@ from .schemas import (
     ConnectRefreshLinkResponse,
     ConnectDashboardLinkResponse,
     ConnectStatusResponse,
+    UpdatePaymentPreferencesRequest,
+    UpdatePaymentPreferencesResponse,
     # Payment Methods (Tenant)
     SetupIntentResponse,
     PaymentMethodCreate,
@@ -127,10 +129,38 @@ async def get_dashboard_link(
 ) -> ConnectDashboardLinkResponse:
     """
     Get a link to the Stripe Express Dashboard for the landlord.
-    
+
     Allows them to view payouts, update bank info, etc.
     """
     return await connect_service.create_dashboard_link(user, session)
+
+
+@router.patch(
+    "/connect/payment-preferences",
+    response_model=UpdatePaymentPreferencesResponse,
+    summary="Update payment preferences",
+    description="Configure which payment methods to accept from tenants",
+)
+async def update_payment_preferences(
+    data: UpdatePaymentPreferencesRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> UpdatePaymentPreferencesResponse:
+    """
+    Update payment method preferences for a landlord.
+
+    Landlords can choose which payment methods to accept:
+    - 'card': Credit/Debit cards ($8 platform fee)
+    - 'acss_debit': PAD Bank Transfer ($3 platform fee)
+
+    At least one payment method must be enabled.
+    """
+    account = await connect_service.update_payment_preferences(
+        user, data.accepted_payment_methods, session
+    )
+    return UpdatePaymentPreferencesResponse(
+        accepted_payment_methods=account.accepted_payment_methods
+    )
 
 
 # =============================================================================

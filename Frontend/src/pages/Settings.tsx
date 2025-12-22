@@ -12,9 +12,10 @@ import PreferencesForm from '../components/settings/PreferencesForm';
 import NotificationSettings from '../components/settings/NotificationSettings';
 import OwnershipEntitiesSettings from '../components/settings/OwnershipEntitiesSettings';
 import BillingSettings from '../components/settings/BillingSettings';
+import PaymentSettings from '../components/settings/PaymentSettings';
 
 interface Tab {
-  id: 'profile' | 'security' | 'preferences' | 'notifications' | 'ownership' | 'billing';
+  id: 'profile' | 'security' | 'preferences' | 'notifications' | 'ownership' | 'billing' | 'payments';
   label: string;
   icon: string;
 }
@@ -37,7 +38,7 @@ const Settings: React.FC = () => {
   // Set active tab from URL query parameter
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['profile', 'security', 'preferences', 'notifications', 'ownership', 'billing'].includes(tabParam)) {
+    if (tabParam && ['profile', 'security', 'preferences', 'notifications', 'ownership', 'billing', 'payments'].includes(tabParam)) {
       setActiveTab(tabParam as TabId);
     }
   }, [searchParams]);
@@ -47,6 +48,7 @@ const Settings: React.FC = () => {
     { id: 'profile', label: 'Profile', icon: 'fa-user' },
     { id: 'security', label: 'Security', icon: 'fa-lock' },
     { id: 'billing', label: 'Billing', icon: 'fa-credit-card' },
+    { id: 'payments', label: 'Payments', icon: 'fa-money-bill-wave' },
     { id: 'preferences', label: 'Preferences', icon: 'fa-cog' },
     { id: 'notifications', label: 'Notifications', icon: 'fa-bell' },
     { id: 'ownership', label: 'Ownership Entities', icon: 'fa-briefcase' },
@@ -159,6 +161,10 @@ const Settings: React.FC = () => {
 
                   {activeTab === 'billing' && (
                     <BillingSettings />
+                  )}
+
+                  {activeTab === 'payments' && (
+                    <PaymentSettings />
                   )}
                 </div>
               </div>

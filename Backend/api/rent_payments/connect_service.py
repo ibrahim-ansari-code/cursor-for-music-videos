@@ -278,8 +278,9 @@ async def get_connect_status(
             business_type=account.business_type,
             country=connected_account.country,
             default_currency=connected_account.default_currency,
+            accepted_payment_methods=connected_account.accepted_payment_methods or ["card", "acss_debit"],
         )
-        
+
     except stripe.StripeError as e:
         logger.error(f"Stripe error fetching account status: {e}")
         # Return cached data on Stripe error
@@ -298,6 +299,7 @@ async def get_connect_status(
             business_type=connected_account.business_type,
             country=connected_account.country,
             default_currency=connected_account.default_currency,
+            accepted_payment_methods=connected_account.accepted_payment_methods or ["card", "acss_debit"],
         )
 
 
@@ -431,13 +433,58 @@ async def landlord_can_accept_payments(
 ) -> bool:
     """
     Check if a landlord can accept online payments.
-    
+
     Args:
         landlord_user_id: The landlord's user UUID
         session: Database session
-        
+
     Returns:
         True if landlord has a fully onboarded Connect account
     """
     account = await get_connected_account_for_landlord(landlord_user_id, session)
     return account is not None and account.is_fully_onboarded
+
+
+async def update_payment_preferences(
+    user: "User",
+    accepted_payment_methods: list[str],
+    session: AsyncSession,
+) -> StripeConnectedAccount:
+    """
+    Update a landlord's payment method preferences.
+
+    Args:
+        user: The landlord user
+        accepted_payment_methods: List of payment methods to accept ('card', 'acss_debit')
+        session: Database session
+
+    Returns:
+        Updated StripeConnectedAccount
+
+    Raises:
+        HTTPException: If no connected account found
+    """
+    from Backend.utils.datetime_utils import utc_now
+
+    account = await get_connected_account_for_landlord(str(user.id), session)
+
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No connected account found. Please complete Stripe onboarding first."
+        )
+
+    account.accepted_payment_methods = accepted_payment_methods
+    account.updated_at = utc_now()
+
+    session.add(account)
+    await session.commit()
+    await session.refresh(account)
+
+    logger.info(
+        f"Updated payment preferences | "
+        f"user_id={user.id} | "
+        f"accepted_methods={accepted_payment_methods}"
+    )
+
+    return account

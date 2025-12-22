@@ -86,7 +86,16 @@ class StripeConnectedAccount(SQLModel, table=True):
         max_length=3,
         description="Default currency for payouts",
     )
-    
+
+    # Payment method configuration
+    # Landlords can choose which payment methods to accept from tenants
+    # Options: "card" (Credit/Debit - $8 fee), "acss_debit" (PAD Bank Transfer - $3 fee)
+    accepted_payment_methods: list[str] = Field(
+        default_factory=lambda: ["card", "acss_debit"],
+        sa_column=Column(JSON),
+        description="List of accepted payment methods: 'card', 'acss_debit'",
+    )
+
     # Requirements and Restrictions (for verification issues)
     disabled_reason: str | None = Field(
         default=None,

@@ -258,19 +258,25 @@ async def create_setup_intent(
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
         idempotency_key = f"setup-intent-{tenant.id}-{timestamp}"
         
+        # Use the landlord's configured accepted_payment_methods
+        accepted_methods = connected_account.accepted_payment_methods or ["card", "acss_debit"]
+
+        # Build payment method options only for methods that are enabled
+        payment_method_options = {}
+        if "acss_debit" in accepted_methods:
+            payment_method_options["acss_debit"] = {
+                "currency": "cad",
+                "mandate_options": {
+                    "payment_schedule": "sporadic",
+                    "transaction_type": "personal",
+                },
+                "verification_method": "automatic",
+            }
+
         # Create SetupIntent on the connected account
         setup_intent = await stripe_client.setup_intents.create(
-            payment_method_types=["card", "acss_debit"],
-            payment_method_options={
-                "acss_debit": {
-                    "currency": "cad",
-                    "mandate_options": {
-                        "payment_schedule": "sporadic",
-                        "transaction_type": "personal",
-                    },
-                    "verification_method": "automatic",
-                }
-            },
+            payment_method_types=accepted_methods,
+            payment_method_options=payment_method_options if payment_method_options else None,
             metadata={
                 "tenant_id": str(tenant.id),
                 "user_id": str(user.id),
@@ -652,13 +658,26 @@ async def create_payment(
         idempotency_key = f"rent-payment-{data.lease_id}-{data.amount_cents}-{timestamp}"
         
         # Create PaymentIntent on the connected account (Direct Charge)
-        # Explicitly specify payment_method_types to ensure ACSS debit is available
-        # Note: automatic_payment_methods relies on Dashboard settings which may not include ACSS
+        # Use the landlord's configured accepted_payment_methods
+        # This allows landlords to control which methods they accept (different fees apply)
+        accepted_methods = connected_account.accepted_payment_methods
+
+        # Validate at least one payment method is enabled. Fallback for None.
+        if not accepted_methods:
+            # If the list is explicitly empty, it's a configuration error.
+            if accepted_methods is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="No payment methods are enabled for this landlord"
+                )
+            # If the field is None (e.g., older records), apply default.
+            accepted_methods = ["card", "acss_debit"]
+
         pi_params = {
             "amount": data.amount_cents,
             "currency": DEFAULT_CURRENCY,
             "application_fee_amount": application_fee_cents,
-            "payment_method_types": ["card", "acss_debit"],
+            "payment_method_types": accepted_methods,
             "description": payment_description,
             "metadata": {
                 "tenant_id": str(tenant.id),

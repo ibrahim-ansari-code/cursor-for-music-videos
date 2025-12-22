@@ -10,6 +10,8 @@ import type {
   ConnectOnboardingResponse,
   ConnectDashboardLinkResponse,
   FeeScheduleResponse,
+  UpdatePaymentPreferencesRequest,
+  UpdatePaymentPreferencesResponse,
 } from '../../types/rentPayments';
 
 const BASE_PATH = '/rent-payments';
@@ -66,6 +68,24 @@ export async function getStripeDashboardLink(): Promise<ConnectDashboardLinkResp
 export async function getFeeSchedule(): Promise<FeeScheduleResponse> {
   return apiRequest<FeeScheduleResponse>(`${BASE_PATH}/fees`, {
     method: 'GET',
+  });
+}
+
+// =============================================================================
+// Payment Preferences
+// =============================================================================
+
+/**
+ * Update which payment methods the landlord accepts from tenants.
+ *
+ * @param acceptedPaymentMethods - Array of payment methods: 'card' ($8 fee), 'acss_debit' ($3 fee)
+ */
+export async function updatePaymentPreferences(
+  acceptedPaymentMethods: UpdatePaymentPreferencesRequest['accepted_payment_methods']
+): Promise<UpdatePaymentPreferencesResponse> {
+  return apiRequest<UpdatePaymentPreferencesResponse>(`${BASE_PATH}/connect/payment-preferences`, {
+    method: 'PATCH',
+    body: JSON.stringify({ accepted_payment_methods: acceptedPaymentMethods }),
   });
 }
 
