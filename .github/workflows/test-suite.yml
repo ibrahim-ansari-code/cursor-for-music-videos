@@ -84,7 +84,6 @@ jobs:
           poetry run pytest tests/unit_tests/ \
             -v \
             --tb=short \
-            -n auto \
             --cov=Backend \
             --cov-branch \
             --cov-report=term-missing \
@@ -137,7 +136,6 @@ jobs:
           poetry run pytest tests/api_tests/ \
             -v \
             --tb=short \
-            -n auto \
             --cov=Backend \
             --cov-branch \
             --cov-append \
