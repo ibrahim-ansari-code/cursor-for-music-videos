@@ -1,5 +1,5 @@
 version: v2
-name: frontend-preview
+name: brikli-frontend-prod
 
 # ---------- Build settings ----------
 # This section tells Porter how to build your frontend.
@@ -28,7 +28,7 @@ build:
 # ---------- Runtime service ----------
 # This section describes how your frontend service runs after being built.
 services:
-  - name: frontend-preview
+  - name: brikli-frontend
     type: web
     run: "" # Nginx starts automatically, so no run command is needed.
     port: 4173

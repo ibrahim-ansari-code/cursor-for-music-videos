@@ -1,8 +1,8 @@
 version: v2
-name: backend-preview
+name: brikli-backend-prod
 
 services:
-  - name: backend-preview
+  - name: brikli-api
     run: gunicorn -w 2 -k uvicorn.workers.UvicornWorker Backend.api.app:app --timeout 300
     type: web
     instances: 1

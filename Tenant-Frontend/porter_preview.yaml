@@ -1,5 +1,5 @@
 version: v2
-name: tenant-frontend-preview
+name: brikli-tenant-frontend
 
 # ---------- Build settings ----------
 # This section tells Porter how to build your tenant frontend.
@@ -20,7 +20,7 @@ build:
 # ---------- Runtime service ----------
 # This section describes how your tenant frontend service runs after being built.
 services:
-  - name: tenant-frontend-preview
+  - name: brikli-tenant-frontend
     type: web
     run: "" # Nginx starts automatically, so no run command is needed.
     port: 5174
