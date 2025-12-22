@@ -9,10 +9,171 @@ from Backend.models.rent_payment_transaction import (
     RentPaymentTransaction,
     RentPaymentTransactionStatus,
 )
+from Backend.models.tenant import Tenant
 from Backend.utils.datetime_utils import utc_now
 from .helpers import get_transaction_by_pi_id, create_ledger_payment
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+
+async def _send_tenant_payment_notification(
+    transaction: RentPaymentTransaction,
+    session: AsyncSession,
+) -> None:
+    """
+    Send payment confirmation notification to tenant.
+
+    Notifies the tenant that their rent payment was successfully processed.
+    Respects user notification preferences for in-app and email delivery.
+    """
+    try:
+        # Get tenant to find their user_id
+        tenant = await session.get(Tenant, transaction.tenant_id)
+        if not tenant or not tenant.user_id:
+            logger.warning(
+                f"Cannot send tenant payment notification - tenant or user_id not found | "
+                f"tenant_id={transaction.tenant_id}"
+            )
+            return
+
+        from Backend.api.notifications.service import NotificationService
+
+        # Format amount for display
+        amount_display = f"${transaction.amount_cents / 100:,.2f}"
+
+        # Build payment method description
+        payment_method_desc = ""
+        if transaction.payment_method_type == "card":
+            payment_method_desc = f"card ending in {transaction.payment_method_last_four}" if transaction.payment_method_last_four else "card"
+        elif transaction.payment_method_type == "acss_debit":
+            if transaction.payment_method_bank_name and transaction.payment_method_last_four:
+                payment_method_desc = f"{transaction.payment_method_bank_name} account ending in {transaction.payment_method_last_four}"
+            elif transaction.payment_method_last_four:
+                payment_method_desc = f"bank account ending in {transaction.payment_method_last_four}"
+            else:
+                payment_method_desc = "bank account"
+
+        message = f"Your rent payment of {amount_display} has been successfully processed"
+        if payment_method_desc:
+            message += f" via {payment_method_desc}"
+        message += "."
+
+        await NotificationService.create_notification(
+            user_id=tenant.user_id,
+            type="payment_received",
+            title="Payment Confirmed",
+            message=message,
+            session=session,
+            link="/payments",
+            priority="normal",
+            metadata={
+                "transaction_id": str(transaction.id),
+                "lease_id": str(transaction.lease_id),
+                "amount_cents": str(transaction.amount_cents),
+                "payment_method_type": transaction.payment_method_type,
+                "receipt_url": transaction.receipt_url,
+            },
+        )
+
+        logger.info(
+            f"Sent tenant payment_received notification | "
+            f"tenant_id={transaction.tenant_id} | "
+            f"user_id={tenant.user_id} | "
+            f"amount={amount_display}"
+        )
+
+    except Exception as e:
+        # Don't fail the webhook if notification fails
+        logger.error(
+            f"Failed to send tenant payment notification for transaction {transaction.id}: {e}",
+            exc_info=True,
+        )
+
+
+async def _send_landlord_payment_notification(
+    transaction: RentPaymentTransaction,
+    session: AsyncSession,
+) -> None:
+    """
+    Send payment received notification to landlord.
+
+    Notifies the landlord that a tenant has submitted a rent payment.
+    Respects user notification preferences for in-app and email delivery.
+    """
+    try:
+        if not transaction.landlord_user_id:
+            logger.warning(
+                f"Cannot send landlord payment notification - landlord_user_id not found | "
+                f"transaction_id={transaction.id}"
+            )
+            return
+
+        # Get tenant name for the notification message
+        tenant = await session.get(Tenant, transaction.tenant_id)
+        tenant_name = "A tenant"
+        if tenant:
+            if tenant.first_name and tenant.last_name:
+                tenant_name = f"{tenant.first_name} {tenant.last_name}"
+            elif tenant.first_name:
+                tenant_name = tenant.first_name
+
+        from Backend.api.notifications.service import NotificationService
+
+        # Format amount for display
+        amount_display = f"${transaction.amount_cents / 100:,.2f}"
+
+        # Build payment method description
+        payment_method_desc = ""
+        if transaction.payment_method_type == "card":
+            payment_method_desc = "card"
+        elif transaction.payment_method_type == "acss_debit":
+            payment_method_desc = "bank transfer"
+
+        message = f"{tenant_name} has submitted a rent payment of {amount_display}"
+        if payment_method_desc:
+            message += f" via {payment_method_desc}"
+        message += "."
+
+        await NotificationService.create_notification(
+            user_id=transaction.landlord_user_id,
+            type="payment_received",
+            title="Payment Received",
+            message=message,
+            session=session,
+            link="/accounting/payments",
+            priority="normal",
+            metadata={
+                "transaction_id": str(transaction.id),
+                "lease_id": str(transaction.lease_id),
+                "tenant_id": str(transaction.tenant_id),
+                "amount_cents": str(transaction.amount_cents),
+                "payment_method_type": transaction.payment_method_type,
+            },
+        )
+
+        logger.info(
+            f"Sent landlord payment_received notification | "
+            f"landlord_user_id={transaction.landlord_user_id} | "
+            f"tenant_id={transaction.tenant_id} | "
+            f"amount={amount_display}"
+        )
+
+    except Exception as e:
+        # Don't fail the webhook if notification fails
+        logger.error(
+            f"Failed to send landlord payment notification for transaction {transaction.id}: {e}",
+            exc_info=True,
+        )
+
+
+# =============================================================================
+# Webhook Handlers
+# =============================================================================
 
 
 async def handle_payment_intent_succeeded(
@@ -42,15 +203,19 @@ async def handle_payment_intent_succeeded(
     
     # Create corresponding Payment record for landlord's ledger
     await create_ledger_payment(transaction, session)
-    
+
     await session.commit()
-    
+
     logger.info(
         f"Payment succeeded | "
         f"transaction_id={transaction.id} | "
         f"pi_id={pi_id} | "
         f"amount=${transaction.amount_cents / 100:.2f}"
     )
+
+    # Send payment notifications to tenant and landlord
+    await _send_tenant_payment_notification(transaction, session)
+    await _send_landlord_payment_notification(transaction, session)
 
 
 async def handle_payment_intent_failed(

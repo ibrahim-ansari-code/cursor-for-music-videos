@@ -25,7 +25,7 @@ const MaintenanceFilters = ({
         <button
           key={filter.key}
           onClick={() => onFilterChange(filter.key)}
-          className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${
+          className={`px-4 py-2 rounded-md font-medium text-sm transition-colors cursor-pointer ${
             activeFilter === filter.key
               ? "bg-gray-900 text-white"
               : "bg-gray-100 text-gray-700 hover:bg-gray-200"

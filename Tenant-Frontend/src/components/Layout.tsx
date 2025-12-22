@@ -72,12 +72,12 @@ const Layout: React.FC = React.memo(() => {
   // Map routes to page titles
   const getPageTitle = (pathname: string): string => {
     const routes: Record<string, string> = {
-      "/dashboard": "Dashboard",
-      "/payments": "", 
+      "/dashboard": "",
+      "/payments": "",
       "/documents": "Lease Documents",
       "/maintenance": "",
-      "/notifications": "Notifications",
-      "/settings": "Settings",
+      "/notifications": "",
+      "/settings": "",
     };
 
     // Handle nested routes (e.g., /payments/:id)

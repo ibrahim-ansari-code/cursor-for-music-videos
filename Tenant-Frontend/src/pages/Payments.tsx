@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { 
+import {
   CurrentBalance,
   PaymentHistory,
   PaymentMethods
@@ -15,6 +15,7 @@ import {
   useDeletePaymentMethod,
   useAutopayStatus,
 } from '@/hooks/usePayments';
+import { usePaymentsRealtime } from '@/hooks/usePaymentsRealtime';
 import type { PaymentMethod, PaymentHistoryItem } from '@/types';
 import type { SavedPaymentMethod } from '@/types/payments';
 import { useQueryClient } from '@tanstack/react-query';
@@ -28,6 +29,9 @@ const Payments: React.FC = () => {
   const [isPayRentModalOpen, setIsPayRentModalOpen] = useState(false);
   const [isAddPaymentMethodModalOpen, setIsAddPaymentMethodModalOpen] = useState(false);
   const [isSetupAutopayModalOpen, setIsSetupAutopayModalOpen] = useState(false);
+
+  // Subscribe to real-time payment updates (balance, transactions)
+  usePaymentsRealtime();
 
   // Fetch data from API
   const { data: balanceData, isLoading: isLoadingBalance } = useTenantBalance();

@@ -24,6 +24,7 @@ describe('AuthContext', () => {
         email: 'test@example.com',
         first_name: 'Test',
         last_name: 'User',
+        phone: null,
         user_type: 'TENANT',
         profile_image_url: null,
         created_at: '2024-01-01T00:00:00Z',
@@ -35,6 +36,7 @@ describe('AuthContext', () => {
       signIn: async () => ({ data: null, error: null }),
       signOut: async () => {},
       clearError: () => {},
+      refreshUser: async () => {},
     };
 
     render(
@@ -57,6 +59,7 @@ describe('AuthContext', () => {
       signIn: async () => ({ data: null, error: null }),
       signOut: async () => {},
       clearError: () => {},
+      refreshUser: async () => {},
     };
 
     render(
@@ -78,6 +81,7 @@ describe('AuthContext', () => {
       signIn: async () => ({ data: null, error: null }),
       signOut: async () => {},
       clearError: () => {},
+      refreshUser: async () => {},
     };
 
     render(

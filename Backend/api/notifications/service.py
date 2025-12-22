@@ -20,6 +20,7 @@ from sqlmodel import col
 from Backend.models.notification import Notification, NotificationPreference, NotificationDeliveryLog
 from Backend.models.user import User
 from Backend.utils.datetime_utils import create_audit_datetime
+from Backend.api.notifications.email_service import EmailService
 
 logger = logging.getLogger(__name__)
 
@@ -125,10 +126,50 @@ class NotificationService:
                     "delivered",
                     session
                 )
-            
-            # TODO: Trigger email sending if "email" in delivery_channels
-            # TODO: Trigger SMS sending if "sms" in delivery_channels
-            
+
+            # Trigger email sending if "email" in delivery_channels
+            if "email" in delivery_channels and notification.id:
+                try:
+                    # Fetch user to get email and name
+                    user_query = select(User).where(col(User.id) == user_id)
+                    user_result = await session.execute(user_query)
+                    user = user_result.scalar_one_or_none()
+
+                    if user and user.email:
+                        email_success = await EmailService.send_notification_email(
+                            user_id=user_id,
+                            user_email=user.email,
+                            user_first_name=user.first_name,
+                            user_last_name=user.last_name,
+                            notification_type=type,
+                            title=title,
+                            message=message,
+                            link=link,
+                            metadata=metadata
+                        )
+
+                        await NotificationService._log_delivery(
+                            notification.id,
+                            user_id,
+                            "email",
+                            "delivered" if email_success else "failed",
+                            session
+                        )
+
+                        if email_success:
+                            logger.info(f"Email notification sent to {user.email} for notification {notification.id}")
+                        else:
+                            logger.warning(f"Failed to send email notification to {user.email} for notification {notification.id}")
+                    else:
+                        logger.warning(f"Cannot send email notification - user {user_id} has no email address")
+
+                except Exception as email_error:
+                    logger.exception(f"Error sending email notification for {notification.id}: {email_error}")
+                    # Don't fail the entire notification creation if email fails
+                    sentry_sdk.capture_exception(email_error)
+
+            # TODO: Trigger SMS sending if "sms" in delivery_channels (not implemented)
+
             await session.commit()
             await session.refresh(notification)
             
@@ -434,9 +475,14 @@ class NotificationService:
             # Update fields if provided
             if enabled is not None:
                 user_prefs.enabled = enabled
-            
+
             if preferences is not None:
-                user_prefs.preferences = preferences
+                # Deep merge each updated type to preserve nested settings like 'channels'
+                # This allows partial updates like {"payment_received": {"email": false}} without
+                # losing other nested keys within that notification type
+                for notif_type, new_pref in preferences.items():
+                    existing = user_prefs.preferences.get(notif_type, {})
+                    user_prefs.preferences[notif_type] = {**existing, **new_pref}
             
             if email_digest_frequency is not None:
                 user_prefs.email_digest_frequency = email_digest_frequency
@@ -493,13 +539,44 @@ class NotificationService:
         
         # Get preferences for this notification type
         type_prefs = preferences.preferences.get(notification_type, {})
-        
+
         # If this type is disabled, return empty list
         if not type_prefs.get('enabled', True):
             return []
-        
-        # Return configured channels for this type
-        channels = type_prefs.get('channels', ['in_app'])
+
+        # Default channels when preference type is not configured
+        # These match the frontend defaults and NotificationPreference model defaults
+        default_channels_by_type = {
+            'rent_reminder': ['in_app', 'email'],
+            'payment_received': ['in_app', 'email'],
+            'lease_expiring': ['in_app', 'email'],
+            'maintenance_update': ['in_app', 'email'],
+            'maintenance_request_new': ['in_app', 'email'],  # Falls under maintenance_update in UI
+            'new_application': ['in_app'],  # Disabled by default
+            'system_update': ['in_app'],     # Disabled by default
+        }
+
+        # Map sub-types to their parent preference category for lookup
+        # This allows maintenance_request_new to use maintenance_update preferences
+        preference_type_mapping = {
+            'maintenance_request_new': 'maintenance_update',
+        }
+        lookup_type = preference_type_mapping.get(notification_type, notification_type)
+
+        # Re-check type_prefs using mapped type if different
+        if lookup_type != notification_type and not type_prefs:
+            type_prefs = preferences.preferences.get(lookup_type, {})
+            if not type_prefs.get('enabled', True):
+                return []
+
+        # Use lookup_type to get defaults so sub-types inherit parent category defaults
+        default_channels = default_channels_by_type.get(
+            lookup_type,
+            default_channels_by_type.get(notification_type, ['in_app', 'email'])
+        )
+
+        # Return configured channels for this type, falling back to type-specific defaults
+        channels = type_prefs.get('channels', default_channels)
         
         # Always include in_app if any channels are enabled
         if channels and 'in_app' not in channels:

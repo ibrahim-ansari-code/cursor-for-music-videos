@@ -2,7 +2,7 @@ import { useEffect, useRef, useContext } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react';
 import { supabase } from '../supabaseClient';
-import { AuthContext } from '../contexts/AuthContext';
+import { AuthContext, type AuthContextType } from '../contexts/AuthContext';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 /**
@@ -19,7 +19,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
  */
 export const usePaymentsRealtime = () => {
   const queryClient = useQueryClient();
-  const authContext = useContext(AuthContext);
+  const authContext = useContext(AuthContext) as AuthContextType | null;
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {

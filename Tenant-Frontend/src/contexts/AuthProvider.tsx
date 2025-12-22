@@ -118,6 +118,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const refreshUser = async (): Promise<void> => {
+    try {
+      const userData = await getCurrentUser();
+      if (userData.user_type !== 'TENANT') {
+        throw new Error('Access denied. This portal is for tenants only.');
+      }
+      setUser(userData);
+    } catch (err) {
+      console.error('Failed to refresh user:', err);
+      throw err;
+    }
+  };
+
   const value: AuthContextValue = {
     user,
     loading,
@@ -126,6 +139,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signIn,
     signOut,
     clearError: () => setError(null),
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

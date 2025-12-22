@@ -9,6 +9,7 @@ export interface User {
   email: string;
   first_name: string | null;
   last_name: string | null;
+  phone: string | null;
   user_type: 'TENANT' | 'LANDLORD' | 'ADMIN';
   profile_image_url: string | null;
   created_at: string;
@@ -23,6 +24,7 @@ export interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<{ data: unknown; error: Error | null }>;
   signOut: () => Promise<void>;
   clearError: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 // Payment Types

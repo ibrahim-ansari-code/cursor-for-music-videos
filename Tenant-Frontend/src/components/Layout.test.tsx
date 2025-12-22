@@ -11,6 +11,7 @@ const mockUser: User = {
   email: 'tenant@example.com',
   first_name: 'John',
   last_name: 'Doe',
+  phone: null,
   user_type: 'TENANT',
   profile_image_url: null,
   created_at: '2024-01-01T00:00:00Z',
@@ -26,6 +27,7 @@ const createMockAuthContext = (overrides: Partial<AuthContextValue> = {}): AuthC
   signIn: vi.fn().mockResolvedValue({ data: null, error: null }),
   signOut: vi.fn().mockResolvedValue(undefined),
   clearError: vi.fn(),
+  refreshUser: vi.fn().mockResolvedValue(undefined),
   ...overrides,
 });
 

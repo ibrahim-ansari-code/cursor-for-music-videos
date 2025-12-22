@@ -11,6 +11,12 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Email, To, CustomArg, TrackingSettings, ClickTracking
 
 from Backend.config import settings
+from Backend.api.notifications.email_templates import (
+    BrikliEmailTemplate,
+    EmailSection,
+    EmailCTA,
+    EmailMetadataRow,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -180,8 +186,8 @@ class SendGridService:
         metadata: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
-        Send an email via SendGrid.
-        
+        Send an email via SendGrid using the standard Brikli email template.
+
         Args:
             to_email: Recipient email address
             to_name: Recipient name
@@ -191,7 +197,7 @@ class SendGridService:
             message: Email message content
             link: Optional action link
             metadata: Optional additional metadata
-            
+
         Returns:
             True if email sent successfully, False otherwise
         """
@@ -200,40 +206,75 @@ class SendGridService:
             if not client:
                 logger.error("SendGrid client not configured")
                 return False
-            
-            # Get notification icon
-            icon = SendGridService._get_notification_icon(notification_type)
-            
-            # Generate HTML content
-            html_content = SendGridService._create_html_template(
-                notification_type=notification_type,
+
+            # Build email content using standard Brikli template
+            greeting = f"Hi {to_name.split()[0] if to_name else 'there'},"
+            sections = [EmailSection(text=message)]
+
+            # Build metadata rows for payment notifications
+            metadata_rows = []
+            if metadata and notification_type == "payment_received":
+                if metadata.get("amount_cents"):
+                    amount = int(metadata["amount_cents"]) / 100
+                    metadata_rows.append(
+                        EmailMetadataRow(label="Amount", value=f"${amount:,.2f}", emoji="💰")
+                    )
+                if metadata.get("payment_method_type"):
+                    pm_type = metadata["payment_method_type"]
+                    pm_display = "Bank Transfer" if pm_type == "acss_debit" else "Card"
+                    metadata_rows.append(
+                        EmailMetadataRow(label="Payment Method", value=pm_display, emoji="💳")
+                    )
+
+            # Build CTA if link provided
+            cta = None
+            if link:
+                # Ensure link is absolute
+                if not link.startswith('http'):
+                    base_url = settings.FRONTEND_URL or 'https://app.brikli.com'
+                    link = f"{base_url}{link}"
+                cta = EmailCTA(text="View Details", url=link)
+
+            # Footer note based on notification type
+            footer_notes = {
+                "payment_received": "You're receiving this email because you have payment notifications enabled.",
+                "rent_reminder": "You're receiving this email because you have rent reminder notifications enabled.",
+                "lease_expiring": "You're receiving this email because you have lease expiration notifications enabled.",
+                "maintenance_update": "You're receiving this email because you have maintenance update notifications enabled.",
+            }
+            footer_note = footer_notes.get(notification_type, "Thank you for using Brikli Property Management.")
+
+            # Generate HTML using standard Brikli template
+            html_content = BrikliEmailTemplate.create_email(
                 title=title,
-                message=message,
-                link=link,
-                icon=icon
+                greeting=greeting,
+                sections=sections,
+                metadata=metadata_rows if metadata_rows else None,
+                cta=cta,
+                footer_note=footer_note,
             )
-            
+
             # Create email message
             from_email = Email(settings.SENDGRID_FROM_EMAIL, settings.SENDGRID_FROM_NAME)
             to_email_obj = To(to_email, to_name)
-            
+
             mail = Mail(
                 from_email=from_email,
                 to_emails=to_email_obj,
                 subject=subject,
                 html_content=html_content
             )
-            
-            # Add metadata as custom args for tracking
-            if metadata:
-                mail.custom_arg = [
-                    {"notification_type": notification_type},
-                    {"test": str(metadata.get('test', False))}
-                ]
-            
-            # Send email
-            response = client.send(mail)
-            
+
+            # Disable click tracking to prevent SSL certificate errors
+            tracking_settings = TrackingSettings()
+            tracking_settings.click_tracking = ClickTracking(enable=False, enable_text=False)
+            mail.tracking_settings = tracking_settings
+
+            # Send email in thread executor to avoid blocking event loop
+            import asyncio
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(None, client.send, mail)
+
             if response.status_code in [200, 201, 202]:
                 logger.info(
                     f"Email sent successfully to {to_email}",
@@ -254,7 +295,7 @@ class SendGridService:
                     }
                 )
                 return False
-                
+
         except Exception as e:
             logger.exception(f"Failed to send email to {to_email}")
             sentry_sdk.capture_exception(e, extra={

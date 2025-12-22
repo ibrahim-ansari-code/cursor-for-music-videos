@@ -1,6 +1,7 @@
 import React from 'react';
 import * as Sentry from '@sentry/react';
 import { useTenantDashboard } from '@/hooks/useTenantDashboard';
+import { useAuth } from '@/hooks/useAuth';
 import {
   DashboardSkeleton,
   MyUnitCard,
@@ -19,7 +20,11 @@ import {
  * Wrapped with Sentry error boundary for error tracking
  */
 const DashboardContent: React.FC = React.memo(() => {
+  const { user } = useAuth();
   const { data, loading, error } = useTenantDashboard();
+
+  // Get user's first name for welcome message
+  const firstName = user?.first_name || 'Tenant';
 
   if (loading) {
     return <DashboardSkeleton />;
@@ -37,23 +42,32 @@ const DashboardContent: React.FC = React.memo(() => {
   const { my_unit: myUnit, monthly_rent: monthlyRent, next_payment: nextPayment, maintenance } = data;
 
   return (
-    <div className="pt-6">
-      {/* Dashboard cards */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <MyUnitCard data={myUnit} />
-        <MonthlyRentCard data={monthlyRent} />
-        <NextPaymentCard data={nextPayment} />
-        <MaintenanceCard data={maintenance} />
-      </div>
+    <div className="bg-white rounded-lg shadow border border-gray-200">
+      <div className="p-6">
+        {/* Page Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-gray-800">
+            Welcome to your Tenant Dashboard, {firstName}
+          </h1>
+        </div>
 
-      {/* Recent Payments Table */}
-      <RecentPaymentsTable />
+        {/* Dashboard cards */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <MyUnitCard data={myUnit} />
+          <MonthlyRentCard data={monthlyRent} />
+          <NextPaymentCard data={nextPayment} />
+          <MaintenanceCard data={maintenance} />
+        </div>
 
-      {/* Quick Actions */}
-      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <PaymentQuickAction />
-        <MaintenanceQuickAction />
-        <DocumentsQuickAction />
+        {/* Recent Payments Table */}
+        <RecentPaymentsTable />
+
+        {/* Quick Actions */}
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <PaymentQuickAction />
+          <MaintenanceQuickAction />
+          <DocumentsQuickAction />
+        </div>
       </div>
     </div>
   );

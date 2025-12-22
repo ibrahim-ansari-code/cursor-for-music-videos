@@ -1,25 +1,34 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import type { Notification } from '../../utils/api/notifications';
 
 interface NotificationItemProps {
   notification: Notification;
   onMarkAsRead: (id: string) => Promise<void>;
   onDismiss: (id: string) => Promise<void>;
+  onNavigate?: () => void;
 }
 
 const NotificationItem: React.FC<NotificationItemProps> = ({
   notification,
   onMarkAsRead,
   onDismiss,
+  onNavigate,
 }) => {
-  const handleClick = async () => {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    // Mark as read (fire and forget - don't block navigation)
     if (!notification.is_read) {
-      try {
-        await onMarkAsRead(notification.id);
-      } catch (error) {
+      onMarkAsRead(notification.id).catch((error) => {
         console.error('Failed to mark notification as read:', error);
-      }
+      });
+    }
+
+    // Navigate if link exists
+    if (notification.link) {
+      navigate(notification.link);
+      onNavigate?.();
     }
   };
 
@@ -138,15 +147,6 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
       </button>
     </div>
   );
-
-  // Wrap in Link if notification has a link
-  if (notification.link) {
-    return (
-      <Link to={notification.link} className="block">
-        {content}
-      </Link>
-    );
-  }
 
   return content;
 };

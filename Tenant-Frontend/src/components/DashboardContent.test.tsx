@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter, MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import DashboardContent from './DashboardContent';
 import { AuthContext } from '@/contexts/AuthContext';
 import type { AuthContextValue, User } from '@/types';
@@ -21,6 +21,7 @@ const mockUser: User = {
   email: 'tenant@example.com',
   first_name: 'Jane',
   last_name: 'Smith',
+  phone: null,
   user_type: 'TENANT',
   profile_image_url: null,
   created_at: '2024-01-01T00:00:00Z',
@@ -36,6 +37,7 @@ const createMockAuthContext = (overrides: Partial<AuthContextValue> = {}): AuthC
   signIn: vi.fn().mockResolvedValue({ data: null, error: null }),
   signOut: vi.fn().mockResolvedValue(undefined),
   clearError: vi.fn(),
+  refreshUser: vi.fn().mockResolvedValue(undefined),
   ...overrides,
 });
 

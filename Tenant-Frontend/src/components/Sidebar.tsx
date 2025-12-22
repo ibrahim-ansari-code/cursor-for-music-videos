@@ -111,7 +111,7 @@ const Sidebar: React.FC = React.memo(() => {
           </div>
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none flex-shrink-0"
+            className="p-1.5 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none shrink-0"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? (

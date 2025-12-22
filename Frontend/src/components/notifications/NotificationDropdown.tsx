@@ -105,6 +105,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                 notification={notification}
                 onMarkAsRead={markNotificationAsRead}
                 onDismiss={dismissNotification}
+                onNavigate={onClose}
               />
             ))}
           </div>

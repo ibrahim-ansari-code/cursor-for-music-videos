@@ -37,6 +37,7 @@ export const useMaintenanceRealtime = () => {
       return;
     }
 
+
     // Create a unique channel name for this user's maintenance subscriptions
     const channelName = `maintenance-realtime-${authContext.user.id}`;
 
@@ -118,7 +119,7 @@ export const useMaintenanceRealtime = () => {
             message: 'Maintenance realtime subscription active',
             level: 'info',
           });
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.warn('[MaintenanceRealtime] Subscription failed:', status);
 
           Sentry.captureMessage(`Maintenance realtime subscription ${status}`, {
@@ -129,6 +130,7 @@ export const useMaintenanceRealtime = () => {
             },
           });
         }
+        // CLOSED status is ignored when isUnsubscribing is true (intentional cleanup)
       });
 
     channelRef.current = channel;

@@ -6,6 +6,8 @@ import {
   Link,
 } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from "@/contexts/AuthProvider";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -17,6 +19,8 @@ import ResetPassword from "@/pages/ResetPassword";
 import Payments from "@/pages/Payments";
 import AcceptInvite from "@/pages/AcceptInvite";
 import Maintenance from "./pages/Maintenance";
+import Settings from "./pages/Settings";
+import NotificationsContent from "./components/notifications/NotificationsContent";
 
 // Configure React Query client with caching and retry settings
 const queryClient = new QueryClient({
@@ -42,6 +46,16 @@ function App() {
         <AuthProvider>
           <NotificationProvider>
             <ErrorBoundary>
+              <ToastContainer
+                position="top-right"
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop
+                closeOnClick
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+              />
               <Routes>
                 {/* Public routes */}
                 <Route path="/login" element={<Login />} />
@@ -70,26 +84,8 @@ function App() {
                     }
                   />
                   <Route path="maintenance" element={<Maintenance />} />
-                  <Route
-                    path="notifications"
-                    element={
-                      <div className="flex items-center justify-center h-64">
-                        <h1 className="text-2xl font-bold text-gray-900">
-                          Notifications - Coming Soon
-                        </h1>
-                      </div>
-                    }
-                  />
-                  <Route
-                    path="settings"
-                    element={
-                      <div className="flex items-center justify-center h-64">
-                        <h1 className="text-2xl font-bold text-gray-900">
-                          Settings - Coming Soon
-                        </h1>
-                      </div>
-                    }
-                  />
+                  <Route path="notifications" element={<NotificationsContent />} />
+                  <Route path="settings" element={<Settings />} />
                   {/* Default redirect to dashboard */}
                   <Route index element={<Navigate to="/dashboard" replace />} />
                 </Route>

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Label, Checkbox, Select, Button } from "../ui/SharedModalComponents";
+import { Button } from "../ui/SharedModalComponents";
 import { toast } from "react-toastify";
 import * as Sentry from "@sentry/react";
-import { getPreferences, updatePreferences, sendTestNotification, sendTestEmail, type NotificationPreferenceResponse } from "../../utils/api/notifications";
+import { getPreferences, updatePreferences, sendTestNotification, sendTestEmail, type NotificationPreferenceData, type NotificationChannel } from "../../utils/api/notifications";
 import type { User } from "../../types/user";
 
 interface NotificationCategoryPreference {
@@ -31,8 +31,43 @@ interface NotificationSettingsProps {
   onNotificationUpdate?: (notifications: NotificationUpdatePayload) => void;
 }
 
+// Notification category configuration
+const NOTIFICATION_CATEGORIES = [
+  {
+    key: 'rent_reminder',
+    label: 'Rent Reminders',
+    description: 'Upcoming rent payments 3 days before due',
+    defaultEnabled: true,
+  },
+  {
+    key: 'payment_received',
+    label: 'Payment Received',
+    description: 'When a tenant submits a rent payment',
+    defaultEnabled: true,
+  },
+  {
+    key: 'lease_expiring',
+    label: 'Lease Expiring',
+    description: 'Leases expiring within 30 and 60 days',
+    defaultEnabled: true,
+  },
+  {
+    key: 'maintenance_update',
+    label: 'Maintenance Updates',
+    description: 'New requests and status changes',
+    defaultEnabled: true,
+  },
+  {
+    key: 'system_update',
+    label: 'System Updates',
+    description: 'Platform announcements and new features',
+    defaultEnabled: false,
+  },
+];
+
 const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onNotificationUpdate }) => {
-  const [preferences, setPreferences] = useState<NotificationPreferenceResponse | null>(null);
+  const [preferences, setPreferences] = useState<NotificationPreferenceData | null>(null);
+  const [originalPreferences, setOriginalPreferences] = useState<NotificationPreferenceData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchLoading, setIsFetchLoading] = useState(true);
   const [isSendingTestNotification, setIsSendingTestNotification] = useState(false);
@@ -45,6 +80,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onNotificat
       try {
         const prefs = await getPreferences();
         setPreferences(prefs);
+        setOriginalPreferences(prefs);
       } catch (error) {
         console.error("Error fetching notification preferences:", error);
         Sentry.captureException(error, {
@@ -62,79 +98,66 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onNotificat
     fetchPreferences();
   }, []);
 
-  const handleToggleCategory = (category: string) => {
+  // Check if there are unsaved changes
+  const hasChanges = (): boolean => {
+    if (!preferences || !originalPreferences) return false;
+    return JSON.stringify(preferences) !== JSON.stringify(originalPreferences);
+  };
+
+  // Toggle email for a specific category (local state only)
+  const handleToggleEmailForCategory = (category: string) => {
     if (!preferences) return;
 
-    setPreferences((prev: NotificationPreferenceResponse | null) => {
+    const currentPref = preferences.preferences[category];
+    const hasEmail = currentPref?.channels?.includes('email') ?? true;
+    const newChannels: NotificationChannel[] = hasEmail ? ['in_app'] : ['in_app', 'email'];
+
+    setPreferences((prev: NotificationPreferenceData | null) => {
       if (!prev) return prev;
       return {
         ...prev,
         preferences: {
           ...prev.preferences,
           [category]: {
-            ...prev.preferences[category],
-            enabled: !prev.preferences[category]?.enabled,
+            enabled: true,
+            channels: newChannels,
+            frequency: currentPref?.frequency || 'immediate',
           },
         },
       };
     });
   };
 
-  const handleToggleEmail = () => {
+  const handleSave = async () => {
     if (!preferences) return;
-
-    setPreferences((prev: NotificationPreferenceResponse | null) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        enabled: !prev.enabled,
-      };
-    });
-  };
-
-  const handleFrequencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (!preferences) return;
-
-    setPreferences((prev: NotificationPreferenceResponse | null) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        email_digest_frequency: e.target.value as NotificationPreferenceResponse['email_digest_frequency'],
-      };
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!preferences) {
-      toast.error("No preferences to save");
-      return;
-    }
 
     setIsLoading(true);
 
     try {
-      await updatePreferences({
-        enabled: preferences.enabled,
+      const result = await updatePreferences({
         preferences: preferences.preferences,
         email_digest_frequency: preferences.email_digest_frequency,
       });
-      
-      toast.success("Notification preferences updated successfully!");
-      
-      if (onNotificationUpdate) {
-        onNotificationUpdate(preferences);
+
+      if (result?.preferences) {
+        setPreferences(result.preferences);
+        setOriginalPreferences(result.preferences);
+      }
+
+      toast.success("Notification preferences saved");
+
+      if (onNotificationUpdate && result?.preferences) {
+        onNotificationUpdate(result.preferences);
       }
     } catch (error) {
-      console.error("Error updating notifications:", error);
+      console.error("Error saving notification preferences:", error);
       Sentry.captureException(error, {
         tags: {
           component: 'NotificationSettings',
-          action: 'update_preferences',
+          action: 'save_preferences',
         },
       });
-      toast.error("Failed to update notification preferences. Please try again.");
+      toast.error("Failed to save preferences");
     } finally {
       setIsLoading(false);
     }
@@ -153,8 +176,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onNotificat
           action: 'send_test_notification',
         },
       });
-      
-      // Check for rate limit error
+
       if (error?.status === 429) {
         toast.error("Rate limit exceeded. You can send up to 5 test notifications per hour.");
       } else {
@@ -178,8 +200,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onNotificat
           action: 'send_test_email',
         },
       });
-      
-      // Check for rate limit error
+
       if (error?.status === 429) {
         toast.error("Rate limit exceeded. You can send up to 5 test emails per hour.");
       } else {
@@ -208,168 +229,107 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ onNotificat
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 transition-colors duration-300">
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
         Notification Settings
       </h2>
-      
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Email Notifications Toggle */}
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 transition-colors duration-300">
-          <Checkbox
-            id="emailEnabled"
-            name="emailEnabled"
-            checked={preferences.enabled}
-            onChange={handleToggleEmail}
-          >
-            <span className="font-medium text-gray-800 dark:text-gray-200 transition-colors duration-300">
-              Enable Email Notifications
-            </span>
-          </Checkbox>
-          <p className="text-sm text-gray-600 dark:text-gray-400 ml-6 mt-1 transition-colors duration-300">
-            Receive important updates and reminders via email.
-          </p>
-        </div>
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+        In-app notifications are always on. Use the toggles to also receive email notifications.
+      </p>
 
-        {/* Notification Categories */}
-        <div>
-          <Label className="text-base font-medium text-gray-900 dark:text-white mb-4 block transition-colors duration-300">
-            <i className="fas fa-bell mr-2 text-gray-500 dark:text-gray-400 transition-colors duration-300"></i>
-            Notification Categories
-          </Label>
-          
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Checkbox
-                id="rentReminders"
-                checked={preferences.preferences.rent_reminder?.enabled ?? true}
-                onChange={() => handleToggleCategory('rent_reminder')}
-              >
-                <div>
-                  <span className="font-medium text-gray-800 dark:text-gray-200 transition-colors duration-300">
-                    💰 Rent Reminders
-                  </span>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
-                    Get notified about upcoming rent payments 3 days before they're due
-                  </p>
-                </div>
-              </Checkbox>
-
-              <Checkbox
-                id="leaseExpiring"
-                checked={preferences.preferences.lease_expiring?.enabled ?? true}
-                onChange={() => handleToggleCategory('lease_expiring')}
-              >
-                <div>
-                  <span className="font-medium text-gray-800 dark:text-gray-200 transition-colors duration-300">
-                    📅 Lease Expiring
-                  </span>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
-                    Alerts for leases expiring within 30 and 60 days
-                  </p>
-                </div>
-              </Checkbox>
-
-              <Checkbox
-                id="systemUpdates"
-                checked={preferences.preferences.system_update?.enabled ?? false}
-                onChange={() => handleToggleCategory('system_update')}
-              >
-                <div>
-                  <span className="font-medium text-gray-800 dark:text-gray-200 transition-colors duration-300">
-                    🔔 System Updates
-                  </span>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
-                    Important platform announcements and new features
-                  </p>
-                </div>
-              </Checkbox>
-            </div>
-          </div>
-        </div>
-
-        {/* Notification Frequency */}
-        <div>
-          <Label htmlFor="frequency">
-            <i className="fas fa-clock mr-2 text-gray-500 dark:text-gray-400 transition-colors duration-300"></i>
-            Notification Frequency
-          </Label>
-          <Select
-            id="frequency"
-            name="frequency"
-            value={preferences.email_digest_frequency}
-            onChange={handleFrequencyChange}
-            className="max-w-xs"
-          >
-            <option value="immediate">Immediate</option>
-            <option value="hourly">Hourly Digest</option>
-            <option value="daily">Daily Digest</option>
-            <option value="weekly">Weekly Summary</option>
-            <option value="never">Never</option>
-          </Select>
-          <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
-            Choose how often you want to receive notification emails.
-          </p>
-        </div>
-
-        {/* Test Notification Buttons */}
+      <div className="space-y-6">
+        {/* Email Notification Categories */}
         <div className="space-y-3">
-          {/* Test In-App Notification */}
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 transition-colors duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-900 dark:text-green-200">
-                  <i className="fas fa-bell mr-2"></i>
-                  Test In-App Notification
-                </p>
-                <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                  Send a test notification to your notification center
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleSendTestNotification}
-                disabled={isSendingTestNotification}
+          {NOTIFICATION_CATEGORIES.map((category) => {
+            const pref = preferences.preferences[category.key];
+            const hasEmail = pref?.channels?.includes('email') ?? category.defaultEnabled;
+
+            return (
+              <div
+                key={category.key}
+                className="flex items-center justify-between py-3 px-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
               >
-                {isSendingTestNotification ? "Sending..." : "Send Test"}
-              </Button>
+                <div className="flex-1 min-w-0 pr-4">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {category.label}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {category.description}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Email</span>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleEmailForCategory(category.key)}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer ${
+                      hasEmail ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                        hasEmail ? 'translate-x-5' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Test Buttons */}
+        <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+          <div className="flex items-center justify-between py-3 px-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+            <div>
+              <p className="text-sm font-medium text-emerald-900 dark:text-emerald-200">
+                Test In-App Notification
+              </p>
+              <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                Send a test notification to your notification center
+              </p>
             </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleSendTestNotification}
+              disabled={isSendingTestNotification}
+            >
+              {isSendingTestNotification ? "Sending..." : "Send Test"}
+            </Button>
           </div>
 
-          {/* Test Email Notification */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 transition-colors duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
-                  <i className="fas fa-envelope mr-2"></i>
-                  Test Email Notification
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                  Send a test email to verify your settings
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleSendTestEmail}
-                disabled={isSendingTestEmail || !preferences.enabled}
-              >
-                {isSendingTestEmail ? "Sending..." : "Send Test"}
-              </Button>
+          <div className="flex items-center justify-between py-3 px-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <div>
+              <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
+                Test Email Notification
+              </p>
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                Send a test email to verify your settings
+              </p>
             </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleSendTestEmail}
+              disabled={isSendingTestEmail}
+            >
+              {isSendingTestEmail ? "Sending..." : "Send Test"}
+            </Button>
           </div>
         </div>
 
-        <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700 transition-colors duration-300">
+        {/* Save Button */}
+        <div className="pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
           <Button
-            type="submit"
+            type="button"
             variant="primary"
-            disabled={isLoading}
+            onClick={handleSave}
+            disabled={isLoading || !hasChanges()}
           >
-            {isLoading ? "Saving..." : "Save Notifications"}
+            {isLoading ? "Saving..." : "Save Changes"}
           </Button>
         </div>
-      </form>
+      </div>
     </div>
   );
 };

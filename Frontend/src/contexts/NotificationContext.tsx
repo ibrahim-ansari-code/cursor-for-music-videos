@@ -168,7 +168,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
     const userId = authContext.user.id;
     let pollingInterval: NodeJS.Timeout | null = null;
-    
+    let isUnsubscribing = false;
+
     // Initial fetch
     fetchNotifications();
     fetchUnreadCount();
@@ -281,16 +282,16 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
               action: 'realtime_subscribed',
             },
           });
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          // Fallback to polling on subscription failure
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          // Fallback to polling on subscription failure (not CLOSED - that's intentional cleanup)
           console.warn('Realtime subscription failed, falling back to polling');
-          
+
           if (!pollingInterval) {
             pollingInterval = setInterval(() => {
               fetchUnreadCount();
             }, 30000); // Poll every 30 seconds
           }
-          
+
           Sentry.captureException(new Error(`Notification realtime subscription ${status}`), {
             tags: {
               component: 'NotificationContext',
@@ -298,11 +299,20 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
               status,
             },
           });
+        } else if (status === 'CLOSED' && !isUnsubscribing) {
+          // Unexpected closure - set up polling
+          console.warn('Realtime subscription closed unexpectedly, falling back to polling');
+          if (!pollingInterval) {
+            pollingInterval = setInterval(() => {
+              fetchUnreadCount();
+            }, 30000);
+          }
         }
       });
-    
+
     // Cleanup subscription and polling on unmount
     return () => {
+      isUnsubscribing = true;
       console.log('Unsubscribing from notification realtime channel');
       supabase.removeChannel(channel);
       if (pollingInterval) {
