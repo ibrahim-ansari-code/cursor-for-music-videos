@@ -27,6 +27,11 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ResetPassword from "./pages/ResetPassword";
 import PageLoader from "./components/ui/PageLoader";
+import MaintenancePage from "./pages/MaintenancePage.tsx";
+
+// Maintenance Mode
+import { MAINTENANCE_MODE } from "./config/maintenanceMode.ts";
+import { supabase } from "./supabaseClient";
 
 // Pages (lazy-loaded for automatic code splitting)
 const Leases = React.lazy(() => import("./pages/Leases"));
@@ -79,6 +84,22 @@ const ProtectedRoute = ({ children }) => {
  */
 const AppRoutes = () => {
   const { user } = useContext(AuthContext);
+
+  // Sign out users and show maintenance page if in maintenance mode
+  useEffect(() => {
+    if (MAINTENANCE_MODE && user) {
+      supabase.auth.signOut();
+    }
+  }, [user]);
+
+  // Show maintenance page for all routes when in maintenance mode
+  if (MAINTENANCE_MODE) {
+    return (
+      <Routes>
+        <Route path="*" element={<MaintenancePage />} />
+      </Routes>
+    );
+  }
 
   // Idle prefetch of accounting chunks to minimize first navigation latency
   useEffect(() => {
