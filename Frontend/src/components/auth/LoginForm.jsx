@@ -4,7 +4,6 @@ import { AuthContext } from "../../contexts/AuthContext";
 import GoogleSignInButton from "./GoogleSignInButton";
 import MicrosoftSignInButton from "./MicrosoftSignInButton";
 import { supabase } from "../../supabaseClient";
-import { MAINTENANCE_MODE, MAINTENANCE_MESSAGE } from "../../config/maintenanceMode.ts";
 
 const LoginForm = () => {
   
@@ -61,13 +60,6 @@ const LoginForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Block login during maintenance mode
-    if (MAINTENANCE_MODE) {
-      setError("Login is currently disabled during maintenance.");
-      return;
-    }
-    
     setError("");
     setLoading(true);
 
@@ -155,44 +147,6 @@ const LoginForm = () => {
     setResetMessage("");
   };
 
-  // Show maintenance page if in maintenance mode
-  if (MAINTENANCE_MODE) {
-    return (
-      <div className="w-full h-full flex flex-col justify-center items-center px-4">
-        <div className="max-w-md w-full">
-          <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-600 p-8 shadow-xl">
-            <div className="flex flex-col items-center text-center">
-              <div className="flex-shrink-0 mb-4">
-                <svg className="h-16 w-16 text-yellow-600 dark:text-yellow-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <h2 className="text-2xl font-bold text-yellow-800 dark:text-yellow-300 mb-4">
-                {MAINTENANCE_MESSAGE.title}
-              </h2>
-              <div className="text-sm text-yellow-700 dark:text-yellow-400 space-y-3">
-                <p className="font-medium">
-                  {MAINTENANCE_MESSAGE.message}
-                </p>
-                <div className="bg-yellow-100 dark:bg-yellow-900/40 rounded-md p-4 mt-4">
-                  <p className="font-semibold text-yellow-900 dark:text-yellow-200">
-                    Expected to resume:
-                  </p>
-                  <p className="text-lg font-bold text-yellow-800 dark:text-yellow-300 mt-1">
-                    {MAINTENANCE_MESSAGE.expectedResume}
-                  </p>
-                </div>
-                <p className="text-xs mt-4">
-                  {MAINTENANCE_MESSAGE.apology}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="w-full h-full flex flex-col justify-center">
@@ -240,8 +194,7 @@ const LoginForm = () => {
                 type="email"
                 autoComplete="email"
                 required
-                disabled={MAINTENANCE_MODE}
-                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 shadow-sm focus:border-brand-teal focus:outline-none focus:ring-brand-teal sm:text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 shadow-sm focus:border-brand-teal focus:outline-none focus:ring-brand-teal sm:text-sm transition-colors duration-200"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -261,8 +214,7 @@ const LoginForm = () => {
                 type="password"
                 autoComplete="current-password"
                 required
-                disabled={MAINTENANCE_MODE}
-                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 shadow-sm focus:border-brand-teal focus:outline-none focus:ring-brand-teal sm:text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 shadow-sm focus:border-brand-teal focus:outline-none focus:ring-brand-teal sm:text-sm transition-colors duration-200"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -297,36 +249,32 @@ const LoginForm = () => {
             <div>
               <button
                 type="submit"
-                disabled={loading || MAINTENANCE_MODE}
+                disabled={loading}
                 className="flex w-full justify-center rounded-md border border-transparent bg-brand-teal py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-teal/90 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {MAINTENANCE_MODE ? "Login Disabled" : loading ? "Signing in..." : "Sign in"}
+                {loading ? "Signing in..." : "Sign in"}
               </button>
             </div>
 
-            {!MAINTENANCE_MODE && (
-              <>
-                <div className="text-center text-sm">
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotPassword(true)}
-                    className="font-medium text-brand-teal hover:text-brand-teal/80"
-                  >
-                    Forgot your password?
-                  </button>
-                </div>
+            <div className="text-center text-sm">
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="font-medium text-brand-teal hover:text-brand-teal/80"
+              >
+                Forgot your password?
+              </button>
+            </div>
 
-                <div className="text-center text-sm text-gray-600 dark:text-gray-400 transition-colors duration-200">
-                  Don't have an account?{" "}
-                  <Link
-                    to="/register"
-                    className="font-medium text-brand-teal hover:text-brand-teal/80 transition-colors duration-200"
-                  >
-                    Register
-                  </Link>
-                </div>
-              </>
-            )}
+            <div className="text-center text-sm text-gray-600 dark:text-gray-400 transition-colors duration-200">
+              Don't have an account?{" "}
+              <Link
+                to="/register"
+                className="font-medium text-brand-teal hover:text-brand-teal/80 transition-colors duration-200"
+              >
+                Register
+              </Link>
+            </div>
           </form>
         </div>
       </div>
