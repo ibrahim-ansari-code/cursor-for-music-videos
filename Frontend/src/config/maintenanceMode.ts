@@ -22,7 +22,7 @@ export interface MaintenanceMessage {
 export const MAINTENANCE_MESSAGE: MaintenanceMessage = {
   title: "Scheduled Maintenance",
   message: "We're currently performing maintenance to prepare for our Tenant Portal Launch. During this time, the Landlord Portal will be unavailable.",
-  expectedResume: "Monday, December 23, 2025",
+  expectedResume: "Monday, December 22, 2025",
   apology: "We apologize for any inconvenience. Please check back on Monday."
 };
 
