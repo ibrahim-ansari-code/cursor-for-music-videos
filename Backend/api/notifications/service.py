@@ -480,9 +480,12 @@ class NotificationService:
                 # Deep merge each updated type to preserve nested settings like 'channels'
                 # This allows partial updates like {"payment_received": {"email": false}} without
                 # losing other nested keys within that notification type
+                # IMPORTANT: Create a new dict to trigger SQLAlchemy change detection for JSONB
+                updated_prefs = dict(user_prefs.preferences) if user_prefs.preferences else {}
                 for notif_type, new_pref in preferences.items():
-                    existing = user_prefs.preferences.get(notif_type, {})
-                    user_prefs.preferences[notif_type] = {**existing, **new_pref}
+                    existing = updated_prefs.get(notif_type, {})
+                    updated_prefs[notif_type] = {**existing, **new_pref}
+                user_prefs.preferences = updated_prefs
             
             if email_digest_frequency is not None:
                 user_prefs.email_digest_frequency = email_digest_frequency

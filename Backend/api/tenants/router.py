@@ -51,6 +51,7 @@ from Backend.models.units import PropertyUnit
 from Backend.models.user import User
 from Backend.utils.datetime_utils import create_audit_datetime
 from Backend.api.notifications.email_service import EmailService
+from Backend.api.notifications.service import NotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -718,20 +719,24 @@ async def send_tenant_reminder(
     session: AsyncSession = Depends(get_session),
 ):
     """
-    Send a reminder email to a tenant about an upcoming event.
-    
-    This endpoint allows landlords and admins to manually send reminder emails
+    Send a reminder to a tenant about an upcoming event.
+
+    This endpoint allows landlords and admins to manually send reminders
     to tenants about rent due, lease expiry, invoices, or maintenance.
-    
+
+    The reminder is sent via:
+    1. In-app notification (always, if tenant has portal access)
+    2. Email (only if tenant has email notifications enabled for rent_reminder)
+
     Args:
         tenant_id: ID of the tenant to send reminder to
         reminder_data: Event details for the reminder
-        
+
     Returns:
         Success status and message
-        
+
     Raises:
-        HTTPException: If tenant not found, user lacks permission, or tenant has no email
+        HTTPException: If tenant not found or user lacks permission
     """
     logger.info(
         "User %s sending reminder to tenant %s for event: %s",
@@ -749,28 +754,13 @@ async def send_tenant_reminder(
 
     # Check permissions
     tenant = await check_tenant_permission(tenant_id, session, current_user, action="view")
-    
-    # Validate tenant has email
-    if not tenant.email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot send reminder: tenant does not have an email address"
-        )
-    
-    # Validate email format
-    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    if not re.match(email_pattern, tenant.email):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid email address format: {tenant.email}"
-        )
-    
+
     # Get tenant name
     if tenant.tenant_type == TenantType.COMPANY:
         tenant_name = tenant.company_name or tenant.contact_person or "Tenant"
     else:
         tenant_name = f"{tenant.first_name or ''} {tenant.last_name or ''}".strip() or "Tenant"
-    
+
     # Get property and unit info if available
     property_name = None
     unit_name = None
@@ -780,7 +770,7 @@ async def send_tenant_reminder(
         property_obj = property_result.scalar_one_or_none()
         if property_obj:
             property_name = property_obj.name
-    
+
     # Try to get unit info from active lease using JOIN for efficiency
     if tenant.id:
         unit_query = (
@@ -797,68 +787,165 @@ async def send_tenant_reminder(
         unit_result = await session.execute(unit_query)
         unit_obj = unit_result.scalar_one_or_none()
         unit_name = unit_obj.name if unit_obj else None
-    
-    # Send email via EmailService
+
+    # Build notification title and message
+    notification_title = reminder_data.custom_subject or reminder_data.event_title
+    notification_message = reminder_data.custom_message
+    if not notification_message:
+        # Generate default message based on days remaining
+        days = reminder_data.days_remaining
+        if days is not None:
+            if days < 0:
+                notification_message = f"Your rent payment is {abs(days)} day{'s' if abs(days) != 1 else ''} overdue. Please make your payment as soon as possible."
+            elif days == 0:
+                notification_message = "Your rent payment is due today. Please ensure payment is made on time."
+            else:
+                notification_message = f"Your rent payment is due in {days} day{'s' if days != 1 else ''}."
+        else:
+            notification_message = reminder_data.event_subtitle or "You have a pending rent payment."
+
+    # Add amount info if available
+    if reminder_data.event_amount:
+        notification_message += f" Amount: ${reminder_data.event_amount:,.2f}"
+
+    # Track what was sent
+    in_app_sent = False
+    email_sent = False
+
     try:
-        success = await EmailService.send_tenant_reminder_email(
-            tenant_email=tenant.email,
-            tenant_name=tenant_name,
-            event_type=reminder_data.event_type,
-            event_title=reminder_data.event_title,
-            event_subtitle=reminder_data.event_subtitle,
-            event_date=reminder_data.event_date,
-            event_amount=reminder_data.event_amount,
-            days_remaining=reminder_data.days_remaining,
-            property_name=property_name,
-            unit_name=unit_name,
-            metadata={
-                'tenant_id': tenant_id,
-                'sent_by_user_id': str(current_user.id),
-                'sent_by_email': current_user.email,
-            },
-            custom_subject=reminder_data.custom_subject,
-            custom_message=reminder_data.custom_message
-        )
-        
-        if success:
-            logger.info(
-                "Reminder email sent successfully to tenant %s by user %s",
-                tenant_id,
-                current_user.id
+        # 1. Create in-app notification if tenant has portal access
+        if tenant.user_id:
+            # Use NotificationService which respects user preferences
+            notification = await NotificationService.create_notification(
+                user_id=tenant.user_id,
+                type="rent_reminder",
+                title=notification_title,
+                message=notification_message,
+                session=session,
+                link="/payments",  # Deep link to payments page in tenant portal
+                actor_id=current_user.id,
+                actor_name=f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or "Your Landlord",
+                metadata={
+                    "tenant_id": tenant_id,
+                    "event_type": reminder_data.event_type,
+                    "event_date": reminder_data.event_date,
+                    "event_amount": float(reminder_data.event_amount) if reminder_data.event_amount else None,
+                    "days_remaining": reminder_data.days_remaining,
+                    "property_name": property_name,
+                    "unit_name": unit_name,
+                    "sent_by_landlord": True,
+                },
+                priority="high" if (reminder_data.days_remaining is not None and reminder_data.days_remaining <= 0) else "normal",
             )
-            return TenantReminderResponse(
-                success=True,
-                message=f"Reminder email sent successfully to {tenant_name}"
+
+            if notification:
+                in_app_sent = True
+                # Check if email was also sent (NotificationService handles this based on preferences)
+                if notification.delivery_channels and "email" in notification.delivery_channels:
+                    email_sent = True
+                logger.info(
+                    "In-app notification created for tenant %s (user_id: %s), email sent: %s",
+                    tenant_id,
+                    tenant.user_id,
+                    email_sent
+                )
+        else:
+            # Tenant doesn't have portal access - send email directly if they have an email
+            logger.info("Tenant %s has no portal access, falling back to email only", tenant_id)
+
+        # 2. If no notification was created (tenant has no portal) or email wasn't sent via
+        #    NotificationService, try direct email as fallback
+        if not in_app_sent and not email_sent:
+            # Validate tenant has email for direct sending
+            if not tenant.email:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot send reminder: tenant does not have portal access or an email address"
+                )
+
+            # Validate email format
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_pattern, tenant.email):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid email address format: {tenant.email}"
+                )
+
+            # Send direct email for tenants without portal access
+            email_success = await EmailService.send_tenant_reminder_email(
+                tenant_email=tenant.email,
+                tenant_name=tenant_name,
+                event_type=reminder_data.event_type,
+                event_title=reminder_data.event_title,
+                event_subtitle=reminder_data.event_subtitle,
+                event_date=reminder_data.event_date,
+                event_amount=reminder_data.event_amount,
+                days_remaining=reminder_data.days_remaining,
+                property_name=property_name,
+                unit_name=unit_name,
+                metadata={
+                    'tenant_id': tenant_id,
+                    'sent_by_user_id': str(current_user.id),
+                    'sent_by_email': current_user.email,
+                },
+                custom_subject=reminder_data.custom_subject,
+                custom_message=reminder_data.custom_message
             )
+
+            if email_success:
+                email_sent = True
+
+        # Build response message
+        if in_app_sent and email_sent:
+            message = f"Reminder sent to {tenant_name} via notification and email"
+        elif in_app_sent:
+            message = f"Reminder sent to {tenant_name} via in-app notification"
+        elif email_sent:
+            message = f"Reminder email sent to {tenant_name}"
         else:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to send reminder email. Please try again later."
+                detail="Failed to send reminder. Please try again later."
             )
-            
+
+        logger.info(
+            "Reminder sent successfully to tenant %s by user %s (in_app: %s, email: %s)",
+            tenant_id,
+            current_user.id,
+            in_app_sent,
+            email_sent
+        )
+
+        return TenantReminderResponse(
+            success=True,
+            message=message
+        )
+
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception(f"Error sending reminder email to tenant {tenant_id}")
+        logger.exception(f"Error sending reminder to tenant {tenant_id}")
 
-        # IMPROVEMENT: Add Sentry context for better debugging
         sentry_sdk.capture_exception(e, extras={
             'tenant_id': tenant_id,
             'tenant_email': tenant.email if tenant else None,
+            'tenant_user_id': str(tenant.user_id) if tenant and tenant.user_id else None,
             'event_type': reminder_data.event_type,
             'user_id': str(current_user.id),
             'user_email': current_user.email,
             'has_custom_message': bool(reminder_data.custom_message),
             'has_custom_subject': bool(reminder_data.custom_subject),
             'property_name': property_name,
-            'unit_name': unit_name
+            'unit_name': unit_name,
+            'in_app_sent': in_app_sent,
+            'email_sent': email_sent,
         }, tags={
             'feature': 'tenant_reminders',
-            'action': 'send_email',
+            'action': 'send_reminder',
             'event_type': reminder_data.event_type
         })
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while sending the reminder email."
+            detail="An unexpected error occurred while sending the reminder."
         )

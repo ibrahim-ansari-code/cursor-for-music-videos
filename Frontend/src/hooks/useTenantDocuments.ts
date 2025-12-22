@@ -67,7 +67,7 @@ export const useTenantDocument = (
   documentId: string | undefined
 ): UseQueryResult<TenantDocument, Error> => {
   return useQuery({
-    queryKey: QUERY_KEYS.tenantDocuments.detail(Number(tenantId), documentId!),
+    queryKey: QUERY_KEYS.tenantDocuments.detail(Number(tenantId), Number(documentId)),
     queryFn: () => fetchTenantDocument(tenantId!, documentId!),
     enabled: !!tenantId && !!documentId,
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -119,14 +119,15 @@ export const useUploadTenantDocument = (): UseMutationResult<
 
   return useMutation({
     mutationFn: async (params: UploadDocumentParams) => {
-      const formData = buildDocumentFormData(params.file, {
-        document_name: params.document_name,
+      const metadata = {
         document_category: params.document_category,
         document_type: params.document_type,
-        tags: params.tags,
-        notes: params.notes,
-        expiry_date: params.expiry_date,
-      });
+        ...(params.document_name && { document_name: params.document_name }),
+        ...(params.tags && { tags: params.tags }),
+        ...(params.notes && { notes: params.notes }),
+        ...(params.expiry_date && { expiry_date: params.expiry_date }),
+      };
+      const formData = buildDocumentFormData(params.file, metadata);
 
       return uploadTenantDocument(params.tenantId, formData);
     },
@@ -173,8 +174,8 @@ export const useUpdateTenantDocument = (): UseMutationResult<
       });
       
       // Invalidate specific document detail
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.tenantDocuments.detail(Number(variables.tenantId), variables.documentId)
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.tenantDocuments.detail(Number(variables.tenantId), Number(variables.documentId)) 
       });
     },
   });
@@ -208,8 +209,8 @@ export const useDeleteTenantDocument = (): UseMutationResult<
       });
 
       // Remove specific document from cache
-      queryClient.removeQueries({
-        queryKey: QUERY_KEYS.tenantDocuments.detail(Number(variables.tenantId), variables.documentId)
+      queryClient.removeQueries({ 
+        queryKey: QUERY_KEYS.tenantDocuments.detail(Number(variables.tenantId), Number(variables.documentId)) 
       });
 
       // Also invalidate tenant detail query

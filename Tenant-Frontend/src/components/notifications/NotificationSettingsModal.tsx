@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { FiX, FiLoader } from 'react-icons/fi';
 import {
   getNotificationPreferences,
   updateNotificationPreferences,
   type NotificationPreferences,
-  type NotificationPreferencesUpdateRequest,
 } from '@/utils/api/settings';
 
 interface NotificationSettingsModalProps {
@@ -17,20 +15,26 @@ interface NotificationSettingsModalProps {
 /**
  * NotificationSettingsModal Component
  * Modal for managing notification preferences, accessible from the Notifications page.
+ * Uses a Save button pattern (not optimistic updates) - aligned with landlord portal.
  */
 const NotificationSettingsModal: React.FC<NotificationSettingsModalProps> = ({
   isOpen,
   onClose,
 }) => {
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
+  const [originalPrefs, setOriginalPrefs] = useState<NotificationPreferences | null>(null);
 
   // Fetch preferences when modal opens
   useEffect(() => {
     if (isOpen) {
       setIsLoading(true);
       getNotificationPreferences()
-        .then((data) => setPrefs(data))
+        .then((data) => {
+          setPrefs(data);
+          setOriginalPrefs(data);
+        })
         .catch((err) => {
           console.error('Failed to fetch notification preferences:', err);
           toast.error('Failed to load notification preferences');
@@ -39,37 +43,56 @@ const NotificationSettingsModal: React.FC<NotificationSettingsModalProps> = ({
     }
   }, [isOpen]);
 
-  // Update preferences mutation
-  const updateMutation = useMutation({
-    mutationFn: (data: NotificationPreferencesUpdateRequest) =>
-      updateNotificationPreferences(data),
-    onSuccess: (response) => {
-      setPrefs(response.preferences);
-      toast.success('Preferences updated');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update preferences');
-    },
-  });
+  // Check if there are unsaved changes
+  const hasChanges = (): boolean => {
+    if (!prefs || !originalPrefs) return false;
+    return JSON.stringify(prefs) !== JSON.stringify(originalPrefs);
+  };
 
-  // Handle email toggle - single toggle that controls email channel
-  const handleEmailToggle = (type: string, includeEmail: boolean) => {
+  // Handle email toggle - updates local state only
+  const handleEmailToggle = (type: string) => {
     if (!prefs) return;
 
     const currentPref = prefs.preferences[type as keyof typeof prefs.preferences];
-    const channels = includeEmail
-      ? (['in_app', 'email'] as const)
-      : (['in_app'] as const);
+    const hasEmail = currentPref?.channels?.includes('email') ?? true;
+    const newChannels: ('in_app' | 'email')[] = hasEmail
+      ? ['in_app']
+      : ['in_app', 'email'];
 
-    updateMutation.mutate({
+    setPrefs({
+      ...prefs,
       preferences: {
+        ...prefs.preferences,
         [type]: {
-          enabled: true, // Always enabled for in-app
-          channels: [...channels],
+          enabled: true,
+          channels: newChannels,
           frequency: currentPref?.frequency || 'immediate',
         },
       },
     });
+  };
+
+  // Save changes to server
+  const handleSave = async () => {
+    if (!prefs) return;
+
+    setIsSaving(true);
+    try {
+      const result = await updateNotificationPreferences({
+        preferences: prefs.preferences,
+      });
+
+      if (result?.preferences) {
+        setPrefs(result.preferences);
+        setOriginalPrefs(result.preferences);
+      }
+      toast.success('Preferences saved');
+    } catch (error) {
+      console.error('Failed to save notification preferences:', error);
+      toast.error('Failed to save preferences');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -123,6 +146,10 @@ const NotificationSettingsModal: React.FC<NotificationSettingsModalProps> = ({
 
           {/* Content */}
           <div className="px-6 py-4">
+            <p className="text-xs text-gray-500 mb-4">
+              In-app notifications are always on. Toggle email notifications below.
+            </p>
+
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <FiLoader className="w-6 h-6 animate-spin text-gray-400" />
@@ -148,8 +175,7 @@ const NotificationSettingsModal: React.FC<NotificationSettingsModalProps> = ({
                         <span className="text-xs text-gray-500">Email</span>
                         <button
                           type="button"
-                          onClick={() => handleEmailToggle(type.key, !hasEmail)}
-                          disabled={updateMutation.isPending}
+                          onClick={() => handleEmailToggle(type.key)}
                           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer ${
                             hasEmail ? 'bg-teal-600' : 'bg-gray-200'
                           }`}
@@ -172,6 +198,23 @@ const NotificationSettingsModal: React.FC<NotificationSettingsModalProps> = ({
             )}
           </div>
 
+          {/* Footer with Save button */}
+          {prefs && (
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving || !hasChanges()}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  hasChanges()
+                    ? 'bg-teal-600 text-white hover:bg-teal-700 cursor-pointer'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
