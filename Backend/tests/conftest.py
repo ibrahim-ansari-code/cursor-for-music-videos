@@ -46,4 +46,20 @@ except Exception as e:
 def pytest_configure(config):
     """Configure pytest with custom settings."""
     # Ensure asyncio mode is set (backup for pytest.ini)
-    config.option.asyncio_mode = "auto" 
+    config.option.asyncio_mode = "auto"
+
+
+@pytest.fixture(scope="function")
+def event_loop():
+    """Create a new event loop for each test function to prevent unclosed loop warnings."""
+    import asyncio
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
+    yield loop
+    # Clean up pending tasks before closing
+    pending = asyncio.all_tasks(loop)
+    for task in pending:
+        task.cancel()
+    if pending:
+        loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+    loop.close()
