@@ -1,8 +1,8 @@
 version: v2
-name: brikli-backend-prod
+name: backend-preview
 
 services:
-  - name: brikli-api
+  - name: backend-preview
     run: gunicorn -w 2 -k uvicorn.workers.UvicornWorker Backend.api.app:app --timeout 300
     type: web
     instances: 1
@@ -24,6 +24,6 @@ env:
     value: .
 
 envGroups:
-  - brikli-prod-supabase
+  - backend-preview
 
 deploymentStrategy: {}
