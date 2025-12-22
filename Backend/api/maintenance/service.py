@@ -337,24 +337,32 @@ class MaintenanceService:
                     tenant_name = None
                     if tenant_entity:
                         tenant_name = f"{tenant_entity.first_name or ''} {tenant_entity.last_name or ''}".strip()
-                    
+
+                    # Build location string (property + unit)
+                    location_parts = [property_entity.name]
+                    if unit_entity:
+                        location_parts.append(f"Unit {unit_entity.name}")
+                    location_str = " - ".join(location_parts)
+
                     # Create notification for landlord
                     await NotificationService.create_notification(
                         user_id=landlord_user_id,
                         type="maintenance_request_new",
                         title=f"New Maintenance Request: {data.issue_title}",
-                        message=f"{tenant_name or 'A tenant'} submitted a {data.priority.value.lower()} priority maintenance request.",
+                        message=f"{tenant_name or 'A tenant'} submitted a maintenance request at {location_str}.",
                         link=f"/maintenance?request_id={created_request.id}",
                         actor_id=current_user.id,
                         actor_name=tenant_name,
                         metadata={
                             "maintenance_id": created_request.id,
                             "property_id": actual_property_id,
+                            "unit_id": actual_unit_id,
                             "tenant_id": actual_tenant_id,
-                            "priority": data.priority.value,
-                            "issue_title": data.issue_title
+                            "issue_title": data.issue_title,
+                            "property_name": property_entity.name,
+                            "unit_name": unit_entity.name if unit_entity else None
                         },
-                        priority="high" if data.priority == MaintenancePriority.HIGH else "normal",
+                        priority="normal",  # Priority is determined by landlord during triage
                         group_key=f"maintenance_property_{actual_property_id}",
                         session=session
                     )
@@ -440,6 +448,13 @@ class MaintenanceService:
         await check_permission(req, current_user, session)
 
         update_data = data.model_dump(exclude_unset=True)
+
+        # Log update metadata (avoid logging full payload to prevent PII exposure)
+        logger = logging.getLogger(__name__)
+        logger.info(
+            f"[MaintenanceUpdate] request_id={request_id} | "
+            f"fields_updated={list(update_data.keys())}"
+        )
 
         # Check if property or unit is being changed - if so, validate the new values
         if ('property_id' in update_data and update_data['property_id'] != req.property_id) or \

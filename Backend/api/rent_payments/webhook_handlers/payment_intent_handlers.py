@@ -30,25 +30,14 @@ async def handle_payment_intent_succeeded(
         logger.warning(f"No transaction found for PaymentIntent {pi_id}")
         return
     
-    # Update transaction
+    # Update transaction status
     transaction.status = RentPaymentTransactionStatus.SUCCEEDED
     transaction.succeeded_at = utc_now()
-    
-    # Store payment method details
-    pm_details = payment_intent.get("payment_method_details", {})
-    pm_type = list(pm_details.keys())[0] if pm_details else None
-    
-    if pm_type:
-        transaction.payment_method_type = pm_type
-        type_details = pm_details.get(pm_type, {})
-        
-        if pm_type == "card":
-            transaction.payment_method_last_four = type_details.get("last4")
-        elif pm_type == "acss_debit":
-            transaction.payment_method_last_four = type_details.get("last4")
-            transaction.payment_method_bank_name = type_details.get("bank_name")
-    
     transaction.updated_at = utc_now()
+
+    # NOTE: payment_method_details is NOT on PaymentIntent - it's on the Charge object.
+    # The charge.succeeded webhook handler extracts last4/bank_name from charge.payment_method_details.
+    # We don't extract payment method details here as they won't be available.
     session.add(transaction)
     
     # Create corresponding Payment record for landlord's ledger

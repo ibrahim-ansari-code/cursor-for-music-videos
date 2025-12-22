@@ -162,9 +162,9 @@ def test_tenant_status_update_email_complete():
         vendor_phone="+1234567890",
         vendor_email="john@plumbing.com",
         request_id=123,
-        frontend_url="https://app.brikli.com"
+        tenant_portal_url="https://tenant.brikli.com"
     )
-    
+
     assert "Maintenance Update" in subject
     assert "Bob Tenant" in html or "Bob" in html
     assert "123 Main St" in html
@@ -187,9 +187,9 @@ def test_tenant_status_update_email_minimal():
         vendor_phone=None,
         vendor_email=None,
         request_id=1,
-        frontend_url="https://app.brikli.com"
+        tenant_portal_url="https://tenant.brikli.com"
     )
-    
+
     assert subject is not None
     assert html is not None
     assert "Tenant" in html or "tenant" in html.lower()
@@ -211,9 +211,9 @@ def test_tenant_status_update_email_scheduled():
         vendor_phone=None,
         vendor_email=None,
         request_id=1,
-        frontend_url="https://app.brikli.com"
+        tenant_portal_url="https://tenant.brikli.com"
     )
-    
+
     assert "scheduled" in html.lower() or "Scheduled" in html
 
 
@@ -232,9 +232,9 @@ def test_tenant_status_update_email_completed():
         vendor_phone=None,
         vendor_email=None,
         request_id=1,
-        frontend_url="https://app.brikli.com"
+        tenant_portal_url="https://tenant.brikli.com"
     )
-    
+
     assert "completed" in html.lower() or "Completed" in html
 
 
@@ -253,7 +253,7 @@ def test_tenant_status_update_email_cancelled():
         vendor_phone=None,
         vendor_email=None,
         request_id=1,
-        frontend_url="https://app.brikli.com"
+        tenant_portal_url="https://tenant.brikli.com"
     )
     
     assert "cancelled" in html.lower() or "Cancelled" in html

@@ -7,6 +7,7 @@ class PaymentStatus(str, Enum):
     PARTIAL = "Partial"
     OVERDUE = "Overdue"
     CANCELLED = "Cancelled"
+    PARTIALLY_REFUNDED = "Partially Refunded"
     REFUNDED = "Refunded"
     DRAFT = "Draft"
     VOID = "Void"

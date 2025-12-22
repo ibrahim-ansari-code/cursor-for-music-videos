@@ -36,13 +36,14 @@ class RentPaymentTransactionStatus:
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     CANCELED = "canceled"
+    PARTIALLY_REFUNDED = "partially_refunded"
     REFUNDED = "refunded"
-    
+
     @classmethod
     def terminal_statuses(cls) -> set[str]:
         """Statuses that indicate the transaction is complete."""
-        return {cls.SUCCEEDED, cls.FAILED, cls.CANCELED, cls.REFUNDED}
-    
+        return {cls.SUCCEEDED, cls.FAILED, cls.CANCELED, cls.REFUNDED, cls.PARTIALLY_REFUNDED}
+
     @classmethod
     def active_statuses(cls) -> set[str]:
         """Statuses that indicate the transaction is still in progress."""

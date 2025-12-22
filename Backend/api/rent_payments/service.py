@@ -652,6 +652,8 @@ async def create_payment(
         idempotency_key = f"rent-payment-{data.lease_id}-{data.amount_cents}-{timestamp}"
         
         # Create PaymentIntent on the connected account (Direct Charge)
+        # Explicitly specify payment_method_types to ensure ACSS debit is available
+        # Note: automatic_payment_methods relies on Dashboard settings which may not include ACSS
         pi_params = {
             "amount": data.amount_cents,
             "currency": DEFAULT_CURRENCY,
@@ -667,12 +669,12 @@ async def create_payment(
             "stripe_account": connected_account.stripe_account_id,
             "idempotency_key": idempotency_key,
         }
-        
+
         # Attach payment method if provided
         if payment_method_stripe_id:
             pi_params["payment_method"] = payment_method_stripe_id
-        
-        # For PAD, include mandate data
+
+        # Configure ACSS debit mandate options (applies when that method is selected)
         pi_params["payment_method_options"] = {
             "acss_debit": {
                 "mandate_options": {

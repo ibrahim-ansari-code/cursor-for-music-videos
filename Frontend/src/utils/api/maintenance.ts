@@ -1,16 +1,8 @@
 // Maintenance API Functions
 import { apiRequest, formatQueryString, uploadFile } from './core';
-import { MaintenanceRequest, MaintenanceStatus, MaintenancePriority } from '../../types/tenant';
+import { MaintenanceRequest, MaintenanceStatus, MaintenancePriority, MaintenanceSummary } from '../../types/tenant';
 import { validateImageFile } from '../fileValidation';
 import * as Sentry from '@sentry/react';
-
-interface MaintenanceSummary {
-  total_requests: number;
-  pending: number;
-  in_progress: number;
-  completed: number;
-  cancelled: number;
-}
 
 /**
  * Fetches a summary of maintenance data.

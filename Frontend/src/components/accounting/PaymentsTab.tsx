@@ -7,7 +7,7 @@
  * - Online payments via Stripe Connect
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { CSVLink } from 'react-csv';
 import NewPaymentModal from './modals/NewPaymentModal';
@@ -18,6 +18,7 @@ import OnlinePaymentsBanner from './OnlinePaymentsBanner';
 import { PaymentsTableSkeleton } from '../ui/skeletons';
 import { useAccounting } from './AccountingContext';
 import { usePayments, useDeletePayment } from '../../hooks/useAccountingQueries';
+import { usePaymentsRealtime } from '../../hooks/usePaymentsRealtime';
 import { importPaymentsFromCSV } from '../../utils/api/accounting';
 import { getTenantDisplayName, getTenantInitials } from '../../utils/tenantUtils';
 import { useSubscriptionGuard } from '../../hooks/useSubscriptionGuard';
@@ -42,7 +43,7 @@ const PAYMENT_TABLE_COLUMNS: TableColumn[] = [
   { key: 'method', label: 'Method', align: 'center' },
   { key: 'status', label: 'Status', align: 'center' },
   { key: 'source', label: 'Source', align: 'center' },
-  { key: 'actions', label: 'Actions', align: 'center' },
+  { key: 'actions', label: '', align: 'center' },
 ];
 
 const CSV_HEADERS: CSVHeader[] = [
@@ -162,6 +163,10 @@ function getSourceBadgeClass(sourceText: string): string {
 // =============================================================================
 
 const PaymentsTab: React.FC = () => {
+  // Subscribe to real-time payment changes via Supabase WebSocket
+  // This automatically invalidates React Query cache on INSERT/UPDATE/DELETE
+  usePaymentsRealtime();
+
   // Subscription guard for premium features
   const guardAction = useSubscriptionGuard({ featureName: 'recording payments' });
 
@@ -181,12 +186,20 @@ const PaymentsTab: React.FC = () => {
     search: '',
   });
 
+  // Separate search input state for immediate UI feedback (debounced before API call)
+  const [searchInput, setSearchInput] = useState('');
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
   // Modal states
   const [showNewPaymentModal, setShowNewPaymentModal] = useState(false);
   const [showEditPaymentModal, setShowEditPaymentModal] = useState(false);
   const [showCSVImportModal, setShowCSVImportModal] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+
+  // Dropdown menu state
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Build query parameters
   const queryParams = useMemo<PaymentQueryParams>(() => {
@@ -240,6 +253,44 @@ const PaymentsTab: React.FC = () => {
       setPagination((prev) => ({ ...prev, hasMore: paymentsData.has_more || false }));
     }
   }, [paymentsData]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenDropdownId(null);
+      }
+    };
+
+    if (openDropdownId !== null) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [openDropdownId]);
+
+  // Debounced search handler - waits 400ms after user stops typing before triggering API call
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInput(value);
+
+    // Clear any pending debounce
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    // Set new debounce timer
+    searchDebounceRef.current = setTimeout(() => {
+      setFilters((prev) => ({ ...prev, search: value }));
+    }, 400);
+  }, []);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, []);
 
   // Handlers
   const handleEditPayment = useCallback((payment: Payment) => {
@@ -416,8 +467,8 @@ const PaymentsTab: React.FC = () => {
             <input
               type="search"
               placeholder="Search payments..."
-              value={filters.search}
-              onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+              value={searchInput}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 pr-3 py-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md text-sm"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -553,55 +604,82 @@ const PaymentsTab: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Actions */}
+                      {/* Actions - 3-dot dropdown menu */}
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                        <div className="flex justify-center space-x-2">
-                          {payment.receipt_url && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                // Stripe receipts must open in new tab due to CSP restrictions
-                                if (payment.stripe_payment_intent_id) {
-                                  window.open(payment.receipt_url!, '_blank', 'noopener,noreferrer');
-                                } else {
-                                  const descriptiveName = `Receipt for ${payment.tenant_name || 'Unknown Tenant'}${
-                                    payment.property_name ? ` - ${payment.property_name}` : ''
-                                  }`;
-                                  handlePreviewReceipt(payment.receipt_url!, descriptiveName);
-                                }
-                              }}
-                              className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 p-1"
-                              title="View Receipt"
-                            >
-                              <i className="fas fa-eye" />
-                            </button>
-                          )}
-                          {payment.stripe_payment_intent_id && payment.status === 'Paid' && (
-                            <button
-                              type="button"
-                              onClick={() => handleRefundPayment(payment)}
-                              className="text-yellow-600 dark:text-yellow-400 hover:text-yellow-900 dark:hover:text-yellow-300 p-1"
-                              title="Issue Refund"
-                            >
-                              <i className="fas fa-undo" />
-                            </button>
-                          )}
+                        <div className="relative inline-block" ref={openDropdownId === payment.id ? dropdownRef : null}>
                           <button
                             type="button"
-                            onClick={() => handleEditPayment(payment)}
-                            className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300"
-                            title="Edit"
+                            onClick={() => setOpenDropdownId(openDropdownId === payment.id ? null : payment.id)}
+                            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                            aria-label="Actions menu"
                           >
-                            <i className="fas fa-edit" />
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                            </svg>
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePayment(payment.id)}
-                            className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
-                            title="Delete"
-                          >
-                            <i className="fas fa-trash-alt" />
-                          </button>
+
+                          {/* Dropdown Menu */}
+                          {openDropdownId === payment.id && (
+                            <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                              <div className="py-1">
+                                {payment.receipt_url && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenDropdownId(null);
+                                      if (payment.stripe_payment_intent_id) {
+                                        window.open(payment.receipt_url!, '_blank', 'noopener,noreferrer');
+                                      } else {
+                                        const descriptiveName = `Receipt for ${payment.tenant_name || 'Unknown Tenant'}${
+                                          payment.property_name ? ` - ${payment.property_name}` : ''
+                                        }`;
+                                        handlePreviewReceipt(payment.receipt_url!, descriptiveName);
+                                      }
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                                  >
+                                    <i className="fas fa-eye w-4 mr-3 text-blue-500" />
+                                    View Receipt
+                                  </button>
+                                )}
+                                {payment.stripe_payment_intent_id && payment.status === 'Paid' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenDropdownId(null);
+                                      handleRefundPayment(payment);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                                  >
+                                    <i className="fas fa-undo w-4 mr-3 text-yellow-500" />
+                                    Issue Refund
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenDropdownId(null);
+                                    handleEditPayment(payment);
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                                >
+                                  <i className="fas fa-edit w-4 mr-3 text-indigo-500" />
+                                  Edit Payment
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenDropdownId(null);
+                                    handleDeletePayment(payment.id);
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center"
+                                >
+                                  <i className="fas fa-trash-alt w-4 mr-3" />
+                                  Delete Payment
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -423,6 +423,7 @@ async def _process_event(event: stripe.Event, session: AsyncSession) -> bool:
         "refund.created": handle_refund_created,
         "refund.updated": handle_refund_updated,
         "refund.failed": handle_refund_failed,
+        "charge.refund.updated": handle_refund_updated,  # Alias for refund.updated
         
         # Payment Method events
         "payment_method.attached": handle_payment_method_attached,

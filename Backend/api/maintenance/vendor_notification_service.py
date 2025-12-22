@@ -325,7 +325,7 @@ class VendorNotificationService:
                     vendor_phone = vendor.phone
                     vendor_email = vendor.email
             
-            # Generate email
+            # Generate email - use TENANT_PORTAL_URL for tenant emails
             subject, html_body = VendorEmailTemplates.create_tenant_status_update_email(
                 tenant_name=f"{tenant.first_name} {tenant.last_name}",
                 tenant_email=tenant.email,
@@ -339,7 +339,7 @@ class VendorNotificationService:
                 vendor_phone=vendor_phone,
                 vendor_email=vendor_email,
                 request_id=maintenance_request.id or 0,
-                frontend_url=settings.FRONTEND_URL
+                tenant_portal_url=settings.TENANT_PORTAL_URL
             )
             
             # Send email

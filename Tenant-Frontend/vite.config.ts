@@ -19,12 +19,26 @@ export default defineConfig(({ command }) => {
       port: 5174, // Different port from main Frontend (5173)
       open: true,
       host: true,
+      allowedHosts: [
+        '.ngrok.io',
+        '.ngrok-free.app',
+        '.ngrok-free.dev',
+      ],
       proxy: {
         '/api': {
           target: 'http://localhost:8000',
           changeOrigin: true,
         },
       },
+    },
+    preview: {
+      port: 4173,
+      host: true,
+      allowedHosts: [
+        '.ngrok.io',
+        '.ngrok-free.app',
+        '.ngrok-free.dev',
+      ],
     },
     resolve: {
       alias: {

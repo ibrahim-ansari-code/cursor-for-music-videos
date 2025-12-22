@@ -22,6 +22,10 @@ interface TriageData {
   status: MaintenanceStatus;
   vendor_id?: number;
   scheduled_date?: string;
+  // Preserve these from the original request - they should never be lost during triage
+  property_id: number;
+  unit_id?: number | null;
+  tenant_id?: number | null;
 }
 
 const MaintenanceTriageModal: React.FC<MaintenanceTriageModalProps> = ({
@@ -34,6 +38,10 @@ const MaintenanceTriageModal: React.FC<MaintenanceTriageModalProps> = ({
   const [triageData, setTriageData] = useState<TriageData>({
     priority: request.priority || MaintenancePriority.MEDIUM,
     status: request.status,
+    // Always include these from the original request
+    property_id: request.property_id,
+    unit_id: request.unit_id ?? request.unit?.id ?? null,
+    tenant_id: request.tenant_id ?? request.tenant?.id ?? null,
   });
   const [error, setError] = useState<string | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -77,6 +85,8 @@ const MaintenanceTriageModal: React.FC<MaintenanceTriageModalProps> = ({
     setError(null);
 
     try {
+      console.log("[MaintenanceTriageModal] Submitting triage data:", triageData);
+      console.log("[MaintenanceTriageModal] Original request - tenant_id:", request.tenant_id, "unit_id:", request.unit_id, "property_id:", request.property_id);
       await onSubmit(triageData);
       onClose();
     } catch (err: any) {

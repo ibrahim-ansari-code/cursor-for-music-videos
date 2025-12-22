@@ -221,6 +221,32 @@ const EditMaintenanceModal: React.FC<EditMaintenanceModalProps> = ({
       }
 
       // Build the final payload with proper type conversions
+      // For edit mode, we need to preserve original values if the form field is empty
+      // Use undefined to omit from payload (preserve existing), null to explicitly clear
+
+      // Helper to get ID - returns number if set, undefined to preserve existing, null only if explicitly cleared
+      const getIdValue = (
+        formValue: string | undefined,
+        originalValue: number | undefined | null,
+        allowCommonArea = false
+      ): number | null | undefined => {
+        // If form has a value, use it
+        if (formValue && formValue !== "" && formValue !== "common_area") {
+          return Number(formValue);
+        }
+        // If explicitly set to common_area, that means null (no specific unit)
+        if (allowCommonArea && formValue === "common_area") {
+          return null;
+        }
+        // If form is empty but original had a value, preserve it by returning the original
+        // This handles the case where the dropdown hasn't loaded yet
+        if ((!formValue || formValue === "") && originalValue != null) {
+          return originalValue;
+        }
+        // Otherwise null (no value)
+        return null;
+      };
+
       const payload = {
         issue_title: formData.issue_title.trim(),
         description:
@@ -230,28 +256,13 @@ const EditMaintenanceModal: React.FC<EditMaintenanceModalProps> = ({
         priority: formData.priority,
         status: formData.status,
         property_id: formData.property_id ? Number(formData.property_id) : null,
-        unit_id:
-          formData.unit_id &&
-          formData.unit_id !== "" &&
-          formData.unit_id !== "common_area"
-            ? Number(formData.unit_id)
-            : null,
-        tenant_id:
-          formData.tenant_id && formData.tenant_id !== ""
-            ? Number(formData.tenant_id)
-            : null,
-        vendor_id:
-          formData.vendor_id && formData.vendor_id !== ""
-            ? Number(formData.vendor_id)
-            : null,
+        unit_id: getIdValue(formData.unit_id, request.unit_id ?? request.unit?.id, true),
+        tenant_id: getIdValue(formData.tenant_id, request.tenant_id ?? request.tenant?.id),
+        vendor_id: getIdValue(formData.vendor_id, request.vendor_id ?? request.vendor?.id),
         notify_tenant: formData.notify_tenant || false,
-        start_date:
-          formData.start_date && formData.start_date.trim() !== ""
-            ? formData.start_date
-            : null,
-        end_date:
-          formData.end_date && formData.end_date.trim() !== ""
-            ? formData.end_date
+        scheduled_date:
+          formData.scheduled_date && formData.scheduled_date.trim() !== ""
+            ? formData.scheduled_date
             : null,
         // CRITICAL: Use finalPhotos (Azure URLs) not formData.photos (preview URLs)
         photos: finalPhotos.length > 0 ? finalPhotos : null,
@@ -367,9 +378,11 @@ const EditMaintenanceModal: React.FC<EditMaintenanceModalProps> = ({
                   onRemovePhoto={handleRemovePhoto}
                   onReorderPhotos={handleReorderPhotos}
                   isViewing={isViewing}
+                  isEditMode={true}
                   isLoadingUnits={isLoadingUnits}
                   isLoadingTenants={isLoadingTenants}
                   isLoadingVendors={isLoadingVendors}
+                  request={request}
                 />
               </form>
             )}
@@ -413,6 +426,7 @@ const EditMaintenanceModal: React.FC<EditMaintenanceModalProps> = ({
               {!isViewing && (
                 <button
                   type="submit"
+                  form="edit-maintenance-request-form"
                   disabled={isSubmitting}
                   className={`px-5 py-2 text-sm font-medium text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 ${
                     isSubmitting

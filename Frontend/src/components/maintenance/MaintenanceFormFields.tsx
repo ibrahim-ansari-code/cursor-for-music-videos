@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import * as Select from "@radix-ui/react-select";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, Building2, User, Calendar, CheckCircle2 } from "lucide-react";
 import type {
   MaintenanceFormData,
   MaintenancePhotoState,
+  MaintenanceRequest,
   Property,
   PropertyUnit,
   Tenant,
@@ -28,9 +29,13 @@ interface MaintenanceFormFieldsProps {
   onRemovePhoto: (id: string) => void;
   onReorderPhotos?: (newOrder: string[]) => void;
   isViewing?: boolean;
+  /** If true, property/unit/tenant are read-only (edit mode vs create mode) */
+  isEditMode?: boolean;
   isLoadingUnits?: boolean;
   isLoadingTenants?: boolean;
   isLoadingVendors?: boolean;
+  /** Original request object for view mode - contains nested property/unit/tenant/vendor */
+  request?: MaintenanceRequest | null;
 }
 
 // Helper to get tenant name
@@ -52,7 +57,9 @@ const MaintenanceViewMode: React.FC<{
   units: PropertyUnit[];
   tenants: Tenant[];
   vendors: VendorContact[];
-}> = ({ formData, properties, units, tenants, vendors }) => {
+  /** Original request object - contains nested property/unit/tenant/vendor objects */
+  request?: MaintenanceRequest | null;
+}> = ({ formData, properties, units, tenants, vendors, request }) => {
   const [securePhotoUrls, setSecurePhotoUrls] = useState<
     Record<string, string>
   >({});
@@ -123,8 +130,8 @@ const MaintenanceViewMode: React.FC<{
     </div>
   );
 
-  // Type-safe ID comparisons using numeric conversion with proper null handling
-  // Avoids fragile string comparisons and leverages TypeScript type safety
+  // Prefer nested objects from request (populated by backend), fallback to array lookups
+  // This ensures view mode works correctly even before arrays are loaded
   const propertyIdNum = formData.property_id
     ? Number(formData.property_id)
     : null;
@@ -133,24 +140,27 @@ const MaintenanceViewMode: React.FC<{
       ? Number(formData.unit_id)
       : null;
   const tenantIdNum = formData.tenant_id ? Number(formData.tenant_id) : null;
+  const vendorIdNum = formData.vendor_id ? Number(formData.vendor_id) : null;
 
-  const property =
+  // Use nested objects from request first, then fallback to array lookup
+  const property = request?.property ?? (
     propertyIdNum !== null
       ? properties.find((p) => p.id === propertyIdNum)
-      : undefined;
-  const unit =
-    unitIdNum !== null ? units.find((u) => u.id === unitIdNum) : undefined;
-  const tenant =
+      : undefined
+  );
+  const unit = request?.unit ?? (
+    unitIdNum !== null ? units.find((u) => u.id === unitIdNum) : undefined
+  );
+  const tenant = request?.tenant ?? (
     tenantIdNum !== null
       ? tenants.find((t) => t.id === tenantIdNum)
-      : undefined;
-
-  // Find vendor if vendor_id exists
-  const vendorIdNum = formData.vendor_id ? Number(formData.vendor_id) : null;
-  const vendor =
+      : undefined
+  );
+  const vendor = request?.vendor ?? (
     vendorIdNum !== null
       ? vendors.find((v) => v.id === vendorIdNum)
-      : undefined;
+      : undefined
+  );
 
   return (
     <div className="p-6 space-y-4">
@@ -337,9 +347,9 @@ const MaintenanceViewMode: React.FC<{
         </div>
         <div className="mt-4">
           {renderField(
-            "Preffered Time (YYYY-MM-DD)",
+            "Preferred Time",
             formData.preferred_time && formData.preferred_time !== ""
-              ? new Date(formData.preferred_time).toLocaleDateString()
+              ? formData.preferred_time
               : ""
           )}
         </div>
@@ -373,18 +383,10 @@ const MaintenanceViewMode: React.FC<{
             "Notify Tenant via Email",
             formData.notify_tenant ? "Yes" : "No"
           )}
-          {formData.preferred_time &&
-            renderField("Tenant Preferred Time", formData.preferred_time)}
           {renderField(
-            "Requested Start Date",
-            formData.start_date
-              ? new Date(formData.start_date).toLocaleDateString()
-              : ""
-          )}
-          {renderField(
-            "Requested End Date",
-            formData.end_date
-              ? new Date(formData.end_date).toLocaleDateString()
+            "Scheduled Date",
+            formData.scheduled_date
+              ? new Date(formData.scheduled_date).toLocaleDateString()
               : ""
           )}
         </div>
@@ -407,9 +409,11 @@ const MaintenanceFormFields: React.FC<MaintenanceFormFieldsProps> = ({
   onRemovePhoto,
   onReorderPhotos,
   isViewing,
+  isEditMode,
   isLoadingUnits,
   isLoadingTenants,
   isLoadingVendors,
+  request,
 }) => {
   // If viewing mode, render view component
   if (isViewing) {
@@ -420,6 +424,7 @@ const MaintenanceFormFields: React.FC<MaintenanceFormFieldsProps> = ({
         units={units}
         tenants={tenants}
         vendors={vendors}
+        request={request}
       />
     );
   }
@@ -452,302 +457,142 @@ const MaintenanceFormFields: React.FC<MaintenanceFormFieldsProps> = ({
     }
   };
 
-  return (
-    <div className="space-y-3">
-      {/* Photos Section - At Top */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-        <div className="flex items-center mb-3">
-          <div className="w-8 h-8 bg-purple-50 dark:bg-purple-900/20 rounded-lg flex items-center justify-center mr-3">
-            <svg
-              className="w-4 h-4 text-purple-600 dark:text-purple-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-              Photos {formData.photos && formData.photos.length > 0 && `(${formData.photos.length})`}
-            </h3>
-          </div>
-        </div>
-
-        <MaintenancePhotoUpload
-          photos={formData.photos || []}
-          photoState={photoState}
-          onFileChange={handleDropzoneFileChange}
-          onRemovePhoto={onRemovePhoto}
-          onReorderPhotos={handlePhotoReorder}
-          disabled={false}
+  // Helper to render toggle switch
+  const ToggleSwitch = ({ checked, onChange, label, description }: {
+    checked: boolean;
+    onChange: () => void;
+    label: string;
+    description?: string;
+  }) => (
+    <label className="flex items-center justify-between cursor-pointer">
+      <div>
+        <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
+        {description && <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={onChange}
+        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+          checked ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+        }`}
+      >
+        <span
+          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+            checked ? 'translate-x-4' : 'translate-x-0'
+          }`}
         />
-      </div>
+      </button>
+    </label>
+  );
 
-      {/* Location Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-        <div className="flex items-center mb-3">
-          <div className="w-8 h-8 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center mr-3">
-            <svg
-              className="w-4 h-4 text-blue-600 dark:text-blue-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-              />
-            </svg>
+  // Get location display info
+  const propertyName = request?.property?.name || properties.find(p => p.id === Number(formData.property_id))?.name || "—";
+  const unitName = request?.unit?.name || units.find(u => u.id === Number(formData.unit_id))?.name || "Common Area";
+  const tenantName = getTenantName(request?.tenant || tenants.find(t => t.id === Number(formData.tenant_id)));
+
+  // EDIT MODE - Task-focused layout
+  if (isEditMode) {
+    return (
+      <div className="p-6 space-y-6">
+        {/* Location Context Bar */}
+        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 pb-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-1.5">
+            <Building2 className="h-4 w-4" />
+            <span>{propertyName}</span>
+            <span className="text-gray-400 dark:text-gray-500">•</span>
+            <span>{unitName}</span>
           </div>
-          <div>
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-              Location Information
-            </h3>
-          </div>
+          {formData.tenant_id && (
+            <>
+              <span className="text-gray-400 dark:text-gray-500">•</span>
+              <div className="flex items-center gap-1.5">
+                <User className="h-4 w-4" />
+                <span>{tenantName}</span>
+              </div>
+            </>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {/* Property */}
+        {/* PRIMARY ACTION ZONE - Status & Assignment */}
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-5 border border-green-200 dark:border-green-800">
+          <h3 className="text-sm font-semibold text-green-800 dark:text-green-300 mb-4 uppercase tracking-wide">
+            Status & Assignment
+          </h3>
+
+          {/* Status and Priority Row */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            {/* Status Dropdown - Radix UI */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Property <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.property_id || ""}
-                onChange={(e) => onUpdateField("property_id", e.target.value)}
-                className={getInputClassName("property_id")}
-              >
-                <option value="">Select Property</option>
-                {properties.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-              {errors.property_id && (
-                <p className="mt-2 text-sm text-red-600 dark:text-red-400">
-                  {errors.property_id}
-                </p>
-              )}
-            </div>
-
-            {/* Unit */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Unit
-              </label>
-              <select
-                value={formData.unit_id || ""}
-                onChange={(e) => onUpdateField("unit_id", e.target.value)}
-                disabled={!formData.property_id || isLoadingUnits}
-                className={getInputClassName("unit_id")}
-              >
-                <option value="">
-                  {isLoadingUnits
-                    ? "Loading..."
-                    : "Select Unit or leave blank for common area"}
-                </option>
-                <option value="common_area">Common Area / Building-wide</option>
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Select "Common Area" for property-wide maintenance like parking
-                lots, building exterior, etc.
-              </p>
-            </div>
-
-            {/* Tenant - Moved from Additional Information section */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Tenant
-              </label>
-              <select
-                value={formData.tenant_id || ""}
-                onChange={(e) => onUpdateField("tenant_id", e.target.value)}
-                disabled={!formData.property_id || isLoadingTenants}
-                className={getInputClassName("tenant_id")}
-              >
-                <option value="">
-                  {isLoadingTenants ? "Loading..." : "Select Tenant (optional)"}
-                </option>
-                {tenants.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {getTenantName(t)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-        {/* Notify Tenant Checkbox - Moved here under tenant selector */}
-        {formData.tenant_id && (
-          <div className="mt-3">
-            <div className="flex items-center space-x-3">
-              <input
-                type="checkbox"
-                id="notify_tenant"
-                checked={formData.notify_tenant || false}
-                onChange={(e) =>
-                  onUpdateField("notify_tenant", e.target.checked)
-                }
-                className="w-4 h-4 text-green-600 border-gray-300 dark:border-gray-600 rounded focus:ring-green-500 dark:focus:ring-green-400 dark:bg-gray-700"
-              />
-              <label
-                htmlFor="notify_tenant"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
-              >
-                Notify Tenant via Email
-              </label>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 ml-7 mt-1">
-              Tenant will receive email notifications about request updates
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Request Details Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-        <div className="flex items-center mb-3">
-          <div className="w-8 h-8 bg-orange-50 dark:bg-orange-900/20 rounded-lg flex items-center justify-center mr-3">
-            <svg
-              className="w-4 h-4 text-orange-600 dark:text-orange-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-              Request Details
-            </h3>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          {/* Issue Title */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Issue Title <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.issue_title || ""}
-              onChange={(e) => onUpdateField("issue_title", e.target.value)}
-              placeholder="Brief description of the issue"
-              className={getInputClassName("issue_title")}
-            />
-            {errors.issue_title && (
-              <p className="mt-2 text-sm text-red-600 dark:text-red-400">
-                {errors.issue_title}
-              </p>
-            )}
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Description
-            </label>
-            <textarea
-              value={formData.description || ""}
-              onChange={(e) => onUpdateField("description", e.target.value)}
-              rows={3}
-              placeholder="Detailed description of the maintenance issue..."
-              className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:text-gray-100 resize-none text-sm"
-            />
-          </div>
-
-          {/* Priority and Status */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Priority
-              </label>
-              <select
-                value={formData.priority || ""}
-                onChange={(e) =>
-                  onUpdateField(
-                    "priority",
-                    e.target.value as "Low" | "Medium" | "High"
-                  )
-                }
-                className={getInputClassName("priority")}
-              >
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Status
               </label>
-              <select
-                value={formData.status || ""}
-                onChange={(e) => onUpdateField("status", e.target.value as any)}
-                className={getInputClassName("status")}
+              <Select.Root
+                value={formData.status || "Pending"}
+                onValueChange={(value) => onUpdateField("status", value as any)}
               >
-                <option value="Pending">Pending</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
+                <Select.Trigger className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent flex items-center justify-between transition-colors text-sm bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100">
+                  <Select.Value />
+                  <Select.Icon><ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" /></Select.Icon>
+                </Select.Trigger>
+                <Select.Portal>
+                  <Select.Content className="overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-[10001]">
+                    <Select.Viewport className="p-1">
+                      {[
+                        { value: "Pending", label: "Pending" },
+                        { value: "In Progress", label: "In Progress" },
+                        { value: "Scheduled", label: "Scheduled" },
+                        { value: "Completed", label: "Completed" },
+                        { value: "Cancelled", label: "Cancelled" },
+                      ].map((option) => (
+                        <Select.Item key={option.value} value={option.value} className="relative flex items-center px-8 py-2 text-sm text-gray-900 dark:text-gray-100 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 outline-none">
+                          <Select.ItemText>{option.label}</Select.ItemText>
+                          <Select.ItemIndicator className="absolute left-2"><Check className="h-4 w-4" /></Select.ItemIndicator>
+                        </Select.Item>
+                      ))}
+                    </Select.Viewport>
+                  </Select.Content>
+                </Select.Portal>
+              </Select.Root>
+            </div>
+
+            {/* Priority Dropdown - Radix UI */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                Priority
+              </label>
+              <Select.Root
+                value={formData.priority || "Medium"}
+                onValueChange={(value) => onUpdateField("priority", value as "Low" | "Medium" | "High")}
+              >
+                <Select.Trigger className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent flex items-center justify-between transition-colors text-sm bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100">
+                  <Select.Value />
+                  <Select.Icon><ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" /></Select.Icon>
+                </Select.Trigger>
+                <Select.Portal>
+                  <Select.Content className="overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-[10001]">
+                    <Select.Viewport className="p-1">
+                      {[
+                        { value: "Low", label: "Low" },
+                        { value: "Medium", label: "Medium" },
+                        { value: "High", label: "High" },
+                      ].map((option) => (
+                        <Select.Item key={option.value} value={option.value} className="relative flex items-center px-8 py-2 text-sm text-gray-900 dark:text-gray-100 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 outline-none">
+                          <Select.ItemText>{option.label}</Select.ItemText>
+                          <Select.ItemIndicator className="absolute left-2"><Check className="h-4 w-4" /></Select.ItemIndicator>
+                        </Select.Item>
+                      ))}
+                    </Select.Viewport>
+                  </Select.Content>
+                </Select.Portal>
+              </Select.Root>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Additional Information Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-        <div className="flex items-center mb-3">
-          <div className="w-8 h-8 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center mr-3">
-            <svg
-              className="w-4 h-4 text-green-600 dark:text-green-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-              />
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-              Additional Information
-            </h3>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          {/* Vendor Dropdown - Radix UI */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          {/* Vendor Assignment - Radix UI */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               Assign Vendor
             </label>
             <Select.Root
@@ -758,65 +603,36 @@ const MaintenanceFormFields: React.FC<MaintenanceFormFieldsProps> = ({
               disabled={isLoadingVendors}
             >
               <Select.Trigger
-                className={`w-full px-4 py-2.5 pr-9 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent flex items-center justify-between transition-colors text-sm ${
+                className={`w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent flex items-center justify-between transition-colors text-sm ${
                   isLoadingVendors
                     ? "bg-gray-100 dark:bg-gray-900/50 cursor-not-allowed border-gray-300 dark:border-gray-600"
                     : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
                 } text-gray-900 dark:text-gray-100`}
                 disabled={isLoadingVendors}
               >
-                <Select.Value placeholder="Select a vendor...">
-                  {formData.vendor_id &&
-                  vendors.find((v) => v.id === Number(formData.vendor_id))
-                    ? (() => {
-                        const vendor = vendors.find(
-                          (v) => v.id === Number(formData.vendor_id)
-                        );
-                        return vendor
-                          ? `${vendor.company_name} (${vendor.trade_category})`
-                          : "Select a vendor...";
-                      })()
-                    : "Select a vendor..."}
+                <Select.Value placeholder="No vendor assigned">
+                  {formData.vendor_id && vendors.find((v) => v.id === Number(formData.vendor_id))
+                    ? `${vendors.find((v) => v.id === Number(formData.vendor_id))?.company_name} (${vendors.find((v) => v.id === Number(formData.vendor_id))?.trade_category})`
+                    : "No vendor assigned"}
                 </Select.Value>
-                <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400 ml-2 flex-shrink-0" />
+                <Select.Icon><ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" /></Select.Icon>
               </Select.Trigger>
               <Select.Portal>
                 <Select.Content className="overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-[10001] max-h-80">
                   <Select.Viewport className="p-1">
-                    <Select.Item
-                      value="NONE"
-                      className="relative flex items-center px-8 py-2 text-sm text-gray-900 dark:text-gray-100 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 outline-none"
-                    >
+                    <Select.Item value="NONE" className="relative flex items-center px-8 py-2 text-sm text-gray-900 dark:text-gray-100 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 outline-none">
                       <Select.ItemText>No vendor assigned</Select.ItemText>
-                      <Select.ItemIndicator className="absolute left-2 inline-flex items-center">
-                        <Check className="h-4 w-4" />
-                      </Select.ItemIndicator>
+                      <Select.ItemIndicator className="absolute left-2"><Check className="h-4 w-4" /></Select.ItemIndicator>
                     </Select.Item>
-                    {vendors.length === 0 && !isLoadingVendors && (
-                      <div className="px-8 py-2 text-sm text-gray-500 dark:text-gray-400">
-                        No vendors available. Add vendors in the Vendors page
-                        first.
-                      </div>
-                    )}
                     {vendors.map((vendor) => (
-                      <Select.Item
-                        key={vendor.id}
-                        value={String(vendor.id)}
-                        className="relative flex items-center px-8 py-2 text-sm text-gray-900 dark:text-gray-100 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 outline-none"
-                      >
+                      <Select.Item key={vendor.id} value={String(vendor.id)} className="relative flex items-center px-8 py-2 text-sm text-gray-900 dark:text-gray-100 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 outline-none">
                         <Select.ItemText>
                           <div>
-                            <div className="font-medium">
-                              {vendor.company_name}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {vendor.trade_category} • {vendor.phone}
-                            </div>
+                            <div className="font-medium">{vendor.company_name}</div>
+                            <div className="text-xs text-gray-500">{vendor.trade_category} • {vendor.email}</div>
                           </div>
                         </Select.ItemText>
-                        <Select.ItemIndicator className="absolute left-2 inline-flex items-center">
-                          <Check className="h-4 w-4" />
-                        </Select.ItemIndicator>
+                        <Select.ItemIndicator className="absolute left-2"><Check className="h-4 w-4" /></Select.ItemIndicator>
                       </Select.Item>
                     ))}
                   </Select.Viewport>
@@ -824,55 +640,319 @@ const MaintenanceFormFields: React.FC<MaintenanceFormFieldsProps> = ({
               </Select.Portal>
             </Select.Root>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Vendor will be notified via email and SMS when assigned
+              Vendor will be notified via email after saving
             </p>
           </div>
 
-          {/* Date Range: Start Date and End Date */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Start Date */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Requested Start Date
-              </label>
-              <input
-                type="date"
-                value={formData.start_date || ""}
-                onChange={(e) => onUpdateField("start_date", e.target.value)}
-                className={getInputClassName("start_date")}
-              />
-              {errors.start_date && (
-                <p className="mt-2 text-sm text-red-600 dark:text-red-400">
-                  {errors.start_date}
-                </p>
-              )}
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Earliest date for repair to begin
-              </p>
-            </div>
+          {/* Notify Tenant Toggle */}
+          {formData.tenant_id && (
+            <ToggleSwitch
+              checked={formData.notify_tenant || false}
+              onChange={() => onUpdateField("notify_tenant", !formData.notify_tenant)}
+              label="Notify tenant of status changes"
+              description="Send email updates when status changes"
+            />
+          )}
+        </div>
 
-            {/* End Date */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Requested End Date
-              </label>
-              <input
-                type="date"
-                value={formData.end_date || ""}
-                onChange={(e) => onUpdateField("end_date", e.target.value)}
-                className={getInputClassName("end_date")}
-              />
-              {errors.end_date && (
-                <p className="mt-2 text-sm text-red-600 dark:text-red-400">
-                  {errors.end_date}
-                </p>
+        {/* Scheduling Section - Only show relevant fields based on status */}
+        {(formData.status === "Scheduled" || formData.status === "Completed") && (
+          <div className="space-y-4">
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Scheduling
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Scheduled Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Scheduled Date
+                </label>
+                <input
+                  type="date"
+                  value={formData.scheduled_date || ""}
+                  onChange={(e) => onUpdateField("scheduled_date", e.target.value)}
+                  className={getInputClassName("scheduled_date")}
+                />
+              </div>
+
+              {/* Completion Date - only when Completed */}
+              {formData.status === "Completed" && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    Completion Date
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.completion_date || new Date().toISOString().split('T')[0]}
+                    onChange={(e) => onUpdateField("completion_date", e.target.value)}
+                    className={getInputClassName("completion_date")}
+                  />
+                </div>
               )}
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Latest date for repair to be completed
-              </p>
             </div>
           </div>
+        )}
+
+        {/* Issue Details - Collapsible/Secondary */}
+        <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Issue Details</h4>
+
+          {/* Issue Title */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              Title <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.issue_title || ""}
+              onChange={(e) => onUpdateField("issue_title", e.target.value)}
+              placeholder="Brief description of the issue"
+              className={getInputClassName("issue_title")}
+            />
+            {errors.issue_title && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.issue_title}</p>
+            )}
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              Description
+            </label>
+            <textarea
+              value={formData.description || ""}
+              onChange={(e) => onUpdateField("description", e.target.value)}
+              rows={3}
+              placeholder="Detailed description..."
+              className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:text-gray-100 resize-none text-sm"
+            />
+          </div>
         </div>
+
+        {/* Photos Section - At Bottom */}
+        <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Photos {formData.photos && formData.photos.length > 0 && `(${formData.photos.length})`}
+          </h4>
+          <MaintenancePhotoUpload
+            photos={formData.photos || []}
+            photoState={photoState}
+            onFileChange={handleDropzoneFileChange}
+            onRemovePhoto={onRemovePhoto}
+            onReorderPhotos={handlePhotoReorder}
+            disabled={false}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // CREATE MODE - Original layout with some improvements
+  return (
+    <div className="space-y-4 p-6">
+      {/* Location Section */}
+      <div className="space-y-3">
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Location</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Property */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Property <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={formData.property_id || ""}
+              onChange={(e) => onUpdateField("property_id", e.target.value)}
+              className={getInputClassName("property_id")}
+            >
+              <option value="">Select Property</option>
+              {properties.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            {errors.property_id && (
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.property_id}</p>
+            )}
+          </div>
+
+          {/* Unit */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
+            <select
+              value={formData.unit_id || ""}
+              onChange={(e) => onUpdateField("unit_id", e.target.value)}
+              disabled={!formData.property_id || isLoadingUnits}
+              className={getInputClassName("unit_id")}
+            >
+              <option value="">{isLoadingUnits ? "Loading..." : "Select Unit"}</option>
+              <option value="common_area">Common Area</option>
+              {units.map((u) => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Tenant */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Tenant</label>
+            <select
+              value={formData.tenant_id || ""}
+              onChange={(e) => onUpdateField("tenant_id", e.target.value)}
+              disabled={!formData.property_id || isLoadingTenants}
+              className={getInputClassName("tenant_id")}
+            >
+              <option value="">{isLoadingTenants ? "Loading..." : "Select Tenant (optional)"}</option>
+              {tenants.map((t) => (
+                <option key={t.id} value={t.id}>{getTenantName(t)}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Notify Tenant Toggle */}
+        {formData.tenant_id && (
+          <ToggleSwitch
+            checked={formData.notify_tenant || false}
+            onChange={() => onUpdateField("notify_tenant", !formData.notify_tenant)}
+            label="Notify Tenant via Email"
+            description="Receive status updates"
+          />
+        )}
+      </div>
+
+      {/* Issue Details */}
+      <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Issue Details</h4>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+            Issue Title <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={formData.issue_title || ""}
+            onChange={(e) => onUpdateField("issue_title", e.target.value)}
+            placeholder="Brief description of the issue"
+            className={getInputClassName("issue_title")}
+          />
+          {errors.issue_title && (
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.issue_title}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Description</label>
+          <textarea
+            value={formData.description || ""}
+            onChange={(e) => onUpdateField("description", e.target.value)}
+            rows={3}
+            placeholder="Detailed description..."
+            className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white dark:bg-gray-700 dark:text-gray-100 resize-none text-sm"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Priority</label>
+            <select
+              value={formData.priority || ""}
+              onChange={(e) => onUpdateField("priority", e.target.value as "Low" | "Medium" | "High")}
+              className={getInputClassName("priority")}
+            >
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Status</label>
+            <select
+              value={formData.status || ""}
+              onChange={(e) => onUpdateField("status", e.target.value as any)}
+              className={getInputClassName("status")}
+            >
+              <option value="Pending">Pending</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Scheduled">Scheduled</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Assignment & Scheduling */}
+      <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Assignment & Scheduling</h4>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Assign Vendor</label>
+          <Select.Root
+            value={formData.vendor_id || "NONE"}
+            onValueChange={(value) => onUpdateField("vendor_id", value === "NONE" ? "" : value)}
+            disabled={isLoadingVendors}
+          >
+            <Select.Trigger
+              className={`w-full px-4 py-2.5 pr-9 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between text-sm ${
+                isLoadingVendors ? "bg-gray-100 cursor-not-allowed" : "bg-white dark:bg-gray-700"
+              } border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100`}
+            >
+              <Select.Value placeholder="Select a vendor...">
+                {formData.vendor_id && vendors.find((v) => v.id === Number(formData.vendor_id))
+                  ? `${vendors.find((v) => v.id === Number(formData.vendor_id))?.company_name}`
+                  : "No vendor assigned"}
+              </Select.Value>
+              <ChevronDown className="h-4 w-4 text-gray-500" />
+            </Select.Trigger>
+            <Select.Portal>
+              <Select.Content className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-[10001] max-h-80">
+                <Select.Viewport className="p-1">
+                  <Select.Item value="NONE" className="relative flex items-center px-8 py-2 text-sm rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 outline-none">
+                    <Select.ItemText>No vendor assigned</Select.ItemText>
+                    <Select.ItemIndicator className="absolute left-2"><Check className="h-4 w-4" /></Select.ItemIndicator>
+                  </Select.Item>
+                  {vendors.map((vendor) => (
+                    <Select.Item key={vendor.id} value={String(vendor.id)} className="relative flex items-center px-8 py-2 text-sm rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 outline-none">
+                      <Select.ItemText>
+                        <div>
+                          <div className="font-medium">{vendor.company_name}</div>
+                          <div className="text-xs text-gray-500">{vendor.trade_category} • {vendor.email}</div>
+                        </div>
+                      </Select.ItemText>
+                      <Select.ItemIndicator className="absolute left-2"><Check className="h-4 w-4" /></Select.ItemIndicator>
+                    </Select.Item>
+                  ))}
+                </Select.Viewport>
+              </Select.Content>
+            </Select.Portal>
+          </Select.Root>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Scheduled Date</label>
+          <input
+            type="date"
+            value={formData.scheduled_date || ""}
+            onChange={(e) => onUpdateField("scheduled_date", e.target.value)}
+            className={getInputClassName("scheduled_date")}
+          />
+        </div>
+      </div>
+
+      {/* Photos Section */}
+      <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Photos {formData.photos && formData.photos.length > 0 && `(${formData.photos.length})`}
+        </h4>
+        <MaintenancePhotoUpload
+          photos={formData.photos || []}
+          photoState={photoState}
+          onFileChange={handleDropzoneFileChange}
+          onRemovePhoto={onRemovePhoto}
+          onReorderPhotos={handlePhotoReorder}
+          disabled={false}
+        />
       </div>
     </div>
   );

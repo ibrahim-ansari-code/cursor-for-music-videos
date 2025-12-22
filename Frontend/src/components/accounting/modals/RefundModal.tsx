@@ -122,19 +122,19 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
   const renderAmountStep = () => (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Refund Amount</h3>
-        <p className="text-sm text-gray-600">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Refund Amount</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           Original payment: <span className="font-semibold">${paymentAmount.toFixed(2)}</span>
         </p>
       </div>
 
       {/* Refund Type Selection */}
       <div className="space-y-3">
-        <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors hover:border-brand-teal"
-          style={{
-            borderColor: refundType === 'full' ? '#004225' : '#e5e7eb',
-            backgroundColor: refundType === 'full' ? '#f0fdf4' : 'white',
-          }}>
+        <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors hover:border-brand-teal ${
+          refundType === 'full'
+            ? 'border-brand-teal bg-green-50 dark:bg-green-900/20'
+            : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700'
+        }`}>
           <input
             type="radio"
             name="refundType"
@@ -144,19 +144,19 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
             className="w-4 h-4 text-brand-teal focus:ring-brand-teal"
           />
           <div className="ml-3 flex-1">
-            <div className="font-medium text-gray-900">Full Refund</div>
-            <div className="text-sm text-gray-600">Refund the entire payment amount</div>
+            <div className="font-medium text-gray-900 dark:text-white">Full Refund</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Refund the entire payment amount</div>
           </div>
-          <div className="text-lg font-semibold text-gray-900">
+          <div className="text-lg font-semibold text-gray-900 dark:text-white">
             ${paymentAmount.toFixed(2)}
           </div>
         </label>
 
-        <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors hover:border-brand-teal"
-          style={{
-            borderColor: refundType === 'partial' ? '#004225' : '#e5e7eb',
-            backgroundColor: refundType === 'partial' ? '#f0fdf4' : 'white',
-          }}>
+        <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors hover:border-brand-teal ${
+          refundType === 'partial'
+            ? 'border-brand-teal bg-green-50 dark:bg-green-900/20'
+            : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700'
+        }`}>
           <input
             type="radio"
             name="refundType"
@@ -166,8 +166,8 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
             className="w-4 h-4 text-brand-teal focus:ring-brand-teal"
           />
           <div className="ml-3 flex-1">
-            <div className="font-medium text-gray-900">Partial Refund</div>
-            <div className="text-sm text-gray-600">Refund a custom amount</div>
+            <div className="font-medium text-gray-900 dark:text-white">Partial Refund</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Refund a custom amount</div>
           </div>
         </label>
       </div>
@@ -175,11 +175,11 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
       {/* Custom Amount Input */}
       {refundType === 'partial' && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Refund Amount
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
             <input
               type="number"
               step="0.01"
@@ -188,14 +188,15 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
               value={customAmount}
               onChange={(e) => setCustomAmount(e.target.value)}
               placeholder="0.00"
-              className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent"
-              style={{
-                borderColor: customAmount && (!isValidAmount) ? '#ef4444' : undefined,
-              }}
+              className={`w-full pl-8 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 ${
+                customAmount && !isValidAmount
+                  ? 'border-red-500'
+                  : 'border-gray-300 dark:border-gray-600'
+              }`}
             />
           </div>
           {customAmount && !isValidAmount && (
-            <p className="mt-1 text-sm text-red-600">
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">
               Amount must be between $0.01 and ${paymentAmount.toFixed(2)}
             </p>
           )}
@@ -207,21 +208,21 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
   const renderDetailsStep = () => (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Refund Details</h3>
-        <p className="text-sm text-gray-600">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Refund Details</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           Refunding: <span className="font-semibold">${refundAmountDollars.toFixed(2)}</span>
         </p>
       </div>
 
       {/* Reason Selection */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Reason for Refund <span className="text-red-500">*</span>
         </label>
         <select
           value={reason}
           onChange={(e) => setReason(e.target.value as RefundReason)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent"
+          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
         >
           {REFUND_REASONS.map((r) => (
             <option key={r.value} value={r.value}>
@@ -229,14 +230,14 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
             </option>
           ))}
         </select>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           {REFUND_REASONS.find(r => r.value === reason)?.description}
         </p>
       </div>
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Additional Notes (Optional)
         </label>
         <textarea
@@ -244,12 +245,12 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="Add any additional context about this refund..."
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent resize-none"
+          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400"
         />
       </div>
 
       {/* Platform Fee Notice - Not Refundable */}
-      <div className="bg-blue-50 rounded-lg p-4">
+      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
         <div className="flex">
           <div className="flex-shrink-0">
             <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
@@ -257,8 +258,8 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
             </svg>
           </div>
           <div className="ml-3">
-            <h3 className="text-sm font-medium text-blue-800">Platform Fee Policy</h3>
-            <div className="mt-2 text-sm text-blue-700">
+            <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">Platform Fee Policy</h3>
+            <div className="mt-2 text-sm text-blue-700 dark:text-blue-400">
               The Brikli platform fee ($3-$8 depending on payment method) is non-refundable as it covers the cost of payment processing services already rendered.
             </div>
           </div>
@@ -269,7 +270,7 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
 
   const renderConfirmStep = () => (
     <div className="space-y-6">
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
         <div className="flex">
           <div className="flex-shrink-0">
             <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
@@ -277,8 +278,8 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
             </svg>
           </div>
           <div className="ml-3">
-            <h3 className="text-sm font-medium text-yellow-800">Confirm Refund</h3>
-            <div className="mt-2 text-sm text-yellow-700">
+            <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Confirm Refund</h3>
+            <div className="mt-2 text-sm text-yellow-700 dark:text-yellow-400">
               This action cannot be undone. The refund will be processed immediately.
             </div>
           </div>
@@ -286,40 +287,40 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
       </div>
 
       {/* Summary */}
-      <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+      <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-3">
         <div className="flex justify-between">
-          <span className="text-gray-600">Tenant:</span>
-          <span className="font-medium text-gray-900">{payment.tenant_name || 'Unknown'}</span>
+          <span className="text-gray-600 dark:text-gray-400">Tenant:</span>
+          <span className="font-medium text-gray-900 dark:text-white">{payment.tenant_name || 'Unknown'}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-600">Original Payment:</span>
-          <span className="font-medium text-gray-900">${paymentAmount.toFixed(2)}</span>
+          <span className="text-gray-600 dark:text-gray-400">Original Payment:</span>
+          <span className="font-medium text-gray-900 dark:text-white">${paymentAmount.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-lg">
-          <span className="font-semibold text-gray-900">Refund Amount:</span>
+          <span className="font-semibold text-gray-900 dark:text-white">Refund Amount:</span>
           <span className="font-semibold text-brand-teal">${refundAmountDollars.toFixed(2)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-600">Reason:</span>
-          <span className="font-medium text-gray-900">
+          <span className="text-gray-600 dark:text-gray-400">Reason:</span>
+          <span className="font-medium text-gray-900 dark:text-white">
             {REFUND_REASONS.find(r => r.value === reason)?.label}
           </span>
         </div>
         {notes && (
-          <div className="pt-2 border-t border-gray-200">
-            <span className="text-gray-600 block mb-1">Notes:</span>
-            <span className="text-sm text-gray-700">{notes}</span>
+          <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+            <span className="text-gray-600 dark:text-gray-400 block mb-1">Notes:</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">{notes}</span>
           </div>
         )}
-        <div className="pt-2 border-t border-gray-200">
-          <span className="text-sm text-gray-600">
+        <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+          <span className="text-sm text-gray-600 dark:text-gray-400">
             Note: Platform fee is non-refundable (covers payment processing costs)
           </span>
         </div>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <p className="text-sm text-blue-800 dark:text-blue-300">
           The tenant will receive an email notification and the refund will appear in their account within 5-10 business days.
         </p>
       </div>
@@ -334,15 +335,15 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
           >
             {/* Header */}
-            <div className="px-6 py-4 border-b border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">Issue Refund</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Issue Refund</h2>
                 <button
                   onClick={onClose}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -366,12 +367,12 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
                       >
                         {index + 1}
                       </div>
-                      <span className="ml-2 text-sm font-medium text-gray-700 capitalize">
+                      <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
                         {s}
                       </span>
                     </div>
                     {index < 2 && (
-                      <div className="flex-1 h-1 mx-4 bg-gray-200 rounded">
+                      <div className="flex-1 h-1 mx-4 bg-gray-200 dark:bg-gray-600 rounded">
                         <div
                           className="h-full bg-brand-teal rounded transition-all"
                           style={{
@@ -393,10 +394,10 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment, onS
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-between">
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-between">
               <button
                 onClick={step === 'amount' ? onClose : handleBack}
-                className="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium transition-colors"
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
               >
                 {step === 'amount' ? 'Cancel' : 'Back'}
               </button>

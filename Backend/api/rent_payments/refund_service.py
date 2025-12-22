@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, and_, or_
@@ -130,30 +130,16 @@ async def create_refund(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Landlord's Stripe account not found - cannot process refund"
         )
-    
-    # Create local refund record first to generate a stable idempotency key
-    refund = RentPaymentRefund(
-        transaction_id=transaction.id,
-        stripe_refund_id=None,  # Will be set after Stripe call
-        stripe_charge_id=transaction.stripe_charge_id,
-        amount_cents=data.amount_cents,
-        currency=transaction.currency,
-        reason=data.reason,
-        notes=data.notes,
-        status=RefundStatus.PENDING,
-        application_fee_refunded_cents=None,  # Platform fee is non-refundable
-        initiated_by_user_id=user.id,
-    )
 
-    session.add(refund)
-    await session.flush()  # Assigns UUID without committing
+    # Generate a stable idempotency key before calling Stripe
+    # We'll use this same ID for the local refund record
+    refund_uuid = uuid4()
+    idempotency_key = str(refund_uuid)
 
-    # Create refund via Stripe (on the connected account)
+    # Create refund via Stripe FIRST (on the connected account)
+    # Only save local record after we have the Stripe refund ID
     try:
         stripe_client = get_stripe_client()
-
-        # Use refund UUID as idempotency key - stable across all retries
-        idempotency_key = str(refund.id)
 
         refund_params = {
             "charge": transaction.stripe_charge_id,
@@ -164,7 +150,7 @@ async def create_refund(
                 "tenant_id": str(transaction.tenant_id),
                 "lease_id": str(transaction.lease_id),
                 "initiated_by": str(user.id),
-                "refund_id": str(refund.id),
+                "refund_id": str(refund_uuid),
                 "platform": "brikli",
             },
         }
@@ -180,18 +166,25 @@ async def create_refund(
             idempotency_key=idempotency_key,
         )
 
-        # Update refund record with Stripe details
-        refund.stripe_refund_id = stripe_refund.id
+        # Now create local refund record with Stripe refund ID
+        refund = RentPaymentRefund(
+            id=refund_uuid,  # Use the same UUID we generated for idempotency
+            transaction_id=transaction.id,
+            stripe_refund_id=stripe_refund.id,
+            stripe_charge_id=transaction.stripe_charge_id,
+            amount_cents=data.amount_cents,
+            currency=transaction.currency,
+            reason=data.reason,
+            notes=data.notes,
+            status=RefundStatus.PENDING,
+            application_fee_refunded_cents=None,  # Platform fee is non-refundable
+            initiated_by_user_id=user.id,
+        )
+        session.add(refund)
         await session.commit()
 
     except stripe.InvalidRequestError as e:
         logger.error(f"Stripe refund failed | error={e}")
-
-        # Mark refund as failed in database
-        refund.status = RefundStatus.FAILED
-        refund.failure_reason = str(e)
-        refund.failed_at = utc_now()
-        await session.commit()
 
         # Track in Sentry for monitoring
         sentry_sdk.capture_exception(
@@ -201,12 +194,12 @@ async def create_refund(
                 "failure_type": "invalid_request",
                 "transaction_id": str(transaction.id),
                 "landlord_id": str(user.id),
-                "refund_id": str(refund.id),
+                "refund_uuid": str(refund_uuid),
             },
             contexts={
                 "refund": {
                     "transaction_id": str(transaction.id),
-                    "refund_id": str(refund.id),
+                    "refund_uuid": str(refund_uuid),
                     "refund_amount": data.amount_cents / 100,
                     "original_amount": transaction.amount_dollars,
                     "reason": data.reason,
@@ -221,12 +214,6 @@ async def create_refund(
     except stripe.StripeError as e:
         logger.error(f"Stripe error during refund | error={e}")
 
-        # Mark refund as failed in database
-        refund.status = RefundStatus.FAILED
-        refund.failure_reason = str(e)
-        refund.failed_at = utc_now()
-        await session.commit()
-
         # Track in Sentry
         sentry_sdk.capture_exception(
             e,
@@ -235,12 +222,12 @@ async def create_refund(
                 "failure_type": "stripe_error",
                 "transaction_id": str(transaction.id),
                 "landlord_id": str(user.id),
-                "refund_id": str(refund.id),
+                "refund_uuid": str(refund_uuid),
             },
             contexts={
                 "refund": {
                     "transaction_id": str(transaction.id),
-                    "refund_id": str(refund.id),
+                    "refund_uuid": str(refund_uuid),
                     "refund_amount": data.amount_cents / 100,
                     "original_amount": transaction.amount_dollars,
                     "reason": data.reason,

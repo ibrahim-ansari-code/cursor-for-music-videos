@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaDollarSign, FaExclamationTriangle, FaHome, FaCheckCircle } from 'react-icons/fa';
 import type { TenantBalance, AutopayStatus } from '@/types/payments';
+import { formatDateForDisplay, parseLocalDate } from '@/utils/dateHelpers';
 
 interface CurrentBalanceProps {
   balanceData: TenantBalance | null;
@@ -31,7 +32,9 @@ const CurrentBalance: React.FC<CurrentBalanceProps> = ({
     // 1. Past the due date
     // 2. Balance is greater than $0
     if (!balanceData?.due_date) return false;
-    const hasPastDue = new Date(balanceData.due_date) < new Date();
+    const dueDate = parseLocalDate(balanceData.due_date);
+    if (!dueDate) return false;
+    const hasPastDue = dueDate < new Date();
     const hasBalance = balanceData.current_balance_cents > 0;
     return hasPastDue && hasBalance;
   };
@@ -76,15 +79,6 @@ const CurrentBalance: React.FC<CurrentBalanceProps> = ({
   );
 
   const BalanceContent: React.FC = () => {
-    const formatDate = (dateString: string) => {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-CA', { 
-        month: 'long', 
-        day: 'numeric', 
-        year: 'numeric' 
-      });
-    };
-
     return (
       <div>
         {/* Property Context */}
@@ -105,7 +99,7 @@ const CurrentBalance: React.FC<CurrentBalanceProps> = ({
               </span>
               {balanceData!.due_date && (
                 <span className="ml-2 text-sm text-gray-500">
-                  due on {formatDate(balanceData!.due_date)}
+                  due on {formatDateForDisplay(balanceData!.due_date, { month: 'long', day: 'numeric', year: 'numeric' }, 'en-CA')}
                 </span>
               )}
             </div>

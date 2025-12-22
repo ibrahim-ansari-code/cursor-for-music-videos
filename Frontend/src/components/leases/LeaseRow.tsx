@@ -16,9 +16,18 @@ const LeaseRow: React.FC<LeaseRowWithSelectionProps> = ({
 }) => {
   // Get tenant name with fallback
   const tenantName = getTenantDisplayName(lease.tenant, 'No tenant assigned');
-  
+
   // Get tenant initials
   const tenantInitials = getTenantInitials(lease.tenant);
+
+  // Format date without timezone issues (treats date string as local date)
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    // Parse as local date by splitting the ISO string to avoid timezone shifts
+    const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
   // Helper: Get status badge class
   const getStatusClass = () => {
@@ -87,8 +96,7 @@ const LeaseRow: React.FC<LeaseRowWithSelectionProps> = ({
       {/* Dates */}
       <td className="px-6 py-4 whitespace-nowrap text-left">
         <div className="text-sm text-gray-900 dark:text-gray-100">
-          {new Date(lease.start_date).toLocaleDateString()} -{" "}
-          {new Date(lease.end_date).toLocaleDateString()}
+          {formatDate(lease.start_date)} - {formatDate(lease.end_date)}
         </div>
         <div className="text-sm text-gray-500 dark:text-gray-400">
           {calculateDurationMonths()} months

@@ -289,13 +289,9 @@ const CreateMaintenanceModal: React.FC<CreateMaintenanceModalProps> = ({
             ? Number(formData.vendor_id)
             : null,
         notify_tenant: formData.notify_tenant || false,
-        start_date:
-          formData.start_date && formData.start_date.trim() !== ''
-            ? formData.start_date
-            : null,
-        end_date:
-          formData.end_date && formData.end_date.trim() !== ''
-            ? formData.end_date
+        scheduled_date:
+          formData.scheduled_date && formData.scheduled_date.trim() !== ''
+            ? formData.scheduled_date
             : null,
         photos: finalPhotos.length > 0 ? finalPhotos : null,
       };

@@ -182,49 +182,27 @@ const AssignmentStep: React.FC<AssignmentStepProps> = ({
             </svg>
           </div>
           <div>
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Requested Timeline</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">When should this repair be completed?</p>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Scheduling</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">When should this repair be scheduled?</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Start Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Requested Start Date
-            </label>
-            <input
-              type="date"
-              value={formData.start_date || ''}
-              onChange={(e) => onUpdateField('start_date', e.target.value)}
-              className={getInputClassName('start_date')}
-            />
-            {errors.start_date && (
-              <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.start_date}</p>
-            )}
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Earliest date for repair to begin
-            </p>
-          </div>
-
-          {/* End Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Requested End Date
-            </label>
-            <input
-              type="date"
-              value={formData.end_date || ''}
-              onChange={(e) => onUpdateField('end_date', e.target.value)}
-              className={getInputClassName('end_date')}
-            />
-            {errors.end_date && (
-              <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.end_date}</p>
-            )}
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Latest date for repair to be completed
-            </p>
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Scheduled Date
+          </label>
+          <input
+            type="date"
+            value={formData.scheduled_date || ''}
+            onChange={(e) => onUpdateField('scheduled_date', e.target.value)}
+            className={getInputClassName('scheduled_date')}
+          />
+          {errors.scheduled_date && (
+            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.scheduled_date}</p>
+          )}
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Date when the repair work is scheduled
+          </p>
         </div>
       </div>
     </div>

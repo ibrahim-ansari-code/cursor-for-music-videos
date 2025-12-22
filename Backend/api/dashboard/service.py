@@ -3,12 +3,15 @@ from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Tuple, Any, cast
 
-from sqlalchemy import and_, func, case, select, or_, exists
+from sqlalchemy import and_, func, select, or_, exists
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload
 from fastapi import HTTPException
+import calendar
 
-from Backend.models.enums import UserType
+from sqlmodel import col
+
+from Backend.models.enums import UserType, MaintenanceStatus
 from Backend.models.property import Property
 from Backend.models.units import PropertyUnit
 from Backend.models.tenant import Tenant
@@ -17,6 +20,7 @@ from Backend.models.accounting.payment import Payment
 from Backend.models.accounting.expense import Expense
 from Backend.models.accounting.invoice import Invoice
 from Backend.models.accounting.common import PaymentStatus
+from Backend.models.maintenance import MaintenanceRequest
 from Backend.utils.datetime_utils import date_to_utc_range
 
 from .schemas import (
@@ -24,6 +28,10 @@ from .schemas import (
     OccupancyData,
     RevenueData,
     PaymentDue,
+    TenantMyUnitSection,
+    TenantMonthlyRentSection,
+    TenantNextPaymentSection,
+    TenantMaintenanceSection,
 )
 
 
@@ -447,3 +455,417 @@ class DashboardService:
         except Exception as e:
             logger.error(f"Error retrieving payments due: {e}")
             return []
+
+    # =========================================================================
+    # Tenant Dashboard Methods
+    # =========================================================================
+
+    @staticmethod
+    async def _get_tenant_core_context(
+        session: AsyncSession,
+        current_user,
+    ) -> tuple[Tenant, PropertyUnit, Property, Lease]:
+        """
+        Resolve the core tenant context for the dashboard:
+        - Tenant (by current_user.id)
+        - PropertyUnit (assigned to that tenant)
+        - Property (for that unit)
+        - Latest Lease (for that tenant + unit)
+        """
+        if current_user.user_type != UserType.TENANT:
+            logger.warning(
+                "Tenant dashboard called by non-tenant user_id=%s",
+                current_user.id,
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Tenant dashboard is only available to tenant users.",
+            )
+
+        # Tenant record linked to the current user
+        tenant_result = await session.execute(
+            select(Tenant).where(Tenant.user_id == current_user.id)
+        )
+        tenant = tenant_result.scalar_one_or_none()
+
+        if not tenant:
+            raise HTTPException(
+                status_code=404,
+                detail="Tenant profile not found for current user.",
+            )
+
+        unit_result = await session.execute(
+            select(PropertyUnit).where(col(PropertyUnit.tenant_id) == tenant.id)
+        )
+        unit = unit_result.scalar_one_or_none()
+
+        if not unit:
+            raise HTTPException(
+                status_code=404,
+                detail="No unit is currently assigned to this tenant.",
+            )
+
+        # Property for that unit
+        property_result = await session.execute(
+            select(Property).where(col(Property.id) == unit.property_id)
+        )
+        prop = property_result.scalar_one_or_none()
+
+        if not prop:
+            raise HTTPException(
+                status_code=404,
+                detail="Property not found for tenant unit.",
+            )
+
+        # Latest lease for this tenant + unit
+        lease_result = await session.execute(
+            select(Lease)
+            .where(
+                col(Lease.tenant_id) == tenant.id,
+                col(Lease.unit_id) == unit.id,
+            )
+            .order_by(col(Lease.start_date).desc())
+            .limit(1)
+        )
+        lease = lease_result.scalar_one_or_none()
+
+        if not lease:
+            raise HTTPException(
+                status_code=404,
+                detail="Lease not found for this unit.",
+            )
+
+        return tenant, unit, prop, lease
+
+    @staticmethod
+    def _build_tenant_my_unit_section(
+        unit: PropertyUnit,
+        prop: Property,
+        lease: Lease,
+    ) -> TenantMyUnitSection:
+        """Build 'My Unit' section for the tenant dashboard."""
+        # unit.id and prop.id are guaranteed to exist since fetched from DB
+        assert unit.id is not None, "Unit ID cannot be None for persisted unit"
+        assert prop.id is not None, "Property ID cannot be None for persisted property"
+
+        return TenantMyUnitSection(
+            unit_id=unit.id,
+            unit_name=unit.name or "",
+            property_id=prop.id,
+            property_name=prop.name or "",
+            full_address=prop.address or "",
+            lease_start=lease.start_date,
+            lease_end=lease.end_date,
+        )
+
+    @staticmethod
+    async def _build_tenant_monthly_rent_section(
+        session: AsyncSession,
+        tenant: Tenant,
+        lease: Lease,
+    ) -> TenantMonthlyRentSection:
+        """
+        Build 'Monthly Rent' section for the tenant dashboard.
+        Includes monthly amount, rent due day, has_active_lease flag, and last_payment_date.
+        """
+        # Find last PAID payment for this tenant + lease
+        payment_result = await session.execute(
+            select(Payment)
+            .where(
+                col(Payment.tenant_id) == tenant.id,
+                col(Payment.lease_id) == lease.id,
+                col(Payment.status) == PaymentStatus.PAID,
+            )
+            .order_by(col(Payment.payment_date).desc())
+            .limit(1)
+        )
+        last_payment = payment_result.scalar_one_or_none()
+
+        if last_payment and last_payment.payment_date:
+            last_payment_date_str = last_payment.payment_date.date().isoformat()
+        else:
+            last_payment_date_str = ""
+
+        # Format monthly rent amount
+        monthly_rent_amount = (lease.monthly_rent or Decimal("0")).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+
+        return TenantMonthlyRentSection(
+            amount=str(monthly_rent_amount),
+            rent_due_day=lease.rent_due_day or 0,
+            has_active_lease=True,
+            last_payment_date=last_payment_date_str,
+        )
+
+    @staticmethod
+    async def _build_tenant_next_payment_section(
+        *,
+        session: AsyncSession,
+        tenant: Tenant,
+        lease: Lease,
+    ) -> TenantNextPaymentSection:
+        """
+        Build the 'Next Payment' section for the tenant dashboard.
+
+        Uses the actual outstanding balance calculation (total rent due - payments + refunds)
+        instead of just showing monthly rent. Also includes autopay enrollment status.
+
+        Logic:
+        - Calculate actual balance using rent_payments service logic
+        - Use lease.rent_due_day to compute the next due date
+        - Include autopay status for the tenant
+        """
+        from Backend.models.rent_payment_transaction import (
+            RentPaymentTransaction,
+            RentPaymentTransactionStatus,
+        )
+        from Backend.models.rent_payment_refund import RentPaymentRefund, RefundStatus
+        from Backend.models.rent_autopay_enrollment import RentAutopayEnrollment
+        from Backend.utils.datetime_utils import months_between
+
+        today = date.today()
+
+        # If lease has ended, no upcoming payment
+        if lease.end_date and lease.end_date < today:
+            return TenantNextPaymentSection(
+                current_balance="0.00",
+                current_balance_cents=0,
+                due_date="",
+                days_remaining=0,
+                is_overdue=False,
+                is_paid=True,
+                has_autopay=False,
+                autopay_status="not_enrolled",
+                next_autopay_date=None,
+            )
+
+        # =====================================================================
+        # Calculate actual balance (same logic as rent_payments service)
+        # =====================================================================
+
+        # Total rent accrued since lease start
+        lease_start_date = lease.start_date
+        num_months = months_between(lease_start_date, today) + 1
+        monthly_rent_cents = int((lease.monthly_rent or Decimal("0")) * 100)
+        total_rent_due_cents = monthly_rent_cents * num_months
+
+        # Total successful payments for this lease
+        total_payments_query = select(
+            func.coalesce(func.sum(RentPaymentTransaction.amount_cents), 0)
+        ).where(
+            and_(
+                col(RentPaymentTransaction.lease_id) == lease.id,
+                col(RentPaymentTransaction.status) == RentPaymentTransactionStatus.SUCCEEDED,
+            )
+        )
+        total_paid_cents = await session.scalar(total_payments_query) or 0
+
+        # Total refunds issued
+        total_refunds_query = (
+            select(func.coalesce(func.sum(RentPaymentRefund.amount_cents), 0))
+            .join(
+                RentPaymentTransaction,
+                col(RentPaymentRefund.transaction_id) == col(RentPaymentTransaction.id),
+            )
+            .where(
+                and_(
+                    col(RentPaymentTransaction.lease_id) == lease.id,
+                    col(RentPaymentRefund.status) == RefundStatus.SUCCEEDED,
+                )
+            )
+        )
+        total_refunded_cents = await session.scalar(total_refunds_query) or 0
+
+        # Net balance
+        net_paid_cents = int(total_paid_cents) - int(total_refunded_cents)
+        current_balance_cents = max(0, total_rent_due_cents - net_paid_cents)
+
+        # =====================================================================
+        # Calculate due date - use CURRENT month's due date, not next month
+        # This matches the Payments page behavior
+        # =====================================================================
+        rent_due_day = lease.rent_due_day or 1
+        year = today.year
+        month = today.month
+
+        last_day_of_month = calendar.monthrange(year, month)[1]
+        day = min(rent_due_day, last_day_of_month)
+        due_date = date(year, month, day)
+
+        # Respect lease bounds
+        if lease.start_date and due_date < lease.start_date:
+            due_date = lease.start_date
+
+        if lease.end_date and due_date > lease.end_date:
+            due_date = lease.end_date
+
+        days_remaining = (due_date - today).days
+
+        # is_overdue if there's an outstanding balance and we're past the due date
+        is_overdue = current_balance_cents > 0 and today > due_date
+        is_paid = current_balance_cents == 0
+
+        # =====================================================================
+        # Get autopay status
+        # =====================================================================
+        autopay_enrollment = await session.scalar(
+            select(RentAutopayEnrollment).where(
+                col(RentAutopayEnrollment.lease_id) == lease.id,
+                col(RentAutopayEnrollment.tenant_id) == tenant.id,
+            )
+        )
+
+        has_autopay = autopay_enrollment is not None and autopay_enrollment.is_active
+        autopay_status = autopay_enrollment.status if autopay_enrollment else "not_enrolled"
+        next_autopay_date = (
+            autopay_enrollment.next_scheduled_at.date().isoformat()
+            if autopay_enrollment and autopay_enrollment.next_scheduled_at
+            else None
+        )
+
+        # Format balance
+        current_balance_str = f"{current_balance_cents / 100:.2f}"
+
+        return TenantNextPaymentSection(
+            current_balance=current_balance_str,
+            current_balance_cents=current_balance_cents,
+            due_date=due_date.isoformat(),
+            days_remaining=days_remaining,
+            is_overdue=is_overdue,
+            is_paid=is_paid,
+            has_autopay=has_autopay,
+            autopay_status=autopay_status,
+            next_autopay_date=next_autopay_date,
+        )
+
+    @staticmethod
+    async def _build_tenant_maintenance_section(
+        *,
+        session: AsyncSession,
+        tenant: Tenant,
+        unit: PropertyUnit | None,
+    ) -> TenantMaintenanceSection:
+        """
+        Build maintenance section:
+        - open_requests: count of active/open requests for this tenant+unit
+        - last_updated: ISO date of the most recently updated request (or "" if none)
+        """
+        if unit is None:
+            return TenantMaintenanceSection(
+                open_requests=0,
+                last_updated="",
+            )
+
+        open_status_values = [
+            MaintenanceStatus.NEW,
+            MaintenanceStatus.PENDING,
+            MaintenanceStatus.IN_PROGRESS,
+            MaintenanceStatus.SCHEDULED,
+        ]
+
+        # Count open requests for this tenant + unit
+        open_count_result = await session.execute(
+            select(func.count())
+            .select_from(MaintenanceRequest)
+            .where(
+                col(MaintenanceRequest.tenant_id) == tenant.id,
+                col(MaintenanceRequest.unit_id) == unit.id,
+                col(MaintenanceRequest.status).in_(open_status_values),
+            )
+        )
+        open_requests = open_count_result.scalar() or 0
+
+        # Get the most recently updated request (any status)
+        latest_result = await session.execute(
+            select(MaintenanceRequest)
+            .where(
+                col(MaintenanceRequest.tenant_id) == tenant.id,
+                col(MaintenanceRequest.unit_id) == unit.id,
+            )
+            .order_by(
+                col(MaintenanceRequest.updated_at).desc(),
+                col(MaintenanceRequest.created_at).desc(),
+            )
+            .limit(1)
+        )
+        latest_request = latest_result.scalar_one_or_none()
+
+        if latest_request:
+            dt = latest_request.updated_at or latest_request.created_at
+            last_updated_str = dt.date().isoformat() if dt else ""
+        else:
+            last_updated_str = ""
+
+        return TenantMaintenanceSection(
+            open_requests=open_requests,
+            last_updated=last_updated_str,
+        )
+
+    @staticmethod
+    async def get_tenant_dashboard(
+        *,
+        session: AsyncSession,
+        current_user,
+    ) -> Tuple[
+        TenantMyUnitSection,
+        TenantMonthlyRentSection,
+        TenantNextPaymentSection,
+        TenantMaintenanceSection,
+    ]:
+        """
+        Tenant dashboard entry point.
+
+        Orchestrates:
+        - Core context (tenant, unit, property, lease)
+        - My Unit section
+        - Monthly Rent section
+        - Next Payment section
+        - Maintenance Request section
+
+        Returns the pieces; router wraps them in TenantDashboardResponse.
+        """
+        try:
+            tenant, unit, prop, lease = await DashboardService._get_tenant_core_context(
+                session=session,
+                current_user=current_user,
+            )
+
+            my_unit_section = DashboardService._build_tenant_my_unit_section(
+                unit=unit,
+                prop=prop,
+                lease=lease,
+            )
+
+            monthly_rent_section = await DashboardService._build_tenant_monthly_rent_section(
+                session=session,
+                tenant=tenant,
+                lease=lease,
+            )
+
+            next_payment_section = await DashboardService._build_tenant_next_payment_section(
+                session=session,
+                tenant=tenant,
+                lease=lease,
+            )
+
+            maintenance_section = await DashboardService._build_tenant_maintenance_section(
+                session=session,
+                tenant=tenant,
+                unit=unit,
+            )
+
+            return my_unit_section, monthly_rent_section, next_payment_section, maintenance_section
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                "Error building tenant dashboard for user_id=%s: %s",
+                getattr(current_user, "id", None),
+                e,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to retrieve tenant dashboard data.",
+            ) from e

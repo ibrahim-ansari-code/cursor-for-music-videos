@@ -137,8 +137,7 @@ export enum TenantStatus {
 export enum MaintenancePriority {
   LOW = 'Low',
   MEDIUM = 'Medium',
-  HIGH = 'High',
-  URGENT = 'Urgent'
+  HIGH = 'High'
 }
 
 export enum MaintenanceStatus {
@@ -368,9 +367,8 @@ export interface MaintenanceFormData {
   vendor_id?: string;
   notify_tenant?: boolean;
   scheduled_date?: string;
+  completion_date?: string;
   estimated_cost?: string;
-  start_date?: string;
-  end_date?: string;
   photos?: string[];
   preferred_time?: string;
 }

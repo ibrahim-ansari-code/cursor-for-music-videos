@@ -18,11 +18,16 @@ import {
   useDeleteMaintenanceRequest,
   useBulkDeleteMaintenanceRequests,
 } from "../hooks/useMaintenanceQueries";
+import { useMaintenanceRealtime } from "../hooks/useMaintenanceRealtime";
 import useProperties from "../hooks/useProperties";
 import { useSubscriptionGuard } from "../hooks/useSubscriptionGuard";
 import type { MaintenanceRequest } from "../types/tenant";
 
 const Maintenance: React.FC = () => {
+  // Subscribe to real-time maintenance request changes via Supabase WebSocket
+  // This automatically invalidates React Query cache on INSERT/UPDATE/DELETE
+  useMaintenanceRealtime();
+
   // Subscription guard for premium features
   const guardAction = useSubscriptionGuard({ featureName: 'creating maintenance requests' });
 
@@ -178,22 +183,36 @@ const Maintenance: React.FC = () => {
 
   const handleModalSubmit = async (formData: any) => {
     try {
-      const payload = {
-        ...formData,
-        property_id: formData.property_id
+      // Build payload, only including fields that were actually provided
+      // This is critical for partial updates (e.g., triage modal only sends priority, status, vendor_id)
+      // We should NOT set unit_id/tenant_id to null if they weren't in the form data
+      const payload: Record<string, unknown> = { ...formData };
+
+      // Only transform these fields if they were explicitly provided in formData
+      if ("property_id" in formData) {
+        payload.property_id = formData.property_id
           ? Number(formData.property_id)
-          : undefined,
-        unit_id:
+          : undefined;
+      }
+      if ("unit_id" in formData) {
+        payload.unit_id =
           formData.unit_id && formData.unit_id !== ""
             ? Number.parseInt(formData.unit_id, 10)
-            : null,
-        tenant_id: formData.tenant_id
+            : null;
+      }
+      if ("tenant_id" in formData) {
+        payload.tenant_id = formData.tenant_id
           ? Number.parseInt(formData.tenant_id, 10)
-          : null,
-        estimated_cost: formData.estimated_cost
+          : null;
+      }
+      if ("estimated_cost" in formData) {
+        payload.estimated_cost = formData.estimated_cost
           ? Number.parseFloat(formData.estimated_cost)
-          : null,
-      };
+          : null;
+      }
+
+      console.log("[Maintenance] handleModalSubmit - formData keys:", Object.keys(formData));
+      console.log("[Maintenance] handleModalSubmit - payload:", payload);
 
       if (editingRequest) {
         await updateRequestMutation.mutateAsync({

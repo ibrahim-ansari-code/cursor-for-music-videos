@@ -52,6 +52,7 @@ export const useMaintenanceSummary = (
     queryFn: () => getMaintenanceSummary(params),
     staleTime: 0, // Always consider data stale - refetch immediately on invalidation
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes for back navigation
+    // Real-time updates handled by useMaintenanceRealtime hook (Supabase WebSocket)
   });
 };
 
@@ -76,8 +77,9 @@ export const useMaintenanceRequests = (
   return useQuery({
     queryKey: QUERY_KEYS.maintenance.requests(params),
     queryFn: () => fetchMaintenanceRequests(params),
-    staleTime: 0, // Optimistic updates + refetchQueries will keep data fresh
+    staleTime: 0, // Optimistic updates + invalidation will keep data fresh
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes for back navigation
+    // Real-time updates handled by useMaintenanceRealtime hook (Supabase WebSocket)
   });
 };
 

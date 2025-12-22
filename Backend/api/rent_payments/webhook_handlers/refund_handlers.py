@@ -31,22 +31,80 @@ async def handle_refund_created(
     refund: dict[str, Any],
     session: AsyncSession,
 ) -> None:
-    """Handle refund creation."""
+    """
+    Handle refund creation.
+
+    For card refunds, Stripe processes them synchronously so the refund.created
+    event often arrives with status='succeeded' already. We need to update
+    our local record accordingly.
+    """
     refund_id = refund.get("id")
     charge_id = refund.get("charge")
-    
-    # Check if we already have this refund
-    existing = await session.scalar(
-        select(RentPaymentRefund).where(
-            col(RentPaymentRefund.stripe_refund_id) == refund_id
-        )
+    refund_status = refund.get("status")
+
+    # Find our local refund record
+    refund_record = await session.scalar(
+        select(RentPaymentRefund)
+        .where(col(RentPaymentRefund.stripe_refund_id) == refund_id)
+        .options(selectinload(getattr(RentPaymentRefund, "transaction")))
     )
-    
-    if existing:
-        logger.debug(f"Refund {refund_id} already exists")
+
+    if not refund_record:
+        logger.warning(f"No local refund record found for {refund_id}")
         return
-    
-    logger.info(f"Refund created via webhook | refund_id={refund_id} | charge_id={charge_id}")
+
+    # If refund already succeeded, update our local status
+    if refund_status == "succeeded" and refund_record.status == RefundStatus.PENDING:
+        refund_record.status = RefundStatus.SUCCEEDED
+        refund_record.succeeded_at = utc_now()
+        refund_record.updated_at = utc_now()
+        session.add(refund_record)
+
+        # Update transaction status based on total refunded amount
+        # Must eagerly load refunds to avoid lazy-load error in async context
+        transaction = await session.scalar(
+            select(RentPaymentTransaction)
+            .where(col(RentPaymentTransaction.id) == refund_record.transaction_id)
+            .options(selectinload(getattr(RentPaymentTransaction, "refunds")))
+        )
+        if transaction:
+            total_refunded = transaction.total_refunded_cents
+            is_full_refund = total_refunded >= transaction.amount_cents
+
+            if is_full_refund:
+                transaction.status = RentPaymentTransactionStatus.REFUNDED
+                transaction.refunded_at = utc_now()
+            elif total_refunded > 0:
+                transaction.status = RentPaymentTransactionStatus.PARTIALLY_REFUNDED
+            session.add(transaction)
+
+            # Update ledger payment to match refund status
+            if transaction.payment_id:
+                payment = await session.get(Payment, transaction.payment_id)
+                if payment:
+                    if is_full_refund:
+                        payment.status = PaymentStatus.REFUNDED
+                    elif total_refunded > 0:
+                        payment.status = PaymentStatus.PARTIALLY_REFUNDED
+                    payment.updated_at = utc_now()
+                    session.add(payment)
+
+        await session.commit()
+        total_refunded_display = f"${total_refunded/100:.2f}" if transaction else "N/A"
+        is_full_refund_display = str(is_full_refund) if transaction else "N/A"
+        logger.info(
+            f"Refund succeeded via refund.created | "
+            f"refund_id={refund_id} | "
+            f"amount=${refund_record.amount_cents/100:.2f} | "
+            f"total_refunded={total_refunded_display} | "
+            f"is_full_refund={is_full_refund_display}"
+        )
+
+        # Send notification
+        if refund_record.transaction:
+            await _send_refund_notification(refund_record, session)
+    else:
+        logger.info(f"Refund created | refund_id={refund_id} | status={refund_status}")
 
 
 async def handle_refund_updated(
@@ -71,42 +129,56 @@ async def handle_refund_updated(
     if refund_status == "succeeded":
         refund_record.status = RefundStatus.SUCCEEDED
         refund_record.succeeded_at = utc_now()
-        
-        # Update transaction if fully refunded
-        transaction = await session.get(RentPaymentTransaction, refund_record.transaction_id)
+
+        # Update transaction status based on total refunded amount
+        # Must eagerly load refunds to avoid lazy-load error in async context
+        transaction = await session.scalar(
+            select(RentPaymentTransaction)
+            .where(col(RentPaymentTransaction.id) == refund_record.transaction_id)
+            .options(selectinload(getattr(RentPaymentTransaction, "refunds")))
+        )
         if transaction:
             total_refunded = transaction.total_refunded_cents
-            if total_refunded >= transaction.amount_cents:
+            is_full_refund = total_refunded >= transaction.amount_cents
+
+            if is_full_refund:
                 transaction.status = RentPaymentTransactionStatus.REFUNDED
                 transaction.refunded_at = utc_now()
-                session.add(transaction)
-                
-                # Update ledger payment
-                if transaction.payment_id:
-                    payment = await session.get(Payment, transaction.payment_id)
-                    if payment:
+            elif total_refunded > 0:
+                transaction.status = RentPaymentTransactionStatus.PARTIALLY_REFUNDED
+            session.add(transaction)
+
+            # Update ledger payment to match refund status
+            if transaction.payment_id:
+                payment = await session.get(Payment, transaction.payment_id)
+                if payment:
+                    if is_full_refund:
                         payment.status = PaymentStatus.REFUNDED
-                        payment.updated_at = utc_now()
-                        session.add(payment)
-        
+                    elif total_refunded > 0:
+                        payment.status = PaymentStatus.PARTIALLY_REFUNDED
+                    payment.updated_at = utc_now()
+                    session.add(payment)
+
     elif refund_status == "failed":
         refund_record.status = RefundStatus.FAILED
         refund_record.failed_at = utc_now()
         refund_record.failure_reason = refund.get("failure_reason")
-    
+
     refund_record.updated_at = utc_now()
     session.add(refund_record)
     await session.commit()
-    
+
     logger.info(
         f"Refund updated | "
         f"refund_id={refund_id} | "
         f"status={refund_status}"
     )
-    
-    # Send notification to tenant about refund
-    if refund_status == "succeeded" and refund_record.transaction:
-        await _send_refund_notification(refund_record, session)
+
+    # NOTE: We intentionally do NOT send notification here.
+    # Notifications are sent from handle_refund_created to avoid duplicates.
+    # For card refunds, refund.created arrives with status=succeeded,
+    # and then refund.updated + charge.refund.updated also arrive.
+    # Sending from all three would result in 3 emails.
 
 
 async def handle_refund_failed(

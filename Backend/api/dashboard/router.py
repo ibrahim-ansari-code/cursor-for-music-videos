@@ -8,7 +8,7 @@ from Backend.database import get_session
 from Backend.models.enums import UserType
 from Backend.models.user import User
 
-from .schemas import DashboardResponse
+from .schemas import DashboardResponse, TenantDashboardResponse
 from .service import DashboardService
 
 
@@ -49,3 +49,31 @@ async def get_dashboard_data(
     )
 
 
+@router.get("/tenant", response_model=TenantDashboardResponse)
+async def get_tenant_dashboard(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> TenantDashboardResponse:
+    """Get dashboard data for tenant users."""
+    if current_user.user_type != UserType.TENANT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access tenant dashboard data",
+        )
+
+    (
+        my_unit_section,
+        monthly_rent_section,
+        next_payment_section,
+        maintenance_section,
+    ) = await DashboardService.get_tenant_dashboard(
+        session=session,
+        current_user=current_user,
+    )
+
+    return TenantDashboardResponse(
+        my_unit=my_unit_section,
+        monthly_rent=monthly_rent_section,
+        next_payment=next_payment_section,
+        maintenance=maintenance_section,
+    )

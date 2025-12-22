@@ -533,10 +533,6 @@ def generate_sas_token_for_blob(
     # Extract container and blob name from URL
     container_name, blob_name = extract_blob_info_from_url(blob_url)
     
-    # Debug logging - check blob name
-    logger.info(f"[SAS_DEBUG] Container: {container_name}, Blob: {blob_name}")
-    logger.info(f"[SAS_DEBUG] Original blob_url: {blob_url}")
-    
     # Calculate expiry time once (using codebase-standard UTC function)
     expiry_time = utc_now() + timedelta(hours=expires_in_hours)
     
@@ -552,9 +548,9 @@ def generate_sas_token_for_blob(
         ip=allowed_ip  # Optional IP restriction (None = allow any IP)
     )
     
-    logger.info(
+    logger.debug(
         f"Generated SAS token for {container_name}/{blob_name[:50]}... "
-        f"(expires: {expiry_time.isoformat()}, IP: {allowed_ip or 'any'})"
+        f"(expires: {expiry_time.isoformat()})"
     )
     
     return sas_token, expiry_time
@@ -649,17 +645,12 @@ async def generate_secure_document_url(
     # Handle case where blob_url might already have query parameters
     separator = '&' if '?' in blob_url else '?'
     secure_url = f"{blob_url}{separator}{sas_token}"
-    
-    # Debug logging - log the actual secure URL
-    logger.info(
-        f"[SAS_DEBUG] Generated secure URL: {secure_url[:200]}..." if len(secure_url) > 200 else f"[SAS_DEBUG] Generated secure URL: {secure_url}"
-    )
-    
-    # Audit logging (if enabled)
+
+    # Audit logging (if enabled) - minimal output
     if settings.DOCUMENT_ACCESS_LOGGING_ENABLED:
-        logger.info(
+        logger.debug(
             f"[AUDIT] User {user_id} generated secure URL for document {document_id}. "
-            f"Expires: {expiry_time.isoformat()}, IP: {client_ip or 'unrestricted'}"
+            f"Expires: {expiry_time.isoformat()}"
         )
     
     return {
