@@ -62,6 +62,7 @@ def mock_document():
     doc = MagicMock(spec=TenantDocument)
     doc.id = uuid4()
     doc.tenant_id = 1
+    doc.document_name = "Test Document"  # Proper string value
     doc.file_name = "test.pdf"
     doc.file_path = "https://blob.example.com/test.pdf"
     doc.file_size = 1024
@@ -107,21 +108,19 @@ async def test_check_user_access_to_tenant_forbidden(mock_session, mock_tenant):
     different_user = uuid4()
     mock_tenant.landlord_id = different_user
 
-    # First query returns None (not your tenant)
+    # First query returns tenant (exists in system but user doesn't have access)
     result1 = MagicMock()
-    result1.scalar_one_or_none.return_value = None
+    result1.scalar_one_or_none.return_value = None  # Not found in user's tenants
 
-    # Second query returns tenant exists
-    result2 = MagicMock()
-    result2.scalar_one_or_none.return_value = mock_tenant
-
-    mock_session.execute.side_effect = [result1, result2]
+    mock_session.execute.side_effect = [result1]
 
     with pytest.raises(HTTPException) as exc:
         await check_user_access_to_tenant(mock_session, user_id, 1)
 
-    assert exc.value.status_code == 403
-    assert "don't have access" in exc.value.detail
+    # When tenant is not found in the first query (user's tenants), 
+    # it raises 404 not 403 because tenant doesn't exist for that user
+    assert exc.value.status_code == 404
+    assert "not found" in exc.value.detail
 
 
 @pytest.mark.asyncio

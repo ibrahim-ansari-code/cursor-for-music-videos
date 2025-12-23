@@ -221,6 +221,16 @@ class DocumentStatus(str, Enum):
     REJECTED = "rejected"
     EXPIRED = "expired"
 
+    @classmethod
+    def _missing_(cls, value):
+        """Enable case-insensitive lookup"""
+        if isinstance(value, str):
+            value_lower = value.lower()
+            for member in cls:
+                if member.value == value_lower:
+                    return member
+        return None
+
 
 class PortalStatus(str, Enum):
     """

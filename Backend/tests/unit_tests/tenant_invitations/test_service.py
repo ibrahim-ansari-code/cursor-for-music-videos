@@ -174,7 +174,10 @@ async def test_create_invitation_success(mock_session, mock_landlord, mock_tenan
     mock_existing_result = MagicMock()
     mock_existing_result.scalar_one_or_none.return_value = None
     
-    mock_session.execute.side_effect = [mock_result, mock_existing_result]
+    # Mock for expire old invitations (update statement)
+    mock_expire_result = MagicMock()
+    
+    mock_session.execute.side_effect = [mock_result, mock_expire_result, mock_existing_result]
     
     # Mock refresh to set ID and timestamps
     def refresh_side_effect(obj):
@@ -263,10 +266,13 @@ async def test_create_invitation_returns_existing_pending(mock_session, mock_lan
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = mock_tenant
     
+    # Mock for expire old invitations (update statement)
+    mock_expire_result = MagicMock()
+    
     mock_existing_result = MagicMock()
     mock_existing_result.scalar_one_or_none.return_value = mock_invitation
     
-    mock_session.execute.side_effect = [mock_result, mock_existing_result]
+    mock_session.execute.side_effect = [mock_result, mock_expire_result, mock_existing_result]
     
     request = InvitationCreateRequest(tenant_id=mock_tenant.id)
     result = await TenantInvitationService.create_invitation(
@@ -437,11 +443,19 @@ async def test_accept_invitation_success(mock_session, mock_invitation, mock_ten
     
     mock_session.execute.side_effect = [mock_inv_result, mock_user_result]
     
-    result = await TenantInvitationService.accept_invitation(
-        db=mock_session,
-        token=mock_invitation.invitation_token,
-        user_id=mock_tenant_user.id,
-    )
+    # Mock seat availability check
+    with patch('Backend.api.tenant_invitations.service.SeatManagementService.get_seat_availability', new_callable=AsyncMock) as mock_seat_check:
+        mock_seat_check.return_value = {
+            "used": 5,
+            "limit": 10,
+            "available": 5
+        }
+        
+        result = await TenantInvitationService.accept_invitation(
+            db=mock_session,
+            token=mock_invitation.invitation_token,
+            user_id=mock_tenant_user.id,
+        )
     
     assert result.success is True
     assert result.tenant_id == mock_invitation.tenant_id

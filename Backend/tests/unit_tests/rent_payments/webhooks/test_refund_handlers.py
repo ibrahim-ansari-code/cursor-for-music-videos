@@ -143,7 +143,7 @@ async def test_handle_refund_created_existing_refund(mock_session, mock_refund, 
 
     # Assert - should update refund and transaction status
     assert mock_session.add.called
-    await mock_session.commit.assert_called()
+    mock_session.commit.assert_called()
 
 
 @pytest.mark.asyncio
@@ -165,11 +165,14 @@ async def test_handle_refund_created_no_refund_id(mock_session):
 # =============================================================================
 
 @pytest.mark.asyncio
-@patch('Backend.api.rent_payments.webhook_handlers.refund_handlers._send_refund_notification')
 async def test_handle_refund_updated_to_succeeded(
-    mock_send_notification, mock_session, mock_refund, mock_transaction
+    mock_session, mock_refund, mock_transaction
 ):
-    """Test refund updated to succeeded status."""
+    """Test refund updated to succeeded status.
+    
+    Note: Notifications are intentionally NOT sent from handle_refund_updated.
+    They are only sent from handle_refund_created to avoid duplicate emails.
+    """
     # Arrange
     refund = {
         "id": "re_test789",
@@ -191,7 +194,7 @@ async def test_handle_refund_updated_to_succeeded(
     assert mock_refund.succeeded_at is not None
     mock_session.add.assert_called()
     mock_session.commit.assert_called_once()
-    mock_send_notification.assert_called_once_with(mock_refund, mock_session)
+    # No notification is sent from handle_refund_updated (only from handle_refund_created)
 
 
 @pytest.mark.asyncio

@@ -274,15 +274,19 @@ async def create_setup_intent(
             }
 
         # Create SetupIntent on the connected account
-        setup_intent = await stripe_client.setup_intents.create(
-            payment_method_types=accepted_methods,
-            payment_method_options=payment_method_options if payment_method_options else None,
-            metadata={
+        create_kwargs = {
+            "payment_method_types": accepted_methods,
+            "metadata": {
                 "tenant_id": str(tenant.id),
                 "user_id": str(user.id),
             },
-            idempotency_key=idempotency_key,
-        )
+            "idempotency_key": idempotency_key,
+            "stripe_account": connected_account.stripe_account_id,
+        }
+        if payment_method_options:
+            create_kwargs["payment_method_options"] = payment_method_options
+
+        setup_intent = await stripe_client.setup_intents.create(**create_kwargs)
         
         return SetupIntentResponse(
             client_secret=setup_intent.client_secret,

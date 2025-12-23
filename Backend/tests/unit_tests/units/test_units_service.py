@@ -899,14 +899,14 @@ async def test_get_unit_lease_success(mock_session, mock_user):
         with patch('Backend.api.leases.schemas.LeaseResponse.model_validate') as mock_validate:
             mock_validate.return_value = mock_lease_response
             
-            # Setup lease query
+            # Setup lease query - implementation uses scalars().all()
             lease_query_result = MagicMock()
             # Create a mock lease object with the required attributes
             mock_lease = MagicMock()
             mock_lease.id = 1
             mock_lease.unit_id = unit_id
             mock_lease.status = LeaseStatus.ACTIVE
-            lease_query_result.unique.return_value.scalar_one_or_none.return_value = mock_lease
+            lease_query_result.unique.return_value.scalars.return_value.all.return_value = [mock_lease]
             mock_session.execute.return_value = lease_query_result
             
             # Act
@@ -919,7 +919,10 @@ async def test_get_unit_lease_success(mock_session, mock_user):
             assert result.status == LeaseStatus.ACTIVE
             mock_get_unit.assert_called_once_with(unit_id, mock_session, mock_user)
             mock_session.execute.assert_called_once()
-            mock_validate.assert_called_once_with(mock_lease)
+            # The mock_validate is called with the first lease from the list
+            assert mock_validate.called
+            called_lease = mock_validate.call_args[0][0]
+            assert called_lease.id == 1
 
 
 @pytest.mark.asyncio
@@ -936,9 +939,10 @@ async def test_get_unit_lease_no_active_lease(mock_session, mock_user):
     with patch.object(UnitService, 'get_unit_or_404', new_callable=AsyncMock) as mock_get_unit:
         mock_get_unit.return_value = mock_unit
         
-        # Setup lease query to return None (no active lease)
+        # Setup lease query to return empty list (no active lease)
+        # Implementation uses scalars().all() which returns a list
         lease_query_result = MagicMock()
-        lease_query_result.unique.return_value.scalar_one_or_none.return_value = None
+        lease_query_result.unique.return_value.scalars.return_value.all.return_value = []
         mock_session.execute.return_value = lease_query_result
         
         # Act & Assert

@@ -353,8 +353,8 @@ async def test_handle_charge_refunded_partial_refund(
     await handle_charge_refunded(charge, mock_session)
     
     # Assert
-    # Partial refunds don't change status - only full refunds do
-    assert mock_transaction.status == RentPaymentTransactionStatus.PENDING  # Unchanged
+    # Partial refunds set status to PARTIALLY_REFUNDED
+    assert mock_transaction.status == RentPaymentTransactionStatus.PARTIALLY_REFUNDED
     assert mock_transaction.updated_at is not None
     mock_session.add.assert_called_once_with(mock_transaction)
     mock_session.commit.assert_called_once()
