@@ -735,14 +735,15 @@ async def test_upload_maintenance_photo_unauthorized():
     """Test maintenance photo upload with unauthorized user."""
     mock_file = AsyncMock()
     mock_user = MagicMock()
-    mock_user.user_type = UserType.TENANT  # Not authorized
-    
+    # Use a user type that is NOT in {LANDLORD, ADMIN, TENANT}
+    mock_user.user_type = MagicMock()  # Unknown/invalid user type
+
     with pytest.raises(HTTPException) as exc_info:
         await MaintenanceService.upload_maintenance_photo(
             upload_file=mock_file,
             current_user=mock_user
         )
-    
+
     assert exc_info.value.status_code == 403
     assert "Not authorized" in exc_info.value.detail
 
