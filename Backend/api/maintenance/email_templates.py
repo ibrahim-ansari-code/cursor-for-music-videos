@@ -39,7 +39,8 @@ class VendorEmailTemplates:
         scheduled_date: Optional[date],
         photos: Optional[list[str]],
         request_id: int,
-        frontend_url: str
+        frontend_url: str,
+        custom_message: Optional[str] = None
     ) -> tuple[str, str]:
         """
         Generate email for vendor assignment notification.
@@ -56,10 +57,22 @@ class VendorEmailTemplates:
             EmailSection(
                 text=f"{landlord_name} is requesting your services for a maintenance issue at one of their properties."
             ),
+        ]
+        
+        # Add custom message if provided
+        if custom_message:
+            sections.append(
+                EmailSection(
+                    text=f'"{custom_message}"',
+                    is_bold=True
+                )
+            )
+        
+        sections.append(
             EmailSection(
                 text=f"Please contact {landlord_name} at {landlord_email}" + (f" or {landlord_phone}" if landlord_phone else "") + " to discuss the work, pricing, and scheduling."
-            ),
-        ]
+            )
+        )
         
         # Build metadata rows
         metadata = [

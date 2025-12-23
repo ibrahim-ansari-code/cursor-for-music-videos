@@ -26,10 +26,11 @@ import ConfirmCompleteMaintenanceModal from '../components/calendar/ConfirmCompl
 import ConfirmCompleteReminderModal from '../components/calendar/ConfirmCompleteReminderModal';
 import ConfirmDeleteReminderModal from '../components/calendar/ConfirmDeleteReminderModal';
 import { EventPreviewPopover } from '../components/calendar/EventPreviewPopover';
+import { NotifyVendorModal } from '../components/calendar/NotifyVendorModal';
 import { CalendarEvent, updateCustomReminder, deleteCustomReminder } from '../utils/api/calendar';
 import { fetchInvoice } from '../utils/api/accounting';
 import { fetchLease } from '../utils/api/leases';
-import { getMaintenanceRequest, updateMaintenanceRequest } from '../utils/api/maintenance';
+import { getMaintenanceRequest, updateMaintenanceRequest, notifyVendor } from '../utils/api/maintenance';
 import type { Invoice } from '../types/accounting';
 import type { Lease } from '../types/lease';
 import { MaintenanceStatus, type MaintenanceRequest } from '../types/tenant';
@@ -98,6 +99,9 @@ const CalendarPage: React.FC = () => {
   const [confirmCompleteModalOpen, setConfirmCompleteModalOpen] = useState(false);
   const [completingMaintenance, setCompletingMaintenance] = useState<CompletingMaintenanceState | null>(null);
   const [isCompletingMaintenance, setIsCompletingMaintenance] = useState(false);
+  const [notifyVendorModalOpen, setNotifyVendorModalOpen] = useState(false);
+  const [notifyingMaintenanceRequest, setNotifyingMaintenanceRequest] = useState<MaintenanceRequest | null>(null);
+  const [isNotifyingVendor, setIsNotifyingVendor] = useState(false);
   const [confirmCompleteReminderModalOpen, setConfirmCompleteReminderModalOpen] = useState(false);
   const [completingReminder, setCompletingReminder] = useState<CompletingReminderState | null>(null);
   const [isCompletingReminder, setIsCompletingReminder] = useState(false);
@@ -246,6 +250,29 @@ const CalendarPage: React.FC = () => {
             currentDate: event.metadata?.scheduled_date || event.start_at.split('T')[0],
           });
           setRescheduleModalOpen(true);
+          break;
+
+        case 'notify_vendor':
+          // Open notify vendor modal
+          if (event.source_type !== 'maintenance') {
+            toast.error('This action is only available for maintenance events.');
+            return;
+          }
+          try {
+            const maintenanceId = parseInt(event.source_id);
+            const maintenanceRequest = await getMaintenanceRequest(maintenanceId);
+            
+            if (!maintenanceRequest.vendor_id) {
+              toast.error('No vendor is assigned to this maintenance request.');
+              return;
+            }
+            
+            setNotifyingMaintenanceRequest(maintenanceRequest);
+            setNotifyVendorModalOpen(true);
+          } catch (error: any) {
+            console.error('Failed to load maintenance request:', error);
+            toast.error('Failed to load maintenance request details');
+          }
           break;
 
         case 'view_property':
@@ -677,6 +704,47 @@ const CalendarPage: React.FC = () => {
         reminderDate={completingReminder?.reminderDate}
         isSubmitting={isCompletingReminder}
       />
+
+      {/* Notify Vendor Modal */}
+      {notifyingMaintenanceRequest && (
+        <NotifyVendorModal
+          isOpen={notifyVendorModalOpen}
+          onClose={() => {
+            setNotifyVendorModalOpen(false);
+            setNotifyingMaintenanceRequest(null);
+            setIsNotifyingVendor(false);
+          }}
+          onConfirm={async (customMessage: string) => {
+            if (!notifyingMaintenanceRequest) return;
+
+            setIsNotifyingVendor(true);
+            try {
+              const result = await notifyVendor(
+                notifyingMaintenanceRequest.id,
+                customMessage || undefined
+              );
+              
+              if (result.success) {
+                toast.success(
+                  `Notification sent successfully to ${result.vendor_email || 'vendor'}`
+                );
+              } else {
+                toast.error(result.message || 'Failed to send notification');
+              }
+              
+              setNotifyVendorModalOpen(false);
+              setNotifyingMaintenanceRequest(null);
+            } catch (error: any) {
+              console.error('Failed to notify vendor:', error);
+              toast.error('Failed to send vendor notification. Please try again.');
+            } finally {
+              setIsNotifyingVendor(false);
+            }
+          }}
+          maintenanceRequest={notifyingMaintenanceRequest}
+          isSubmitting={isNotifyingVendor}
+        />
+      )}
 
       {/* Confirm Delete Reminder Modal */}
       <ConfirmDeleteReminderModal

@@ -18,6 +18,7 @@ from sqlalchemy.future import select
 from sqlmodel import col
 
 from Backend.api.notifications.sendgrid_service import SendGridService
+from Backend.api.notifications.service import NotificationService
 from Backend.api.maintenance.email_templates import VendorEmailTemplates
 from Backend.models.maintenance import MaintenanceRequest
 from Backend.models.vendor import Vendor
@@ -37,7 +38,8 @@ class VendorNotificationService:
     @staticmethod
     async def notify_vendor_of_assignment(
         maintenance_request: MaintenanceRequest,
-        session: AsyncSession
+        session: AsyncSession,
+        custom_message: Optional[str] = None
     ) -> bool:
         """
         Send email notification to vendor when assigned to a maintenance request.
@@ -45,6 +47,7 @@ class VendorNotificationService:
         Args:
             maintenance_request: The maintenance request with vendor assigned
             session: Database session for loading relationships
+            custom_message: Optional custom message to append to the email
             
         Returns:
             bool: True if email sent successfully, False otherwise
@@ -117,7 +120,8 @@ class VendorNotificationService:
                 scheduled_date=maintenance_request.scheduled_date,
                 photos=maintenance_request.photos,
                 request_id=maintenance_request.id or 0,
-                frontend_url=settings.FRONTEND_URL
+                frontend_url=settings.FRONTEND_URL,
+                custom_message=custom_message
             )
             
             # Send email via SendGrid
@@ -362,12 +366,102 @@ class VendorNotificationService:
                     }
                 )
             
+            # ========================================
+            # SEND IN-APP NOTIFICATION (if tenant has portal access)
+            # ========================================
+            # Check if tenant has portal access (linked user_id)
+            if tenant.user_id:
+                try:
+                    # Get vendor name for status message
+                    display_vendor_name = vendor_company or (vendor.contact_person if vendor else None)
+                    
+                    # Create status message
+                    status_message = VendorNotificationService._get_status_message_short(
+                        new_status,
+                        display_vendor_name
+                    )
+                    
+                    # Build notification metadata
+                    notification_metadata = {
+                        'maintenance_request_id': maintenance_request.id,
+                        'property_id': maintenance_request.property_id,
+                        'unit_id': maintenance_request.unit_id,
+                        'old_status': old_status.value,
+                        'new_status': new_status.value,
+                        'issue_title': maintenance_request.issue_title,
+                    }
+                    
+                    if property_obj:
+                        notification_metadata['property_name'] = property_obj.address
+                    if unit:
+                        notification_metadata['unit_name'] = unit.name
+                    if vendor_company:
+                        notification_metadata['vendor_company'] = vendor_company
+                    
+                    # Create in-app notification
+                    await NotificationService.create_notification(
+                        user_id=tenant.user_id,
+                        type='maintenance_update',
+                        title=f'Maintenance Update: {maintenance_request.issue_title}',
+                        message=status_message,
+                        link='/maintenance',  # Link to tenant portal maintenance page
+                        metadata=notification_metadata,
+                        priority='normal',
+                        session=session
+                    )
+                    
+                    logger.info(
+                        f"In-app notification created for tenant {tenant.id}",
+                        extra={
+                            'maintenance_request_id': maintenance_request.id,
+                            'tenant_id': tenant.id,
+                            'tenant_user_id': str(tenant.user_id),
+                            'notification_type': 'maintenance_update_in_app'
+                        }
+                    )
+                    
+                except Exception as e:
+                    # Don't fail the whole operation if in-app notification fails
+                    logger.error(
+                        f"Failed to create in-app notification for tenant {tenant.id}",
+                        extra={
+                            'maintenance_request_id': maintenance_request.id,
+                            'tenant_id': tenant.id,
+                            'error': str(e)
+                        }
+                    )
+                    sentry_sdk.capture_exception(e)
+            else:
+                logger.debug(
+                    f"Tenant {tenant.id} does not have portal access - skipping in-app notification",
+                    extra={
+                        'maintenance_request_id': maintenance_request.id,
+                        'tenant_id': tenant.id
+                    }
+                )
+            
             return success
             
         except Exception as e:
             logger.exception("Error sending tenant status update")
             sentry_sdk.capture_exception(e)
             return False
+    
+    # Helper methods
+    
+    @staticmethod
+    def _get_status_message_short(status: MaintenanceStatus, vendor_name: Optional[str]) -> str:
+        """Get short status message for in-app notifications"""
+        
+        messages = {
+            MaintenanceStatus.PENDING: "Your request has been submitted and is awaiting assignment.",
+            MaintenanceStatus.SCHEDULED: f"Your maintenance has been scheduled{' with ' + vendor_name if vendor_name else ''}.",
+            MaintenanceStatus.IN_PROGRESS: f"Work is in progress{' by ' + vendor_name if vendor_name else ''}.",
+            MaintenanceStatus.COMPLETED: "The maintenance work has been completed!",
+            MaintenanceStatus.CANCELLED: "This maintenance request has been cancelled."
+        }
+        
+        return messages.get(status, "Your maintenance request has been updated.")
     
     # Helper methods to load relationships
     

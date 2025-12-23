@@ -255,7 +255,7 @@ const EditMaintenanceModal: React.FC<EditMaintenanceModalProps> = ({
             : null,
         priority: formData.priority,
         status: formData.status,
-        property_id: formData.property_id ? Number(formData.property_id) : null,
+        property_id: getIdValue(formData.property_id, request.property_id ?? request.property?.id),
         unit_id: getIdValue(formData.unit_id, request.unit_id ?? request.unit?.id, true),
         tenant_id: getIdValue(formData.tenant_id, request.tenant_id ?? request.tenant?.id),
         vendor_id: getIdValue(formData.vendor_id, request.vendor_id ?? request.vendor?.id),

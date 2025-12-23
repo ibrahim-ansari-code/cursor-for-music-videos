@@ -222,3 +222,15 @@ class SecurePhotoUrlResponse(BaseModel):
     secure_url: str
     expires_at: str  # ISO 8601 datetime string
     expires_in_seconds: int
+
+
+class NotifyVendorRequest(BaseModel):
+    """Request schema for manually notifying vendor with optional custom message"""
+    custom_message: str | None = None
+
+
+class NotifyVendorResponse(BaseModel):
+    """Response schema for vendor notification endpoint"""
+    success: bool
+    message: str
+    vendor_email: str | None = None

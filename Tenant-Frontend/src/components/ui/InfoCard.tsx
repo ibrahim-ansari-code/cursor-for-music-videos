@@ -39,9 +39,9 @@ export const InfoCard: React.FC<InfoCardProps> = ({
   action,
   headerAction
 }) => {
-  // Get icon background color based on status (default to brand teal)
+  // Get icon background color based on status (default to gray)
   const getIconBgColor = (): string => {
-    if (!status) return 'bg-brand-teal/10';
+    if (!status) return 'bg-gray-100';
     switch (status) {
       case 'active':
         return 'bg-green-100';
@@ -53,13 +53,13 @@ export const InfoCard: React.FC<InfoCardProps> = ({
       case 'overdue':
         return 'bg-red-100';
       default:
-        return 'bg-brand-teal/10';
+        return 'bg-gray-100';
     }
   };
 
-  // Get icon text color based on status (default to brand teal)
+  // Get icon text color based on status (default to dark gray/black)
   const getIconTextColor = (): string => {
-    if (!status) return 'text-brand-teal';
+    if (!status) return 'text-gray-700';
     switch (status) {
       case 'active':
         return 'text-green-600';
@@ -71,7 +71,7 @@ export const InfoCard: React.FC<InfoCardProps> = ({
       case 'overdue':
         return 'text-red-600';
       default:
-        return 'text-brand-teal';
+        return 'text-gray-700';
     }
   };
 

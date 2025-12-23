@@ -3,10 +3,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
+from sqlmodel import col
 
 from Backend.api.auth import get_current_user
 from Backend.database import get_session
 from Backend.models.enums import MaintenancePriority, MaintenanceStatus
+from Backend.models.maintenance import MaintenanceRequest
 from Backend.models.user import User
 
 from .schemas import (
@@ -16,9 +20,12 @@ from .schemas import (
     MaintenanceRequestResponse,
     MaintenanceRequestUpdate,
     MaintenanceSummaryResponse,
+    NotifyVendorRequest,
+    NotifyVendorResponse,
     SecurePhotoUrlResponse,
 )
 from .service import MaintenanceService
+from .vendor_notification_service import VendorNotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -352,4 +359,98 @@ async def get_photo_secure_url(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate secure preview URL. Please try again."
+        )
+
+
+@router.post("/requests/{request_id}/notify-vendor", response_model=NotifyVendorResponse)
+async def notify_vendor(
+    request_id: int,
+    data: NotifyVendorRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Manually send notification email to the vendor assigned to a maintenance request.
+    
+    This endpoint allows landlords to resend or remind vendors about maintenance requests.
+    Useful when:
+    - Vendor didn't receive the initial email
+    - Landlord wants to send a follow-up reminder
+    - Additional context needs to be provided
+    
+    Args:
+        request_id: The ID of the maintenance request
+        data: Optional custom message to include in the notification
+        
+    Returns:
+        NotifyVendorResponse with success status and vendor email
+        
+    Raises:
+        HTTPException 404: Maintenance request not found
+        HTTPException 403: User doesn't have permission
+        HTTPException 400: No vendor assigned to this request
+    """
+    try:
+        # Fetch the raw ORM maintenance request model with relationships
+        result = await session.execute(
+            select(MaintenanceRequest)
+            .options(
+                selectinload(getattr(MaintenanceRequest, "property")),
+                selectinload(getattr(MaintenanceRequest, "unit")),
+                selectinload(getattr(MaintenanceRequest, "tenant")),
+                selectinload(getattr(MaintenanceRequest, "vendor"))
+            )
+            .where(col(MaintenanceRequest.id) == request_id)
+        )
+        maintenance_request = result.scalar_one_or_none()
+        
+        if not maintenance_request:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Maintenance request not found"
+            )
+        
+        # Check permission (reuse helper from service)
+        from Backend.api.maintenance.helpers import check_permission
+        await check_permission(maintenance_request, current_user, session)
+        
+        # Check if vendor is assigned
+        if not maintenance_request.vendor_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No vendor is assigned to this maintenance request."
+            )
+        
+        # Send notification using existing service
+        success = await VendorNotificationService.notify_vendor_of_assignment(
+            maintenance_request=maintenance_request,
+            session=session,
+            custom_message=data.custom_message
+        )
+        
+        if success:
+            # Get vendor email for response
+            vendor_email = None
+            if maintenance_request.vendor:
+                vendor_email = maintenance_request.vendor.email
+            
+            return NotifyVendorResponse(
+                success=True,
+                message="Vendor notification sent successfully.",
+                vendor_email=vendor_email
+            )
+        else:
+            return NotifyVendorResponse(
+                success=False,
+                message="Failed to send vendor notification. The vendor may not have an email address.",
+                vendor_email=None
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error notifying vendor for maintenance request {request_id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send vendor notification. Please try again."
         )

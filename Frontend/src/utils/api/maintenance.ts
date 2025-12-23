@@ -232,4 +232,36 @@ export const getSecurePhotoUrl = async (photoUrl: string): Promise<{
   return apiRequest(`/maintenance/photos/secure-url?photo_url=${encodedUrl}`, {
     method: "POST",
   });
+};
+
+/**
+ * Manually notify vendor about a maintenance request.
+ * 
+ * Sends an email notification to the vendor assigned to the maintenance request.
+ * Useful for resending notifications or sending reminders.
+ * 
+ * @param {number} requestId - The ID of the maintenance request
+ * @param {string} [customMessage] - Optional custom message to include in the notification
+ * @returns {Promise<{success: boolean, message: string, vendor_email: string | null}>}
+ * 
+ * @example
+ * ```typescript
+ * const result = await notifyVendor(123, "Please prioritize this request");
+ * if (result.success) {
+ *   toast.success(`Notification sent to ${result.vendor_email}`);
+ * }
+ * ```
+ */
+export const notifyVendor = async (
+  requestId: number,
+  customMessage?: string
+): Promise<{
+  success: boolean;
+  message: string;
+  vendor_email: string | null;
+}> => {
+  return apiRequest(`/maintenance/requests/${requestId}/notify-vendor`, {
+    method: "POST",
+    body: JSON.stringify({ custom_message: customMessage || null }),
+  });
 }; 

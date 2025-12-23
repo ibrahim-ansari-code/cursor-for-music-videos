@@ -44,26 +44,28 @@ const Sidebar: React.FC = React.memo(() => {
         to={item.path}
         className={({ isActive }) =>
           `${isActive
-            ? "bg-teal-50 text-teal-700 border-r-2 border-teal-600"
+            ? "bg-gray-100 text-gray-900 border-r-2 border-gray-900"
             : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
           } 
           group flex items-center py-3 px-3 text-sm font-medium rounded-lg transition-all duration-200`
         }
       >
-        <div className="flex items-center w-full">
-          <div className={`${collapsed ? "mx-auto" : "w-6 text-center"}`}>
-            <item.icon 
-              className="text-gray-400 group-hover:text-gray-600 transition-colors" 
-              aria-hidden="true"
-            />
+        {({ isActive }) => (
+          <div className="flex items-center w-full">
+            <div className={`${collapsed ? "mx-auto" : "w-6 text-center"}`}>
+              <item.icon 
+                className={`${isActive ? "text-gray-900" : "text-gray-700"} group-hover:text-gray-900 transition-colors`}
+                aria-hidden="true"
+              />
+            </div>
+            {!collapsed && (
+              <span className="ml-3">{item.name}</span>
+            )}
+            {collapsed && (
+              <span className="sr-only">{item.name}</span>
+            )}
           </div>
-          {!collapsed && (
-            <span className="ml-3">{item.name}</span>
-          )}
-          {collapsed && (
-            <span className="sr-only">{item.name}</span>
-          )}
-        </div>
+        )}
       </NavLink>
     ));
   };
