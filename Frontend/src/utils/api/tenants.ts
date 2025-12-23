@@ -125,6 +125,8 @@ export interface TenantReminderRequest {
   days_remaining?: number | null;
   custom_subject?: string | null;
   custom_message?: string | null;
+  /** Delivery method: 'portal' for in-app notification, 'email' for email only. If not specified, defaults to current auto-detect behavior. */
+  delivery_method?: 'portal' | 'email';
 }
 
 export interface TenantReminderResponse {

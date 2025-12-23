@@ -2,7 +2,7 @@
 Seat Management Service
 
 GitHub-style seat management with real-time counting:
-- Seats used = COUNT(tenants WHERE user_id IS NOT NULL) - calculated on every call
+- Seats used = COUNT(tenants WHERE portal_status = 'active') - calculated on every call
 - No separate counter to increment/decrement
 - Impossible for counts to drift out of sync
 - Transaction-safe with PostgreSQL isolation
@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from Backend.models.user import User
 from Backend.models.tenant import Tenant
 from Backend.models.tenant_portal_seat_subscription import TenantPortalSeatSubscription
+from Backend.models.enums import PortalStatus
 
 # Pricing: $3/seat/month
 SEAT_PRICE_CENTS = 300  # $3.00
@@ -32,7 +33,7 @@ class SeatManagementService:
 
         Uses real-time counting (no cached counters):
         - limit: From users.tenant_portal_seat_limit
-        - used: COUNT(tenants WHERE landlord_id = X AND user_id IS NOT NULL)
+        - used: COUNT(tenants WHERE landlord_id = X AND portal_status = 'active')
         - available: limit - used
 
         This is the GitHub approach - always accurate, no drift possible.
@@ -42,9 +43,10 @@ class SeatManagementService:
             raise HTTPException(status_code=404, detail="User not found")
 
         # Real-time count of active portal tenants (GitHub-style)
+        # portal_status = ACTIVE is the source of truth for seat usage
         used_seats_query = select(func.count()).select_from(Tenant).where(
             col(Tenant.landlord_id) == landlord_user_id,
-            col(Tenant.user_id).is_not(None)  # Portal access = user_id is set
+            col(Tenant.portal_status) == PortalStatus.ACTIVE
         )
         used_seats = await session.scalar(used_seats_query) or 0
 

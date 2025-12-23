@@ -122,7 +122,7 @@ const ReminderConfirmationModal: React.FC<ReminderConfirmationModalProps> = ({
             <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
               <div className="flex items-center justify-between">
                 <Dialog.Title className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                  Send Reminder
+                  Confirm Reminder Email
                 </Dialog.Title>
                 <Dialog.Close asChild>
                   <button
@@ -214,37 +214,25 @@ const ReminderConfirmationModal: React.FC<ReminderConfirmationModalProps> = ({
         </div>
 
         {/* Delivery Info */}
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
-          <div className="text-xs font-medium text-emerald-800 dark:text-emerald-300 mb-2 flex items-center gap-2">
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+          <div className="text-xs font-medium text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
-            How this reminder will be delivered
+            Sending via Email
           </div>
-          <ul className="text-sm text-emerald-700 dark:text-emerald-300 space-y-1">
-            <li className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              In-app notification (always sent)
-            </li>
-            <li className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              Email (if tenant has email reminders enabled)
-            </li>
-          </ul>
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            This reminder will be sent to <span className="font-medium">{tenant.email}</span>
+          </p>
         </div>
 
         {/* Message Preview */}
         <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
           <div className="text-xs font-medium text-blue-800 dark:text-blue-300 mb-3 flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
-            Message Preview
+            Email Preview
           </div>
           <div className="space-y-2 text-sm">
             <div>
@@ -272,10 +260,10 @@ const ReminderConfirmationModal: React.FC<ReminderConfirmationModalProps> = ({
           </div>
         </div>
 
-        {/* Editable Message Fields */}
+        {/* Editable Email Fields */}
         <div className="space-y-4">
           <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-            Customize Message
+            Edit Email Content
           </div>
           
           <div>
@@ -306,7 +294,7 @@ const ReminderConfirmationModal: React.FC<ReminderConfirmationModalProps> = ({
               className="w-full"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              This message will appear in the notification and email. Property, unit, and other details are automatically included.
+              This message will appear in the main body of the email. Property, unit, due date, amount, and other metadata will be automatically included below.
             </p>
           </div>
         </div>

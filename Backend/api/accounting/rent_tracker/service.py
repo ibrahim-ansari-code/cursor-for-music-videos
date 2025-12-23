@@ -42,7 +42,27 @@ logger = logging.getLogger(__name__)
 
 class RentTrackerService:
     """Service class for rent tracking operations."""
-    
+
+    @staticmethod
+    def _check_tenant_portal_access(tenant) -> bool:
+        """
+        Check if a tenant has active portal access.
+
+        Uses the portal_status field which is the source of truth for seat usage.
+        portal_status = ACTIVE means tenant is using a landlord's portal seat.
+
+        Args:
+            tenant: The tenant object
+
+        Returns:
+            True if tenant has active portal access, False otherwise
+        """
+        from Backend.models.enums import PortalStatus
+
+        if not tenant:
+            return False
+        return tenant.portal_status == PortalStatus.ACTIVE
+
     @staticmethod
     async def get_rent_tracker(
         *,
@@ -344,7 +364,9 @@ class RentTrackerService:
             status=rent_status,
             due_date=due_date,
             last_payment_date=last_payment_date,
-            days_overdue=days_overdue
+            days_overdue=days_overdue,
+            has_portal_access=RentTrackerService._check_tenant_portal_access(lease.tenant),
+            tenant_email=lease.tenant.email if lease.tenant else None,
         )
     
     @staticmethod
@@ -623,7 +645,9 @@ class RentTrackerService:
                 status=RentStatus.DUE,  # Vacant units are considered DUE
                 due_date=month_start,  # Due at start of period
                 last_payment_date=None,
-                days_overdue=None
+                days_overdue=None,
+                has_portal_access=False,
+                tenant_email=None,
             )
             
             vacant_entries.append(vacant_entry)

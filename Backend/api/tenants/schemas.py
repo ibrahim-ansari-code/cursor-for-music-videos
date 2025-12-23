@@ -11,7 +11,7 @@ from Backend.api.accounting.payments.schemas import PaymentResponse
 from Backend.api.accounting.invoices.schemas import InvoiceResponse
 from Backend.api.maintenance.schemas import MaintenanceRequestResponse
 from Backend.models.tenant import TenantStatus
-from Backend.models.enums import TenantType
+from Backend.models.enums import TenantType, PortalStatus
 
 
 # === Emergency Contact Schemas ===
@@ -432,6 +432,9 @@ class TenantResponse(BaseModel):
     current_property_id: int | None = None
     user_id: PythonUUID | None = None  # Tenant portal user account linkage
     emergency_contacts: list[dict[str, Any]] = []
+    # Portal access tracking
+    portal_status: PortalStatus = PortalStatus.NONE
+    last_portal_login_at: datetime | None = None
     # Add fields for unit and property
     unit: UnitResponseSimple | None = None
     property: PropertyResponseSimple | None = None
@@ -443,6 +446,16 @@ class TenantResponse(BaseModel):
     maintenance_requests: list[MaintenanceRequestResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator('portal_status', mode='before')
+    @classmethod
+    def convert_portal_status(cls, v):
+        """Convert string values to PortalStatus enum."""
+        if isinstance(v, PortalStatus):
+            return v
+        if isinstance(v, str):
+            return PortalStatus(v.lower())
+        return PortalStatus.NONE
 
     def _get_individual_name(self) -> str:
         """
@@ -508,6 +521,9 @@ class TenantReminderRequest(BaseModel):
     # SECURITY: Limit custom fields to prevent email payload bloat and rendering issues
     custom_subject: str | None = Field(None, max_length=200, description="Optional custom subject line (max 200 chars)")
     custom_message: str | None = Field(None, max_length=2000, description="Optional custom message (max 2000 chars)")
+    # Delivery method: 'portal' for in-app notification only, 'email' for email only
+    # If not specified, defaults to auto-detect (portal if tenant has access, else email)
+    delivery_method: Literal["portal", "email"] | None = Field(None, description="Delivery method: 'portal' or 'email'. Defaults to auto-detect.")
 
 
 class TenantReminderResponse(BaseModel):

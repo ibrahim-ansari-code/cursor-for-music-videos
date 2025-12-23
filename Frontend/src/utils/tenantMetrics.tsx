@@ -396,40 +396,29 @@ export const generateUpcomingEvents = (
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Reset time for accurate day comparison
 
-  // 1. NEXT RENT DUE (if active lease exists)
-  if (activeLease) {
+  // 1. NEXT RENT DUE (if active lease exists and there's an outstanding balance)
+  if (activeLease && openBalance && openBalance.rentBalance > 0) {
     const rentDueDay = activeLease.rent_due_day || 1;
     const nextDueDate = getNextRentDueDate(rentDueDay);
     const daysRemaining = daysBetween(today, nextDueDate);
 
-    // Check if already paid for this period
-    const paidThisMonth = tenant.payments?.some(p => {
-      const paymentDate = new Date(p.payment_date);
-      return (
-        p.status === 'Paid' &&
-        p.lease_id === activeLease.id &&
-        paymentDate.getMonth() === nextDueDate.getMonth() &&
-        paymentDate.getFullYear() === nextDueDate.getFullYear()
-      );
-    });
+    // Use the actual remaining balance, not the full monthly rent
+    const amountDue = openBalance.rentBalance;
+    const urgency = daysRemaining < 0 ? 'critical' : daysRemaining <= 7 ? 'high' : daysRemaining <= 14 ? 'medium' : 'low';
 
-    if (!paidThisMonth) {
-      const urgency = daysRemaining < 0 ? 'critical' : daysRemaining <= 7 ? 'high' : daysRemaining <= 14 ? 'medium' : 'low';
-      
-      events.push({
-        id: 'rent-due',
-        type: 'rent',
-        title: 'Rent Due',
-        subtitle: `$${Number(activeLease.monthly_rent).toLocaleString()} • ${formatDaysRemaining(daysRemaining)}`,
-        date: nextDueDate,
-        daysRemaining,
-        amount: Number(activeLease.monthly_rent),
-        urgency,
-        icon: 'money',
-        color: urgency === 'critical' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400',
-        bgColor: urgency === 'critical' ? 'bg-red-100 dark:bg-red-900/30' : 'bg-blue-100 dark:bg-blue-900/30'
-      });
-    }
+    events.push({
+      id: 'rent-due',
+      type: 'rent',
+      title: 'Rent Due',
+      subtitle: `$${amountDue.toLocaleString()} • ${formatDaysRemaining(daysRemaining)}`,
+      date: nextDueDate,
+      daysRemaining,
+      amount: amountDue,
+      urgency,
+      icon: 'money',
+      color: urgency === 'critical' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400',
+      bgColor: urgency === 'critical' ? 'bg-red-100 dark:bg-red-900/30' : 'bg-blue-100 dark:bg-blue-900/30'
+    });
   }
 
   // 2. OVERDUE BALANCE (if exists)

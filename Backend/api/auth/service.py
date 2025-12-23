@@ -145,17 +145,66 @@ class AuthService:
         return user_to_return
     
     @staticmethod
-    async def get_user_profile(user: User) -> UserResponse:
+    async def get_user_profile(user: User, session: AsyncSession | None = None) -> UserResponse:
         """
         Get user profile information.
-        
+
+        For TENANT users, this also updates their portal login tracking
+        (last_portal_login_at and portal_status) to track seat usage.
+
         Args:
             user: The user instance to return.
-            
+            session: Database session (required for tenant login tracking).
+
         Returns:
             UserResponse with the user's profile data.
         """
+        # Track tenant portal login if this is a tenant user
+        if session and user.user_type == UserType.TENANT:
+            await AuthService._track_tenant_portal_login(user, session)
+
         return UserResponse.model_validate(user)
+
+    @staticmethod
+    async def _track_tenant_portal_login(user: User, session: AsyncSession) -> None:
+        """
+        Update tenant's portal login tracking fields.
+
+        This is called when a tenant accesses /auth/me to track:
+        - last_portal_login_at: timestamp of this access
+        - portal_status: set to ACTIVE if not already
+
+        Args:
+            user: The tenant user accessing the portal.
+            session: Database session for the update.
+        """
+        from Backend.models.tenant import Tenant
+        from Backend.models.enums import PortalStatus
+
+        try:
+            # Find the tenant record linked to this user
+            stmt = select(Tenant).where(col(Tenant.user_id) == user.id)
+            result = await session.execute(stmt)
+            tenant = result.scalar_one_or_none()
+
+            if tenant:
+                # Update portal tracking fields
+                tenant.last_portal_login_at = datetime.now(timezone.utc)
+                if tenant.portal_status != PortalStatus.ACTIVE:
+                    tenant.portal_status = PortalStatus.ACTIVE
+                    logger.info(
+                        "Tenant %s portal_status updated to ACTIVE",
+                        tenant.id
+                    )
+                session.add(tenant)
+                await session.commit()
+        except Exception as e:
+            # Don't fail the /me request if tracking fails
+            logger.warning(
+                "Failed to track tenant portal login for user %s: %s",
+                user.id, str(e)
+            )
+            await session.rollback()
     
     @staticmethod
     async def update_user_profile(

@@ -1,5 +1,5 @@
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Tuple, Any, cast
 
@@ -37,6 +37,26 @@ from .schemas import (
 
 
 logger = logging.getLogger(__name__)
+
+
+def _check_tenant_portal_access(tenant) -> bool:
+    """
+    Check if a tenant has active portal access.
+
+    Uses the portal_status field which is the source of truth for seat usage.
+    portal_status = ACTIVE means tenant is using a landlord's portal seat.
+
+    Args:
+        tenant: The tenant object
+
+    Returns:
+        True if tenant has active portal access, False otherwise
+    """
+    from Backend.models.enums import PortalStatus
+
+    if not tenant:
+        return False
+    return tenant.portal_status == PortalStatus.ACTIVE
 
 
 class DashboardService:
@@ -416,7 +436,9 @@ class DashboardService:
             invoices_query = (
                 select(Invoice)
                 .where(and_(*inv_filters))
-                .options(joinedload(cast(Any, Invoice.tenant)))
+                .options(
+                    joinedload(cast(Any, Invoice.tenant))
+                )
                 .order_by(cast(Any, Invoice.due_date).asc())
                 .limit(5)
             )
@@ -428,27 +450,30 @@ class DashboardService:
             today = date.today()
             
             for invoice in invoices:
-                if invoice.tenant:
+                if invoice.tenant and invoice.tenant.id is not None:
                     # Calculate days overdue
                     days_overdue = None
                     invoice_due_date = invoice.due_date.date() if hasattr(invoice.due_date, 'date') else invoice.due_date
                     if invoice_due_date and invoice_due_date < today:
                         days_overdue = (today - invoice_due_date).days
-                    
+
                     # Build tenant name
                     tenant_name = f"{invoice.tenant.first_name or ''} {invoice.tenant.last_name or ''}".strip()
                     if not tenant_name and invoice.tenant.company_name:
                         tenant_name = invoice.tenant.company_name
                     if not tenant_name:
                         tenant_name = "Unknown Tenant"
-                    
+
                     payments_due.append(PaymentDue(
                         id=invoice.id or 0,
+                        tenant_id=invoice.tenant.id,
                         tenant_name=tenant_name,
                         amount=invoice.amount,
                         due_date=invoice_due_date,
                         days_overdue=days_overdue,
                         status=invoice.status,
+                        has_portal_access=_check_tenant_portal_access(invoice.tenant),
+                        tenant_email=invoice.tenant.email,
                     ))
             
             return payments_due
@@ -623,7 +648,6 @@ class DashboardService:
         )
         from Backend.models.rent_payment_refund import RentPaymentRefund, RefundStatus
         from Backend.models.rent_autopay_enrollment import RentAutopayEnrollment
-        from Backend.utils.datetime_utils import months_between
 
         today = date.today()
 
@@ -642,27 +666,35 @@ class DashboardService:
             )
 
         # =====================================================================
-        # Calculate actual balance (same logic as rent_payments service)
+        # Calculate current month's remaining balance (same logic as rent_tracker)
+        # This shows what's remaining for the CURRENT billing period, not cumulative
         # =====================================================================
 
-        # Total rent accrued since lease start
-        lease_start_date = lease.start_date
-        num_months = months_between(lease_start_date, today) + 1
         monthly_rent_cents = int((lease.monthly_rent or Decimal("0")) * 100)
-        total_rent_due_cents = monthly_rent_cents * num_months
 
-        # Total successful payments for this lease
+        # Get the current billing period (this month) as datetime for proper comparison
+        month_start_dt = datetime(today.year, today.month, 1, 0, 0, 0, tzinfo=timezone.utc)
+        # Calculate month end (last day of current month at 23:59:59)
+        if today.month == 12:
+            next_month_start = datetime(today.year + 1, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        else:
+            next_month_start = datetime(today.year, today.month + 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        month_end_dt = next_month_start - timedelta(seconds=1)
+
+        # Total successful payments for this lease IN THE CURRENT BILLING PERIOD
         total_payments_query = select(
             func.coalesce(func.sum(RentPaymentTransaction.amount_cents), 0)
         ).where(
             and_(
                 col(RentPaymentTransaction.lease_id) == lease.id,
                 col(RentPaymentTransaction.status) == RentPaymentTransactionStatus.SUCCEEDED,
+                col(RentPaymentTransaction.created_at) >= month_start_dt,
+                col(RentPaymentTransaction.created_at) <= month_end_dt,
             )
         )
         total_paid_cents = await session.scalar(total_payments_query) or 0
 
-        # Total refunds issued
+        # Total refunds issued IN THE CURRENT BILLING PERIOD
         total_refunds_query = (
             select(func.coalesce(func.sum(RentPaymentRefund.amount_cents), 0))
             .join(
@@ -673,14 +705,16 @@ class DashboardService:
                 and_(
                     col(RentPaymentTransaction.lease_id) == lease.id,
                     col(RentPaymentRefund.status) == RefundStatus.SUCCEEDED,
+                    col(RentPaymentRefund.created_at) >= month_start_dt,
+                    col(RentPaymentRefund.created_at) <= month_end_dt,
                 )
             )
         )
         total_refunded_cents = await session.scalar(total_refunds_query) or 0
 
-        # Net balance
+        # Net balance for current month: monthly_rent - (payments - refunds)
         net_paid_cents = int(total_paid_cents) - int(total_refunded_cents)
-        current_balance_cents = max(0, total_rent_due_cents - net_paid_cents)
+        current_balance_cents = max(0, monthly_rent_cents - net_paid_cents)
 
         # =====================================================================
         # Calculate due date - use CURRENT month's due date, not next month
@@ -890,11 +924,21 @@ class DashboardService:
                 current_user=current_user,
             )
 
+            # Validate all required IDs exist
+            if lease.id is None:
+                raise HTTPException(status_code=404, detail="Lease not found")
+            if tenant.id is None:
+                raise HTTPException(status_code=404, detail="Tenant not found") 
+            if unit.id is None:
+                raise HTTPException(status_code=404, detail="Unit not found")
+            if prop.id is None:
+                raise HTTPException(status_code=404, detail="Property not found")
+
             # Get landlord info from property owner
             landlord_result = await session.execute(
                 select(Property)
-                .options(joinedload(Property.owner))
-                .where(Property.id == prop.id)
+                .options(joinedload(getattr(Property, "owner")))
+                .where(col(Property.id) == prop.id)
             )
             property_with_owner = landlord_result.scalar_one_or_none()
             owner = property_with_owner.owner if property_with_owner else None

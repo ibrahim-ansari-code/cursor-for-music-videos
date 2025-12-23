@@ -185,7 +185,12 @@ class TenantInvitationService:
                 status=InvitationStatus.PENDING,
                 expires_at=now + timedelta(days=INVITATION_EXPIRY_DAYS),
             )
-            
+
+            # Update tenant's portal status to INVITED
+            from Backend.models.enums import PortalStatus
+            if tenant.portal_status == PortalStatus.NONE:
+                tenant.portal_status = PortalStatus.INVITED
+
             db.add(invitation)
             await db.commit()
             await db.refresh(invitation)
@@ -671,12 +676,17 @@ class TenantInvitationService:
             # Link tenant to user (consumes seat automatically via real-time counting)
             tenant.user_id = user_id
             tenant.updated_at = datetime.now(timezone.utc)
-            
+
+            # Set portal status to ACTIVE - this is the official seat tracking field
+            from Backend.models.enums import PortalStatus
+            tenant.portal_status = PortalStatus.ACTIVE
+            tenant.last_portal_login_at = datetime.now(timezone.utc)
+
             # Update invitation status
             invitation.status = InvitationStatus.ACCEPTED
             invitation.accepted_at = datetime.now(timezone.utc)
             invitation.updated_at = datetime.now(timezone.utc)
-            
+
             await db.commit()
             
             logger.info(

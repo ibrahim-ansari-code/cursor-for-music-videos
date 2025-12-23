@@ -24,6 +24,8 @@ interface RentData {
   status: string;
   due_date?: string | null;
   days_overdue?: number | null;
+  has_portal_access?: boolean;
+  tenant_email?: string | null;
 }
 
 interface CustomRange {

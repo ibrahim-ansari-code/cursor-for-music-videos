@@ -36,9 +36,13 @@ const useFilteredTenants = (tenants, filter, expiringLeases = [], outstandingPay
         const expiringTenantIds = new Set(expiringLeases.map(l => l.tenantId));
         return tenants.filter(tenant => expiringTenantIds.has(tenant.id));
       case 'overdue':
-        const overdueTenantIds = new Set(
-          outstandingPayments?.map(p => p.tenant_id) || []
-        );
+        // Extract tenant IDs from rent tracker entries (only OVERDUE status)
+        // Rent tracker entries have tenant_id directly
+        const validTenantIds = (outstandingPayments || [])
+          .filter(entry => entry.status === 'OVERDUE')
+          .map(entry => entry.tenant_id)
+          .filter(id => id != null);
+        const overdueTenantIds = new Set(validTenantIds);
         return tenants.filter(tenant => overdueTenantIds.has(tenant.id));
       default:
         return tenants;

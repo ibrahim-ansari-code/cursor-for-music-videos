@@ -48,7 +48,7 @@ export const useTenantDocuments = (
   filters: DocumentFilters = {}
 ): UseQueryResult<DocumentListResponse, Error> => {
   return useQuery({
-    queryKey: QUERY_KEYS.tenantDocuments.list(Number(tenantId), filters),
+    queryKey: QUERY_KEYS.tenantDocuments.list(tenantId!, filters),
     queryFn: () => fetchTenantDocuments(tenantId!, filters),
     enabled: !!tenantId,
     staleTime: 1 * 60 * 1000, // 1 minute - documents don't change frequently
@@ -67,7 +67,7 @@ export const useTenantDocument = (
   documentId: string | undefined
 ): UseQueryResult<TenantDocument, Error> => {
   return useQuery({
-    queryKey: QUERY_KEYS.tenantDocuments.detail(Number(tenantId), Number(documentId)),
+    queryKey: QUERY_KEYS.tenantDocuments.detail(tenantId!, documentId!),
     queryFn: () => fetchTenantDocument(tenantId!, documentId!),
     enabled: !!tenantId && !!documentId,
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -119,14 +119,22 @@ export const useUploadTenantDocument = (): UseMutationResult<
 
   return useMutation({
     mutationFn: async (params: UploadDocumentParams) => {
-      const metadata = {
+      const metadata: {
+        document_name?: string;
+        document_category: DocumentCategory;
+        document_type: string;
+        tags?: string[];
+        notes?: string;
+        expiry_date?: string | null;
+      } = {
+        document_name: params.document_name,
         document_category: params.document_category,
         document_type: params.document_type,
-        ...(params.document_name && { document_name: params.document_name }),
-        ...(params.tags && { tags: params.tags }),
-        ...(params.notes && { notes: params.notes }),
-        ...(params.expiry_date && { expiry_date: params.expiry_date }),
+        tags: params.tags,
+        notes: params.notes,
+        expiry_date: params.expiry_date,
       };
+      
       const formData = buildDocumentFormData(params.file, metadata);
 
       return uploadTenantDocument(params.tenantId, formData);
@@ -174,8 +182,8 @@ export const useUpdateTenantDocument = (): UseMutationResult<
       });
       
       // Invalidate specific document detail
-      queryClient.invalidateQueries({ 
-        queryKey: QUERY_KEYS.tenantDocuments.detail(Number(variables.tenantId), Number(variables.documentId)) 
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.tenantDocuments.detail(variables.tenantId, variables.documentId)
       });
     },
   });
@@ -209,8 +217,8 @@ export const useDeleteTenantDocument = (): UseMutationResult<
       });
 
       // Remove specific document from cache
-      queryClient.removeQueries({ 
-        queryKey: QUERY_KEYS.tenantDocuments.detail(Number(variables.tenantId), Number(variables.documentId)) 
+      queryClient.removeQueries({
+        queryKey: QUERY_KEYS.tenantDocuments.detail(variables.tenantId, variables.documentId)
       });
 
       // Also invalidate tenant detail query

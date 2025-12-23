@@ -209,7 +209,7 @@ class DocumentCategory(str, Enum):
 class DocumentStatus(str, Enum):
     """
     Document status enum - matches database document_status_enum.
-    
+
     Defines document workflow states:
     - PENDING: Awaiting review or verification
     - VERIFIED: Approved and verified by admin
@@ -221,18 +221,30 @@ class DocumentStatus(str, Enum):
     REJECTED = "rejected"
     EXPIRED = "expired"
 
+
+class PortalStatus(str, Enum):
+    """
+    Defines tenant portal access status.
+
+    This enum tracks the lifecycle of a tenant's portal access:
+    - NONE: Tenant has never been invited to the portal
+    - INVITED: Invitation sent but not yet accepted
+    - ACTIVE: Tenant has portal access and is using a seat
+    - REVOKED: Portal access was explicitly revoked by landlord
+
+    Seat counting: seats_used = COUNT(tenants WHERE portal_status = 'active')
+    """
+    NONE = "none"
+    INVITED = "invited"
+    ACTIVE = "active"
+    REVOKED = "revoked"
+
     @classmethod
-    def _missing_(cls, value: Any) -> Optional["DocumentStatus"]:
+    def _missing_(cls, value: Any) -> Self | None:
         if isinstance(value, str):
-            # Case-insensitive matching for value
-            lower_value = value.lower()
-            for member in cls:
-                if member.value.lower() == lower_value:
-                    return member
-            # Case-insensitive matching for member name
             try:
-                return cls[value.upper()]
-            except KeyError:
+                return cls(value.lower())
+            except ValueError:
                 pass
         return super()._missing_(value)
 

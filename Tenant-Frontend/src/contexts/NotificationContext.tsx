@@ -170,24 +170,21 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         },
         (payload) => {
           console.log('New notification received (tenant):', payload);
-          
-          // Add new notification to the list
-          const newNotification = payload.new as Notification;
-          setNotifications((prev) => [newNotification, ...prev]);
-          
-          // Increment unread count if notification is unread
-          if (!newNotification.is_read) {
-            setUnreadCount((prev) => prev + 1);
-          }
-          
+
+          // Re-fetch notifications to get properly formatted data from API
+          // This ensures field names match (metadata_ vs metadata) and data is fresh
+          fetchNotifications();
+          fetchUnreadCount();
+
           // Report to Sentry for monitoring
+          const newNotification = payload.new as Partial<Notification>;
           Sentry.captureMessage('Real-time notification received (tenant)', {
             level: 'info',
             tags: {
               component: 'NotificationContext',
               action: 'realtime_insert',
               portal: 'tenant',
-              notification_type: newNotification.type,
+              notification_type: newNotification.type || 'unknown',
             },
           });
         }
@@ -202,24 +199,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         },
         (payload) => {
           console.log('Notification updated (tenant):', payload);
-          
-          // Update the notification in the list
-          const updatedNotification = payload.new as Notification;
-          setNotifications((prev) =>
-            prev.map((notif) =>
-              notif.id === updatedNotification.id ? updatedNotification : notif
-            )
-          );
-          
-          // Update unread count based on is_read status change
-          const oldNotification = payload.old as Partial<Notification>;
-          if (typeof oldNotification.is_read === 'boolean' && oldNotification.is_read !== updatedNotification.is_read) {
-            if (updatedNotification.is_read) {
-              setUnreadCount((prev) => Math.max(0, prev - 1));
-            } else {
-              setUnreadCount((prev) => prev + 1);
-            }
-          }
+
+          // Re-fetch to get properly formatted data from API
+          fetchNotifications();
+          fetchUnreadCount();
         }
       )
       .on(
@@ -232,17 +215,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         },
         (payload) => {
           console.log('Notification deleted (tenant):', payload);
-          
-          // Remove notification from the list
-          const deletedNotification = payload.old as Notification;
-          setNotifications((prev) =>
-            prev.filter((notif) => notif.id !== deletedNotification.id)
-          );
-          
-          // Update unread count if deleted notification was unread
-          if (!deletedNotification.is_read) {
-            setUnreadCount((prev) => Math.max(0, prev - 1));
-          }
+
+          // Re-fetch to get updated list and count
+          fetchNotifications();
+          fetchUnreadCount();
         }
       )
       .subscribe((status) => {

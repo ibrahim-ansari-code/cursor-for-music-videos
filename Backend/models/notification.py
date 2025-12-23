@@ -246,7 +246,14 @@ class NotificationDeliveryLog(SQLModel, table=True):
     # Error Handling
     error_message: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     retry_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
-    
+
+    # Additional Metadata (for rate limiting, tracking, etc.)
+    metadata_: dict | None = Field(
+        default=None,
+        sa_column=Column('metadata', JSONB, nullable=True),
+        description="Flexible metadata: {tenant_id, event_type, etc.}"
+    )
+
     # Timestamps
     created_at: datetime = Field(
         default_factory=create_audit_datetime,

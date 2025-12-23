@@ -20,7 +20,7 @@ class RentStatus(str, Enum):
 class RentTrackingEntry(BaseModel):
     """
     Represents a single rent tracking entry for a lease.
-    
+
     Contains payment information for a specific lease during a given month,
     including amounts paid, amounts due, and payment status.
     """
@@ -36,6 +36,8 @@ class RentTrackingEntry(BaseModel):
     due_date: Optional[date] = Field(None, description="Rent due date for the period")
     last_payment_date: Optional[datetime] = Field(None, description="Date and time of the most recent payment")
     days_overdue: Optional[int] = Field(None, description="Number of days overdue if applicable")
+    has_portal_access: bool = Field(False, description="Whether tenant has portal access")
+    tenant_email: Optional[str] = Field(None, description="Tenant's email address")
 
     model_config = ConfigDict(from_attributes=True)
     

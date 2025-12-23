@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useQueryClient } from "@tanstack/react-query";
@@ -7,6 +8,8 @@ import TenantModal from "../components/tenants/TenantModal";
 import TenantTable from "../components/tenants/TenantTable";
 import { TenantsTableSkeleton } from "../components/ui/skeletons";
 import { PropertyFilter, PropertyFilterSkeleton } from "../components/common/PropertyFilter";
+import ReminderMethodModal, { type ReminderMethod } from "../components/tenants/TenantProfile/ReminderMethodModal";
+import ReminderConfirmationModal from "../components/tenants/TenantProfile/ReminderConfirmationModal";
 import useDebounce from "../hooks/useDebounce";
 import useFilteredTenants from "../hooks/useFilteredTenants";
 import useProperties from "../hooks/useProperties";
@@ -23,8 +26,11 @@ import {
 } from "../hooks/useTenants";
 import { useLeases } from "../hooks/useLeasesQueries";
 import useDashboardData from "../hooks/useDashboardData";
-import { useOutstandingPayments } from "../hooks/useAccountingQueries";
+import useRentTracker from "../hooks/useRentTracker";
+import { sendTenantReminder, type TenantReminderRequest } from "../utils/api/tenants";
 import type { FetchTenantsParams } from "../utils/api/tenants";
+import type { UpcomingEvent } from "../utils/tenantMetrics";
+import { PortalStatus, type EnrichedTenant } from "../types/tenant";
 
 type ActiveFilter = null | "active_leases" | "expiring" | "overdue";
 
@@ -58,8 +64,24 @@ const Tenants: React.FC = () => {
   const [selectedTenants, setSelectedTenants] = useState<Set<number>>(
     new Set()
   );
-  const [notification, setNotification] = useState<Notification | null>(null);
+  const [notification] = useState<Notification | null>(null);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>(null); // null, 'active_leases', 'expiring', 'overdue'
+
+  // Lease expiry reminder modal state
+  const [methodModalOpen, setMethodModalOpen] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [selectedLeaseForReminder, setSelectedLeaseForReminder] = useState<{
+    tenantId: number;
+    tenantName: string;
+    expiryDate: string;
+    unitInfo: string;
+    daysRemaining: number;
+    leaseId: number;
+  } | null>(null);
+  const [tenantForModal, setTenantForModal] = useState<EnrichedTenant | null>(null);
+  const [eventForModal, setEventForModal] = useState<UpcomingEvent | null>(null);
+  // Track which lease is currently sending (by leaseId) - null means not sending
+  const [sendingReminderForLeaseId, setSendingReminderForLeaseId] = useState<number | null>(null);
 
   // Helper functions for filter management
   const clearAllFilters = () => {
@@ -92,7 +114,6 @@ const Tenants: React.FC = () => {
     error: leasesError,
   } = useLeases();
   const {
-    data: dashData,
     loading: dashLoading,
     error: dashError,
   } = useDashboardData({
@@ -101,11 +122,17 @@ const Tenants: React.FC = () => {
     startDate: undefined,
     endDate: undefined,
   });
+  // Fetch rent tracker data for current month - this shows actual rent payment status
+  // useRentTracker already filters for DUE, PARTIAL, OVERDUE statuses
+  const currentDate = new Date();
   const {
-    data: outstandingPayments = [],
-    isLoading: paymentsLoading,
-    error: paymentsError,
-  } = useOutstandingPayments();
+    data: rentTrackerData = [],
+    loading: rentTrackerLoading,
+    error: rentTrackerError,
+  } = useRentTracker({
+    month: currentDate.getMonth() + 1, // 1-indexed month
+    year: currentDate.getFullYear()
+  });
   const bulkDeleteMutation = useBulkDeleteTenants();
 
   // Combine tenant and lease data
@@ -140,6 +167,21 @@ const Tenants: React.FC = () => {
     return properties.find((p) => p.id === propertyFilter)?.name;
   }, [properties, propertyFilter]);
 
+  // Extract unique tenant IDs from rent tracker data for overdue indicator
+  // Rent tracker shows actual rent payment status (DUE, PARTIAL, OVERDUE)
+  const overdueTenantIds = useMemo(() => {
+    if (!rentTrackerData || rentTrackerData.length === 0) return [];
+
+    // Get unique tenant IDs from rent tracker entries
+    // Only include OVERDUE status for the "overdue" badge/filter
+    const tenantIds = rentTrackerData
+      .filter((entry: any) => entry.status === 'OVERDUE')
+      .map((entry: any) => entry.tenant_id)
+      .filter((id: number | undefined): id is number => id != null);
+
+    return [...new Set(tenantIds)];
+  }, [rentTrackerData]);
+
   // Calculate dashboard metrics
   const dashboardData = useMemo(() => {
     const activeLeaseCount = countActiveLeases(tenantsWithLeases);
@@ -149,10 +191,10 @@ const Tenants: React.FC = () => {
       totalTenants: tenants.length || 0,
       activeLeases: activeLeaseCount,
       expiringSoon: expiringLeasesList.length,
-      overduePayments:
-        outstandingPayments?.length || dashData?.payments_due?.length || 0,
+      // Use unique tenant count for overdue, not payment count
+      overduePayments: overdueTenantIds.length,
     };
-  }, [dashData, tenants, tenantsWithLeases, outstandingPayments]);
+  }, [tenants, tenantsWithLeases, overdueTenantIds]);
 
   const expiringLeases = useMemo(
     () => getExpiringLeases(tenantsWithLeases),
@@ -160,17 +202,18 @@ const Tenants: React.FC = () => {
   );
 
   // Filter tenants based on active filter using custom hook
+  // Use rentTrackerData for overdue filter (actual rent payment status)
   const filteredTenants = useFilteredTenants(
     tenantsWithLeases,
     activeFilter,
     expiringLeases,
-    outstandingPayments
+    rentTrackerData
   );
 
   // Combined loading and error states
   const isLoading =
-    tenantsLoading || leasesLoading || dashLoading || paymentsLoading;
-  const error = tenantsError || leasesError || dashError || paymentsError;
+    tenantsLoading || leasesLoading || dashLoading || rentTrackerLoading;
+  const error = tenantsError || leasesError || dashError || rentTrackerError;
 
   // Handle Stripe checkout success/cancel callbacks
   useEffect(() => {
@@ -307,30 +350,145 @@ const Tenants: React.FC = () => {
     }
   };
 
-  // Handle sending renewal email via email client
-  const handleSendRenewal = (
-    tenantName: string,
-    tenantEmail: string | undefined,
-    expiryDate: string,
-    unitInfo: string
-  ) => {
-    if (!tenantEmail) {
-      setNotification({
-        type: "error",
-        message: "This tenant doesn't have an email address.",
-      });
-      setTimeout(() => setNotification(null), 3000);
+  // Helper to close and reset reminder modals
+  const closeAndResetReminderModal = () => {
+    setMethodModalOpen(false);
+    setEmailModalOpen(false);
+    setSelectedLeaseForReminder(null);
+    setTenantForModal(null);
+    setEventForModal(null);
+  };
+
+  // Handle clicking the "Send Reminder" button for lease expiry
+  const handleLeaseExpiryReminderClick = (lease: {
+    tenantId: number;
+    tenantName: string;
+    expiryDate: string;
+    unitInfo: string;
+    daysRemaining: number;
+    leaseId: number;
+  }) => {
+    // Don't allow clicking if this lease is already sending
+    if (sendingReminderForLeaseId === lease.leaseId) return;
+
+    // Find the tenant to check portal access
+    const tenant = tenants.find((t) => t.id === lease.tenantId);
+    if (!tenant) {
+      toast.error("Could not find tenant details.");
       return;
     }
 
-    const formattedDate = new Date(expiryDate).toLocaleDateString();
-    const subject = `Lease Renewal - ${unitInfo}`;
-    const body = `Dear ${tenantName},\n\nYour lease for ${unitInfo} is set to expire on ${formattedDate}.\n\nWe wanted to reach out to discuss your renewal options. Please let us know if you would like to renew your lease.\n\nBest regards,\nProperty Management`;
+    setSelectedLeaseForReminder(lease);
+    setTenantForModal(tenant as EnrichedTenant);
 
-    // Open email client with prefilled data
-    window.location.href = `mailto:${tenantEmail}?subject=${encodeURIComponent(
-      subject
-    )}&body=${encodeURIComponent(body)}`;
+    // Create event for the modal
+    const event: UpcomingEvent = {
+      id: `lease-expiry-${lease.tenantId}`,
+      type: 'lease_expiry',
+      title: 'Lease Expiring',
+      subtitle: `${lease.unitInfo} • ${lease.daysRemaining}d remaining`,
+      date: new Date(lease.expiryDate),
+      daysRemaining: lease.daysRemaining,
+      urgency: lease.daysRemaining <= 7 ? 'critical' : lease.daysRemaining <= 14 ? 'high' : 'medium',
+      icon: 'document',
+      color: lease.daysRemaining <= 7 ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400',
+      bgColor: lease.daysRemaining <= 7 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-yellow-100 dark:bg-yellow-900/30',
+    };
+
+    setEventForModal(event);
+    setMethodModalOpen(true);
+  };
+
+  // Handle method selection from ReminderMethodModal
+  const handleReminderMethodSelect = async (method: ReminderMethod) => {
+    if (!selectedLeaseForReminder || !tenantForModal || !eventForModal) return;
+
+    setMethodModalOpen(false);
+
+    if (method === 'portal') {
+      // Send portal notification directly
+      setSendingReminderForLeaseId(selectedLeaseForReminder.leaseId);
+      try {
+        const reminderData: TenantReminderRequest = {
+          event_type: 'lease_expiry',
+          event_title: eventForModal.title,
+          event_subtitle: eventForModal.subtitle,
+          event_date: selectedLeaseForReminder.expiryDate,
+          days_remaining: selectedLeaseForReminder.daysRemaining,
+          delivery_method: 'portal',
+        };
+
+        const response = await sendTenantReminder(selectedLeaseForReminder.tenantId, reminderData);
+
+        if (response.success) {
+          toast.success(response.message);
+          closeAndResetReminderModal();
+        } else {
+          toast.error('Failed to send reminder');
+        }
+      } catch (error: any) {
+        Sentry.captureException(error, {
+          tags: { component: 'Tenants', action: 'send_portal_lease_reminder' },
+          contexts: { reminder: { tenant_id: selectedLeaseForReminder?.tenantId } },
+        });
+        toast.error(error?.message || 'Failed to send reminder. Please try again.');
+      } finally {
+        setSendingReminderForLeaseId(null);
+      }
+    } else {
+      // For email, show the email customization modal
+      setEmailModalOpen(true);
+    }
+  };
+
+  // Handle sending email reminder (called from ReminderConfirmationModal)
+  const handleSendLeaseExpiryReminder = async (customSubject: string | null, customMessage: string | null) => {
+    if (!selectedLeaseForReminder || !tenantForModal || !eventForModal) return;
+
+    setSendingReminderForLeaseId(selectedLeaseForReminder.leaseId);
+    try {
+      const reminderData: TenantReminderRequest = {
+        event_type: 'lease_expiry',
+        event_title: eventForModal.title,
+        event_subtitle: eventForModal.subtitle,
+        event_date: selectedLeaseForReminder.expiryDate,
+        days_remaining: selectedLeaseForReminder.daysRemaining,
+        custom_subject: customSubject,
+        custom_message: customMessage,
+        delivery_method: 'email',
+      };
+
+      const response = await Sentry.startSpan(
+        {
+          op: "http.client",
+          name: `POST /api/tenants/${selectedLeaseForReminder.tenantId}/send-reminder`,
+        },
+        async () => {
+          return await sendTenantReminder(selectedLeaseForReminder.tenantId, reminderData);
+        }
+      );
+
+      if (response.success) {
+        Sentry.logger.info('Lease expiry reminder email sent successfully', {
+          tenantId: selectedLeaseForReminder.tenantId,
+          daysRemaining: selectedLeaseForReminder.daysRemaining,
+          hasCustomMessage: !!customMessage,
+        });
+
+        toast.success('Reminder email sent successfully');
+        closeAndResetReminderModal();
+      } else {
+        toast.error('Failed to send reminder email');
+      }
+    } catch (error: any) {
+      Sentry.captureException(error, {
+        tags: { component: 'Tenants', action: 'send_lease_expiry_reminder' },
+        contexts: { reminder: { tenant_id: selectedLeaseForReminder?.tenantId } },
+      });
+      toast.error(error?.message || 'Failed to send reminder email. Please try again.');
+    } finally {
+      setSendingReminderForLeaseId(null);
+    }
   };
 
   // Handle adding a tenant (guarded by subscription check)
@@ -762,6 +920,7 @@ const Tenants: React.FC = () => {
             onToggleSelect={handleToggleSelect}
             onAddTenant={handleAddTenant}
             isLoading={false}
+            overdueTenantIds={overdueTenantIds}
           />
         )}
       </div>
@@ -857,20 +1016,9 @@ const Tenants: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                         <div className="flex justify-center">
                           <button
-                            onClick={() => {
-                              // Find tenant from tenants list
-                              const tenant = tenants.find(
-                                (t) => t.id === lease.tenantId
-                              );
-                              const tenantEmail = tenant?.email;
-                              handleSendRenewal(
-                                lease.tenantName,
-                                tenantEmail,
-                                lease.expiryDate,
-                                lease.unitInfo
-                              );
-                            }}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            onClick={() => handleLeaseExpiryReminderClick({ ...lease, leaseId: lease.leaseId })}
+                            disabled={sendingReminderForLeaseId === lease.leaseId}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <svg
                               className="h-4 w-4 mr-1"
@@ -882,10 +1030,10 @@ const Tenants: React.FC = () => {
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 strokeWidth={2}
-                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
                               />
                             </svg>
-                            Send Reminder Email
+                            {sendingReminderForLeaseId === lease.leaseId ? 'Sending...' : 'Send Reminder'}
                           </button>
                         </div>
                       </td>
@@ -905,6 +1053,31 @@ const Tenants: React.FC = () => {
         onSave={handleSaveTenant}
         source="tenantsPage"
       />
+
+      {/* Lease Expiry Reminder Method Modal - rendered via portal */}
+      {selectedLeaseForReminder && tenantForModal && methodModalOpen && typeof document !== 'undefined' && createPortal(
+        <ReminderMethodModal
+          isOpen={methodModalOpen}
+          onClose={closeAndResetReminderModal}
+          onSelect={handleReminderMethodSelect}
+          tenantName={selectedLeaseForReminder.tenantName}
+          hasPortalAccess={tenantForModal.portal_status === PortalStatus.ACTIVE || !!tenantForModal.user_id}
+        />,
+        document.body
+      )}
+
+      {/* Lease Expiry Email Reminder Modal - rendered via portal */}
+      {selectedLeaseForReminder && tenantForModal && eventForModal && emailModalOpen && typeof document !== 'undefined' && createPortal(
+        <ReminderConfirmationModal
+          isOpen={emailModalOpen}
+          onClose={closeAndResetReminderModal}
+          onConfirm={handleSendLeaseExpiryReminder}
+          tenant={tenantForModal}
+          event={eventForModal}
+          isLoading={sendingReminderForLeaseId !== null}
+        />,
+        document.body
+      )}
     </div>
   );
 };

@@ -32,11 +32,14 @@ class RevenueData(BaseModel):
 
 class PaymentDue(BaseModel):
     id: int
+    tenant_id: int
     tenant_name: str
     amount: Decimal
     due_date: date
     days_overdue: int | None = None
     status: PaymentStatus
+    has_portal_access: bool = False
+    tenant_email: str | None = None
 
 
 class DashboardResponse(BaseModel):

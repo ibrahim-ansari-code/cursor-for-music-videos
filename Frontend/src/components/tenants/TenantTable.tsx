@@ -1,7 +1,18 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { getInitials, formatDate } from "../../utils/tenantUtils";
-import { TenantTableProps, EnrichedTenant } from "../../types/tenant";
+import { TenantTableProps, EnrichedTenant, PortalStatus } from "../../types/tenant";
+
+// Types for lease-based status
+type LeaseStatus = 'active' | 'expiring' | 'expired' | 'no_lease';
+
+interface LeaseStatusInfo {
+  status: LeaseStatus;
+  label: string;
+  bgClass: string;
+  textClass: string;
+  daysRemaining?: number;
+}
 
 const TenantTable: React.FC<TenantTableProps> = ({
   tenants,
@@ -10,9 +21,13 @@ const TenantTable: React.FC<TenantTableProps> = ({
   selectedTenants,
   onToggleSelectAll,
   onToggleSelect,
+  overdueTenantIds = [],
 }) => {
   const navigate = useNavigate();
   const selectAllRef = React.useRef<HTMLInputElement>(null);
+
+  // Convert overdueTenantIds to Set for O(1) lookup
+  const overdueSet = React.useMemo(() => new Set(overdueTenantIds), [overdueTenantIds]);
 
   React.useEffect(() => {
     if (selectAllRef.current) {
@@ -39,6 +54,85 @@ const TenantTable: React.FC<TenantTableProps> = ({
       return `Contact: ${tenant.contact_person}`;
     }
     return null;
+  };
+
+  // Helper function to determine lease-based status (replaces tenant.status)
+  const getLeaseStatus = (tenant: EnrichedTenant): LeaseStatusInfo => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // No leases at all
+    if (!tenant.leases || tenant.leases.length === 0) {
+      return {
+        status: 'no_lease',
+        label: 'No Lease',
+        bgClass: 'bg-gray-100 dark:bg-gray-900/30',
+        textClass: 'text-gray-800 dark:text-gray-200',
+      };
+    }
+
+    // Find current active lease (status = ACTIVE and within date range)
+    const activeLease = tenant.leases.find((lease) => {
+      if (!lease.start_date || !lease.end_date) return false;
+      const startDate = new Date(lease.start_date);
+      const endDate = new Date(lease.end_date);
+      endDate.setHours(23, 59, 59, 999);
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return false;
+      return (
+        lease.status?.toUpperCase() === "ACTIVE" &&
+        startDate <= today &&
+        endDate >= today
+      );
+    });
+
+    if (activeLease) {
+      // Check if lease is expiring within 30 days
+      const endDate = new Date(activeLease.end_date);
+      endDate.setHours(23, 59, 59, 999);
+      const daysRemaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysRemaining <= 30) {
+        return {
+          status: 'expiring',
+          label: 'Expiring',
+          bgClass: 'bg-orange-100 dark:bg-orange-900/30',
+          textClass: 'text-orange-800 dark:text-orange-200',
+          daysRemaining,
+        };
+      }
+
+      return {
+        status: 'active',
+        label: 'Active',
+        bgClass: 'bg-green-100 dark:bg-green-900/30',
+        textClass: 'text-green-800 dark:text-green-200',
+      };
+    }
+
+    // No active lease - check if all leases are expired
+    const allExpired = tenant.leases.every((lease) => {
+      if (!lease.end_date) return false;
+      const endDate = new Date(lease.end_date);
+      endDate.setHours(23, 59, 59, 999);
+      return endDate < today || lease.status?.toUpperCase() === "EXPIRED";
+    });
+
+    if (allExpired) {
+      return {
+        status: 'expired',
+        label: 'Expired',
+        bgClass: 'bg-red-100 dark:bg-red-900/30',
+        textClass: 'text-red-800 dark:text-red-200',
+      };
+    }
+
+    // Default: has leases but none are currently active (e.g., future lease)
+    return {
+      status: 'no_lease',
+      label: 'Inactive',
+      bgClass: 'bg-gray-100 dark:bg-gray-900/30',
+      textClass: 'text-gray-800 dark:text-gray-200',
+    };
   };
 
   // Helper function to get lease duration display (returns string for combined column)
@@ -216,6 +310,12 @@ const TenantTable: React.FC<TenantTableProps> = ({
               </th>
               <th
                 scope="col"
+                className="px-4 py-4 text-center font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
+              >
+                Portal
+              </th>
+              <th
+                scope="col"
                 className="px-6 py-4 text-center font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
               >
                 Lease & Status
@@ -227,6 +327,8 @@ const TenantTable: React.FC<TenantTableProps> = ({
               const leaseDuration = getLeaseDuration(tenant);
               const displayName = getTenantDisplayName(tenant);
               const subtitle = getTenantSubtitle(tenant);
+              const leaseStatus = getLeaseStatus(tenant);
+              const isOverdue = overdueSet.has(tenant.id);
 
               // data-table CSS now handles zebra striping
               return (
@@ -302,26 +404,58 @@ const TenantTable: React.FC<TenantTableProps> = ({
                       </span>
                     )}
                   </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-center">
+                    {tenant.portal_status === PortalStatus.ACTIVE ? (
+                      <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        Active
+                      </span>
+                    ) : tenant.portal_status === PortalStatus.INVITED ? (
+                      <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200">
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                        </svg>
+                        Invited
+                      </span>
+                    ) : tenant.portal_status === PortalStatus.REVOKED ? (
+                      <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200">
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                        Revoked
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 dark:text-gray-500 text-xs">--</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <div className="flex flex-col items-center space-y-1">
+                      {/* Overdue indicator - shown first (top priority) */}
+                      {isOverdue && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200">
+                          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          Overdue
+                        </span>
+                      )}
+                      {/* Lease-based status badge */}
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${leaseStatus.bgClass} ${leaseStatus.textClass}`}
+                      >
+                        {leaseStatus.label}
+                        {leaseStatus.daysRemaining !== undefined && (
+                          <span className="ml-1">({leaseStatus.daysRemaining}d)</span>
+                        )}
+                      </span>
                       {leaseDuration && (
                         <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
                           {leaseDuration}
                         </div>
                       )}
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          tenant.status?.toLowerCase() === "active"
-                            ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
-                            : tenant.status?.toLowerCase() === "pending"
-                            ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200"
-                            : tenant.status?.toLowerCase() === "overdue"
-                            ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200"
-                            : "bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-200"
-                        }`}
-                      >
-                        {tenant.status || "Unknown"}
-                      </span>
                     </div>
                   </td>
                 </tr>

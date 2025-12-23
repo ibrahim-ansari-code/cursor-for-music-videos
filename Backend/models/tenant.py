@@ -6,8 +6,8 @@ from uuid import UUID as PythonUUID, uuid4
 import re
 
 from sqlalchemy import (Column, DateTime, ForeignKey, Index, Integer, String,
-                        text)
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+                        text, Enum as SAEnum)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB, ENUM as PG_ENUM
 from sqlalchemy.sql import func
 from sqlmodel import Field, Relationship, SQLModel, col
 from pydantic import field_validator
@@ -33,8 +33,8 @@ class TenantStatus(str, Enum):
     MOVED_OUT = "Moved Out"
 
 
-# Import TenantType from enums
-from Backend.models.enums import TenantType
+# Import TenantType and PortalStatus from enums
+from Backend.models.enums import TenantType, PortalStatus
 
 
 class Tenant(SQLModel, table=True):
@@ -91,6 +91,22 @@ class Tenant(SQLModel, table=True):
         default_factory=list,
         sa_column=Column(JSONB, nullable=True),
         description='Emergency contact information as JSONB array'
+    )
+
+    # Portal access tracking - uses native PostgreSQL enum type
+    portal_status: PortalStatus = Field(
+        default=PortalStatus.NONE,
+        sa_column=Column(
+            SAEnum(PortalStatus, values_callable=lambda x: [e.value for e in x], name='portal_status', create_type=False),
+            nullable=False,
+            default=PortalStatus.NONE
+        ),
+        description='Tenant portal access status. ACTIVE = using a seat.'
+    )
+    last_portal_login_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        description='Timestamp of the tenant\'s last portal login'
     )
 
     # --- Relationships Defined Directly ---

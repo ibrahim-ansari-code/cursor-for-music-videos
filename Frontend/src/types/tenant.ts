@@ -158,6 +158,14 @@ export enum LeaseStatus {
   RENEWED = 'RENEWED'
 }
 
+// Portal access status for tenant portal
+export enum PortalStatus {
+  NONE = 'none',       // Never invited
+  INVITED = 'invited', // Invitation sent but not accepted
+  ACTIVE = 'active',   // Has portal access (uses a seat)
+  REVOKED = 'revoked'  // Portal access was revoked
+}
+
 // Core Tenant Interface
 export interface Tenant {
   id: number;
@@ -178,6 +186,9 @@ export interface Tenant {
   quickbooks_customer_id?: string;
   last_synced_at?: string;
   emergency_contacts?: EmergencyContact[];
+  // Portal access tracking
+  portal_status?: PortalStatus;
+  last_portal_login_at?: string;
 }
 
 // Property Unit Interface
@@ -352,6 +363,8 @@ export interface TenantTableProps {
   selectedTenants: number[];
   onToggleSelectAll: () => void;
   onToggleSelect: (tenantId: number) => void;
+  /** Tenant IDs with overdue payments - used to show overdue indicator badge */
+  overdueTenantIds?: number[];
 }
 
 // Maintenance Form Types

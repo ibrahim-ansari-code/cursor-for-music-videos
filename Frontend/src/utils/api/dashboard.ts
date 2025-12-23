@@ -35,11 +35,14 @@ export interface RevenueData {
 
 export interface PaymentDue {
   id: number;
+  tenant_id: number;
   tenant_name: string;
   amount: number | string;
   due_date: string;
   days_overdue: number | null;
   status: string;
+  has_portal_access: boolean;
+  tenant_email: string | null;
 }
 
 export interface DashboardResponse {

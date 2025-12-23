@@ -104,10 +104,15 @@ def build_payment_response_from_orm(payment_orm: Payment) -> PaymentResponse | N
     if payment_orm.id is None:
         return None
 
-    # Extract tenant name from lease or direct tenant relationship
+    # Extract tenant_id and tenant_name from lease or direct tenant relationship
+    # Priority: payment.tenant_id > lease.tenant.id
+    tenant_id = payment_orm.tenant_id
     tenant_name = None
     if payment_orm.lease and payment_orm.lease.tenant:
         tenant_name = get_tenant_display_name(payment_orm.lease.tenant)
+        # If tenant_id is not set on payment, get it from the lease's tenant
+        if tenant_id is None:
+            tenant_id = payment_orm.lease.tenant.id
     elif payment_orm.tenant:
         tenant_name = get_tenant_display_name(payment_orm.tenant)
     else:
@@ -123,7 +128,7 @@ def build_payment_response_from_orm(payment_orm: Payment) -> PaymentResponse | N
     return PaymentResponse(
         id=payment_orm.id,
         lease_id=payment_orm.lease_id,
-        tenant_id=payment_orm.tenant_id,
+        tenant_id=tenant_id,
         amount=payment_orm.amount,
         payment_date=payment_orm.payment_date,
         payment_method=get_payment_method_enum(payment_orm.payment_method),

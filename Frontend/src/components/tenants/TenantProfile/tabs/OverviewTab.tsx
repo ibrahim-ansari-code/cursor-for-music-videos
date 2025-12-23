@@ -7,6 +7,7 @@ import { formatDate } from '../../../../utils/tenantUtils';
 import { getSecureDocumentUrl } from '../../../../utils/api/leases';
 import { updateTenant, sendTenantReminder, TenantReminderRequest } from '../../../../utils/api/tenants';
 import AIAuditTrail from '../AIAuditTrail';
+import ReminderMethodModal, { type ReminderMethod } from '../ReminderMethodModal';
 import ReminderConfirmationModal from '../ReminderConfirmationModal';
 import QuickActions from '../QuickActions';
 import ViewLeaseModal from '../../../leases/modals/ViewLeaseModal';
@@ -45,7 +46,8 @@ const OverviewTab: React.FC = () => {
   
   // State for reminder sending
   const [sendingReminder, setSendingReminder] = useState<string | null>(null); // event.id
-  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [showMethodModal, setShowMethodModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<UpcomingEvent | null>(null);
 
   // State for lease details modal (fallback when document preview fails)
@@ -96,21 +98,60 @@ const OverviewTab: React.FC = () => {
     }
   };
 
-  // Handle clicking Remind button - opens confirmation modal
+  // Handle clicking Remind button - opens method selection modal
   const handleRemindClick = (event: UpcomingEvent) => {
-    if (!tenant || !tenant.email) {
-      toast.error('Cannot send reminder: tenant does not have an email address');
-      return;
-    }
     setSelectedEvent(event);
-    setShowReminderModal(true);
+    setShowMethodModal(true);
   };
 
-  // Handle confirming reminder email
+  // Handle method selection from ReminderMethodModal
+  const handleMethodSelect = async (method: ReminderMethod) => {
+    if (!selectedEvent || !tenant) return;
+
+    setShowMethodModal(false);
+
+    if (method === 'portal') {
+      // Send portal notification directly (no customization needed)
+      setSendingReminder(selectedEvent.id);
+      try {
+        const reminderData: TenantReminderRequest = {
+          event_type: selectedEvent.type as TenantReminderRequest['event_type'],
+          event_title: selectedEvent.title,
+          event_subtitle: selectedEvent.subtitle,
+          event_date: selectedEvent.date ? selectedEvent.date.toISOString() : null,
+          event_amount: selectedEvent.amount ?? null,
+          days_remaining: selectedEvent.daysRemaining ?? null,
+          delivery_method: 'portal',
+        };
+
+        const response = await sendTenantReminder(tenant.id, reminderData);
+
+        if (response.success) {
+          toast.success(response.message);
+          setSelectedEvent(null);
+        } else {
+          toast.error('Failed to send reminder');
+        }
+      } catch (error: any) {
+        Sentry.captureException(error, {
+          tags: { component: 'OverviewTab', action: 'send_portal_reminder' },
+          contexts: { tenant: { id: tenant?.id }, event: { type: selectedEvent.type } },
+        });
+        toast.error(error?.message || 'Failed to send reminder. Please try again.');
+      } finally {
+        setSendingReminder(null);
+      }
+    } else {
+      // Show email customization modal
+      setShowEmailModal(true);
+    }
+  };
+
+  // Handle confirming reminder email (with customization)
   const handleConfirmReminder = async (customSubject: string | null, customMessage: string | null) => {
-    if (!selectedEvent || !tenant || !tenant.email) {
+    if (!selectedEvent || !tenant) {
       toast.error('Cannot send reminder: missing information');
-      setShowReminderModal(false);
+      setShowEmailModal(false);
       setSelectedEvent(null);
       return;
     }
@@ -118,7 +159,6 @@ const OverviewTab: React.FC = () => {
     setSendingReminder(selectedEvent.id);
 
     try {
-      // Prepare reminder data
       const reminderData: TenantReminderRequest = {
         event_type: selectedEvent.type as TenantReminderRequest['event_type'],
         event_title: selectedEvent.title,
@@ -128,31 +168,24 @@ const OverviewTab: React.FC = () => {
         days_remaining: selectedEvent.daysRemaining ?? null,
         custom_subject: customSubject,
         custom_message: customMessage,
+        delivery_method: 'email',
       };
 
-      // Send reminder via API
       const response = await sendTenantReminder(tenant.id, reminderData);
 
       if (response.success) {
-        toast.success(`Reminder email sent to ${tenant.email}`);
-        setShowReminderModal(false);
+        toast.success(response.message);
+        setShowEmailModal(false);
         setSelectedEvent(null);
       } else {
         toast.error('Failed to send reminder email');
       }
     } catch (error: any) {
       console.error('Failed to send reminder:', error);
-      
-      // Report to Sentry
+
       Sentry.captureException(error, {
-        tags: {
-          component: 'OverviewTab',
-          action: 'send_reminder',
-        },
-        contexts: {
-          tenant: { id: tenant?.id },
-          event: { type: selectedEvent.type, id: selectedEvent.id },
-        },
+        tags: { component: 'OverviewTab', action: 'send_email_reminder' },
+        contexts: { tenant: { id: tenant?.id }, event: { type: selectedEvent.type, id: selectedEvent.id } },
       });
 
       toast.error(error?.message || 'Failed to send reminder email. Please try again.');
@@ -161,10 +194,15 @@ const OverviewTab: React.FC = () => {
     }
   };
 
-  // Handle closing reminder modal
-  const handleCloseReminderModal = () => {
+  // Handle closing modals
+  const handleCloseMethodModal = () => {
+    setShowMethodModal(false);
+    setSelectedEvent(null);
+  };
+
+  const handleCloseEmailModal = () => {
     if (sendingReminder) return; // Prevent closing while sending
-    setShowReminderModal(false);
+    setShowEmailModal(false);
     setSelectedEvent(null);
   };
 
@@ -842,11 +880,24 @@ const OverviewTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Reminder Confirmation Modal */}
+      {/* Reminder Method Selection Modal */}
+      {selectedEvent && (
+        <ReminderMethodModal
+          isOpen={showMethodModal}
+          onClose={handleCloseMethodModal}
+          onSelect={handleMethodSelect}
+          tenantName={tenant.tenant_type === 'Company'
+            ? tenant.company_name || 'Tenant'
+            : `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim() || 'Tenant'}
+          hasPortalAccess={!!tenant.user_id}
+        />
+      )}
+
+      {/* Email Reminder Confirmation Modal */}
       {selectedEvent && (
         <ReminderConfirmationModal
-          isOpen={showReminderModal}
-          onClose={handleCloseReminderModal}
+          isOpen={showEmailModal}
+          onClose={handleCloseEmailModal}
           onConfirm={handleConfirmReminder}
           tenant={tenant}
           event={selectedEvent}

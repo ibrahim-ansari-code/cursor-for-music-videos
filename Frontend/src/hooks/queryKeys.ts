@@ -73,9 +73,9 @@ export const QUERY_KEYS = {
   tenantDocuments: {
     all: () => ["tenantDocuments"] as const,
     lists: () => ["tenantDocuments", "list"] as const,
-    list: (tenantId: number, filters?: QueryParams) => ["tenantDocuments", "list", tenantId, filters] as const,
+    list: (tenantId: string, filters?: QueryParams) => ["tenantDocuments", "list", tenantId, filters] as const,
     details: () => ["tenantDocuments", "detail"] as const,
-    detail: (tenantId: number, documentId: string) => ["tenantDocuments", "detail", tenantId, documentId] as const,
+    detail: (tenantId: string, documentId: string) => ["tenantDocuments", "detail", tenantId, documentId] as const,
     taxonomy: () => ["tenantDocuments", "taxonomy"] as const,
   },
 

@@ -44,15 +44,20 @@ router = APIRouter(
 # === API Routes ===
 
 @router.get("/me", response_model=UserResponse)
-async def read_users_me(current_user: User = Depends(get_current_user)):
+async def read_users_me(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
     """
     Get current user profile.
-    
+
     Returns the authenticated user's profile information.
     This endpoint is used by the frontend to validate sessions
     and retrieve user data on app initialization.
+
+    For tenant users, this also updates their portal login tracking.
     """
-    return await AuthService.get_user_profile(current_user)
+    return await AuthService.get_user_profile(current_user, session)
 
 
 @router.put("/users/{user_id}/profile", response_model=UserResponse)
