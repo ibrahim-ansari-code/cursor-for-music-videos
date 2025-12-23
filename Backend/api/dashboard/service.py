@@ -521,7 +521,7 @@ class DashboardService:
             )
 
         unit_result = await session.execute(
-            select(PropertyUnit).where(col(PropertyUnit.tenant_id) == tenant.id)
+            select(PropertyUnit).where(col(PropertyUnit.tenant_id) == tenant.id).limit(1)
         )
         unit = unit_result.scalar_one_or_none()
 

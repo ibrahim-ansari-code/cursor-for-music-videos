@@ -82,6 +82,7 @@ def create_mock_invoice(amount: Decimal = Decimal("1200.00"), status: PaymentSta
     mock_tenant = MagicMock(spec=Tenant)
     mock_tenant.first_name = "John"
     mock_tenant.last_name = "Doe"
+    mock_tenant.email = "john.doe@example.com"
     mock_tenant.company_name = None
     mock_tenant.leases = []
     mock_invoice.tenant = mock_tenant
@@ -483,21 +484,27 @@ class TestDashboardServicePaymentsDue:
         """Test successful payments due retrieval."""
         mock_session = AsyncMock()
         mock_property_query = MagicMock()
-        
+
         # Mock properties and invoices
         mock_invoice = create_mock_invoice()
-        
+        mock_property = create_mock_property()
+
+        # Create proper async mock results
+        properties_result = MagicMock()
+        properties_result.scalars.return_value.all.return_value = [mock_property]
+
+        invoices_result = MagicMock()
+        invoices_result.scalars.return_value.all.return_value = [mock_invoice]
+
         mock_session.execute.side_effect = [
-            # Properties query
-            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[create_mock_property()])))),
-            # Invoices query
-            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[mock_invoice]))))
+            properties_result,
+            invoices_result
         ]
-        
+
         payments_due = await DashboardService._get_payments_due(
             mock_session, mock_property_query
         )
-        
+
         assert len(payments_due) == 1
         assert isinstance(payments_due[0], PaymentDue)
         assert payments_due[0].id == 1
@@ -524,24 +531,30 @@ class TestDashboardServicePaymentsDue:
         """Test payments due tenant name fallback logic."""
         mock_session = AsyncMock()
         mock_property_query = MagicMock()
-        
+
         # Create mock invoice with tenant having company name only
         mock_invoice = create_mock_invoice()
         mock_invoice.tenant.first_name = None
         mock_invoice.tenant.last_name = None
         mock_invoice.tenant.company_name = "Acme Corp"
-        
+        mock_property = create_mock_property()
+
+        # Create proper async mock results
+        properties_result = MagicMock()
+        properties_result.scalars.return_value.all.return_value = [mock_property]
+
+        invoices_result = MagicMock()
+        invoices_result.scalars.return_value.all.return_value = [mock_invoice]
+
         mock_session.execute.side_effect = [
-            # Properties query
-            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[create_mock_property()])))),
-            # Invoices query
-            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[mock_invoice]))))
+            properties_result,
+            invoices_result
         ]
-        
+
         payments_due = await DashboardService._get_payments_due(
             mock_session, mock_property_query
         )
-        
+
         assert len(payments_due) == 1
         assert payments_due[0].tenant_name == "Acme Corp"
     
@@ -550,24 +563,30 @@ class TestDashboardServicePaymentsDue:
         """Test payments due with unknown tenant name."""
         mock_session = AsyncMock()
         mock_property_query = MagicMock()
-        
+
         # Create mock invoice with no tenant name
         mock_invoice = create_mock_invoice()
         mock_invoice.tenant.first_name = None
         mock_invoice.tenant.last_name = None
         mock_invoice.tenant.company_name = None
-        
+        mock_property = create_mock_property()
+
+        # Create proper async mock results
+        properties_result = MagicMock()
+        properties_result.scalars.return_value.all.return_value = [mock_property]
+
+        invoices_result = MagicMock()
+        invoices_result.scalars.return_value.all.return_value = [mock_invoice]
+
         mock_session.execute.side_effect = [
-            # Properties query
-            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[create_mock_property()])))),
-            # Invoices query
-            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[mock_invoice]))))
+            properties_result,
+            invoices_result
         ]
-        
+
         payments_due = await DashboardService._get_payments_due(
             mock_session, mock_property_query
         )
-        
+
         assert len(payments_due) == 1
         assert payments_due[0].tenant_name == "Unknown Tenant"
     
@@ -658,7 +677,7 @@ class TestDashboardServiceMain:
                 months=["Jan"], revenue=[Decimal("15000")], expenses=[Decimal("3000")], net_income=[Decimal("12000")]
             )
             mock_get_payments.return_value = [PaymentDue(
-                id=1, tenant_name="John Doe", amount=Decimal("1200.00"),
+                id=1, tenant_id=101, tenant_name="John Doe", amount=Decimal("1200.00"),
                 due_date=date(2024, 2, 1), days_overdue=None, status=PaymentStatus.PENDING
             )]
             

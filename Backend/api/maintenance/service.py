@@ -316,14 +316,19 @@ class MaintenanceService:
             
             # Send notifications via orchestrator (vendor assignment, status changes, etc.)
             # Session is still valid and can be used for additional queries
-            await send_maintenance_notifications(
-                request=created_request,
-                changes={
-                    'vendor_id': (None, created_request.vendor_id),
-                    'status': (None, created_request.status)
-                },
-                session=session
-            )
+            try:
+                await send_maintenance_notifications(
+                    request=created_request,
+                    changes={
+                        'vendor_id': (None, created_request.vendor_id),
+                        'status': (None, created_request.status)
+                    },
+                    session=session
+                )
+            except Exception as e:
+                logger.exception(
+                    f"Failed to send maintenance notifications for request {created_request.id}: {e}"
+                )
             
             # Send in-app notification to landlord for NEW maintenance requests
             if current_user.user_type == UserType.TENANT:
@@ -491,11 +496,16 @@ class MaintenanceService:
         
         # Send notifications via orchestrator (vendor assignment, status changes, etc.)
         if changes:
-            await send_maintenance_notifications(
-                request=req,
-                changes=changes,
-                session=session
-            )
+            try:
+                await send_maintenance_notifications(
+                    request=req,
+                    changes=changes,
+                    session=session
+                )
+            except Exception as e:
+                logger.exception(
+                    f"Failed to send maintenance notifications for request {req.id}: {e}"
+                )
         
         # After commit, all attributes are expired. Re-query with fresh session to get updated data
         # This is the industry-standard pattern (Stripe, Airbnb, etc.)

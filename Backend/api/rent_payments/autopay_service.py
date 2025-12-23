@@ -375,13 +375,23 @@ class AutopayService:
 
             logger.info(
                 f"💰 Created autopay PaymentIntent {payment_intent.id} "
-                f"for ${amount_cents / 100:.2f} CAD"
+                f"for ${amount_cents / 100:.2f} CAD with status: {payment_intent.status}"
             )
 
             # Create transaction record
             from uuid import UUID
             from Backend.models.rent_payment_transaction import RentPaymentTransactionStatus
-            
+
+            # Map Stripe PaymentIntent status to our internal status
+            status_map = {
+                "succeeded": RentPaymentTransactionStatus.SUCCEEDED,
+                "processing": RentPaymentTransactionStatus.PROCESSING,
+                "requires_action": RentPaymentTransactionStatus.REQUIRES_ACTION,
+                "requires_payment_method": RentPaymentTransactionStatus.FAILED,
+                "canceled": RentPaymentTransactionStatus.CANCELED,
+            }
+            transaction_status = status_map.get(payment_intent.status, RentPaymentTransactionStatus.PENDING)
+
             transaction = RentPaymentTransaction(
                 lease_id=lease.id,
                 tenant_id=tenant.id,
@@ -391,7 +401,7 @@ class AutopayService:
                 application_fee_cents=platform_fee_cents,
                 currency="cad",
                 stripe_payment_intent_id=payment_intent.id,
-                status=RentPaymentTransactionStatus.SUCCEEDED,
+                status=transaction_status,
                 payment_method_type=payment_method.payment_method_type,
                 metadata={
                     "enrollment_id": str(enrollment.id),
@@ -401,7 +411,17 @@ class AutopayService:
             session.add(transaction)
             await session.flush()
 
-            return payment_intent
+            # Only consider the payment successful if the PI status is 'succeeded'
+            if payment_intent.status == "succeeded":
+                return payment_intent
+            else:
+                # For other statuses (e.g., requires_action, processing), treat as not yet successful
+                # Webhooks will handle the final state change
+                logger.warning(
+                    f"Autopay PI {payment_intent.id} did not succeed immediately. "
+                    f"Status: {payment_intent.status}"
+                )
+                return None
 
         except stripe.CardError as e:
             # Card was declined
@@ -505,8 +525,12 @@ class AutopayService:
             retry_days = AutopayService.RETRY_INTERVALS[
                 enrollment.current_retry_count - 1
             ]
-            # Calculate next retry date as datetime
-            next_retry_date = datetime.now(timezone.utc) + timedelta(days=retry_days)
+            # Calculate next retry date relative to the original scheduled date
+            # to ensure consistent retry intervals
+            original_scheduled = enrollment.next_scheduled_at or datetime.now(timezone.utc)
+            if isinstance(original_scheduled, date) and not isinstance(original_scheduled, datetime):
+                original_scheduled = datetime.combine(original_scheduled, datetime.min.time(), tzinfo=timezone.utc)
+            next_retry_date = original_scheduled + timedelta(days=retry_days)
             enrollment.next_scheduled_at = next_retry_date
             session.add(enrollment)
 

@@ -155,8 +155,26 @@ async def handle_dispute_updated(
         logger.warning(f"No dispute record found for {dispute_id}")
         return
     
-    # Update status
-    dispute_record.status = dispute.get("status", dispute_record.status)
+    # Update status - map Stripe status to our constants
+    status_str = dispute.get("status")
+    if status_str:
+        # Map Stripe dispute statuses to our internal constants
+        stripe_status_map = {
+            "warning_needs_response": DisputeStatus.WARNING_NEEDS_RESPONSE,
+            "warning_under_review": DisputeStatus.WARNING_UNDER_REVIEW,
+            "warning_closed": DisputeStatus.WARNING_CLOSED,
+            "needs_response": DisputeStatus.NEEDS_RESPONSE,
+            "under_review": DisputeStatus.UNDER_REVIEW,
+            "charge_refunded": DisputeStatus.CHARGE_REFUNDED,
+            "won": DisputeStatus.WON,
+            "lost": DisputeStatus.LOST,
+        }
+        
+        if status_str in stripe_status_map:
+            dispute_record.status = stripe_status_map[status_str]
+        else:
+            logger.warning(f"Unknown dispute status from Stripe: {status_str}")
+            # Keep existing status if unrecognized
     dispute_record.is_charge_refundable = dispute.get("is_charge_refundable", True)
     dispute_record.updated_at = utc_now()
     

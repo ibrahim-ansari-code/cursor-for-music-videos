@@ -376,19 +376,21 @@ async def test_create_maintenance_request_success():
         with patch.object(MaintenanceRequestResponse, 'model_validate') as mock_response:
             mock_response.return_value = MagicMock()
             
-            # Mock the vendor notification service to prevent email queries
-            with patch('Backend.api.maintenance.vendor_notification_service.VendorNotificationService') as mock_notif:
-                result = await MaintenanceService.create_maintenance_request(
-                    data=data,
-                    current_user=mock_user,
-                    session=mock_session
-                )
-                
-                mock_session.add.assert_called_once()
-                mock_session.commit.assert_called_once()
-                # We now re-query instead of refresh
-                mock_session.execute.assert_called_once()
-                assert result is not None
+            # Mock the notification orchestrator to prevent email queries
+            with patch('Backend.api.maintenance.service.send_maintenance_notifications', new=AsyncMock()):
+                # Mock the in-app notification service as well
+                with patch('Backend.api.maintenance.service.NotificationService.create_notification', new=AsyncMock()):
+                    result = await MaintenanceService.create_maintenance_request(
+                        data=data,
+                        current_user=mock_user,
+                        session=mock_session
+                    )
+                    
+                    mock_session.add.assert_called_once()
+                    mock_session.commit.assert_called_once()
+                    # We now re-query instead of refresh
+                    mock_session.execute.assert_called_once()
+                    assert result is not None
 
 
 @pytest.mark.asyncio
@@ -522,18 +524,19 @@ async def test_update_maintenance_request_success():
     
     with patch('Backend.api.maintenance.service.check_permission'):
         with patch.object(MaintenanceRequestResponse, 'model_validate') as mock_validate:
-            mock_validate.return_value = MagicMock()
-            
-            result = await MaintenanceService.update_maintenance_request(
-                request_id=1,
-                data=update_data,
-                current_user=mock_user,
-                session=mock_session
-            )
-            
-            mock_session.add.assert_called_once_with(mock_request)
-            mock_session.commit.assert_called_once()
-            assert result is not None
+            with patch('Backend.api.maintenance.service.send_maintenance_notifications', new=AsyncMock()):
+                mock_validate.return_value = MagicMock()
+                
+                result = await MaintenanceService.update_maintenance_request(
+                    request_id=1,
+                    data=update_data,
+                    current_user=mock_user,
+                    session=mock_session
+                )
+                
+                mock_session.add.assert_called_once_with(mock_request)
+                mock_session.commit.assert_called_once()
+                assert result is not None
 
 
 @pytest.mark.asyncio
@@ -559,17 +562,18 @@ async def test_update_maintenance_request_with_property_change():
             mock_validate.return_value = (MagicMock(), None, None)
             
             with patch.object(MaintenanceRequestResponse, 'model_validate') as mock_response:
-                mock_response.return_value = MagicMock()
-                
-                result = await MaintenanceService.update_maintenance_request(
-                    request_id=1,
-                    data=update_data,
-                    current_user=mock_user,
-                    session=mock_session
-                )
-                
-                mock_validate.assert_called_once()
-                assert result is not None
+                with patch('Backend.api.maintenance.service.send_maintenance_notifications', new=AsyncMock()):
+                    mock_response.return_value = MagicMock()
+                    
+                    result = await MaintenanceService.update_maintenance_request(
+                        request_id=1,
+                        data=update_data,
+                        current_user=mock_user,
+                        session=mock_session
+                    )
+                    
+                    mock_validate.assert_called_once()
+                    assert result is not None
 
 
 # =============================================================================

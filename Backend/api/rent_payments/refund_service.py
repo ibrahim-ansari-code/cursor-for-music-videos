@@ -144,7 +144,6 @@ async def create_refund(
         refund_params = {
             "charge": transaction.stripe_charge_id,
             "amount": data.amount_cents,
-            "reason": data.reason if data.reason in {"duplicate", "fraudulent", "requested_by_customer"} else None,
             "metadata": {
                 "transaction_id": str(transaction.id),
                 "tenant_id": str(transaction.tenant_id),
@@ -154,6 +153,9 @@ async def create_refund(
                 "platform": "brikli",
             },
         }
+        # Only include reason if it's a valid Stripe refund reason
+        if data.reason in {"duplicate", "fraudulent", "requested_by_customer"}:
+            refund_params["reason"] = data.reason
 
         # Platform fee is non-refundable (covers payment processing costs)
         # The refund_application_fee parameter is kept for API compatibility but always ignored
@@ -166,6 +168,16 @@ async def create_refund(
             idempotency_key=idempotency_key,
         )
 
+        # Map Stripe refund status to our internal status
+        stripe_status_map = {
+            "pending": RefundStatus.PENDING,
+            "succeeded": RefundStatus.SUCCEEDED,
+            "failed": RefundStatus.FAILED,
+            "canceled": RefundStatus.CANCELED,
+            "requires_action": RefundStatus.PROCESSING,
+        }
+        refund_status = stripe_status_map.get(stripe_refund.status, RefundStatus.PENDING)
+
         # Now create local refund record with Stripe refund ID
         refund = RentPaymentRefund(
             id=refund_uuid,  # Use the same UUID we generated for idempotency
@@ -176,7 +188,7 @@ async def create_refund(
             currency=transaction.currency,
             reason=data.reason,
             notes=data.notes,
-            status=RefundStatus.PENDING,
+            status=refund_status,  # Use status from Stripe response
             application_fee_refunded_cents=None,  # Platform fee is non-refundable
             initiated_by_user_id=user.id,
         )
@@ -330,13 +342,13 @@ async def list_refunds(
         query = query.where(col(RentPaymentRefund.transaction_id) == transaction_id)
     
     if status_filter:
-        # Validate that status_filter is a valid RefundStatus constant
+        # Validate status filter against RefundStatus constants
         valid_statuses = {
             RefundStatus.PENDING,
             RefundStatus.PROCESSING,
             RefundStatus.SUCCEEDED,
             RefundStatus.FAILED,
-            RefundStatus.CANCELED
+            RefundStatus.CANCELED,
         }
         if status_filter not in valid_statuses:
             raise HTTPException(
@@ -437,6 +449,22 @@ async def list_disputes(
     
     # Apply filters
     if status_filter:
+        # Validate status filter against DisputeStatus constants
+        valid_statuses = {
+            DisputeStatus.WARNING_NEEDS_RESPONSE,
+            DisputeStatus.WARNING_UNDER_REVIEW,
+            DisputeStatus.WARNING_CLOSED,
+            DisputeStatus.NEEDS_RESPONSE,
+            DisputeStatus.UNDER_REVIEW,
+            DisputeStatus.CHARGE_REFUNDED,
+            DisputeStatus.WON,
+            DisputeStatus.LOST,
+        }
+        if status_filter not in valid_statuses:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid dispute status filter: {status_filter}"
+            )
         query = query.where(col(RentPaymentDispute.status) == status_filter)
     
     if needs_attention_only:

@@ -64,11 +64,11 @@ async def test_notify_vendor_of_assignment_success():
     mock_tenant.last_name = "Tenant"
     mock_tenant.phone = "+0987654321"
     
-    with patch.object(VendorNotificationService, '_load_vendor', return_value=mock_vendor), \
-         patch.object(VendorNotificationService, '_load_user', return_value=mock_user), \
-         patch.object(VendorNotificationService, '_load_property', return_value=mock_property), \
-         patch.object(VendorNotificationService, '_load_unit', return_value=mock_unit), \
-         patch.object(VendorNotificationService, '_load_tenant', return_value=mock_tenant), \
+    with patch.object(VendorNotificationService, '_load_vendor', new=AsyncMock(return_value=mock_vendor)), \
+         patch.object(VendorNotificationService, '_load_user', new=AsyncMock(return_value=mock_user)), \
+         patch.object(VendorNotificationService, '_load_property', new=AsyncMock(return_value=mock_property)), \
+         patch.object(VendorNotificationService, '_load_unit', new=AsyncMock(return_value=mock_unit)), \
+         patch.object(VendorNotificationService, '_load_tenant', new=AsyncMock(return_value=mock_tenant)), \
          patch('Backend.api.maintenance.vendor_notification_service.SendGridService.send_raw_email', new=AsyncMock()) as mock_send:
         
         await VendorNotificationService.notify_vendor_of_assignment(mock_request, mock_session)
@@ -87,7 +87,7 @@ async def test_notify_vendor_of_assignment_vendor_not_found():
     mock_request = MagicMock()
     mock_request.vendor_id = 999
     
-    with patch.object(VendorNotificationService, '_load_vendor', return_value=None):
+    with patch.object(VendorNotificationService, '_load_vendor', new=AsyncMock(return_value=None)):
         # Should not crash, just log and return
         await VendorNotificationService.notify_vendor_of_assignment(mock_request, mock_session)
 
@@ -104,7 +104,7 @@ async def test_notify_vendor_of_assignment_no_vendor_email():
     mock_vendor = MagicMock()
     mock_vendor.email = None
     
-    with patch.object(VendorNotificationService, '_load_vendor', return_value=mock_vendor):
+    with patch.object(VendorNotificationService, '_load_vendor', new=AsyncMock(return_value=mock_vendor)):
         # Should not crash
         await VendorNotificationService.notify_vendor_of_assignment(mock_request, mock_session)
 
@@ -141,11 +141,11 @@ async def test_notify_vendor_of_assignment_minimal_data():
     mock_property = MagicMock()
     mock_property.address = "Address"
     
-    with patch.object(VendorNotificationService, '_load_vendor', return_value=mock_vendor), \
-         patch.object(VendorNotificationService, '_load_user', return_value=mock_user), \
-         patch.object(VendorNotificationService, '_load_property', return_value=mock_property), \
-         patch.object(VendorNotificationService, '_load_unit', return_value=None), \
-         patch.object(VendorNotificationService, '_load_tenant', return_value=None), \
+    with patch.object(VendorNotificationService, '_load_vendor', new=AsyncMock(return_value=mock_vendor)), \
+         patch.object(VendorNotificationService, '_load_user', new=AsyncMock(return_value=mock_user)), \
+         patch.object(VendorNotificationService, '_load_property', new=AsyncMock(return_value=mock_property)), \
+         patch.object(VendorNotificationService, '_load_unit', new=AsyncMock(return_value=None)), \
+         patch.object(VendorNotificationService, '_load_tenant', new=AsyncMock(return_value=None)), \
          patch('Backend.api.maintenance.vendor_notification_service.SendGridService.send_raw_email', new=AsyncMock()) as mock_send:
         
         await VendorNotificationService.notify_vendor_of_assignment(mock_request, mock_session)
@@ -195,11 +195,11 @@ async def test_notify_landlord_of_assignment_success():
     mock_tenant.first_name = "Bob"
     mock_tenant.last_name = "Tenant"
     
-    with patch.object(VendorNotificationService, '_load_vendor', return_value=mock_vendor), \
-         patch.object(VendorNotificationService, '_load_user', return_value=mock_user), \
-         patch.object(VendorNotificationService, '_load_property', return_value=mock_property), \
-         patch.object(VendorNotificationService, '_load_unit', return_value=mock_unit), \
-         patch.object(VendorNotificationService, '_load_tenant', return_value=mock_tenant), \
+    with patch.object(VendorNotificationService, '_load_vendor', new=AsyncMock(return_value=mock_vendor)), \
+         patch.object(VendorNotificationService, '_load_user', new=AsyncMock(return_value=mock_user)), \
+         patch.object(VendorNotificationService, '_load_property', new=AsyncMock(return_value=mock_property)), \
+         patch.object(VendorNotificationService, '_load_unit', new=AsyncMock(return_value=mock_unit)), \
+         patch.object(VendorNotificationService, '_load_tenant', new=AsyncMock(return_value=mock_tenant)), \
          patch('Backend.api.maintenance.vendor_notification_service.SendGridService.send_raw_email', new=AsyncMock()) as mock_send:
         
         await VendorNotificationService.notify_landlord_of_assignment(mock_request, mock_session)
@@ -219,7 +219,7 @@ async def test_notify_landlord_of_assignment_no_user_email():
     mock_user = MagicMock()
     mock_user.email = None
     
-    with patch.object(VendorNotificationService, '_load_user', return_value=mock_user):
+    with patch.object(VendorNotificationService, '_load_user', new=AsyncMock(return_value=mock_user)):
         # Should not crash
         await VendorNotificationService.notify_landlord_of_assignment(mock_request, mock_session)
 
@@ -256,10 +256,10 @@ async def test_notify_tenant_of_status_change_success():
     mock_vendor = MagicMock()
     mock_vendor.company_name = "Vendor Co"
     
-    with patch.object(VendorNotificationService, '_load_tenant', return_value=mock_tenant), \
-         patch.object(VendorNotificationService, '_load_property', return_value=mock_property), \
-         patch.object(VendorNotificationService, '_load_unit', return_value=mock_unit), \
-         patch.object(VendorNotificationService, '_load_vendor', return_value=mock_vendor), \
+    with patch.object(VendorNotificationService, '_load_tenant', new=AsyncMock(return_value=mock_tenant)), \
+         patch.object(VendorNotificationService, '_load_property', new=AsyncMock(return_value=mock_property)), \
+         patch.object(VendorNotificationService, '_load_unit', new=AsyncMock(return_value=mock_unit)), \
+         patch.object(VendorNotificationService, '_load_vendor', new=AsyncMock(return_value=mock_vendor)), \
          patch('Backend.api.maintenance.vendor_notification_service.SendGridService.send_raw_email', new=AsyncMock()) as mock_send:
         
         await VendorNotificationService.notify_tenant_of_status_change(
@@ -281,7 +281,7 @@ async def test_notify_tenant_of_status_change_tenant_not_found():
     mock_request = MagicMock()
     mock_request.tenant_id = 999
     
-    with patch.object(VendorNotificationService, '_load_tenant', return_value=None):
+    with patch.object(VendorNotificationService, '_load_tenant', new=AsyncMock(return_value=None)):
         # Should not crash
         await VendorNotificationService.notify_tenant_of_status_change(
             mock_request,
@@ -303,7 +303,7 @@ async def test_notify_tenant_of_status_change_no_tenant_email():
     mock_tenant.first_name = "Bob"
     mock_tenant.email = None
     
-    with patch.object(VendorNotificationService, '_load_tenant', return_value=mock_tenant):
+    with patch.object(VendorNotificationService, '_load_tenant', new=AsyncMock(return_value=mock_tenant)):
         # Should not crash
         await VendorNotificationService.notify_tenant_of_status_change(
             mock_request,
@@ -335,10 +335,10 @@ async def test_notify_tenant_status_change_to_completed():
     mock_property = MagicMock()
     mock_property.address = "Address"
     
-    with patch.object(VendorNotificationService, '_load_tenant', return_value=mock_tenant), \
-         patch.object(VendorNotificationService, '_load_property', return_value=mock_property), \
-         patch.object(VendorNotificationService, '_load_unit', return_value=None), \
-         patch.object(VendorNotificationService, '_load_vendor', return_value=None), \
+    with patch.object(VendorNotificationService, '_load_tenant', new=AsyncMock(return_value=mock_tenant)), \
+         patch.object(VendorNotificationService, '_load_property', new=AsyncMock(return_value=mock_property)), \
+         patch.object(VendorNotificationService, '_load_unit', new=AsyncMock(return_value=None)), \
+         patch.object(VendorNotificationService, '_load_vendor', new=AsyncMock(return_value=None)), \
          patch('Backend.api.maintenance.vendor_notification_service.SendGridService.send_raw_email', new=AsyncMock()) as mock_send:
         
         await VendorNotificationService.notify_tenant_of_status_change(
@@ -379,11 +379,11 @@ async def test_notify_vendor_email_send_failure():
     mock_property = MagicMock()
     mock_property.address = "Address"
     
-    with patch.object(VendorNotificationService, '_load_vendor', return_value=mock_vendor), \
-         patch.object(VendorNotificationService, '_load_user', return_value=mock_user), \
-         patch.object(VendorNotificationService, '_load_property', return_value=mock_property), \
-         patch.object(VendorNotificationService, '_load_unit', return_value=None), \
-         patch.object(VendorNotificationService, '_load_tenant', return_value=None), \
+    with patch.object(VendorNotificationService, '_load_vendor', new=AsyncMock(return_value=mock_vendor)), \
+         patch.object(VendorNotificationService, '_load_user', new=AsyncMock(return_value=mock_user)), \
+         patch.object(VendorNotificationService, '_load_property', new=AsyncMock(return_value=mock_property)), \
+         patch.object(VendorNotificationService, '_load_unit', new=AsyncMock(return_value=None)), \
+         patch.object(VendorNotificationService, '_load_tenant', new=AsyncMock(return_value=None)), \
          patch('Backend.api.maintenance.vendor_notification_service.SendGridService.send_raw_email', new=AsyncMock(side_effect=Exception("Email failed"))):
         
         # Should not raise exception, just log error

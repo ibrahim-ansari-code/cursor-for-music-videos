@@ -84,6 +84,7 @@ async def test_get_rent_tracker_success():
     mock_lease.property.name = "Test Property"
     mock_lease.tenant.first_name = "John"
     mock_lease.tenant.last_name = "Doe"
+    mock_lease.tenant.email = "john.doe@example.com"
     mock_lease.unit = None
     
     # Mock service methods
@@ -396,6 +397,7 @@ async def test_create_tracking_entry_success():
     mock_lease.property.name = "Test Property"
     mock_lease.tenant.first_name = "John"
     mock_lease.tenant.last_name = "Doe"
+    mock_lease.tenant.email = "john.doe@example.com"
     mock_lease.unit = None
     
     month_start = date(2024, 3, 1)

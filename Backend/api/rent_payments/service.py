@@ -1260,7 +1260,18 @@ async def create_payment_ledger_entry(
             session.add(transaction)
         await session.commit()
         return existing
-    
+
+    # Enforce succeeded_at timestamp for successful transactions
+    if not transaction.succeeded_at:
+        logger.error(
+            f"Cannot create ledger entry for transaction {transaction.id}: "
+            f"is_successful is True but succeeded_at is None."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Inconsistent transaction state: missing success timestamp."
+        )
+
     # Map payment method type to accounting enum
     payment_method_map: dict[str, PaymentMethodEnum] = {
         PaymentMethodType.ACSS_DEBIT.value: PaymentMethodEnum.BANK_TRANSFER,
@@ -1274,7 +1285,7 @@ async def create_payment_ledger_entry(
     # Create payment record
     payment = Payment(
         amount=transaction.amount_dollars,
-        payment_date=transaction.succeeded_at or transaction.created_at,
+        payment_date=transaction.succeeded_at,
         status=PaymentStatus.PAID,  # Transaction is successful, so payment is paid
         payment_method=payment_method,
         description=f"Online rent payment - {transaction.payment_method_type or 'Stripe'}",
@@ -1284,7 +1295,7 @@ async def create_payment_ledger_entry(
         tenant_id=transaction.tenant_id,
         user_id=transaction.landlord_user_id,
         stripe_payment_intent_id=transaction.stripe_payment_intent_id,
-        created_at=transaction.succeeded_at or utc_now(),
+        created_at=transaction.succeeded_at,
         updated_at=utc_now(),
     )
     

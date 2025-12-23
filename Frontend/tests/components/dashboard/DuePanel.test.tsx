@@ -36,6 +36,35 @@ vi.mock('../../../src/utils/formatters', () => ({
   getInitials: (name: string) => name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2),
 }));
 
+// Mock ReminderMethodModal - auto-selects 'email' method when rendered
+vi.mock('../../../src/components/tenants/TenantProfile/ReminderMethodModal', () => ({
+  default: ({ isOpen, onClose, onSelect }: any) => {
+    // Automatically select 'email' when modal opens to trigger the confirmation modal flow
+    React.useEffect(() => {
+      if (isOpen) {
+        // Small delay to simulate user clicking
+        const timer = setTimeout(() => onSelect('email'), 10);
+        return () => clearTimeout(timer);
+      }
+    }, [isOpen, onSelect]);
+
+    if (!isOpen) return null;
+    return (
+      <div data-testid="method-modal">
+        <button data-testid="method-email" onClick={() => onSelect('email')}>
+          Send via Email
+        </button>
+        <button data-testid="method-portal" onClick={() => onSelect('portal')}>
+          Send via Portal
+        </button>
+        <button data-testid="method-close" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    );
+  },
+}));
+
 // Mock ReminderConfirmationModal
 vi.mock('../../../src/components/tenants/TenantProfile/ReminderConfirmationModal', () => ({
   default: ({ isOpen, onClose, onConfirm, tenant, event, isLoading }: any) => {
@@ -49,9 +78,9 @@ vi.mock('../../../src/components/tenants/TenantProfile/ReminderConfirmationModal
         <button data-testid="modal-cancel" onClick={onClose} disabled={isLoading}>
           Cancel
         </button>
-        <button 
-          data-testid="modal-confirm" 
-          onClick={() => onConfirm(null, null)} 
+        <button
+          data-testid="modal-confirm"
+          onClick={() => onConfirm(null, null)}
           disabled={isLoading}
         >
           {isLoading ? 'Sending...' : 'Send Reminder'}
