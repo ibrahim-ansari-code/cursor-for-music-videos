@@ -378,14 +378,14 @@ async def test_create_maintenance_request_success():
             
             # Mock the notification orchestrator to prevent email queries
             with patch('Backend.api.maintenance.service.send_maintenance_notifications', new=AsyncMock()):
-                # Mock the in-app notification service as well
-                with patch('Backend.api.maintenance.service.NotificationService.create_notification', new=AsyncMock()):
+                # Mock the in-app notification service - patch where it's imported from
+                with patch('Backend.api.notifications.service.NotificationService.create_notification', new=AsyncMock()):
                     result = await MaintenanceService.create_maintenance_request(
                         data=data,
                         current_user=mock_user,
                         session=mock_session
                     )
-                    
+
                     mock_session.add.assert_called_once()
                     mock_session.commit.assert_called_once()
                     # We now re-query instead of refresh

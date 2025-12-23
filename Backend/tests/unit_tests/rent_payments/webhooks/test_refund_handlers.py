@@ -47,7 +47,8 @@ def mock_session():
 @pytest.fixture
 def mock_transaction():
     """Create mock rent payment transaction."""
-    transaction = MagicMock(spec=RentPaymentTransaction)
+    # Don't use spec= because total_refunded_cents is a @property that needs special handling
+    transaction = MagicMock()
     transaction.id = uuid4()
     transaction.stripe_payment_intent_id = "pi_test123"
     transaction.stripe_charge_id = "ch_test456"
@@ -128,17 +129,21 @@ async def test_handle_refund_created_new_refund(mock_session, refund_created):
 
 
 @pytest.mark.asyncio
-async def test_handle_refund_created_existing_refund(mock_session, mock_refund, refund_created):
-    """Test refund created when refund already exists."""
+async def test_handle_refund_created_existing_refund(mock_session, mock_refund, mock_transaction, refund_created):
+    """Test refund created when refund already exists and needs status update."""
     # Arrange
-    mock_session.scalar.return_value = mock_refund  # Refund already exists
-    
+    mock_refund.status = RefundStatus.PENDING  # Local refund is pending
+    mock_refund.transaction_id = mock_transaction.id
+    # First scalar call returns refund, second returns transaction
+    mock_session.scalar.side_effect = [mock_refund, mock_transaction]
+    mock_session.get.return_value = None  # No ledger payment
+
     # Act
     await handle_refund_created(refund_created, mock_session)
-    
-    # Assert - should return early
-    mock_session.add.assert_not_called()
-    mock_session.commit.assert_not_called()
+
+    # Assert - should update refund and transaction status
+    assert mock_session.add.called
+    await mock_session.commit.assert_called()
 
 
 @pytest.mark.asyncio
@@ -173,12 +178,14 @@ async def test_handle_refund_updated_to_succeeded(
     }
     mock_refund.status = RefundStatus.PENDING
     mock_refund.transaction = mock_transaction
-    mock_session.scalar.return_value = mock_refund
-    mock_session.get.return_value = mock_transaction
-    
+    mock_refund.transaction_id = mock_transaction.id
+    # First scalar call returns refund, second returns transaction
+    mock_session.scalar.side_effect = [mock_refund, mock_transaction]
+    mock_session.get.return_value = None  # No ledger payment
+
     # Act
     await handle_refund_updated(refund, mock_session)
-    
+
     # Assert
     assert mock_refund.status == RefundStatus.SUCCEEDED
     assert mock_refund.succeeded_at is not None
@@ -216,20 +223,20 @@ async def test_handle_refund_updated_full_refund_updates_transaction(
     mock_refund.transaction = mock_transaction
     mock_refund.transaction_id = mock_transaction.id
     mock_refund.amount_cents = 200000  # This refund is for the full amount
-    mock_refund.status = RefundStatus.SUCCEEDED
-    
-    # Mock the refunds relationship so total_refunded_cents property works
-    mock_transaction.refunds = [mock_refund]
+    mock_refund.status = RefundStatus.PENDING  # Will be updated to SUCCEEDED
+
+    # Set up transaction with total_refunded_cents >= amount_cents for full refund
     mock_transaction.amount_cents = 200000
-    # Mock the property to return the calculated value
-    type(mock_transaction).total_refunded_cents = property(lambda self: sum(r.amount_cents for r in self.refunds if r.status != RefundStatus.FAILED))
-    
-    mock_session.scalar.return_value = mock_refund
-    mock_session.get.return_value = mock_transaction
-    
+    mock_transaction.total_refunded_cents = 200000  # Full refund
+    mock_transaction.payment_id = None  # No ledger payment
+
+    # First scalar call returns refund, second returns transaction
+    mock_session.scalar.side_effect = [mock_refund, mock_transaction]
+    mock_session.get.return_value = None  # No ledger payment
+
     # Act
     await handle_refund_updated(refund, mock_session)
-    
+
     # Assert
     assert mock_transaction.status == RentPaymentTransactionStatus.REFUNDED
     assert mock_transaction.refunded_at is not None
@@ -476,23 +483,27 @@ async def test_refund_handlers_handle_none_refund_id(mock_session):
 async def test_handle_refund_updated_partial_refund(
     mock_send_notification, mock_session, mock_refund, mock_transaction
 ):
-    """Test refund updated with partial refund (doesn't mark transaction as refunded)."""
+    """Test refund updated with partial refund marks transaction as partially refunded."""
     # Arrange
     refund = {
         "id": "re_test789",
         "status": "succeeded",
     }
     mock_refund.transaction = mock_transaction
+    mock_refund.transaction_id = mock_transaction.id
+    mock_refund.status = RefundStatus.PENDING
     mock_transaction.total_refunded_cents = 100000  # Partial (50%)
     mock_transaction.amount_cents = 200000
-    mock_session.scalar.return_value = mock_refund
-    mock_session.get.return_value = mock_transaction
-    
+    mock_transaction.payment_id = None
+    # First scalar call returns refund, second returns transaction
+    mock_session.scalar.side_effect = [mock_refund, mock_transaction]
+    mock_session.get.return_value = None
+
     # Act
     await handle_refund_updated(refund, mock_session)
-    
-    # Assert - transaction status should NOT change to refunded
-    assert mock_transaction.status == RentPaymentTransactionStatus.SUCCEEDED
+
+    # Assert - transaction status should be PARTIALLY_REFUNDED
+    assert mock_transaction.status == RentPaymentTransactionStatus.PARTIALLY_REFUNDED
 
 
 @pytest.mark.asyncio
@@ -508,12 +519,14 @@ async def test_handle_refund_updated_no_transaction_for_refund(
     }
     mock_refund.transaction = None
     mock_refund.transaction_id = uuid4()
-    mock_session.scalar.return_value = mock_refund
-    mock_session.get.return_value = None  # No transaction
-    
+    mock_refund.status = RefundStatus.PENDING
+    # First scalar call returns refund, second returns None (transaction not found)
+    mock_session.scalar.side_effect = [mock_refund, None]
+    mock_session.get.return_value = None
+
     # Act
     await handle_refund_updated(refund, mock_session)
-    
+
     # Assert - should still update refund status
     assert mock_refund.status == RefundStatus.SUCCEEDED
     mock_session.commit.assert_called_once()

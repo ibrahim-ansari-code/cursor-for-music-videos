@@ -753,11 +753,11 @@ class DashboardService:
 
         has_autopay = autopay_enrollment is not None and autopay_enrollment.is_active
         autopay_status = autopay_enrollment.status if autopay_enrollment else "not_enrolled"
-        next_autopay_date = (
-            autopay_enrollment.next_scheduled_at.date().isoformat()
-            if autopay_enrollment and autopay_enrollment.next_scheduled_at
-            else None
-        )
+        # Handle both date and datetime types for next_scheduled_at
+        next_autopay_date = None
+        if autopay_enrollment and autopay_enrollment.next_scheduled_at:
+            ns = autopay_enrollment.next_scheduled_at
+            next_autopay_date = (ns.date() if isinstance(ns, datetime) else ns).isoformat()
 
         # Format balance
         current_balance_str = f"{current_balance_cents / 100:.2f}"

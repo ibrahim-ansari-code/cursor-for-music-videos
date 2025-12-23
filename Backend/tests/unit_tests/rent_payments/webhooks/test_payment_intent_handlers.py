@@ -46,7 +46,8 @@ def mock_session():
 @pytest.fixture
 def mock_transaction():
     """Create mock rent payment transaction."""
-    transaction = MagicMock(spec=RentPaymentTransaction)
+    # Don't use spec= to allow flexible attribute assignment
+    transaction = MagicMock()
     transaction.id = uuid4()
     transaction.stripe_payment_intent_id = "pi_test123"
     transaction.amount_cents = 200000  # $2000
@@ -118,15 +119,15 @@ async def test_handle_payment_intent_succeeded_success(
     """Test successful payment intent succeeded handler."""
     # Arrange
     mock_session.scalar.return_value = mock_transaction
-    
+
     # Act
     await handle_payment_intent_succeeded(payment_intent_succeeded, mock_session)
-    
+
     # Assert
     assert mock_transaction.status == RentPaymentTransactionStatus.SUCCEEDED
     assert mock_transaction.succeeded_at is not None
-    assert mock_transaction.payment_method_type == "card"
-    assert mock_transaction.payment_method_last_four == "4242"
+    # NOTE: payment_method_details are extracted from charge.succeeded, not payment_intent.succeeded
+    # The payment intent handler only updates status and creates ledger entry
     # add() is called twice: once for transaction, once for ledger payment
     assert mock_session.add.call_count == 2
     assert mock_session.commit.call_count == 2  # Once for transaction, once for ledger
@@ -136,27 +137,26 @@ async def test_handle_payment_intent_succeeded_success(
 async def test_handle_payment_intent_succeeded_with_acss_debit(
     mock_session, mock_transaction
 ):
-    """Test payment intent succeeded with ACSS debit payment method."""
+    """Test payment intent succeeded with ACSS debit payment method.
+
+    NOTE: payment_method_details are extracted from charge.succeeded webhook,
+    not payment_intent.succeeded. This test verifies the handler processes
+    the payment intent correctly regardless of payment method.
+    """
     # Arrange
     payment_intent = {
         "id": "pi_test123",
-        "payment_method_details": {
-            "acss_debit": {
-                "last4": "6789",
-                "bank_name": "TD Bank",
-                "institution_number": "004",
-            }
-        },
+        # payment_method_details are NOT on PaymentIntent - they're on Charge
+        # This test verifies the handler works without them
     }
     mock_session.scalar.return_value = mock_transaction
-    
+
     # Act
     await handle_payment_intent_succeeded(payment_intent, mock_session)
-    
-    # Assert
-    assert mock_transaction.payment_method_type == "acss_debit"
-    assert mock_transaction.payment_method_last_four == "6789"
-    assert mock_transaction.payment_method_bank_name == "TD Bank"
+
+    # Assert - verify status was updated (payment method details come from charge webhook)
+    assert mock_transaction.status == RentPaymentTransactionStatus.SUCCEEDED
+    assert mock_transaction.succeeded_at is not None
 
 
 @pytest.mark.asyncio

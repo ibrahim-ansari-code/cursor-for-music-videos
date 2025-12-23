@@ -595,22 +595,28 @@ class TestDashboardServicePaymentsDue:
         """Test payments due overdue days calculation."""
         mock_session = AsyncMock()
         mock_property_query = MagicMock()
-        
+
         # Create mock invoice with past due date
         mock_invoice = create_mock_invoice()
         mock_invoice.due_date = date.today() - timedelta(days=5)
-        
+        mock_property = create_mock_property()
+
+        # Create proper async mock results
+        properties_result = MagicMock()
+        properties_result.scalars.return_value.all.return_value = [mock_property]
+
+        invoices_result = MagicMock()
+        invoices_result.scalars.return_value.all.return_value = [mock_invoice]
+
         mock_session.execute.side_effect = [
-            # Properties query
-            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[create_mock_property()])))),
-            # Invoices query
-            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[mock_invoice]))))
+            properties_result,
+            invoices_result
         ]
-        
+
         payments_due = await DashboardService._get_payments_due(
             mock_session, mock_property_query
         )
-        
+
         assert len(payments_due) == 1
         assert payments_due[0].days_overdue == 5
     

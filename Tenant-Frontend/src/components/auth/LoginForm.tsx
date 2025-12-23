@@ -1,5 +1,5 @@
 import React, { useState, useEffect, type FormEvent, type ChangeEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import GoogleSignInButton from './GoogleSignInButton';
 import MicrosoftSignInButton from './MicrosoftSignInButton';
@@ -185,7 +185,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess: _onSuccess }) => {
             {error && (
               <div className="rounded-md bg-red-50 p-4">
                 <div className="flex">
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <svg
                       className="h-5 w-5 text-red-400"
                       xmlns="http://www.w3.org/2000/svg"
@@ -211,7 +211,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess: _onSuccess }) => {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex w-full justify-center rounded-md border border-transparent bg-brand-teal py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-teal/90 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2 disabled:opacity-75"
+                className="flex w-full justify-center rounded-md border border-transparent bg-gray-900 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:opacity-75"
               >
                 {loading ? "Signing in..." : "Sign in"}
               </button>
@@ -225,16 +225,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess: _onSuccess }) => {
               >
                 Forgot your password?
               </button>
-            </div>
-
-            <div className="text-center text-sm text-gray-600">
-              Don't have an account?{" "}
-              <Link
-                to="/register"
-                className="font-medium text-brand-teal hover:text-brand-teal/80"
-              >
-                Register
-              </Link>
             </div>
           </form>
         </div>
@@ -287,7 +277,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess: _onSuccess }) => {
                 {resetError && (
                   <div className="rounded-md bg-red-50 p-3">
                     <div className="flex">
-                      <div className="flex-shrink-0">
+                      <div className="shrink-0">
                         <svg
                           className="h-5 w-5 text-red-400"
                           xmlns="http://www.w3.org/2000/svg"
@@ -311,7 +301,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess: _onSuccess }) => {
                 {resetMessage && (
                   <div className="rounded-md bg-green-50 p-3">
                     <div className="flex">
-                      <div className="flex-shrink-0">
+                      <div className="shrink-0">
                         <svg
                           className="h-5 w-5 text-green-400"
                           xmlns="http://www.w3.org/2000/svg"

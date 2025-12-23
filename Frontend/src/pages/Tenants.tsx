@@ -496,8 +496,10 @@ const Tenants: React.FC = () => {
     setIsModalOpen(true);
   });
 
-  // Handle tenant save (create) - TanStack Query will auto-refresh
+  // Handle tenant save (create) - invalidate cache to refresh table
   const handleSaveTenant = async () => {
+    // Invalidate tenant queries to refresh the table
+    queryClient.invalidateQueries({ queryKey: ['tenants'] });
     // Close modal
     setIsModalOpen(false);
   };

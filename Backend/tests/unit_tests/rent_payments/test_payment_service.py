@@ -103,6 +103,7 @@ def mock_connected_account():
     account.charges_enabled = True
     account.payouts_enabled = True
     account.is_fully_onboarded = True
+    account.accepted_payment_methods = ["card", "acss_debit"]
     return account
 
 

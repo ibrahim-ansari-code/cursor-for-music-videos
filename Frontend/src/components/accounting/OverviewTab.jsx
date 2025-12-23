@@ -11,7 +11,6 @@ import { PropertyFilter, PropertyFilterSkeleton } from "../common/PropertyFilter
 import { useAccounting } from "./AccountingContext";
 import {
   useAccountingOverview,
-  useOutstandingPayments,
   useExpenses,
   useReportSummary,
   useRentTracker,
@@ -76,11 +75,28 @@ const OverviewTab = () => {
 
   // TanStack Query hooks
   const { data: overviewQueryData, isLoading: overviewLoading, error: overviewError } = useAccountingOverview(queryParams);
-  const { data: outstandingPayments = [], isLoading: paymentsLoading, error: paymentsError } = useOutstandingPayments(queryParams);
   const { data: expensesResponse, isLoading: expensesLoading, error: expensesError } = useExpenses(expenseParams);
   const { properties, loading: propertiesLoading, error: propertiesError } = useProperties();
   const { data: reportData, isLoading: reportLoading, error: reportError } = useReportSummary(reportParams);
   const { data: rentTrackerData = [], isLoading: rentTrackerLoading, error: rentTrackerError } = useRentTracker(rentTrackerParams);
+
+  // Derive outstanding payments from rent tracker data (DUE, PARTIAL, OVERDUE)
+  const outstandingPayments = useMemo(() => {
+    if (!Array.isArray(rentTrackerData)) return [];
+
+    return rentTrackerData
+      .filter((entry) =>
+        entry.status === "DUE" || entry.status === "PARTIAL" || entry.status === "OVERDUE"
+      )
+      .map((entry) => ({
+        id: entry.tenant_id || entry.id,
+        tenant_name: entry.tenant_name || "Unknown Tenant",
+        property_name: entry.property_name || "Unknown Property",
+        unit_name: entry.unit_name || "",
+        status: entry.status === "OVERDUE" ? "Overdue" : entry.status === "PARTIAL" ? "Partial" : "Due",
+        amount: parseFloat(entry.remaining_due) || 0,
+      }));
+  }, [rentTrackerData]);
 
   // Extract expenses from paginated response and enhance with property names
   const expenses = useMemo(() => {
@@ -102,10 +118,10 @@ const OverviewTab = () => {
   }, [expensesResponse, properties]);
 
   // Combine all loading states
-  const loading = overviewLoading || paymentsLoading || expensesLoading || propertiesLoading || reportLoading || rentTrackerLoading;
+  const loading = overviewLoading || expensesLoading || propertiesLoading || reportLoading || rentTrackerLoading;
 
-  // Combine all error states  
-  const error = overviewError || paymentsError || expensesError || propertiesError || reportError || rentTrackerError;
+  // Combine all error states
+  const error = overviewError || expensesError || propertiesError || reportError || rentTrackerError;
 
   // Memoize the total outstanding amount calculation
   const totalOutstandingAmount = useMemo(() => {
@@ -524,10 +540,10 @@ const OverviewTab = () => {
                         {payment.tenant_name}
                       </div>
                       <div className="text-gray-500 dark:text-gray-400 text-xs">
-                        {payment.property_name}
+                        {payment.property_name}{payment.unit_name ? ` - ${payment.unit_name}` : ''}
                       </div>
                     </div>
-                    <div className="col-span-3 flex items-center justify-center">
+                    <div className="col-span-3 flex items-center justify-center text-center">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           payment.status === "Overdue"

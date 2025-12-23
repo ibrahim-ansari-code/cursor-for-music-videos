@@ -1075,15 +1075,15 @@ async def cancel_autopay(
 async def _get_tenant_for_user(user: User, session: AsyncSession) -> Tenant:
     """Get tenant record for a user."""
     if user.user_type != UserType.TENANT:
-            raise HTTPException(
+        raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only tenants can access this resource"
         )
-    
+
     tenant = await session.scalar(
         select(Tenant).where(col(Tenant.user_id) == user.id)
-            )
-        
+    )
+
     if not tenant:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
