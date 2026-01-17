@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Frontend upload (audio.mp3 + theme_image)
+→ POST /uploads (multipart/form-data)
+→ Backend API
 
-## Getting Started
+Backend API validate + persist
+→ PUT audio.mp3 to Object Storage (S3/R2)
+→ PUT theme_image to Object Storage (S3/R2)
+→ receive audio_url + image_url
+→ POST /jobs {audio_url, image_url, user_options}
+→ enqueue job_id
+→ return job_id to Frontend
 
-First, run the development server:
+Frontend progress
+→ GET /jobs/:job_id (poll)
+→ Backend API (status)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Queue
+→ Worker (job_id, audio_url, image_url, options)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Worker timing prep
+→ fetch audio_url metadata
+→ ffprobe audio_url → audio_duration_s
+→ (optional) build initial segments template (fixed windows) if needed
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Worker lyrics + timestamps
+→ POST ElevenLabs Speech-to-Text { cloud_storage_url: audio_url }
+→ receive transcript + timestamps (word/segment timing)
+→ build segments[] = [{start_s,end_s,lyric_snippet}] aligned to audio_duration_s
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Worker start Gumloop run
+→ POST https://api.gumloop.com/api/v1/start_pipeline
+→ pipeline_inputs: { image_url, transcript, segments[], audio_duration_s, user_options }
+→ receive gumloop_run_id
 
-## Learn More
+Gumloop flow (internal)
+→ Ask AI #1 (GLOBAL MOOD + GLOBAL STYLE) using {transcript, image_url}
+→ output global_mood + global_style
+→ Ask AI #2 (SCENE PROMPTS) using {global_mood, global_style, segments[]}
+→ output scenes[] where each scene keeps exact {start_s,end_s} and adds {prompt,camera,motion,negative_prompt}
+→ Output node emits {global_mood, global_style, scenes[]}
 
-To learn more about Next.js, take a look at the following resources:
+Worker poll Gumloop outputs
+→ GET https://api.gumloop.com/api/v1/get_pl_run?run_id=gumloop_run_id
+→ receive {global_mood, global_style, scenes[]}
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Worker generate silent scene clips (external video model)
+→ for each scene in scenes[] (in order)
+→ POST VideoGenAPI { prompt, ref_image_url:image_url, duration_s:(end_s-start_s), style:global_style }
+→ receive clip_url OR provider_job_id
+→ if provider_job_id
+→ poll VideoGenAPI status until clip_url
+→ collect clip_urls[] in order
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Worker compose final music video with original audio
+→ download/stream clip_urls[]
+→ ffmpeg concat clip_urls[] → temp_video.mp4 (duration matches audio_duration_s)
+→ ffmpeg mux temp_video.mp4 + audio_url → final_video.mp4
+→ trim/pad final_video.mp4 to exactly audio_duration_s
 
-## Deploy on Vercel
+Worker store final output + update job
+→ PUT final_video.mp4 to Object Storage
+→ receive final_video_url
+→ PATCH /jobs/:job_id {status:"done", final_video_url, global_mood, global_style}
+→ Backend API
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Frontend completion
+→ GET /jobs/:job_id
+→ receive final_video_url (+ optional global_mood/global_style)
+→ play/download final video
