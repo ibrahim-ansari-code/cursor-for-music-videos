@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@theme {
+  --color-comic-yellow: #FFE600;
+  --color-comic-red: #FF4141;
+  --color-comic-blue: #0057FF;
+  --color-comic-bg: #FAF9F6;
+  
+  --font-bangers: var(--font-bangers);
+  --font-comic: var(--font-comic);
+}
+
+:root {
+  --background: #FAF9F6;
+  --foreground: #171717;
+  --border-comic-val: 3px solid black;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-comic);
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Halftone & Dotted Background Pattern */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* Layer 2: Subtle Halftone Gradient Overlays (Top) */
+  background-image: 
+    radial-gradient(circle at top left, rgba(0,0,0,0.06) 0%, transparent 70%),
+    radial-gradient(circle at bottom right, rgba(0,0,0,0.04) 0%, transparent 75%),
+    /* Layer 1: Dotted Background Pattern (Base) with corner mask */
+    radial-gradient(rgba(0,0,0,0.08) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 14px 14px;
+  /* Soft halftone fade for dots from corners */
+  mask-image: 
+    radial-gradient(circle at top left, black 0%, transparent 60%),
+    radial-gradient(circle at bottom right, black 0%, transparent 60%),
+    radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, transparent 80%);
+  mask-composite: add;
+  -webkit-mask-image: 
+    radial-gradient(circle at top left, black 0%, transparent 60%),
+    radial-gradient(circle at bottom right, black 0%, transparent 60%),
+    radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, transparent 80%);
+  -webkit-mask-composite: source-over;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.comic-border {
+  border: var(--border-comic-val);
+  box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+  transition: all 0.2s ease;
+}
+
+.comic-border:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);
+}
+
+.comic-button {
+  border: var(--border-comic-val);
+  padding: 0.5rem 1.5rem;
+  font-family: var(--font-bangers);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 1.25rem;
+  box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+  transition: all 0.1s ease;
+  cursor: pointer;
+}
+
+.comic-button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+}
+
+.comic-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+}
