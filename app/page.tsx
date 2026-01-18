@@ -84,7 +84,7 @@ export default function Home() {
             </span> <br className="hidden md:block" />
             <span className="relative inline-block">
               &
-              <div className="absolute top-[36px] -left-[350px] w-32 h-32 z-[60] flex items-center justify-center">
+              <div className="absolute top-[236px] -left-[250px] w-32 h-32 z-[60] flex items-center justify-center">
                 <StickerPeel
                   imageSrc="/Click%20Me.png"
                   width={110}
