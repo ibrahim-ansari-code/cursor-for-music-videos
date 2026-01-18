@@ -14,6 +14,10 @@
   --background: #FAF9F6;
   --foreground: #171717;
   --border-comic-val: 3px solid black;
+
+  /* Halftone Variables */
+  --halftone-dot-color: rgba(0, 0, 0, 0.3);
+  --halftone-blob-color: rgba(0, 0, 0, 0.6);
 }
 
 body {
@@ -24,34 +28,18 @@ body {
   position: relative;
 }
 
-/* Halftone & Dotted Background Pattern */
-body::before {
-  content: "";
+/* Halftone Utilities */
+.halftone-bg {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  /* Layer 2: Subtle Halftone Gradient Overlays (Top) */
-  background-image: 
-    radial-gradient(circle at top left, rgba(0,0,0,0.06) 0%, transparent 70%),
-    radial-gradient(circle at bottom right, rgba(0,0,0,0.04) 0%, transparent 75%),
-    /* Layer 1: Dotted Background Pattern (Base) with corner mask */
-    radial-gradient(rgba(0,0,0,0.08) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 14px 14px;
-  /* Soft halftone fade for dots from corners */
-  mask-image: 
-    radial-gradient(circle at top left, black 0%, transparent 60%),
-    radial-gradient(circle at bottom right, black 0%, transparent 60%),
-    radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, transparent 80%);
-  mask-composite: add;
-  -webkit-mask-image: 
-    radial-gradient(circle at top left, black 0%, transparent 60%),
-    radial-gradient(circle at bottom right, black 0%, transparent 60%),
-    radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, transparent 80%);
-  -webkit-mask-composite: source-over;
+  inset: 0;
   pointer-events: none;
-  z-index: -1;
+  z-index: -10;
+  overflow: hidden;
+}
+
+.halftone-dot-pattern {
+  background-image: radial-gradient(var(--halftone-dot-color) 1.2px, transparent 1.2px);
+  background-size: 16px 16px;
 }
 
 .comic-border {

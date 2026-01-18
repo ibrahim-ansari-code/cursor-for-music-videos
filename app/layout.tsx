@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bangers, Comic_Neue } from "next/font/google";
 import "./comic.css";
+import HalftoneBackground from "@/components/HalftoneBackground";
 
 const bangers = Bangers({
   weight: "400",
@@ -27,6 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${bangers.variable} ${comicNeue.variable} antialiased`}>
+        <HalftoneBackground />
         {children}
       </body>
     </html>

@@ -101,9 +101,6 @@ export default function AudiobookPage() {
                 </svg>
                 <span>DOWNLOAD AUDIO (MP3)</span>
               </button>
-              <button className="bg-white comic-button text-2xl px-12 py-4 text-gray-500">
-                SHARE STORY
-              </button>
             </div>
           </div>
         )}
