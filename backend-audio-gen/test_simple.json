@@ -1,0 +1,36 @@
+{
+  "book_id": "test_book",
+  "chapter_id": "test_chapter",
+  "panel_id": "test_panel",
+  "character_registry": [
+    {
+      "character_id": "char_001",
+      "name_or_label": "Hero",
+      "voice_requirements": {
+        "voice_gender": "male",
+        "age_range": "adult",
+        "pitch": "medium",
+        "pacing": "normal",
+        "energy": "medium",
+        "timbre": "clear",
+        "accent_preference": "none"
+      }
+    }
+  ],
+  "script_lines": [
+    {
+      "speaker": "Narrator",
+      "text": "Once upon a time, there was a hero.",
+      "emotion": "calm",
+      "intensity_1_to_10": 3,
+      "pause_ms_after": 500
+    },
+    {
+      "speaker": "char_001",
+      "text": "I am ready for adventure!",
+      "emotion": "excited",
+      "intensity_1_to_10": 7,
+      "pause_ms_after": 300
+    }
+  ]
+}

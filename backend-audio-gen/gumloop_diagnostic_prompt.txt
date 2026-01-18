@@ -1,0 +1,21 @@
+I'm having an issue where my Gumloop pipeline isn't using the image_url I'm sending via the API.
+
+PROBLEM:
+- I'm POSTing to /api/v1/start_pipeline with body: {"image_url": "https://example.com/image.jpg"}
+- Gumloop accepts the request (200 OK) and returns a run_id
+- But the Ask AI node is returning the SAME content for different image URLs
+- When I check the node's inputs/outputs, the image_url field shows as empty or not provided
+
+MY PIPELINE SETUP:
+- First node: Receives pipeline input
+- Second node: Ask AI node with prompt that references {image_url} or {{image_url}}
+- The Ask AI node has a default value box where I've configured image_url
+
+QUESTIONS:
+1. How do I configure the Ask AI node to receive the image_url from the pipeline input (not just use a default value)?
+2. Should the image_url be in the pipeline's input schema/definition, or can it be passed directly in the POST body?
+3. In the Ask AI node, should I reference {image_url} or {{image_url}} in the prompt?
+4. Is there an "Inputs" or "Variables" section in the Ask AI node where I need to map pipeline inputs?
+5. Why would Gumloop accept the request but not pass the image_url to the node?
+
+Please help me diagnose why the image_url from the API request isn't reaching the Ask AI node.

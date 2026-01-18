@@ -1,0 +1,63 @@
+{
+  "book_id": "test_comic",
+  "chapter_id": "ch1",
+  "panel_id": "p1",
+  "character_registry": [
+    {
+      "character_id": "hero",
+      "name_or_label": "The Hero",
+      "voice_requirements": {
+        "voice_gender": "male",
+        "age_range": "adult",
+        "pitch": "medium",
+        "pacing": "normal",
+        "energy": "high",
+        "timbre": "clear",
+        "accent_preference": "none"
+      }
+    },
+    {
+      "character_id": "villain",
+      "name_or_label": "The Villain",
+      "voice_requirements": {
+        "voice_gender": "male",
+        "age_range": "adult",
+        "pitch": "low",
+        "pacing": "slow",
+        "energy": "medium",
+        "timbre": "gravelly",
+        "accent_preference": "none"
+      }
+    }
+  ],
+  "script_lines": [
+    {
+      "speaker": "Narrator",
+      "text": "In a world where heroes and villains clash, our story begins.",
+      "emotion": "dramatic",
+      "intensity_1_to_10": 5,
+      "pause_ms_after": 500
+    },
+    {
+      "speaker": "hero",
+      "text": "I won't let you destroy this city!",
+      "emotion": "determined",
+      "intensity_1_to_10": 9,
+      "pause_ms_after": 400
+    },
+    {
+      "speaker": "villain",
+      "text": "You're too late, hero. My plan is already in motion.",
+      "emotion": "menacing",
+      "intensity_1_to_10": 8,
+      "pause_ms_after": 500
+    },
+    {
+      "speaker": "hero",
+      "text": "We'll see about that!",
+      "emotion": "confident",
+      "intensity_1_to_10": 7,
+      "pause_ms_after": 0
+    }
+  ]
+}

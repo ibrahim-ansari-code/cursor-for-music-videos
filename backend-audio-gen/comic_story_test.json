@@ -1,0 +1,131 @@
+{
+  "book_id": "space_adventures_vol1",
+  "chapter_id": "chapter_01",
+  "panel_id": "panel_001",
+  "character_registry": [
+    {
+      "character_id": "captain_zara",
+      "name_or_label": "Captain Zara",
+      "voice_requirements": {
+        "voice_gender": "female",
+        "age_range": "adult",
+        "pitch": "medium",
+        "pacing": "normal",
+        "energy": "high",
+        "timbre": "clear",
+        "accent_preference": "none"
+      }
+    },
+    {
+      "character_id": "engineer_marcus",
+      "name_or_label": "Engineer Marcus",
+      "voice_requirements": {
+        "voice_gender": "male",
+        "age_range": "adult",
+        "pitch": "low",
+        "pacing": "slow",
+        "energy": "low",
+        "timbre": "warm",
+        "accent_preference": "none"
+      }
+    },
+    {
+      "character_id": "ai_nexus",
+      "name_or_label": "AI Nexus",
+      "voice_requirements": {
+        "voice_gender": "neutral",
+        "age_range": "adult",
+        "pitch": "medium",
+        "pacing": "normal",
+        "energy": "medium",
+        "timbre": "clear",
+        "accent_preference": "none"
+      }
+    },
+    {
+      "character_id": "alien_commander",
+      "name_or_label": "Alien Commander",
+      "voice_requirements": {
+        "voice_gender": "male",
+        "age_range": "elderly",
+        "pitch": "low",
+        "pacing": "slow",
+        "energy": "medium",
+        "timbre": "gravelly",
+        "accent_preference": "none"
+      }
+    }
+  ],
+  "script_lines": [
+    {
+      "speaker": "Narrator",
+      "text": "In the year 2157, aboard the starship Aurora, Captain Zara receives an urgent transmission.",
+      "emotion": "mysterious",
+      "intensity_1_to_10": 5,
+      "pause_ms_after": 600
+    },
+    {
+      "speaker": "captain_zara",
+      "text": "Marcus, what's the status on that signal?",
+      "emotion": "urgent",
+      "intensity_1_to_10": 7,
+      "pause_ms_after": 400
+    },
+    {
+      "speaker": "engineer_marcus",
+      "text": "Captain, it's coming from an unknown sector. The signal is encrypted, but I'm working on it.",
+      "emotion": "focused",
+      "intensity_1_to_10": 6,
+      "pause_ms_after": 500
+    },
+    {
+      "speaker": "ai_nexus",
+      "text": "Analysis complete. The transmission originates from coordinates previously marked as uninhabited.",
+      "emotion": "calm",
+      "intensity_1_to_10": 3,
+      "pause_ms_after": 450
+    },
+    {
+      "speaker": "captain_zara",
+      "text": "Uninhabited? That's impossible. Set a course for those coordinates, maximum warp.",
+      "emotion": "determined",
+      "intensity_1_to_10": 8,
+      "pause_ms_after": 550
+    },
+    {
+      "speaker": "Narrator",
+      "text": "As the Aurora speeds through the void, an alien vessel suddenly appears on the viewscreen.",
+      "emotion": "dramatic",
+      "intensity_1_to_10": 7,
+      "pause_ms_after": 600
+    },
+    {
+      "speaker": "alien_commander",
+      "text": "Human vessel, this is Commander Vex of the Zephyr Collective. We have been waiting for you.",
+      "emotion": "authoritative",
+      "intensity_1_to_10": 6,
+      "pause_ms_after": 500
+    },
+    {
+      "speaker": "captain_zara",
+      "text": "Waiting for us? How is that possible?",
+      "emotion": "surprised",
+      "intensity_1_to_10": 7,
+      "pause_ms_after": 400
+    },
+    {
+      "speaker": "alien_commander",
+      "text": "Time works differently for our species. We have seen your arrival in the threads of possibility.",
+      "emotion": "mysterious",
+      "intensity_1_to_10": 5,
+      "pause_ms_after": 600
+    },
+    {
+      "speaker": "Narrator",
+      "text": "And so begins an adventure that will change the course of human history forever.",
+      "emotion": "epic",
+      "intensity_1_to_10": 8,
+      "pause_ms_after": 0
+    }
+  ]
+}
