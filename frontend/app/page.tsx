@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -15,206 +15,39 @@ import {
   ArrowRight,
   Zap,
   Film,
-  Palette,
-  Upload,
-  X,
-  FileAudio,
-  FileImage,
-  AlertCircle
+  Palette
 } from 'lucide-react'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export default function Home() {
   const logoUrl = "/logo.png";
-  const [audioFile, setAudioFile] = useState<File | null>(null)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [audioUrl, setAudioUrl] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
-  const [generationStatus, setGenerationStatus] = useState<'idle' | 'uploading' | 'processing' | 'complete' | 'error'>('idle')
+  const [generationStatus, setGenerationStatus] = useState<'idle' | 'processing' | 'complete'>('idle')
   const [progress, setProgress] = useState(0)
-  const [statusMessage, setStatusMessage] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
-  const [videoUrl, setVideoUrl] = useState<string | null>(null)
-  
-  const audioInputRef = useRef<HTMLInputElement>(null)
-  const imageInputRef = useRef<HTMLInputElement>(null)
-
-  const handleAudioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setAudioFile(file)
-    }
-  }
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setImageFile(file)
-      // Create preview URL
-      const previewUrl = URL.createObjectURL(file)
-      setImagePreview(previewUrl)
-    }
-  }
-
-  const removeAudioFile = () => {
-    setAudioFile(null)
-    if (audioInputRef.current) {
-      audioInputRef.current.value = ''
-    }
-  }
-
-  const removeImageFile = () => {
-    setImageFile(null)
-    if (imagePreview) {
-      URL.revokeObjectURL(imagePreview)
-      setImagePreview(null)
-    }
-    if (imageInputRef.current) {
-      imageInputRef.current.value = ''
-    }
-  }
 
   const handleGenerate = async () => {
-    if (!audioFile || !imageFile) return
+    if (!audioUrl || !imageUrl) return
     
     setIsGenerating(true)
-    setGenerationStatus('uploading')
+    setGenerationStatus('processing')
     setProgress(0)
-    setStatusMessage('Uploading files...')
-    setErrorMessage('')
 
-    try {
-      // Upload files to backend
-      const formData = new FormData()
-      formData.append('audio', audioFile)
-      formData.append('image', imageFile)
-
-      const uploadResponse = await fetch(`${API_BASE_URL}/uploads/`, {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!uploadResponse.ok) {
-        const error = await uploadResponse.json()
-        throw new Error(error.detail || 'Upload failed')
-      }
-
-      const uploadData = await uploadResponse.json()
-      setProgress(20)
-      setGenerationStatus('processing')
-      setStatusMessage('Creating video generation job...')
-
-      // Create job with the uploaded file URLs
-      const jobResponse = await fetch(`${API_BASE_URL}/jobs/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          audio_url: uploadData.audio_url,
-          image_url: uploadData.image_url,
-        }),
-      })
-
-      if (!jobResponse.ok) {
-        throw new Error('Failed to create job')
-      }
-
-      const jobData = await jobResponse.json()
-      setProgress(30)
-      setStatusMessage('Generating your music video...')
-
-      // Poll for job status
-      const pollInterval = setInterval(async () => {
-        try {
-          const statusResponse = await fetch(`${API_BASE_URL}/jobs/${jobData.job_id}`)
-          const statusData = await statusResponse.json()
-
-          if (statusData.status === 'done') {
-            clearInterval(pollInterval)
-            setProgress(100)
-            setGenerationStatus('complete')
-            setIsGenerating(false)
-            if (statusData.video_url) {
-              setVideoUrl(statusData.video_url)
-            }
-          } else if (statusData.status === 'failed') {
-            clearInterval(pollInterval)
-            throw new Error(statusData.error || 'Video generation failed')
-          } else {
-            // Update progress based on status
-            const progressMap: Record<string, number> = {
-              'queued': 30,
-              'running': 50,
-              'generating_scenes': 70,
-              'composing': 90,
-            }
-            setProgress(progressMap[statusData.status] || statusData.progress * 100)
-            setStatusMessage(statusData.message || 'Processing...')
-          }
-        } catch (error) {
-          console.error('Error polling status:', error)
+    // Simulate generation progress
+    const interval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval)
+          setGenerationStatus('complete')
+          setIsGenerating(false)
+          return 100
         }
-      }, 2000)
-
-      // For now, simulate completion after some time (remove this when backend is fully implemented)
-      setTimeout(() => {
-        clearInterval(pollInterval)
-        setProgress(100)
-        setGenerationStatus('complete')
-        setIsGenerating(false)
-        // Demo video URL - replace with actual video URL when backend is ready
-        setVideoUrl('https://www.w3schools.com/html/mov_bbb.mp4')
-      }, 8000)
-
-    } catch (error) {
-      console.error('Generation error:', error)
-      
-      // Check if it's a network error (backend not running)
-      const isNetworkError = error instanceof TypeError && error.message.includes('fetch')
-      
-      if (isNetworkError) {
-        // Fallback to demo mode when backend is not available
-        console.log('Backend not available, running in demo mode...')
-        setGenerationStatus('processing')
-        setStatusMessage('Demo mode: Simulating video generation...')
-        
-        // Simulate generation progress
-        let currentProgress = 0
-        const interval = setInterval(() => {
-          currentProgress += Math.random() * 15
-          if (currentProgress >= 100) {
-            clearInterval(interval)
-            setProgress(100)
-            setGenerationStatus('complete')
-            setIsGenerating(false)
-            // Demo video URL for fallback mode
-            setVideoUrl('https://www.w3schools.com/html/mov_bbb.mp4')
-          } else {
-            setProgress(currentProgress)
-            // Update status message based on progress
-            if (currentProgress < 30) {
-              setStatusMessage('Analyzing audio waveforms...')
-            } else if (currentProgress < 60) {
-              setStatusMessage('Generating visual scenes...')
-            } else if (currentProgress < 90) {
-              setStatusMessage('Composing final video...')
-            } else {
-              setStatusMessage('Finalizing...')
-            }
-          }
-        }, 500)
-      } else {
-        // Show error to user
-        setGenerationStatus('error')
-        setIsGenerating(false)
-        setErrorMessage(error instanceof Error ? error.message : 'An error occurred during generation')
-      }
-    }
+        return prev + Math.random() * 15
+      })
+    }, 500)
   }
 
-  const isFormValid = audioFile !== null && imageFile !== null
+  const isFormValid = audioUrl.trim() !== '' && imageUrl.trim() !== ''
 
   return (
     <div className="min-h-screen bg-[#fafafa] relative overflow-hidden">
@@ -252,7 +85,7 @@ export default function Home() {
           </h1>
           
           <p className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed">
-            Upload your audio and an image. Generate stunning music videos.
+            Paste your links. Upload your sound. Generate stunning videos.
           </p>
         </motion.div>
 
@@ -268,126 +101,62 @@ export default function Home() {
             <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-green-50 to-transparent rounded-none opacity-50" />
             
             <div className="relative z-10 space-y-6">
-              {/* Audio File Upload */}
+              {/* Audio URL Input */}
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
                   <div className="w-6 h-6 bg-gray-100 rounded-none flex items-center justify-center">
                     <Headphones className="w-3.5 h-3.5 text-gray-600" />
                   </div>
-                  Audio File
+                  Audio URL
                 </label>
-                <input
-                  ref={audioInputRef}
-                  type="file"
-                  accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/m4a,.mp3,.wav,.m4a"
-                  onChange={handleAudioChange}
-                  className="hidden"
-                  id="audio-upload"
-                />
-                {audioFile ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-none"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-none flex items-center justify-center">
-                        <FileAudio className="w-5 h-5 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 truncate max-w-[200px]">
-                          {audioFile.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {(audioFile.size / (1024 * 1024)).toFixed(2)} MB
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={removeAudioFile}
-                      className="p-2 hover:bg-green-100 rounded-none transition-colors"
+                <div className="relative">
+                  <input
+                    type="url"
+                    placeholder="https://example.com/your-song.mp3"
+                    value={audioUrl}
+                    onChange={(e) => setAudioUrl(e.target.value)}
+                    className="input-elegant pr-12"
+                  />
+                  {audioUrl && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2"
                     >
-                      <X className="w-4 h-4 text-gray-500" />
-                    </button>
-                  </motion.div>
-                ) : (
-                  <label
-                    htmlFor="audio-upload"
-                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 rounded-none cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-all"
-                  >
-                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                    <span className="text-sm text-gray-600">Click to upload audio</span>
-                    <span className="text-xs text-gray-400 mt-1">MP3, WAV, or M4A</span>
-                  </label>
-                )}
-                <p className="text-xs text-gray-400 mt-2">Upload the audio file for your music video</p>
+                      <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    </motion.div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">Paste a direct link to an MP3 audio file containing your song</p>
               </div>
 
-              {/* Image File Upload */}
+              {/* Image URL Input */}
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
                   <div className="w-6 h-6 bg-gray-100 rounded-none flex items-center justify-center">
                     <ImageIcon className="w-3.5 h-3.5 text-gray-600" />
                   </div>
-                  Image File
+                  Image URL
                 </label>
-                <input
-                  ref={imageInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp"
-                  onChange={handleImageChange}
-                  className="hidden"
-                  id="image-upload"
-                />
-                {imageFile ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="relative"
-                  >
-                    <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-none">
-                      <div className="flex items-center gap-3">
-                        {imagePreview ? (
-                          <div className="w-16 h-16 rounded-none overflow-hidden border border-green-200">
-                            <img
-                              src={imagePreview}
-                              alt="Preview"
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="w-10 h-10 bg-green-100 rounded-none flex items-center justify-center">
-                            <FileImage className="w-5 h-5 text-green-600" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 truncate max-w-[200px]">
-                            {imageFile.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {(imageFile.size / (1024 * 1024)).toFixed(2)} MB
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={removeImageFile}
-                        className="p-2 hover:bg-green-100 rounded-none transition-colors"
-                      >
-                        <X className="w-4 h-4 text-gray-500" />
-                      </button>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <label
-                    htmlFor="image-upload"
-                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 rounded-none cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-all"
-                  >
-                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                    <span className="text-sm text-gray-600">Click to upload image</span>
-                    <span className="text-xs text-gray-400 mt-1">PNG, JPG, or WebP</span>
-                  </label>
-                )}
-                <p className="text-xs text-gray-400 mt-2">Upload an image that will inspire the video style</p>
+                <div className="relative">
+                  <input
+                    type="url"
+                    placeholder="https://example.com/your-image.jpg"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    className="input-elegant pr-12"
+                  />
+                  {imageUrl && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2"
+                    >
+                      <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    </motion.div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">Paste a direct link to an image that will inspire the video style</p>
               </div>
 
               {/* Divider */}
@@ -399,30 +168,7 @@ export default function Home() {
 
               {/* Generate Button */}
               <AnimatePresence mode="wait">
-                {generationStatus === 'error' ? (
-                  <motion.div
-                    key="error"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="text-center py-6"
-                  >
-                    <div className="w-16 h-16 bg-red-100 rounded-none flex items-center justify-center mx-auto mb-4">
-                      <AlertCircle className="w-8 h-8 text-red-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Generation Failed</h3>
-                    <p className="text-red-600 text-sm mb-4">{errorMessage}</p>
-                    <button 
-                      onClick={() => {
-                        setGenerationStatus('idle')
-                        setErrorMessage('')
-                      }}
-                      className="btn-secondary"
-                    >
-                      Try Again
-                    </button>
-                  </motion.div>
-                ) : (generationStatus === 'uploading' || generationStatus === 'processing') ? (
+                {generationStatus === 'processing' ? (
                   <motion.div
                     key="processing"
                     initial={{ opacity: 0 }}
@@ -433,7 +179,7 @@ export default function Home() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600 flex items-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        {generationStatus === 'uploading' ? 'Uploading files...' : 'Generating your music video...'}
+                        Generating your music video...
                       </span>
                       <span className="text-gray-900 font-medium">{Math.min(Math.round(progress), 100)}%</span>
                     </div>
@@ -446,17 +192,8 @@ export default function Home() {
                       />
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-400">
-                      {generationStatus === 'uploading' ? (
-                        <>
-                          <Upload className="w-3.5 h-3.5" />
-                          Uploading your audio and image files...
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="w-3.5 h-3.5" />
-                          {statusMessage || 'AI is analyzing your audio and generating frames...'}
-                        </>
-                      )}
+                      <Wand2 className="w-3.5 h-3.5" />
+                      AI is analyzing your audio and generating frames...
                     </div>
                   </motion.div>
                 ) : generationStatus === 'complete' ? (
@@ -472,49 +209,21 @@ export default function Home() {
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">Video Generated Successfully!</h3>
                     <p className="text-gray-500 text-sm mb-4">Your AI music video is ready to view</p>
-                    
-                    {/* Video Player */}
-                    {videoUrl && (
-                      <div className="mb-6">
-                        <div className="aspect-video bg-black rounded-lg overflow-hidden shadow-lg">
-                          <video
-                            src={videoUrl}
-                            controls
-                            autoPlay
-                            className="w-full h-full"
-                          >
-                            Your browser does not support the video tag.
-                          </video>
-                        </div>
-                        <div className="mt-3 flex justify-center">
-                          <a
-                            href={videoUrl}
-                            download="music-video.mp4"
-                            className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
-                          >
-                            <ArrowRight className="w-3.5 h-3.5" />
-                            Download Video
-                          </a>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <button 
-                      onClick={() => {
-                        setGenerationStatus('idle')
-                        setProgress(0)
-                        setAudioFile(null)
-                        setImageFile(null)
-                        setImagePreview(null)
-                        setStatusMessage('')
-                        setVideoUrl(null)
-                        if (audioInputRef.current) audioInputRef.current.value = ''
-                        if (imageInputRef.current) imageInputRef.current.value = ''
-                      }}
-                      className="btn-secondary"
-                    >
-                      Create Another
-                    </button>
+                    <div className="flex gap-3 justify-center">
+                      <button className="btn-primary flex items-center gap-2">
+                        <Play className="w-4 h-4" />
+                        Watch Video
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setGenerationStatus('idle')
+                          setProgress(0)
+                        }}
+                        className="btn-secondary"
+                      >
+                        Create Another
+                      </button>
+                    </div>
                   </motion.div>
                 ) : (
                   <motion.button
