@@ -1,0 +1,24 @@
+# FastAPI web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6  # Required for file uploads
+
+# ElevenLabs for speech-to-text
+elevenlabs>=1.0.0
+
+# Google Gemini for image generation (new unified SDK)
+google-genai>=1.0.0
+
+# HTTP client for API calls
+httpx>=0.27.0
+
+# Configuration management
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+python-dotenv>=1.0.0
+
+# Optional: For programmatic ngrok tunnel (install with: pip install pyngrok)
+# pyngrok>=6.0.0
+
+# Testing (optional)
+# requests>=2.31.0

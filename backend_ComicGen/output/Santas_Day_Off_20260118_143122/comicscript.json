@@ -1,0 +1,656 @@
+[
+  {
+    "_type": "metadata",
+    "source_file": "Santa's Day Off.mp3",
+    "title": null,
+    "chapter": null
+  },
+  {
+    "_type": "full_transcript",
+    "text": "(instrumental music plays) (singers) Storyberries. Santa's Day Off by Jade Ma\u00eetre. After hundreds and hundreds of years of delivering presents every Christmas Eve, Santa woke one year and found he was tired. \"So very sleepy,\" he yawned to Mrs. Claus, who was already up and doing her hair. Christmas was her favorite time of year, of course, and she liked to change hair colors every time. This year, she had settled on silver, like the stars, with blue bits, like the night sky she fancied Santa would soon be scooting across. But Mrs. Claus paused to hear Santa's words. It was a surprising thing for him to be tired. This was the jolly old elf who had never once not delivered his presents on Christmas Eve. Through snowstorms, bluster, cyclones, and one time a very strange hailstorm of multicolored gumdrops, Santa had never failed. But this year, Santa seemed tired. He dragged himself up out of bed and started changing from his pajamas. But even when he was fully dressed and eating his breakfast, he fell asleep again. This time, in the hot cocoa. Mrs. Claus gently shook him awake again and gave him a hug. \"I think I just need a year off,\" said Santa. \"Just one Christmas to rest my jingle bones.\" Mrs. Claus knew that Santa must be very tired to want to sleep through Christmas, so she made a little sign and put it on his bedroom door so that nobody would disturb him while he caught up on his sleep. It said, \"Santa's napping. Be back next year.\" She also made copies and hung them on the workshop door and in the North Pole main street. The elves were so surprised. \"But what about Christmas?\" they said. They knew that Mrs. Claus couldn't do Santa's job. She lacked the special magic that allowed him to deliver so many presents all in one night. In fact, nobody had that special magic. It was something that only Santa could do, the whole world over. Mrs. Claus looked over Santa's naughty and nice lists. \"Hmm,\" she said. There were a lot more nice than naughty. That was good. But would it be enough? She thought a little more, then took a deep breath and smiled at the elves. \"Let's just see what happens,\" she said. And so, the elves watched their magical Christmas screens anxiously as the children all around the world woke up to no gifts. While meanwhile, Santa Claus gently snored. At first, all was silent. The children in Finland looked at the quiet snow unmarked by reindeer or Santa boot, and wondered. But then, little Lilia had a thought. \"Maybe I can give a gift instead.\" She took some paper and scissors and made a beautiful flower for her grandma. Children in other countries started having the same idea. In Brazil, Davi gave his little brother his favorite toy dinosaur. In Japan, Kenzo made taiyaki for his neighbor. Children all around the world started making things that Christmas morning. Cookies and bright, happy cards, paper lanterns, special drawings and poems. Some wrote down their favorite jokes and wrapped them up. Others painted rocks or sang songs for their family and friends. Before you could say all the names of Santa's reindeers, can you? It seemed that in every time zone across the world, small acts of kindness were popping up in every home. If you were able to look down at the Earth from space, you would have seen that all that love started to make the Earth twinkle like Christmas lights. Meanwhile, Santa was snoring softly and having the best sleep ever. His dreams were even better because he could sense how happy the world was. Mrs. Claus, who was watching the magical Christmas screens with the spellbound elves, saw these little acts of kindness and smiled. \"Good job, children,\" she whispered. Some children gave presents to animals. They gave delicious fruit to their pet birds, and bread to chickens. They made blankets for the chilly cows who stood in fields. Down in Australia, they gave the reindeers' carrots to the kangaroos. Others realized that they could give time to the people they loved. They washed dishes for mom and dad, read books to their baby brothers and sisters, and helped make the Christmas lunch. And the funniest thing was, they started to realize that thinking up something nice as a gift for someone and then giving it felt good. Maybe even better than just getting a present from Santa Claus. Santa slept so soundly that he didn't wake up until Easter. But when he did, he realized that the world was still sparkling from all that gift giving he hadn't done. Mrs. Claus came and gave him a big kiss. \"Are you feeling better now?\" she asked. Santa nodded and went and had a nice shower. When he was all dressed and at breakfast, Mrs. Claus showed him something astonishing that had happened. There was not a single person on the naughty list anymore. Santa laughed a lot at that and had extra muffins to celebrate. \"Maybe I should take every other year off,\" he chuckled. And he hasn't yet, but maybe he should. What do you think? The end. (instrumental music plays) (singers) Storyberries."
+  },
+  {
+    "id": 1,
+    "type": "narration",
+    "text": "(instrumental music plays) (singers) Storyberries.",
+    "start_s": 0.1,
+    "end_s": 5.16
+  },
+  {
+    "id": 2,
+    "type": "narration",
+    "text": "Santa's Day Off by Jade Ma\u00eetre.",
+    "start_s": 5.16,
+    "end_s": 7.06
+  },
+  {
+    "id": 3,
+    "type": "narration",
+    "text": "After hundreds and hundreds of years of delivering presents every Christmas Eve, Santa woke one year and found he was tired.",
+    "start_s": 7.06,
+    "end_s": 11.76
+  },
+  {
+    "id": 4,
+    "type": "dialogue",
+    "text": "So very sleepy,",
+    "start_s": 11.76,
+    "end_s": 13.28
+  },
+  {
+    "id": 5,
+    "type": "narration",
+    "text": "yawned to Mrs.",
+    "start_s": 11.76,
+    "end_s": 13.28
+  },
+  {
+    "id": 6,
+    "type": "narration",
+    "text": "Claus, who was already up and doing her hair.",
+    "start_s": 13.28,
+    "end_s": 14.979
+  },
+  {
+    "id": 7,
+    "type": "narration",
+    "text": "Christmas was her favorite time of year, of course, and she liked to change hair colors every time.",
+    "start_s": 14.98,
+    "end_s": 19.96
+  },
+  {
+    "id": 8,
+    "type": "narration",
+    "text": "This year, she had settled on silver, like the stars, with blue bits, like the night sky she fancied Santa would soon be scooting across.",
+    "start_s": 19.96,
+    "end_s": 23.32
+  },
+  {
+    "id": 9,
+    "type": "narration",
+    "text": "But Mrs.",
+    "start_s": 23.32,
+    "end_s": 24.3
+  },
+  {
+    "id": 10,
+    "type": "narration",
+    "text": "Claus paused to hear Santa's words.",
+    "start_s": 24.3,
+    "end_s": 25.12
+  },
+  {
+    "id": 11,
+    "type": "narration",
+    "text": "It was a surprising thing for him to be tired.",
+    "start_s": 25.12,
+    "end_s": 26.92
+  },
+  {
+    "id": 12,
+    "type": "narration",
+    "text": "This was the jolly old elf who had never once not delivered his presents on Christmas Eve.",
+    "start_s": 26.92,
+    "end_s": 28.74
+  },
+  {
+    "id": 13,
+    "type": "narration",
+    "text": "Through snowstorms, bluster, cyclones, and one time a very strange hailstorm of multicolored gumdrops, Santa had never failed.",
+    "start_s": 28.74,
+    "end_s": 31.74
+  },
+  {
+    "id": 14,
+    "type": "narration",
+    "text": "But this year, Santa seemed tired.",
+    "start_s": 31.74,
+    "end_s": 32.78
+  },
+  {
+    "id": 15,
+    "type": "narration",
+    "text": "He dragged himself up out of bed and started changing from his pajamas.",
+    "start_s": 32.78,
+    "end_s": 34.7
+  },
+  {
+    "id": 16,
+    "type": "narration",
+    "text": "But even when he was fully dressed and eating his breakfast, he fell asleep again.",
+    "start_s": 34.7,
+    "end_s": 37.86
+  },
+  {
+    "id": 17,
+    "type": "narration",
+    "text": "This time, in the hot cocoa.",
+    "start_s": 37.86,
+    "end_s": 38.699
+  },
+  {
+    "id": 18,
+    "type": "narration",
+    "text": "Mrs.",
+    "start_s": 38.7,
+    "end_s": 39.16
+  },
+  {
+    "id": 19,
+    "type": "narration",
+    "text": "Claus gently shook him awake again and gave him a hug.",
+    "start_s": 39.16,
+    "end_s": 41.08
+  },
+  {
+    "id": 20,
+    "type": "dialogue",
+    "text": "I think I just need a year off,",
+    "start_s": 41.08,
+    "end_s": 42.36
+  },
+  {
+    "id": 21,
+    "type": "narration",
+    "text": "Santa.",
+    "start_s": 41.08,
+    "end_s": 42.36
+  },
+  {
+    "id": 22,
+    "type": "dialogue",
+    "text": "Just one Christmas to rest my jingle bones.",
+    "start_s": 42.36,
+    "end_s": 43.82
+  },
+  {
+    "id": 23,
+    "type": "narration",
+    "text": ".",
+    "start_s": 42.36,
+    "end_s": 43.82
+  },
+  {
+    "id": 24,
+    "type": "narration",
+    "text": "Claus knew that Santa must be very tired to want to sleep through Christmas, so she made a little sign and put it on his bedroom door so that nobody would disturb him while he caught up on his sleep.",
+    "start_s": 43.82,
+    "end_s": 51.46
+  },
+  {
+    "id": 25,
+    "type": "narration",
+    "text": "It said, \"Santa's napping.",
+    "start_s": 51.46,
+    "end_s": 51.76
+  },
+  {
+    "id": 26,
+    "type": "narration",
+    "text": "Be back next year.\" She also made copies and hung them on the workshop door and in the North Pole main street.",
+    "start_s": 51.76,
+    "end_s": 56.4
+  },
+  {
+    "id": 27,
+    "type": "narration",
+    "text": "The elves were so surprised.",
+    "start_s": 56.4,
+    "end_s": 58.14
+  },
+  {
+    "id": 28,
+    "type": "dialogue",
+    "text": "But what about Christmas?",
+    "start_s": 58.14,
+    "end_s": 59.36
+  },
+  {
+    "id": 29,
+    "type": "narration",
+    "text": "said.",
+    "start_s": 58.14,
+    "end_s": 59.36
+  },
+  {
+    "id": 30,
+    "type": "narration",
+    "text": "They knew that Mrs.",
+    "start_s": 59.36,
+    "end_s": 60.4
+  },
+  {
+    "id": 31,
+    "type": "narration",
+    "text": "Claus couldn't do Santa's job.",
+    "start_s": 60.4,
+    "end_s": 61.5
+  },
+  {
+    "id": 32,
+    "type": "narration",
+    "text": "She lacked the special magic that allowed him to deliver so many presents all in one night.",
+    "start_s": 61.5,
+    "end_s": 63.76
+  },
+  {
+    "id": 33,
+    "type": "narration",
+    "text": "In fact, nobody had that special magic.",
+    "start_s": 63.76,
+    "end_s": 65.519
+  },
+  {
+    "id": 34,
+    "type": "narration",
+    "text": "It was something that only Santa could do, the whole world over.",
+    "start_s": 65.519,
+    "end_s": 66.99
+  },
+  {
+    "id": 35,
+    "type": "narration",
+    "text": "Mrs.",
+    "start_s": 66.99,
+    "end_s": 67.04
+  },
+  {
+    "id": 36,
+    "type": "narration",
+    "text": "Claus looked over Santa's naughty and nice lists.",
+    "start_s": 67.04,
+    "end_s": 68.52
+  },
+  {
+    "id": 37,
+    "type": "dialogue",
+    "text": "Hmm,",
+    "start_s": 68.52,
+    "end_s": 69.02
+  },
+  {
+    "id": 38,
+    "type": "narration",
+    "text": "said.",
+    "start_s": 68.52,
+    "end_s": 69.02
+  },
+  {
+    "id": 39,
+    "type": "narration",
+    "text": "There were a lot more nice than naughty.",
+    "start_s": 69.02,
+    "end_s": 70.52
+  },
+  {
+    "id": 40,
+    "type": "narration",
+    "text": "That was good.",
+    "start_s": 70.52,
+    "end_s": 70.64
+  },
+  {
+    "id": 41,
+    "type": "narration",
+    "text": "But would it be enough?",
+    "start_s": 70.64,
+    "end_s": 72.6
+  },
+  {
+    "id": 42,
+    "type": "narration",
+    "text": "She thought a little more, then took a deep breath and smiled at the elves.",
+    "start_s": 72.6,
+    "end_s": 74.66
+  },
+  {
+    "id": 43,
+    "type": "dialogue",
+    "text": "Let's just see what happens,",
+    "start_s": 74.66,
+    "end_s": 75.52
+  },
+  {
+    "id": 44,
+    "type": "narration",
+    "text": "said.",
+    "start_s": 74.66,
+    "end_s": 75.52
+  },
+  {
+    "id": 45,
+    "type": "narration",
+    "text": "And so, the elves watched their magical Christmas screens anxiously as the children all around the world woke up to no gifts.",
+    "start_s": 75.52,
+    "end_s": 79.46
+  },
+  {
+    "id": 46,
+    "type": "narration",
+    "text": "While meanwhile, Santa Claus gently snored.",
+    "start_s": 79.46,
+    "end_s": 80.76
+  },
+  {
+    "id": 47,
+    "type": "narration",
+    "text": "At first, all was silent.",
+    "start_s": 80.76,
+    "end_s": 81.32
+  },
+  {
+    "id": 48,
+    "type": "narration",
+    "text": "The children in Finland looked at the quiet snow unmarked by reindeer or Santa boot, and wondered.",
+    "start_s": 81.32,
+    "end_s": 85.1
+  },
+  {
+    "id": 49,
+    "type": "narration",
+    "text": "But then, little Lilia had a thought.",
+    "start_s": 85.1,
+    "end_s": 86.02
+  },
+  {
+    "id": 50,
+    "type": "dialogue",
+    "text": "Maybe I can give a gift instead.",
+    "start_s": 86.02,
+    "end_s": 89.04
+  },
+  {
+    "id": 51,
+    "type": "narration",
+    "text": "took some paper and scissors and made a beautiful flower for her grandma.",
+    "start_s": 86.02,
+    "end_s": 89.04
+  },
+  {
+    "id": 52,
+    "type": "narration",
+    "text": "Children in other countries started having the same idea.",
+    "start_s": 89.04,
+    "end_s": 89.8
+  },
+  {
+    "id": 53,
+    "type": "narration",
+    "text": "In Brazil, Davi gave his little brother his favorite toy dinosaur.",
+    "start_s": 89.8,
+    "end_s": 91.71
+  },
+  {
+    "id": 54,
+    "type": "narration",
+    "text": "In Japan, Kenzo made taiyaki for his neighbor.",
+    "start_s": 91.71,
+    "end_s": 92.88
+  },
+  {
+    "id": 55,
+    "type": "narration",
+    "text": "Children all around the world started making things that Christmas morning.",
+    "start_s": 92.88,
+    "end_s": 93.84
+  },
+  {
+    "id": 56,
+    "type": "narration",
+    "text": "Cookies and bright, happy cards, paper lanterns, special drawings and poems.",
+    "start_s": 93.84,
+    "end_s": 96.76
+  },
+  {
+    "id": 57,
+    "type": "narration",
+    "text": "Some wrote down their favorite jokes and wrapped them up.",
+    "start_s": 96.76,
+    "end_s": 98.64
+  },
+  {
+    "id": 58,
+    "type": "narration",
+    "text": "Others painted rocks or sang songs for their family and friends.",
+    "start_s": 98.64,
+    "end_s": 100.1
+  },
+  {
+    "id": 59,
+    "type": "narration",
+    "text": "Before you could say all the names of Santa's reindeers, can you?",
+    "start_s": 100.1,
+    "end_s": 101.72
+  },
+  {
+    "id": 60,
+    "type": "narration",
+    "text": "It seemed that in every time zone across the world, small acts of kindness were popping up in every home.",
+    "start_s": 101.72,
+    "end_s": 106.2
+  },
+  {
+    "id": 61,
+    "type": "narration",
+    "text": "If you were able to look down at the Earth from space, you would have seen that all that love started to make the Earth twinkle like Christmas lights.",
+    "start_s": 106.2,
+    "end_s": 111.76
+  },
+  {
+    "id": 62,
+    "type": "narration",
+    "text": "Meanwhile, Santa was snoring softly and having the best sleep ever.",
+    "start_s": 111.76,
+    "end_s": 113.36
+  },
+  {
+    "id": 63,
+    "type": "narration",
+    "text": "His dreams were even better because he could sense how happy the world was.",
+    "start_s": 113.36,
+    "end_s": 115.1
+  },
+  {
+    "id": 64,
+    "type": "narration",
+    "text": "Mrs.",
+    "start_s": 115.1,
+    "end_s": 115.58
+  },
+  {
+    "id": 65,
+    "type": "narration",
+    "text": "Claus, who was watching the magical Christmas screens with the spellbound elves, saw these little acts of kindness and smiled.",
+    "start_s": 115.58,
+    "end_s": 118.94
+  },
+  {
+    "id": 66,
+    "type": "dialogue",
+    "text": "Good job, children,",
+    "start_s": 118.94,
+    "end_s": 119.88
+  },
+  {
+    "id": 67,
+    "type": "narration",
+    "text": "whispered.",
+    "start_s": 118.94,
+    "end_s": 119.88
+  },
+  {
+    "id": 68,
+    "type": "narration",
+    "text": "Some children gave presents to animals.",
+    "start_s": 119.88,
+    "end_s": 120.46
+  },
+  {
+    "id": 69,
+    "type": "narration",
+    "text": "They gave delicious fruit to their pet birds, and bread to chickens.",
+    "start_s": 120.46,
+    "end_s": 122.24
+  },
+  {
+    "id": 70,
+    "type": "narration",
+    "text": "They made blankets for the chilly cows who stood in fields.",
+    "start_s": 122.24,
+    "end_s": 125.14
+  },
+  {
+    "id": 71,
+    "type": "narration",
+    "text": "Down in Australia, they gave the reindeers' carrots to the kangaroos.",
+    "start_s": 125.14,
+    "end_s": 127.47
+  },
+  {
+    "id": 72,
+    "type": "narration",
+    "text": "Others realized that they could give time to the people they loved.",
+    "start_s": 127.47,
+    "end_s": 129.56
+  },
+  {
+    "id": 73,
+    "type": "narration",
+    "text": "They washed dishes for mom and dad, read books to their baby brothers and sisters, and helped make the Christmas lunch.",
+    "start_s": 129.56,
+    "end_s": 132.62
+  },
+  {
+    "id": 74,
+    "type": "narration",
+    "text": "And the funniest thing was, they started to realize that thinking up something nice as a gift for someone and then giving it felt good.",
+    "start_s": 132.62,
+    "end_s": 136.38
+  },
+  {
+    "id": 75,
+    "type": "narration",
+    "text": "Maybe even better than just getting a present from Santa Claus.",
+    "start_s": 136.38,
+    "end_s": 138.52
+  },
+  {
+    "id": 76,
+    "type": "narration",
+    "text": "Santa slept so soundly that he didn't wake up until Easter.",
+    "start_s": 138.52,
+    "end_s": 139.98
+  },
+  {
+    "id": 77,
+    "type": "narration",
+    "text": "But when he did, he realized that the world was still sparkling from all that gift giving he hadn't done.",
+    "start_s": 139.98,
+    "end_s": 144.46
+  },
+  {
+    "id": 78,
+    "type": "narration",
+    "text": "Mrs.",
+    "start_s": 144.46,
+    "end_s": 145.3
+  },
+  {
+    "id": 79,
+    "type": "narration",
+    "text": "Claus came and gave him a big kiss.",
+    "start_s": 145.3,
+    "end_s": 146.18
+  },
+  {
+    "id": 80,
+    "type": "dialogue",
+    "text": "Are you feeling better now?",
+    "start_s": 146.18,
+    "end_s": 147.12
+  },
+  {
+    "id": 81,
+    "type": "narration",
+    "text": "asked.",
+    "start_s": 146.18,
+    "end_s": 147.12
+  },
+  {
+    "id": 82,
+    "type": "narration",
+    "text": "Santa nodded and went and had a nice shower.",
+    "start_s": 147.12,
+    "end_s": 150.02
+  },
+  {
+    "id": 83,
+    "type": "narration",
+    "text": "When he was all dressed and at breakfast, Mrs.",
+    "start_s": 150.02,
+    "end_s": 152.34
+  },
+  {
+    "id": 84,
+    "type": "narration",
+    "text": "Claus showed him something astonishing that had happened.",
+    "start_s": 152.34,
+    "end_s": 154.86
+  },
+  {
+    "id": 85,
+    "type": "narration",
+    "text": "There was not a single person on the naughty list anymore.",
+    "start_s": 154.86,
+    "end_s": 156.76
+  },
+  {
+    "id": 86,
+    "type": "narration",
+    "text": "Santa laughed a lot at that and had extra muffins to celebrate.",
+    "start_s": 156.76,
+    "end_s": 158.72
+  },
+  {
+    "id": 87,
+    "type": "dialogue",
+    "text": "Maybe I should take every other year off,",
+    "start_s": 158.72,
+    "end_s": 160.62
+  },
+  {
+    "id": 88,
+    "type": "narration",
+    "text": "chuckled.",
+    "start_s": 158.72,
+    "end_s": 160.62
+  },
+  {
+    "id": 89,
+    "type": "narration",
+    "text": "And he hasn't yet, but maybe he should.",
+    "start_s": 160.62,
+    "end_s": 162.6
+  },
+  {
+    "id": 90,
+    "type": "narration",
+    "text": "What do you think?",
+    "start_s": 162.6,
+    "end_s": 163.36
+  },
+  {
+    "id": 91,
+    "type": "narration",
+    "text": "The end.",
+    "start_s": 163.36,
+    "end_s": 163.78
+  },
+  {
+    "id": 92,
+    "type": "narration",
+    "text": "(instrumental music plays) (singers) Storyberries.",
+    "start_s": 163.78,
+    "end_s": 164.1
+  }
+]

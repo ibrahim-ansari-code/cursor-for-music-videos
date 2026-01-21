@@ -26,27 +26,102 @@ cursor-for-music-videos/
 
 ## Getting Started
 
-### Frontend
+### Prerequisites
 
+You'll need environment variables for the backend services:
+
+```bash
+# backend_ComicGen/.env
+ELEVENLABS_API_KEY=your_elevenlabs_key    # For audio transcription
+GUMLOOP_API_KEY=your_gumloop_key          # For prompt generation
+GUMLOOP_USER_ID=your_gumloop_user_id
+GUMLOOP_SAVED_ITEM_ID=your_gumloop_flow_id
+GEMINI_API_KEY=your_gemini_key            # For image generation
+```
+
+### Running Both Services
+
+**Terminal 1 - Backend (port 8000):**
+```bash
+cd backend_ComicGen
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+**Terminal 2 - Frontend (port 3000):**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000) - the frontend will automatically connect to the backend at port 8000.
 
-### Backend
+### Audio to Comic Flow
 
+1. Upload an audio file (MP3, WAV, M4A) on the home page
+2. Click "POW! GENERATE COMIC"
+3. The system will:
+   - Transcribe the audio using ElevenLabs
+   - Generate panel prompts using Gumloop AI
+   - Create comic images using Google Gemini
+4. View and download your generated comic panels
+
+## API Endpoints
+
+### Comic Generation API (backend_ComicGen)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Health check and endpoint list |
+| `/audio/generate-comic` | POST | Full pipeline: audio → comic panels |
+| `/audio/transcribe` | POST | Transcribe audio only |
+| `/pipeline/run` | POST | Generate images from transcript |
+| `/pipeline/health` | GET | Check service configuration |
+
+### Audio to Comic Endpoint
+
+<<<<<<< HEAD
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
+=======
+>>>>>>> 09dacd1 (Add audio processing pipeline and enhance comic generation)
 ```
+POST /audio/generate-comic
+Content-Type: multipart/form-data
 
-API available at [http://localhost:8000](http://localhost:8000)
+Fields:
+- file (required): Audio file (MP3, WAV, M4A)
+- style (optional): Art style (default: "storybook")
+- aspect_ratio (optional): Image aspect ratio (default: "16:9")
+- language (optional): Language code for transcription
+- keyterms (optional): Comma-separated character names
+
+Response:
+{
+  "success": true,
+  "total_panels": 6,
+  "successful_images": 6,
+  "failed_images": 0,
+  "panels": [
+    {
+      "panel_id": 1,
+      "prompt": "...",
+      "status": "success",
+      "image_base64": "...",
+      "mime_type": "image/png"
+    }
+  ],
+  "transcript": [...],
+  "execution_time_s": 45.2
+}
+```
 
 ---
 
