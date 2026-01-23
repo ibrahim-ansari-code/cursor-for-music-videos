@@ -23,5 +23,8 @@ python-dotenv>=1.0.0
 # Optional: For programmatic ngrok tunnel (install with: pip install pyngrok)
 # pyngrok>=6.0.0
 
+# Image processing for text overlay
+Pillow>=10.0.0
+
 # Testing (optional)
 # requests>=2.31.0

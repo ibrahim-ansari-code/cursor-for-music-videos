@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 
 from app.services.gemini_service import gemini_service, PanelResult
 from app.services.claude_prompt_service import claude_prompt_service, ClaudeResult
+from app.services.text_caption_service import add_text_captions_to_page, match_transcript_to_panels
 
 
 # ============================================================================
@@ -116,6 +117,17 @@ class PipelineOrchestrator:
         config: Optional[PipelineConfig] = None,
         progress_callback: Optional[Callable[[str, float, str], None]] = None
     ) -> PipelineResult:
+        """
+        Run the pipeline from a comic script transcript.
+        
+        Args:
+            comic_script: List of transcript segments with timing info (includes transcript data)
+            config: Pipeline configuration options
+            progress_callback: Optional callback function(stage, progress, message) for progress updates
+        
+        Returns:
+            PipelineResult with generated comic pages
+        """
         """
         Run the pipeline from a comic script transcript.
         
@@ -222,6 +234,9 @@ class PipelineOrchestrator:
             
             self._emit_progress(progress_callback, "grouping_pages", 50, f"Organized into {num_pages} pages")
             
+            # Step 4.5: Match transcript to panels for text captions
+            panel_texts = match_transcript_to_panels(panel_prompts, comic_script)
+            
             # Step 5: Generate comic pages (multi-panel images)
             pages = []
             successful_pages = 0
@@ -249,18 +264,36 @@ class PipelineOrchestrator:
                 if page_result.success:
                     successful_pages += 1
                     
+                    # Add text captions to page image
+                    image_with_captions = page_result.image_base64
+                    if page_result.image_base64:
+                        try:
+                            image_with_captions = add_text_captions_to_page(
+                                image_base64=page_result.image_base64,
+                                panels=page_panels,
+                                panel_texts=panel_texts,
+                                num_panels=len(page_panels)
+                            )
+                        except Exception as e:
+                            # If caption addition fails, use original image
+                            # Log error but don't fail the whole page
+                            import logging
+                            logger = logging.getLogger(__name__)
+                            logger.warning(f"Failed to add text captions to page {page_num}: {e}")
+                            image_with_captions = page_result.image_base64
+                    
                     # Save image if configured
                     file_path = None
-                    if config.save_images and page_result.image_base64:
+                    if config.save_images and image_with_captions:
                         config.output_dir.mkdir(parents=True, exist_ok=True)
                         file_path = config.output_dir / f"page_{page_num:03d}.png"
-                        self.gemini.save_image(page_result.image_base64, file_path)
+                        self.gemini.save_image(image_with_captions, file_path)
                     
                     # Create page object
                     page_obj = {
                         "page_number": page_num,
                         "panels": page_panels,  # Store the panel prompts used
-                        "image_base64": page_result.image_base64,
+                        "image_base64": image_with_captions,  # Use image with captions
                         "mime_type": page_result.mime_type,
                         "success": True,
                         "file_path": str(file_path) if file_path else None
@@ -272,7 +305,7 @@ class PipelineOrchestrator:
                         all_panels.append({
                             "panel_id": panel_data.get("panel_id", (page_num - 1) * panels_per_page + i),
                             "success": True,
-                            "image_base64": page_result.image_base64,  # Same image for all panels on page
+                            "image_base64": image_with_captions,  # Use image with captions
                             "mime_type": page_result.mime_type,
                             "prompt": panel_data.get("prompt", ""),
                             "mood": panel_data.get("mood"),

@@ -299,7 +299,9 @@ class GeminiService:
 
 {chr(10).join(panel_descriptions)}
 
-Each panel should be clearly separated with borders or gutters. Arrange the panels in a traditional comic book layout. Maintain consistent art style across all panels on the page. Each panel should be visually distinct and tell part of the story sequentially."""
+Each panel should be clearly separated with borders or gutters. Arrange the panels in a traditional comic book layout. Maintain consistent art style across all panels on the page. Each panel should be visually distinct and tell part of the story sequentially.
+
+IMPORTANT: Do NOT include speech bubbles, dialogue text, or any written text in the images. Focus purely on visual storytelling through character expressions, actions, and scenes."""
         
         # Generate single image with all panels
         result = await self.generate_image(
