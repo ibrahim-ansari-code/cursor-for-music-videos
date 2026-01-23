@@ -133,20 +133,38 @@ export default function ComicPage() {
     processAudio();
   }, [processAudio]);
 
-  const handleDownloadAll = () => {
+  const handleDownloadAll = async () => {
+    // Helper function to create a delay
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
     if (pages.length > 0) {
-      pages.forEach((page, index) => {
-        setTimeout(() => {
+      // Download pages sequentially with proper delays
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        try {
           downloadPage(page, `comic_page_${page.page_number}.png`);
-        }, index * 500); // Stagger downloads
-      });
+          // Wait 1000ms between downloads to avoid browser blocking
+          if (i < pages.length - 1) {
+            await delay(1000);
+          }
+        } catch (error) {
+          console.error(`Failed to download page ${page.page_number}:`, error);
+        }
+      }
     } else {
-      // Backward compatibility
-      panels.forEach((panel, index) => {
-        setTimeout(() => {
-          downloadPanel(panel, `comic_panel_${index + 1}.png`);
-        }, index * 500);
-      });
+      // Backward compatibility: download panels sequentially
+      for (let i = 0; i < panels.length; i++) {
+        const panel = panels[i];
+        try {
+          downloadPanel(panel, `comic_panel_${i + 1}.png`);
+          // Wait 1000ms between downloads to avoid browser blocking
+          if (i < panels.length - 1) {
+            await delay(1000);
+          }
+        } catch (error) {
+          console.error(`Failed to download panel ${i + 1}:`, error);
+        }
+      }
     }
   };
 

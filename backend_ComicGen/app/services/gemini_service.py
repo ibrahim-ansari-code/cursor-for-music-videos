@@ -239,7 +239,7 @@ class GeminiService:
         # Build style-enhanced prompt optimized for comics
         style_prompts = {
             "storybook": "children's storybook comic illustration style, warm colors, expressive characters, whimsical details",
-            "comic": "classic American comic book art style, bold ink lines, dynamic poses, vibrant colors, halftone dots",
+            "comic": "classic American comic book art style, traditional comic book illustration with varied line weights (thin to thick), crosshatching and detailed shading, realistic human proportions (not chibi or cartoony), professional comic book inking techniques, depth and dimension through shading, avoid flat colors and simplified designs, avoid animated or children's cartoon aesthetic, traditional comic book panel art style similar to Marvel, DC, or Image Comics",
             "manga": "Japanese manga art style, expressive eyes, speed lines, screentones, dramatic angles",
             "watercolor": "watercolor comic style, soft washes, painterly panels, dreamy atmosphere",
             "digital_art": "modern digital comic art style, clean linework, cel shading, polished finish",
@@ -287,7 +287,7 @@ class GeminiService:
         """
         style_prompts = {
             "storybook": "children's storybook comic illustration style, warm colors, expressive characters, whimsical details",
-            "comic": "classic American comic book art style, bold ink lines, dynamic poses, vibrant colors, halftone dots",
+            "comic": "classic American comic book art style, traditional comic book illustration with varied line weights (thin to thick), crosshatching and detailed shading, realistic human proportions (not chibi or cartoony), professional comic book inking techniques, depth and dimension through shading, avoid flat colors and simplified designs, avoid animated or children's cartoon aesthetic, traditional comic book panel art style similar to Marvel, DC, or Image Comics",
             "manga": "Japanese manga art style, expressive eyes, speed lines, screentones, dramatic angles",
             "watercolor": "watercolor comic style, soft washes, painterly panels, dreamy atmosphere",
             "digital_art": "modern digital comic art style, clean linework, cel shading, polished finish",
@@ -334,7 +334,7 @@ class GeminiService:
         # Build style-enhanced prompt optimized for comics
         style_prompts = {
             "storybook": "children's storybook comic illustration style, warm colors, expressive characters, whimsical details",
-            "comic": "classic American comic book art style, bold ink lines, dynamic poses, vibrant colors, halftone dots",
+            "comic": "classic American comic book art style, traditional comic book illustration with varied line weights (thin to thick), crosshatching and detailed shading, realistic human proportions (not chibi or cartoony), professional comic book inking techniques, depth and dimension through shading, avoid flat colors and simplified designs, avoid animated or children's cartoon aesthetic, traditional comic book panel art style similar to Marvel, DC, or Image Comics",
             "manga": "Japanese manga art style, expressive eyes, speed lines, screentones, dramatic angles",
             "watercolor": "watercolor comic style, soft washes, painterly panels, dreamy atmosphere",
             "digital_art": "modern digital comic art style, clean linework, cel shading, polished finish",

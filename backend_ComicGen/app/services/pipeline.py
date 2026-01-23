@@ -15,7 +15,11 @@ from dataclasses import dataclass, field
 
 from app.services.gemini_service import gemini_service, PanelResult
 from app.services.claude_prompt_service import claude_prompt_service, ClaudeResult
-from app.services.text_caption_service import add_text_captions_to_page, match_transcript_to_panels
+from app.services.text_caption_service import (
+    add_page_story_summary,
+    generate_page_story_summary,
+    match_transcript_to_panels
+)
 
 
 # ============================================================================
@@ -110,6 +114,187 @@ class PipelineOrchestrator:
             page_panels = panels[i:i+panels_per_page]
             pages.append(page_panels)
         return pages
+    
+    async def _generate_page_with_captions(
+        self,
+        page_num: int,
+        page_panels: List[dict],
+        config: PipelineConfig,
+        panel_texts: dict,
+        style_reference: Optional[str],
+        panels_per_page: int,
+        progress_callback: Optional[Callable[[str, float, str], None]],
+        num_pages: int,
+        semaphore: asyncio.Semaphore
+    ) -> dict:
+        """
+        Generate a single page with captions (helper method for parallel execution).
+        
+        Args:
+            page_num: Page number (1-indexed)
+            page_panels: List of panel prompts for this page
+            config: Pipeline configuration
+            panel_texts: Dictionary mapping panel_id to text
+            style_reference: Base64-encoded style reference image
+            panels_per_page: Number of panels per page
+            progress_callback: Optional progress callback
+            num_pages: Total number of pages
+            semaphore: Semaphore for concurrency control
+        
+        Returns:
+            Dictionary with page data (page_number, success, image_base64, etc.)
+        """
+        async with semaphore:
+            try:
+                # Update progress
+                if progress_callback:
+                    progress_pct = 50 + ((page_num / num_pages) * 45)  # 50-95% range
+                    progress_callback(
+                        "generating_pages",
+                        progress_pct,
+                        f"Generating page {page_num} of {num_pages}..."
+                    )
+                
+                # Generate single multi-panel page image
+                page_result = await self.gemini.generate_comic_page(
+                    panel_prompts=page_panels,
+                    page_number=page_num,
+                    style=config.image_style,
+                    aspect_ratio=config.aspect_ratio,
+                    temperature=config.image_temperature,
+                    style_reference_base64=style_reference
+                )
+                
+                if page_result.success:
+                    # Generate page story summary and add to image
+                    image_with_captions = page_result.image_base64
+                    if page_result.image_base64:
+                        try:
+                            # Generate story summary using Claude 3.5 Haiku
+                            import logging
+                            logger = logging.getLogger(__name__)
+                            
+                            # Get API key from Claude service settings
+                            from app.services.claude_prompt_service import get_claude_settings
+                            claude_settings = get_claude_settings()
+                            anthropic_api_key = claude_settings.anthropic_api_key
+                            
+                            story_summary = await generate_page_story_summary(
+                                panels=page_panels,
+                                panel_texts=panel_texts,
+                                anthropic_api_key=anthropic_api_key
+                            )
+                            
+                            if story_summary:
+                                # Add story summary to page image
+                                image_with_captions = add_page_story_summary(
+                                    image_base64=page_result.image_base64,
+                                    story_summary=story_summary,
+                                    num_panels=len(page_panels)
+                                )
+                            else:
+                                # If summary generation fails, use original image
+                                logger.warning(f"Failed to generate story summary for page {page_num}, using image without summary")
+                                image_with_captions = page_result.image_base64
+                        except Exception as e:
+                            # If summary generation or addition fails, use original image
+                            import logging
+                            logger = logging.getLogger(__name__)
+                            logger.warning(f"Failed to add story summary to page {page_num}: {e}")
+                            image_with_captions = page_result.image_base64
+                    
+                    # Save image if configured
+                    file_path = None
+                    if config.save_images and image_with_captions:
+                        config.output_dir.mkdir(parents=True, exist_ok=True)
+                        file_path = config.output_dir / f"page_{page_num:03d}.png"
+                        self.gemini.save_image(image_with_captions, file_path)
+                    
+                    # Create page object
+                    page_obj = {
+                        "page_number": page_num,
+                        "panels": page_panels,
+                        "image_base64": image_with_captions,
+                        "mime_type": page_result.mime_type,
+                        "success": True,
+                        "file_path": str(file_path) if file_path else None
+                    }
+                    
+                    # Create individual panel entries for backward compatibility
+                    all_panels = []
+                    for i, panel_data in enumerate(page_panels, 1):
+                        all_panels.append({
+                            "panel_id": panel_data.get("panel_id", (page_num - 1) * panels_per_page + i),
+                            "success": True,
+                            "image_base64": image_with_captions,
+                            "mime_type": page_result.mime_type,
+                            "prompt": panel_data.get("prompt", ""),
+                            "mood": panel_data.get("mood"),
+                            "camera_angle": panel_data.get("camera_angle"),
+                            "start_s": panel_data.get("start_s"),
+                            "end_s": panel_data.get("end_s"),
+                            "page_number": page_num,
+                            "file_path": str(file_path) if file_path else None
+                        })
+                    
+                    return {
+                        "page_obj": page_obj,
+                        "all_panels": all_panels,
+                        "success": True
+                    }
+                else:
+                    # Failed page
+                    page_obj = {
+                        "page_number": page_num,
+                        "panels": page_panels,
+                        "success": False,
+                        "error": page_result.error_message
+                    }
+                    
+                    # Add failed panels for backward compatibility
+                    all_panels = []
+                    for i, panel_data in enumerate(page_panels, 1):
+                        all_panels.append({
+                            "panel_id": panel_data.get("panel_id", (page_num - 1) * panels_per_page + i),
+                            "success": False,
+                            "error": page_result.error_message,
+                            "prompt": panel_data.get("prompt", ""),
+                            "page_number": page_num
+                        })
+                    
+                    return {
+                        "page_obj": page_obj,
+                        "all_panels": all_panels,
+                        "success": False
+                    }
+            except Exception as e:
+                # Handle any exceptions during page generation
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error generating page {page_num}: {e}")
+                
+                page_obj = {
+                    "page_number": page_num,
+                    "panels": page_panels,
+                    "success": False,
+                    "error": str(e)
+                }
+                
+                all_panels = []
+                for i, panel_data in enumerate(page_panels, 1):
+                    all_panels.append({
+                        "panel_id": panel_data.get("panel_id", (page_num - 1) * panels_per_page + i),
+                        "success": False,
+                        "error": str(e),
+                        "prompt": panel_data.get("prompt", ""),
+                        "page_number": page_num
+                    })
+                
+                return {
+                    "page_obj": page_obj,
+                    "all_panels": all_panels,
+                    "success": False
+                }
     
     async def run_from_transcript(
         self,
@@ -282,22 +467,41 @@ class PipelineOrchestrator:
                 if page_result.success:
                     successful_pages += 1
                     
-                    # Add text captions to page image
+                    # Generate page story summary and add to image
                     image_with_captions = page_result.image_base64
                     if page_result.image_base64:
                         try:
-                            image_with_captions = add_text_captions_to_page(
-                                image_base64=page_result.image_base64,
-                                panels=page_panels,
-                                panel_texts=panel_texts,
-                                num_panels=len(page_panels)
-                            )
-                        except Exception as e:
-                            # If caption addition fails, use original image
-                            # Log error but don't fail the whole page
+                            # Generate story summary using Claude 3.5 Haiku
                             import logging
                             logger = logging.getLogger(__name__)
-                            logger.warning(f"Failed to add text captions to page {page_num}: {e}")
+                            
+                            # Get API key from Claude service settings
+                            from app.services.claude_prompt_service import get_claude_settings
+                            claude_settings = get_claude_settings()
+                            anthropic_api_key = claude_settings.anthropic_api_key
+                            
+                            story_summary = await generate_page_story_summary(
+                                panels=page_panels,
+                                panel_texts=panel_texts,
+                                anthropic_api_key=anthropic_api_key
+                            )
+                            
+                            if story_summary:
+                                # Add story summary to page image
+                                image_with_captions = add_page_story_summary(
+                                    image_base64=page_result.image_base64,
+                                    story_summary=story_summary,
+                                    num_panels=len(page_panels)
+                                )
+                            else:
+                                # If summary generation fails, use original image
+                                logger.warning(f"Failed to generate story summary for page {page_num}, using image without summary")
+                                image_with_captions = page_result.image_base64
+                        except Exception as e:
+                            # If summary generation or addition fails, use original image
+                            import logging
+                            logger = logging.getLogger(__name__)
+                            logger.warning(f"Failed to add story summary to page {page_num}: {e}")
                             image_with_captions = page_result.image_base64
                     
                     # Save image if configured
