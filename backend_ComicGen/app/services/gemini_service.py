@@ -117,7 +117,8 @@ class GeminiService:
         aspect_ratio: str = "16:9",
         style_prefix: str = "",
         num_panels: int = 4,
-        temperature: float = 0.2
+        temperature: float = 0.2,
+        style_reference_base64: Optional[str] = None
     ) -> ImageResult:
         """
         Generate an image using Google Gemini API.
@@ -128,6 +129,7 @@ class GeminiService:
             style_prefix: Style keywords to prepend to prompt
             num_panels: Number of panels (for comic layouts)
             temperature: Generation temperature (lower = more deterministic)
+            style_reference_base64: Optional base64-encoded style reference image for consistency
         
         Returns:
             ImageResult with base64-encoded image or error
@@ -141,10 +143,35 @@ class GeminiService:
             else:
                 full_prompt = prompt
             
+            # Structure contents based on whether style reference is provided
+            if style_reference_base64:
+                # Use structured format with image input
+                # Add instruction to match the style reference
+                enhanced_prompt = f"{full_prompt}\n\nIMPORTANT: Match the exact art style, color palette, linework, and visual aesthetic shown in the provided style reference image. Maintain consistency with the reference style throughout the generated image."
+                # Structure contents as list with parts containing text and inline_data
+                # Note: Format may need adjustment based on google-genai library version
+                # If dict format doesn't work, may need to use types.Content/Part/Blob objects
+                contents = [
+                    {
+                        "parts": [
+                            {"text": enhanced_prompt},
+                            {
+                                "inline_data": {
+                                    "mime_type": "image/png",
+                                    "data": style_reference_base64
+                                }
+                            }
+                        ]
+                    }
+                ]
+            else:
+                # Use simple string format for backward compatibility
+                contents = full_prompt
+            
             # Generate using Gemini
             response = client.models.generate_content(
                 model=self.model,
-                contents=full_prompt,
+                contents=contents,
                 config={
                     "response_modalities": ["image", "text"],
                     "temperature": temperature
@@ -285,7 +312,8 @@ class GeminiService:
         page_number: int,
         style: str = "storybook",
         aspect_ratio: str = "16:9",
-        temperature: float = 0.2
+        temperature: float = 0.2,
+        style_reference_base64: Optional[str] = None
     ) -> PanelResult:
         """
         Generate a single comic page image containing multiple panels.
@@ -298,6 +326,7 @@ class GeminiService:
             style: Art style (storybook, comic, manga, etc.)
             aspect_ratio: Image aspect ratio
             temperature: Generation temperature (lower = more deterministic, default: 0.2)
+            style_reference_base64: Optional base64-encoded style reference image for consistency
         
         Returns:
             PanelResult with the generated multi-panel comic page image
@@ -350,7 +379,8 @@ CRITICAL - ABSOLUTELY NO TEXT: Do NOT include ANY text, words, letters, numbers,
             aspect_ratio=aspect_ratio,
             style_prefix=style_prefix,
             num_panels=num_panels,
-            temperature=consistency_temperature
+            temperature=consistency_temperature,
+            style_reference_base64=style_reference_base64
         )
         
         return PanelResult(

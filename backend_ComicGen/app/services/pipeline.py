@@ -242,6 +242,15 @@ class PipelineOrchestrator:
                 aspect_ratio=config.aspect_ratio
             )
             
+            # Log warning if style reference generation failed, but continue without it
+            if style_reference is None:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning("Style reference generation failed. Pages will be generated without style consistency reference.")
+                self._emit_progress(progress_callback, "generating_style_reference", 53, "Style reference generation failed, continuing without it...")
+            else:
+                self._emit_progress(progress_callback, "generating_style_reference", 53, "Style reference generated successfully")
+            
             # Step 4.6: Match transcript to panels for text captions
             panel_texts = match_transcript_to_panels(panel_prompts, comic_script)
             
@@ -266,7 +275,8 @@ class PipelineOrchestrator:
                     page_number=page_num,
                     style=config.image_style,
                     aspect_ratio=config.aspect_ratio,
-                    temperature=config.image_temperature
+                    temperature=config.image_temperature,
+                    style_reference_base64=style_reference  # Pass style reference for consistency
                 )
                 
                 if page_result.success:
