@@ -243,6 +243,42 @@ class GeminiService:
             prompt=result.prompt_used
         )
     
+    async def generate_style_reference(
+        self,
+        style: str = "storybook",
+        aspect_ratio: str = "16:9"
+    ) -> Optional[str]:
+        """
+        Generate a style reference image to ensure consistency across pages.
+        
+        Args:
+            style: Art style (storybook, comic, manga, etc.)
+            aspect_ratio: Image aspect ratio
+        
+        Returns:
+            Base64-encoded reference image, or None if generation fails
+        """
+        style_prompts = {
+            "storybook": "children's storybook comic illustration style, warm colors, expressive characters, whimsical details",
+            "comic": "classic American comic book art style, bold ink lines, dynamic poses, vibrant colors, halftone dots",
+            "manga": "Japanese manga art style, expressive eyes, speed lines, screentones, dramatic angles",
+            "watercolor": "watercolor comic style, soft washes, painterly panels, dreamy atmosphere",
+            "digital_art": "modern digital comic art style, clean linework, cel shading, polished finish",
+            "realistic": "realistic graphic novel style, detailed rendering, cinematic lighting, painterly textures"
+        }
+        
+        reference_prompt = f"{style_prompts.get(style, 'comic')}. A single comic panel showing a character in a neutral pose, showcasing the art style, color palette, linework, and overall aesthetic. This style must be maintained consistently across all pages. CRITICAL - ABSOLUTELY NO TEXT: Do NOT include ANY text, words, letters, numbers, symbols, speech bubbles, dialogue boxes, narration boxes, labels, captions, signs, or written content of ANY kind in the image. The image must be PURELY VISUAL with ZERO text elements. NO TEXT AT ALL. NO WORDS. NO LETTERS. NO SYMBOLS. PURELY VISUAL IMAGE ONLY."
+        
+        result = await self.generate_image(
+            prompt=reference_prompt,
+            aspect_ratio=aspect_ratio,
+            style_prefix="",
+            num_panels=1,
+            temperature=0.1  # Very low for consistency
+        )
+        
+        return result.image_base64 if result.success else None
+    
     async def generate_comic_page(
         self,
         panel_prompts: List[dict],
@@ -301,7 +337,12 @@ class GeminiService:
 
 Each panel should be clearly separated with borders or gutters. Arrange the panels in a traditional comic book layout. Maintain consistent art style across all panels on the page. Each panel should be visually distinct and tell part of the story sequentially.
 
-IMPORTANT: Do NOT include speech bubbles, dialogue text, or any written text in the images. Focus purely on visual storytelling through character expressions, actions, and scenes."""
+CRITICAL STYLE REQUIREMENT: Maintain the exact same art style, color palette, linework, and visual aesthetic as established in the style reference. Use consistent character designs, color schemes, and artistic techniques throughout all panels.
+
+CRITICAL - ABSOLUTELY NO TEXT: Do NOT include ANY text, words, letters, numbers, symbols, speech bubbles, dialogue boxes, narration boxes, labels, captions, signs, or written content of ANY kind in the images. The images must be PURELY VISUAL with ZERO text elements. Any text will be added separately later - do not generate any text in the image itself. NO TEXT AT ALL. NO WORDS. NO LETTERS. NO SYMBOLS. PURELY VISUAL IMAGES ONLY. Focus purely on visual storytelling through character expressions, actions, and scenes."""
+        
+        # Use lower temperature for consistency (0.1-0.15 range)
+        consistency_temperature = min(0.15, max(0.1, temperature))
         
         # Generate single image with all panels
         result = await self.generate_image(
@@ -309,7 +350,7 @@ IMPORTANT: Do NOT include speech bubbles, dialogue text, or any written text in 
             aspect_ratio=aspect_ratio,
             style_prefix=style_prefix,
             num_panels=num_panels,
-            temperature=temperature
+            temperature=consistency_temperature
         )
         
         return PanelResult(

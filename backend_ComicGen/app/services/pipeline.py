@@ -234,7 +234,15 @@ class PipelineOrchestrator:
             
             self._emit_progress(progress_callback, "grouping_pages", 50, f"Organized into {num_pages} pages")
             
-            # Step 4.5: Match transcript to panels for text captions
+            # Step 4.5: Generate style reference for consistency
+            self._emit_progress(progress_callback, "generating_style_reference", 52, "Generating style reference...")
+            
+            style_reference = await self.gemini.generate_style_reference(
+                style=config.image_style,
+                aspect_ratio=config.aspect_ratio
+            )
+            
+            # Step 4.6: Match transcript to panels for text captions
             panel_texts = match_transcript_to_panels(panel_prompts, comic_script)
             
             # Step 5: Generate comic pages (multi-panel images)

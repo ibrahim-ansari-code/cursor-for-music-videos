@@ -96,6 +96,61 @@ def match_transcript_to_panels(
     return panel_texts
 
 
+def _calculate_panel_layout(num_panels: int) -> tuple:
+    """
+    Calculate grid layout for panels.
+    
+    Args:
+        num_panels: Number of panels
+    
+    Returns:
+        (rows, cols) tuple
+    """
+    if num_panels == 4:
+        return (2, 2)
+    elif num_panels == 5:
+        return (2, 3)  # 2 rows, 3 cols (one panel spans)
+    elif num_panels == 6:
+        return (2, 3)
+    else:
+        # Default: try to make square-ish
+        cols = int(num_panels ** 0.5) + 1
+        rows = (num_panels + cols - 1) // cols
+        return (rows, cols)
+
+
+def _calculate_panel_positions(img_width: int, img_height: int, num_panels: int) -> List[dict]:
+    """
+    Calculate position and size of each panel in the grid.
+    
+    Args:
+        img_width: Image width
+        img_height: Image height
+        num_panels: Number of panels
+    
+    Returns:
+        List of dicts with 'x', 'y', 'width', 'height' for each panel
+    """
+    rows, cols = _calculate_panel_layout(num_panels)
+    panel_width = img_width // cols
+    panel_height = img_height // rows
+    
+    positions = []
+    for i in range(num_panels):
+        row = i // cols
+        col = i % cols
+        x = col * panel_width
+        y = row * panel_height
+        positions.append({
+            'x': x,
+            'y': y,
+            'width': panel_width,
+            'height': panel_height
+        })
+    
+    return positions
+
+
 def _get_font(size: int, bold: bool = False):
     """Try to load a font, fallback to default."""
     if not PIL_AVAILABLE:
@@ -131,7 +186,9 @@ def add_text_captions_to_page(
     num_panels: int
 ) -> str:
     """
-    Add text caption area at bottom of page with panel dialogue/narration.
+    Add text caption areas under each corresponding panel.
+    
+    Each panel gets its own caption area positioned directly below it.
     
     Args:
         image_base64: Base64-encoded image
@@ -140,7 +197,7 @@ def add_text_captions_to_page(
         num_panels: Number of panels on the page
     
     Returns:
-        Base64-encoded image with text captions added
+        Base64-encoded image with text captions added under each panel
     """
     if not PIL_AVAILABLE:
         # If Pillow not available, return original image
@@ -151,24 +208,30 @@ def add_text_captions_to_page(
     img = Image.open(io.BytesIO(image_data))
     img_width, img_height = img.size
     
-    # Calculate caption area height (18% of image height, minimum 100px)
-    caption_height = max(int(img_height * 0.18), 100)
+    # Calculate panel positions from grid layout
+    panel_positions = _calculate_panel_positions(img_width, img_height, num_panels)
     
-    # Create new image with caption area
-    new_img = Image.new('RGB', (img_width, img_height + caption_height), 'white')
+    # Calculate caption height (25% of panel height, or fixed 120px to accommodate more text)
+    rows, cols = _calculate_panel_layout(num_panels)
+    panel_height = img_height // rows
+    caption_height = max(int(panel_height * 0.25), 120)
+    
+    # Calculate total height needed (original image + caption areas for each row)
+    total_caption_height = rows * caption_height
+    new_height = img_height + total_caption_height
+    
+    # Create new image with caption areas
+    new_img = Image.new('RGB', (img_width, new_height), 'white')
     new_img.paste(img, (0, 0))
     
-    # Draw caption area
+    # Draw caption areas
     draw = ImageDraw.Draw(new_img)
     
     # Load fonts
     font_small = _get_font(12, bold=False)
     font_bold = _get_font(14, bold=True)
     
-    # Add text for each panel
-    caption_y = img_height + 15
-    panel_width = img_width // num_panels
-    
+    # Add caption for each panel
     for i, panel in enumerate(panels):
         panel_id = panel.get("panel_id", i + 1)
         text = panel_texts.get(panel_id, "")
@@ -176,22 +239,45 @@ def add_text_captions_to_page(
         if not text:
             continue
         
-        # Calculate position for this panel's caption
-        x = (i * panel_width) + 15
-        y = caption_y
-        max_width = panel_width - 30  # Leave margins
+        # Get panel position
+        panel_pos = panel_positions[i]
+        panel_x = panel_pos['x']
+        panel_y = panel_pos['y']
+        panel_width = panel_pos['width']
+        panel_height_actual = panel_pos['height']
         
-        # Truncate very long text (will wrap anyway, but limit initial length)
-        if len(text) > 200:
-            text = text[:200] + "..."
+        # Calculate which row this panel is in
+        rows, cols = _calculate_panel_layout(num_panels)
+        row = i // cols
         
-        # Draw panel label
+        # Calculate caption position (directly under panel)
+        caption_x = panel_x + 10  # Small margin from left
+        caption_y = img_height + (row * caption_height) + 10
+        max_width = panel_width - 20  # Leave margins
+        
+        # Draw panel label (bold, visible)
+        label_text = f"Panel {i+1}:"
         if font_bold:
-            draw.text((x, y), f"Panel {i+1}:", fill='black', font=font_bold)
+            draw.text((caption_x, caption_y), label_text, fill='black', font=font_bold)
         else:
-            draw.text((x, y), f"Panel {i+1}:", fill='black', font=font_small)
+            # Use larger font for label if bold not available
+            draw.text((caption_x, caption_y), label_text, fill='black', font=font_small)
         
-        # Wrap text to fit within panel width
+        # Get label width to position text after label
+        if font_bold:
+            label_bbox = draw.textbbox((0, 0), label_text, font=font_bold)
+            label_width = label_bbox[2] - label_bbox[0]
+        else:
+            label_bbox = draw.textbbox((0, 0), label_text, font=font_small)
+            label_width = label_bbox[2] - label_bbox[0]
+        
+        # Adjust text start position after label
+        text_start_x = caption_x + label_width + 5
+        text_max_width = max_width - label_width - 5
+        
+        # Keep full text - no truncation
+        
+        # Wrap text to fit within caption width
         words = text.split()
         lines = []
         current_line = ""
@@ -205,45 +291,64 @@ def add_text_captions_to_page(
                 # Rough estimate: ~6 pixels per character
                 text_width = len(test_line) * 6
             
-            if text_width < max_width:
+            if text_width < text_max_width:
                 current_line = test_line
             else:
                 if current_line:
                     lines.append(current_line)
-                # If single word is too long, truncate it
+                # If single word is too long, break it (don't truncate, just wrap)
                 if font_small:
                     word_bbox = draw.textbbox((0, 0), word, font=font_small)
                     word_width = word_bbox[2] - word_bbox[0]
-                    if word_width > max_width:
-                        # Truncate long word character by character
-                        truncated_word = word
-                        while truncated_word:
-                            test_bbox = draw.textbbox((0, 0), truncated_word + "...", font=font_small)
-                            if (test_bbox[2] - test_bbox[0]) <= max_width:
-                                break
-                            truncated_word = truncated_word[:-1]
-                        current_line = truncated_word + "..." if truncated_word else "..."
+                    if word_width > text_max_width:
+                        # Break long word by splitting into chunks that fit
+                        word_chunks = []
+                        remaining_word = word
+                        while remaining_word:
+                            chunk = ""
+                            for char in remaining_word:
+                                test_chunk = chunk + char
+                                test_bbox = draw.textbbox((0, 0), test_chunk, font=font_small)
+                                if (test_bbox[2] - test_bbox[0]) <= text_max_width:
+                                    chunk = test_chunk
+                                else:
+                                    break
+                            if chunk:
+                                word_chunks.append(chunk)
+                                remaining_word = remaining_word[len(chunk):]
+                            else:
+                                # Single character doesn't fit, add it anyway
+                                word_chunks.append(remaining_word[0])
+                                remaining_word = remaining_word[1:]
+                        current_line = word_chunks[0] if word_chunks else word
+                        # Add remaining chunks as separate lines
+                        for chunk in word_chunks[1:]:
+                            lines.append(chunk)
                     else:
                         current_line = word
                 else:
                     # Rough estimate: ~6 pixels per character
-                    if len(word) * 6 > max_width:
-                        max_chars = max_width // 6
-                        current_line = word[:max_chars] + "..." if max_chars > 0 else "..."
+                    if len(word) * 6 > text_max_width:
+                        # Break word into chunks
+                        chunk_size = text_max_width // 6
+                        word_chunks = [word[j:j+chunk_size] for j in range(0, len(word), chunk_size)]
+                        current_line = word_chunks[0] if word_chunks else word
+                        for chunk in word_chunks[1:]:
+                            lines.append(chunk)
                     else:
                         current_line = word
         
         if current_line:
             lines.append(current_line)
         
-        # Draw wrapped text (max 3 lines to fit in caption area)
-        line_y = y + 20
-        for line in lines[:3]:
+        # Draw wrapped text (allow up to 15 lines to show complete text)
+        line_y = caption_y + 18  # Start below label
+        for line in lines[:15]:  # Show up to 15 lines instead of 3
             if font_small:
-                draw.text((x, line_y), line, fill='black', font=font_small)
+                draw.text((text_start_x, line_y), line, fill='black', font=font_small)
             else:
-                draw.text((x, line_y), line, fill='black')
-            line_y += 18
+                draw.text((text_start_x, line_y), line, fill='black')
+            line_y += 16
     
     # Encode back to base64
     buffer = io.BytesIO()
