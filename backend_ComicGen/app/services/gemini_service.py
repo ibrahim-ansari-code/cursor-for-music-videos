@@ -9,7 +9,7 @@ import base64
 import asyncio
 import io
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -33,8 +33,8 @@ def _find_env_file() -> str:
 class GeminiSettings(BaseSettings):
     """Gemini API settings loaded from environment variables."""
     
-    gemini_api_key: str | None = None
-    google_api_key: str | None = None  # Alternative env var name
+    gemini_api_key: Optional[str] = None
+    google_api_key: Optional[str] = None  # Alternative env var name
     
     model_config = {
         "env_file": _find_env_file(),
@@ -42,7 +42,7 @@ class GeminiSettings(BaseSettings):
         "extra": "ignore"
     }
     
-    def get_api_key(self) -> str | None:
+    def get_api_key(self) -> Optional[str]:
         """Get API key from either GEMINI_API_KEY or GOOGLE_API_KEY."""
         return self.gemini_api_key or self.google_api_key
 
@@ -111,8 +111,78 @@ class GeminiService:
                 )
         return self._client
     
-
-
+    async def generate_image(
+        self,
+        prompt: str,
+        aspect_ratio: str = "16:9",
+        style_prefix: str = "",
+        num_panels: int = 4,
+        temperature: float = 0.2
+    ) -> ImageResult:
+        """
+        Generate an image using Google Gemini API.
+        
+        Args:
+            prompt: Text prompt describing the image
+            aspect_ratio: Image aspect ratio (16:9, 1:1, 4:3)
+            style_prefix: Style keywords to prepend to prompt
+            num_panels: Number of panels (for comic layouts)
+            temperature: Generation temperature (lower = more deterministic)
+        
+        Returns:
+            ImageResult with base64-encoded image or error
+        """
+        try:
+            client = self._get_client()
+            
+            # Build the full prompt with style
+            if style_prefix:
+                full_prompt = f"{style_prefix}. {prompt}"
+            else:
+                full_prompt = prompt
+            
+            # Generate using Gemini
+            response = client.models.generate_content(
+                model=self.model,
+                contents=full_prompt,
+                config={
+                    "response_modalities": ["image", "text"],
+                    "temperature": temperature
+                }
+            )
+            
+            # Extract image from response
+            if response.candidates and response.candidates[0].content.parts:
+                for part in response.candidates[0].content.parts:
+                    if hasattr(part, 'inline_data') and part.inline_data:
+                        image_data = part.inline_data.data
+                        mime_type = part.inline_data.mime_type or "image/png"
+                        
+                        # Encode to base64
+                        if isinstance(image_data, bytes):
+                            image_base64 = base64.b64encode(image_data).decode("utf-8")
+                        else:
+                            image_base64 = image_data
+                        
+                        return ImageResult(
+                            success=True,
+                            image_base64=image_base64,
+                            mime_type=mime_type,
+                            prompt_used=full_prompt
+                        )
+            
+            return ImageResult(
+                success=False,
+                error_message="No image generated in response",
+                prompt_used=full_prompt
+            )
+            
+        except Exception as e:
+            return ImageResult(
+                success=False,
+                error_message=str(e),
+                prompt_used=prompt
+            )
     
     async def generate_panel(
         self,
@@ -166,6 +236,82 @@ class GeminiService:
         
         return PanelResult(
             panel_id=panel_id,
+            success=result.success,
+            image_base64=result.image_base64,
+            mime_type=result.mime_type,
+            error_message=result.error_message,
+            prompt=result.prompt_used
+        )
+    
+    async def generate_comic_page(
+        self,
+        panel_prompts: List[dict],
+        page_number: int,
+        style: str = "storybook",
+        aspect_ratio: str = "16:9",
+        temperature: float = 0.2
+    ) -> PanelResult:
+        """
+        Generate a single comic page image containing multiple panels.
+        
+        Creates one image with 4-6 panels arranged on it (like traditional comics).
+        
+        Args:
+            panel_prompts: List of 4-6 panel prompt dictionaries with 'prompt' key
+            page_number: Page number for identification
+            style: Art style (storybook, comic, manga, etc.)
+            aspect_ratio: Image aspect ratio
+            temperature: Generation temperature (lower = more deterministic, default: 0.2)
+        
+        Returns:
+            PanelResult with the generated multi-panel comic page image
+        """
+        # Build style-enhanced prompt optimized for comics
+        style_prompts = {
+            "storybook": "children's storybook comic illustration style, warm colors, expressive characters, whimsical details",
+            "comic": "classic American comic book art style, bold ink lines, dynamic poses, vibrant colors, halftone dots",
+            "manga": "Japanese manga art style, expressive eyes, speed lines, screentones, dramatic angles",
+            "watercolor": "watercolor comic style, soft washes, painterly panels, dreamy atmosphere",
+            "digital_art": "modern digital comic art style, clean linework, cel shading, polished finish",
+            "realistic": "realistic graphic novel style, detailed rendering, cinematic lighting, painterly textures"
+        }
+        
+        style_prefix = style_prompts.get(style.lower(), style_prompts["comic"])
+        
+        # Build combined prompt for multi-panel page
+        panel_descriptions = []
+        for i, panel_data in enumerate(panel_prompts, 1):
+            prompt_text = panel_data.get("prompt", "")
+            panel_descriptions.append(f"Panel {i}: {prompt_text}")
+        
+        # Determine layout based on number of panels
+        num_panels = len(panel_prompts)
+        if num_panels == 4:
+            layout = "2x2 grid layout"
+        elif num_panels == 5:
+            layout = "2x3 grid layout with one larger panel"
+        elif num_panels == 6:
+            layout = "2x3 grid layout"
+        else:
+            layout = f"{num_panels} panel grid layout"
+        
+        combined_prompt = f"""Create a comic book page with {num_panels} panels arranged in a {layout}.
+
+{chr(10).join(panel_descriptions)}
+
+Each panel should be clearly separated with borders or gutters. Arrange the panels in a traditional comic book layout. Maintain consistent art style across all panels on the page. Each panel should be visually distinct and tell part of the story sequentially."""
+        
+        # Generate single image with all panels
+        result = await self.generate_image(
+            prompt=combined_prompt,
+            aspect_ratio=aspect_ratio,
+            style_prefix=style_prefix,
+            num_panels=num_panels,
+            temperature=temperature
+        )
+        
+        return PanelResult(
+            panel_id=page_number,  # Use page_number as ID
             success=result.success,
             image_base64=result.image_base64,
             mime_type=result.mime_type,

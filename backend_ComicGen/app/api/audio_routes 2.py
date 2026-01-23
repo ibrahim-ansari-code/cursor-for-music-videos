@@ -43,13 +43,9 @@ class AudioPipelineResponse(BaseModel):
     """Response from full audio pipeline."""
     success: bool
     total_panels: int = 0
-    total_pages: int = 0
     successful_images: int = 0
     failed_images: int = 0
-    successful_pages: int = 0
-    failed_pages: int = 0
-    pages: List[dict] = Field(default_factory=list, description="Comic pages (each page = one image with multiple panels)")
-    panels: List[dict] = Field(default_factory=list, description="Backward compatibility - flattened panel list")
+    panels: List[dict] = Field(default_factory=list)
     transcript: List[dict] = Field(default_factory=list)
     gumloop_run_id: Optional[str] = None
     execution_time_s: float = 0.0
@@ -160,19 +156,15 @@ async def generate_comic_from_audio(
     style: str = Form("storybook"),
     aspect_ratio: str = Form("16:9"),
     language: Optional[str] = Form(None),
-    keyterms: Optional[str] = Form(None),
-    style_reference: Optional[UploadFile] = File(None),
-    prompt_temperature: float = Form(0.3),
-    panels_per_page: int = Form(5)
+    keyterms: Optional[str] = Form(None)
 ):
     """
-    Full pipeline: Upload audio file → Transcribe → Generate comic pages.
+    Full pipeline: Upload audio file → Transcribe → Generate comic panels.
     
     This endpoint handles the complete flow:
     1. Transcribe audio to comic script
-    2. Generate prompts with Claude (with optional style reference)
-    3. Group panels into pages (4-6 panels per page)
-    4. Generate multi-panel comic pages with Gemini
+    2. Send to Gumloop for prompt generation
+    3. Generate images with Gemini
     
     Args:
         file: Audio file (MP3, WAV, M4A)
@@ -180,12 +172,9 @@ async def generate_comic_from_audio(
         aspect_ratio: Aspect ratio for images (default: 16:9)
         language: Optional language code for transcription
         keyterms: Optional comma-separated list of character names/terms
-        style_reference: Optional image file for style consistency
-        prompt_temperature: Temperature for prompt generation (default: 0.3)
-        panels_per_page: Number of panels per page (default: 5, range: 4-6)
     
     Returns:
-        Generated comic pages with images as base64 (each page contains multiple panels)
+        Generated comic panels with images as base64
     """
     # Validate file type
     allowed_types = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/m4a', 'audio/mp4']
@@ -232,28 +221,15 @@ async def generate_comic_from_audio(
                 })
             transcript.extend(comic_script_dict.get("segments", []))
             
-            # Step 2: Read style reference image if provided
-            style_ref_bytes = None
-            if style_reference:
-                style_ref_bytes = await style_reference.read()
-            
-            # Step 3: Validate panels_per_page
-            panels_per_page = max(4, min(6, panels_per_page))
-            
-            # Step 4: Run pipeline with transcript
+            # Step 2: Run pipeline with transcript
             config = PipelineConfig(
                 output_dir=Path("/tmp/pipeline_output"),
                 image_style=style,
                 aspect_ratio=aspect_ratio,
                 save_images=False,  # Return base64 instead
-                save_metadata=False,
-                style_reference_image=style_ref_bytes,
-                prompt_temperature=prompt_temperature,
-                panels_per_page=panels_per_page
+                save_metadata=False
             )
             
-            # Note: Progress callbacks would be implemented here if using SSE/WebSocket
-            # For now, we'll use synchronous execution with progress stored in job store
             pipeline_result = await pipeline_orchestrator.run_from_transcript(
                 comic_script=transcript,
                 config=config
@@ -262,13 +238,9 @@ async def generate_comic_from_audio(
             return AudioPipelineResponse(
                 success=pipeline_result.success,
                 total_panels=pipeline_result.total_panels,
-                total_pages=pipeline_result.total_pages,
                 successful_images=pipeline_result.successful_images,
                 failed_images=pipeline_result.failed_images,
-                successful_pages=pipeline_result.successful_pages,
-                failed_pages=pipeline_result.failed_pages,
-                pages=pipeline_result.pages,
-                panels=pipeline_result.panels,  # Backward compatibility
+                panels=pipeline_result.panels,
                 transcript=transcript,
                 gumloop_run_id=pipeline_result.gumloop_run_id,
                 execution_time_s=pipeline_result.execution_time_s,

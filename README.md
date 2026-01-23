@@ -1,289 +1,69 @@
-# MeloVue - AI Music Video Generator
+Frontend upload (audio.mp3 + theme_image)
+→ POST /uploads (multipart/form-data)
+→ Backend API
 
-Transform your audio into stunning AI-generated music videos.
+Backend API validate + persist
+→ PUT audio.mp3 to Object Storage (S3/R2)
+→ PUT theme_image to Object Storage (S3/R2)
+→ receive audio_url + image_url
+→ POST /jobs {audio_url, image_url, user_options}
+→ enqueue job_id
+→ return job_id to Frontend
 
-## Project Structure
+Frontend progress
+→ GET /jobs/:job_id (poll)
+→ Backend API (status)
 
-```
-cursor-for-music-videos/
-├── frontend/                # Next.js frontend application
-│   ├── app/                 # App router pages and layouts
-│   ├── components/          # React components
-│   ├── lib/                 # Utility functions
-│   ├── public/              # Static assets
-│   └── package.json
-│
-├── backend/                 # FastAPI backend service
-│   ├── app/
-│   │   ├── api/             # REST API endpoints
-│   │   ├── models/          # Database models
-│   │   ├── services/        # Business logic services
-│   │   └── worker/          # Background job processing
-│   └── requirements.txt
-│
-└── README.md
-```
+Queue
+→ Worker (job_id, audio_url, image_url, options)
 
-## Getting Started
+Worker timing prep
+→ fetch audio_url metadata
+→ ffprobe audio_url → audio_duration_s
+→ (optional) build initial segments template (fixed windows) if needed
 
-### Prerequisites
+Worker lyrics + timestamps
+→ POST ElevenLabs Speech-to-Text { cloud_storage_url: audio_url }
+→ receive transcript + timestamps (word/segment timing)
+→ build segments[] = [{start_s,end_s,lyric_snippet}] aligned to audio_duration_s
 
-You'll need environment variables for the backend services:
+Worker start Gumloop run
+→ POST https://api.gumloop.com/api/v1/start_pipeline
+→ pipeline_inputs: { image_url, transcript, segments[], audio_duration_s, user_options }
+→ receive gumloop_run_id
 
-```bash
-# backend_ComicGen/.env
-ELEVENLABS_API_KEY=your_elevenlabs_key    # For audio transcription
-GUMLOOP_API_KEY=your_gumloop_key          # For prompt generation
-GUMLOOP_USER_ID=your_gumloop_user_id
-GUMLOOP_SAVED_ITEM_ID=your_gumloop_flow_id
-GEMINI_API_KEY=your_gemini_key            # For image generation
-```
+Gumloop flow (internal)
+→ Ask AI #1 (GLOBAL MOOD + GLOBAL STYLE) using {transcript, image_url}
+→ output global_mood + global_style
+→ Ask AI #2 (SCENE PROMPTS) using {global_mood, global_style, segments[]}
+→ output scenes[] where each scene keeps exact {start_s,end_s} and adds {prompt,camera,motion,negative_prompt}
+→ Output node emits {global_mood, global_style, scenes[]}
 
-### Running Both Services
+Worker poll Gumloop outputs
+→ GET https://api.gumloop.com/api/v1/get_pl_run?run_id=gumloop_run_id
+→ receive {global_mood, global_style, scenes[]}
 
-**Terminal 1 - Backend (port 8000):**
-```bash
-cd backend_ComicGen
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
+Worker generate silent scene clips (external video model)
+→ for each scene in scenes[] (in order)
+→ POST VideoGenAPI { prompt, ref_image_url:image_url, duration_s:(end_s-start_s), style:global_style }
+→ receive clip_url OR provider_job_id
+→ if provider_job_id
+→ poll VideoGenAPI status until clip_url
+→ collect clip_urls[] in order
 
-**Terminal 2 - Frontend (port 3000):**
-```bash
-cd frontend
-npm install
-npm run dev
-```
+Worker compose final music video with original audio
+→ download/stream clip_urls[]
+→ ffmpeg concat clip_urls[] → temp_video.mp4 (duration matches audio_duration_s)
+→ ffmpeg mux temp_video.mp4 + audio_url → final_video.mp4
+→ trim/pad final_video.mp4 to exactly audio_duration_s
 
-Open [http://localhost:3000](http://localhost:3000) - the frontend will automatically connect to the backend at port 8000.
+Worker store final output + update job
+→ PUT final_video.mp4 to Object Storage
+→ receive final_video_url
+→ PATCH /jobs/:job_id {status:"done", final_video_url, global_mood, global_style}
+→ Backend API
 
-### Audio to Comic Flow
-
-1. Upload an audio file (MP3, WAV, M4A) on the home page
-2. Click "POW! GENERATE COMIC"
-3. The system will:
-   - Transcribe the audio using ElevenLabs
-   - Generate panel prompts using Gumloop AI
-   - Create comic images using Google Gemini
-4. View and download your generated comic panels
-
-## API Endpoints
-
-### Comic Generation API (backend_ComicGen)
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Health check and endpoint list |
-| `/audio/generate-comic` | POST | Full pipeline: audio → comic panels |
-| `/audio/transcribe` | POST | Transcribe audio only |
-| `/pipeline/run` | POST | Generate images from transcript |
-| `/pipeline/health` | GET | Check service configuration |
-
-### Audio to Comic Endpoint
-
-<<<<<<< HEAD
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-=======
->>>>>>> 09dacd1 (Add audio processing pipeline and enhance comic generation)
-```
-POST /audio/generate-comic
-Content-Type: multipart/form-data
-
-Fields:
-- file (required): Audio file (MP3, WAV, M4A)
-- style (optional): Art style (default: "storybook")
-- aspect_ratio (optional): Image aspect ratio (default: "16:9")
-- language (optional): Language code for transcription
-- keyterms (optional): Comma-separated character names
-
-Response:
-{
-  "success": true,
-  "total_panels": 6,
-  "successful_images": 6,
-  "failed_images": 0,
-  "panels": [
-    {
-      "panel_id": 1,
-      "prompt": "...",
-      "status": "success",
-      "image_base64": "...",
-      "mime_type": "image/png"
-    }
-  ],
-  "transcript": [...],
-  "execution_time_s": 45.2
-}
-```
-
----
-
-## System Architecture
-
-### Core Invariants
-
-**Invariant A — Audio is the source of truth for timing**
-- `audio_duration_s` is canonical
-- Every visual scene is a silent clip with duration summing to `audio_duration_s`
-- Final exported MP4 has original MP3 muxed in and is trimmed/padded to exactly match `audio_duration_s`
-
-**Invariant B — Frontend media is never forwarded directly**
-- Frontend uploads once to backend
-- Backend persists to object storage
-- Everything downstream uses `audio_url` / `image_url` (signed URL or public URL)
-
----
-
-## Pipeline Overview
-
-### 1. Frontend Upload
-- User selects `audio.mp3` and `theme_image.(png/jpg/webp)`
-- Optional `user_options` (style tags, cut frequency, intensity, etc.)
-- `POST /uploads` (multipart/form-data)
-- Response: `{ audio_upload_id, image_upload_id, audio_url, image_url }`
-
-### 2. Backend Validate + Persist
-- Validate audio format, size, duration
-- Validate image format, size
-- Store in Object Storage (S3/R2)
-- Create job: `POST /jobs { audio_url, image_url, user_options }`
-- Response: `{ job_id }`
-
-### 3. Frontend Progress Polling
-- `GET /jobs/:job_id` (poll every 1–3s)
-- Status: `queued | running | generating_scenes | composing | done | failed`
-
-### 4. Worker Pipeline
-
-**Step 1: Timing Prep**
-- `ffprobe` for canonical duration
-- Create segments template (fixed windows)
-
-**Step 2: Transcription (ElevenLabs STT)**
-- Extract lyrics + time alignment
-- Handle instrumental/unclear vocals gracefully
-
-**Step 3: Build Segments**
-- `[{start_s, end_s, lyric_snippet, energy_hint}]`
-- Ensure no gaps/overlaps, sum equals `audio_duration_s`
-
-**Step 4: Gumloop AI Pipeline**
-- Input: `image_url`, `transcript_clean`, `segments[]`, `audio_duration_s`
-- Output: `global_mood`, `global_style`, `scenes[]`
-
-**Step 5: Generate Video Clips**
-- Per-scene video generation with style anchor
-- Duration matches `end_s - start_s`
-
-**Step 6: Compose Final Video**
-- FFmpeg concat silent clips
-- Mux original audio
-- Trim/pad to exact `audio_duration_s`
-
-### 5. Delivery
-- Upload `final_video.mp4` to Object Storage
-- Return `final_video_url` to frontend
-
----
-
-## API Reference
-
-### Upload Files
-```
-POST /uploads
-Content-Type: multipart/form-data
-
-Fields:
-- audio (required): MP3/WAV/M4A file
-- image (required): PNG/JPG/WebP file
-- user_options (optional): JSON string
-
-Response:
-{
-  "audio_upload_id": "uuid",
-  "image_upload_id": "uuid",
-  "audio_url": "signed_url",
-  "image_url": "signed_url"
-}
-```
-
-### Create Job
-```
-POST /jobs
-Content-Type: application/json
-
-Body:
-{
-  "audio_url": "string",
-  "image_url": "string",
-  "user_options": {}
-}
-
-Response:
-{
-  "job_id": "uuid"
-}
-```
-
-### Get Job Status
-```
-GET /jobs/:job_id
-
-Response:
-{
-  "job_id": "uuid",
-  "status": "queued|running|generating_scenes|composing|done|failed",
-  "progress": 0.0-1.0,
-  "message": "human-readable",
-  "final_video_url": "string|null",
-  "global_mood": "string|null",
-  "global_style": "string|null",
-  "error": "string|null"
-}
-```
-
----
-
-## Data Schemas
-
-### Segment
-```json
-{
-  "i": 0,
-  "start_s": 0.0,
-  "end_s": 4.0,
-  "lyric_snippet": "...",
-  "energy_hint": 0.42
-}
-```
-
-### Scene
-```json
-{
-  "i": 0,
-  "start_s": 0.0,
-  "end_s": 4.0,
-  "prompt": "...",
-  "camera": "...",
-  "motion": "...",
-  "negative_prompt": "..."
-}
-```
-
-### Global Style Output
-```json
-{
-  "global_mood": "...",
-  "global_style": "...",
-  "palette": ["..."],
-  "motifs": ["..."],
-  "do_not_include": ["..."]
-}
-```
+Frontend completion
+→ GET /jobs/:job_id
+→ receive final_video_url (+ optional global_mood/global_style)
+→ play/download final video

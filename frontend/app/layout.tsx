@@ -1,21 +1,36 @@
-import type { Metadata } from 'next'
-import './globals.css'
+import type { Metadata } from "next";
+import { Bangers, Comic_Neue } from "next/font/google";
+import "./comic.css";
+import HalftoneBackground from "@/components/HalftoneBackground";
+
+const bangers = Bangers({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-bangers",
+});
+
+const comicNeue = Comic_Neue({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-comic",
+});
 
 export const metadata: Metadata = {
-  title: 'Transform Audio Into Visual Art | MeloVue',
-  description: 'Transform your audio and images into stunning AI-generated music videos',
-}
+  title: "Comic Audio Generator",
+  description: "Generate comics from your audiobook files",
+};
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className={`${bangers.variable} ${comicNeue.variable} antialiased`}>
+        <HalftoneBackground />
         {children}
       </body>
     </html>
-  )
+  );
 }

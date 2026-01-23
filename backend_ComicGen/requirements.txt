@@ -6,6 +6,9 @@ python-multipart>=0.0.6  # Required for file uploads
 # ElevenLabs for speech-to-text
 elevenlabs>=1.0.0
 
+# Anthropic Claude for prompt generation (with vision support)
+anthropic>=0.18.0
+
 # Google Gemini for image generation (new unified SDK)
 google-genai>=1.0.0
 
