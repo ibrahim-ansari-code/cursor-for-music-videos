@@ -58,46 +58,6 @@ Built with modern web technologies and leveraging cutting-edge AI services for t
 - pydub (Audio processing and stitching)
 - SQLite (Voice caching via VoiceCache for character voice consistency)
 
-### System Architecture
-
-```mermaid
-flowchart TD
-    User[User] --> Frontend[Next.js Frontend]
-    
-    subgraph AudioToComic[Audio to Comic Module]
-        Frontend -->|Upload Audio| ComicBackend[Comic Backend API]
-        ComicBackend -->|Transcribe| ElevenLabsSTT[ElevenLabs STT]
-        ElevenLabsSTT -->|Transcript| ComicBackend
-        ComicBackend -->|Generate Prompts| Claude[Claude API]
-        Claude -->|Prompts| ComicBackend
-        ComicBackend -->|Generate Images| Gemini[Gemini API]
-        Gemini -->|Panels| ComicBackend
-        ComicBackend -->|Comic Pages| Frontend
-    end
-    
-    subgraph ComicToAudio[Comic to Audio Module]
-        Frontend -->|Upload Images| AudioBackend[Audio Backend API]
-        AudioBackend -->|Analyze Images| Gumloop[Gumloop API]
-        Gumloop -->|Narrative Script| AudioBackend
-        AudioBackend -->|Check Cache| VoiceDB[(VoiceCache DB)]
-        AudioBackend -->|Generate Speech| ElevenLabsTTS[ElevenLabs TTS]
-        ElevenLabsTTS -->|Audio Clips| AudioBackend
-        AudioBackend -->|Stitched Audio| Frontend
-    end
-    
-    Frontend -->|Display Results| User
-    
-    style Frontend fill:#f9f,stroke:#333,stroke-width:2px
-    style ComicBackend fill:#bbf,stroke:#333,stroke-width:2px
-    style AudioBackend fill:#bbf,stroke:#333,stroke-width:2px
-    style ElevenLabsSTT fill:#bfb,stroke:#333,stroke-width:2px
-    style ElevenLabsTTS fill:#bfb,stroke:#333,stroke-width:2px
-    style Claude fill:#bfb,stroke:#333,stroke-width:2px
-    style Gemini fill:#bfb,stroke:#333,stroke-width:2px
-    style Gumloop fill:#bfb,stroke:#333,stroke-width:2px
-    style VoiceDB fill:#fbb,stroke:#333,stroke-width:2px
-```
-
 ## Project Structure
 
 ```
